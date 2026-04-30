@@ -1,18 +1,20 @@
 <!--
 ## Sync Impact Report
 
-- **Version change**: 0.0.0 (template) → 1.0.0 (initial ratification)
-- **Modified principles**: N/A (first ratification)
-- **Added sections**:
-  - Core Principles: I through IX (9 principles)
-  - Ubiquitous Language (dedicated section)
-  - Governance (fully defined)
-- **Removed sections**: All template placeholders replaced
+- **Version change**: 1.0.1 → 1.1.0 (MINOR — principles removed and restructured)
+- **Modified principles**:
+  - I. Hexagonal Architecture — absorbed "backend is single source of truth" and "REST API is authoritative interface" from former VI
+  - III. Workflow Discipline — absorbed "execution must be explicit and complete; system-generated data must originate from the system" from former V
+- **Removed sections**:
+  - V. Execution Rules — V1-specific execution details (fields, references, timestamps) moved to spec/plan
+  - VI. API and UI Consistency — V1-specific workflow list and UI layout moved to spec/plan
+- **Renumbered**: VII → V, VIII → VI, IX → VII (now 7 principles total)
 - **Templates requiring updates**:
-  - `.specify/templates/plan-template.md` — ✅ no update needed (Constitution Check section is generic and will be filled at plan time)
-  - `.specify/templates/spec-template.md` — ✅ no update needed (template structure compatible)
-  - `.specify/templates/tasks-template.md` — ✅ no update needed (template structure compatible)
+  - `.specify/templates/plan-template.md` — ✅ no update needed
+  - `.specify/templates/spec-template.md` — ✅ no update needed
+  - `.specify/templates/tasks-template.md` — ✅ no update needed
 - **Follow-up TODOs**: None
+- **Note**: V1 execution details (ExecutedRate, Counterparty, DealingReference, ContractNumber, ExecutionTime) and V1 Trader workflow/UI layout remain defined in plan.md, data-model.md, and contracts/api-v1.md.
 -->
 
 # Money Market Order Processing Constitution
@@ -28,28 +30,25 @@ The application MUST follow strict Hexagonal Architecture (Ports & Adapters).
 - Inbound adapters (REST controllers, CLI handlers, UI components) MUST invoke application use cases only. They MUST NOT contain business logic.
 - Outbound adapters (persistence, messaging, external APIs) MUST implement ports owned by the domain or application core. The core MUST NOT reference adapter implementations.
 - No business rule may reside in controllers, persistence entities, JPA repositories, Angular components, or infrastructure mappers.
+- The backend is the single source of truth for all business rules. A frontend MAY perform user-experience validations (e.g., field format hints) but MUST NOT duplicate or replace backend business rule enforcement.
+- The REST API contract MUST be the authoritative interface between frontend and backend.
 - The system MUST be implemented as a Modular Monolith. Microservice decomposition is explicitly out of scope.
 
-**Rationale**: Hexagonal Architecture enforces a clean separation between business logic and technical infrastructure, making the domain testable in isolation and portable across frameworks. The Modular Monolith constraint avoids premature distributed-system complexity for a learning-focused product.
+**Rationale**: Hexagonal Architecture enforces a clean separation between business logic and technical infrastructure, making the domain testable in isolation and portable across frameworks. Designating the backend as the single enforcement point for business rules prevents divergence between API and UI. The Modular Monolith constraint avoids premature distributed-system complexity for a learning-focused product.
 
 ### II. Domain Integrity
 
 All business rules MUST be enforced within the domain core.
 
-- Only two `OrderType` values are allowed: **Term** and **OnCall**.
-- **Term** orders allow only `OrderAction` = **Subscription**.
-- **OnCall** orders allow only `OrderAction` = **Subscription**, **Increase**, **Decrease**, **Redemption**.
-- Allowed Term tenors are exactly: **1W**, **2W**, **1M**, **3M**, **6M**, **1Y**. Any other value MUST be rejected.
-- Allowed OnCall notice periods are exactly: **24H**, **48H**. Any other value MUST be rejected.
-- A **Subscription** order MUST contain: `PortfolioNumber`, `ExternalOrderReference`, `OrderType`, `Currency`, `Amount`, `ValueDate`, `MinimumRate`, and either `NoticePeriod` (for OnCall) or `Tenor` (for Term).
-- **Increase**, **Decrease**, and **Redemption** MUST reference an existing `ContractNumber`.
-- `DesiredCounterpartyComment` MAY be provided at order reception.
-- `Counterparty` is NOT fixed at order reception in V1; it is assigned by the Trader during execution.
-- `ValueDate` MUST be at least two business days in the future. Orders with a past or same-day `ValueDate` MUST be rejected.
+- The domain MUST validate that every `OrderOperation` is allowed for its `OrderType`. Invalid combinations MUST be rejected at creation time.
+- The domain MUST enforce that allowed values for constrained fields (e.g., `Tenor`, `NoticePeriod`) are drawn from a closed set defined in the domain model. Any value outside the set MUST be rejected.
+- The domain MUST enforce mandatory field requirements per `OrderOperation`. An order MUST NOT be created if required fields are missing or if fields exclusive to another `OrderType` are provided.
+- Lifecycle operations on an existing contract (e.g., Increase, Decrease, Redemption) MUST reference a valid `ContractNumber`.
+- `ValueDate` MUST be validated against a minimum lead-time rule defined by the domain. Orders that violate the lead-time MUST be rejected.
 - Orders are processed all-or-nothing. Partial execution is forbidden.
 - Monetary values and rate values MUST use exact decimal handling appropriate for financial applications (e.g., `BigDecimal` in Java). Floating-point types (`float`, `double`) MUST NOT be used for monetary or rate calculations.
 
-**Rationale**: Encoding every business invariant in the domain core ensures correctness is guaranteed regardless of which adapter or entry point triggers the operation. Financial precision rules prevent rounding errors that could have regulatory or monetary impact.
+**Rationale**: Encoding structural invariants in the domain core ensures correctness regardless of which adapter or entry point triggers the operation. The specific allowed values (which tenors, which notice periods, which operations per type) are defined in the domain model and may evolve across versions, but the principle that the domain validates and rejects invalid combinations is non-negotiable. Financial precision rules prevent rounding errors that could have regulatory or monetary impact.
 
 ### III. Workflow Discipline
 
@@ -69,9 +68,10 @@ The order lifecycle MUST follow an explicit, deterministic state machine.
   - **Assigned** → **Received** (unassign)
   - **Assigned** → **Executed** (execute)
 - Any transition not listed above MUST be rejected by the domain.
+- Execution MUST be an explicit, complete use case. It MUST NOT succeed if any mandatory execution data is missing. System-generated identifiers and timestamps MUST originate from the system, not from client input.
 - The workflow MUST remain simple and deterministic in V1.
 
-**Rationale**: An explicit state machine prevents invalid lifecycle transitions. Restricting cancel/reject to Received and execution to Assigned keeps the V1 workflow simple and auditable.
+**Rationale**: An explicit state machine prevents invalid lifecycle transitions. Requiring execution to be complete and system-timestamped ensures reliable audit trails and prevents clients from fabricating traceability data.
 
 ### IV. Idempotency and Integration Boundaries
 
@@ -83,46 +83,11 @@ The order lifecycle MUST follow an explicit, deterministic state machine.
 
 **Rationale**: Idempotency is critical in an integration context where the upstream Portfolio Management system may retry failed calls. Modeling integration boundaries as ports prepares the system for future connectivity without coupling the domain to external systems.
 
-### V. Execution Rules
-
-In V1, execution means the Trader records the final execution details inside the application after market dealing happened outside the system.
-
-- Executing an order MUST capture `ExecutedRate`. Execution MUST fail if `ExecutedRate` is missing.
-- `ExecutionTime` is the timestamp at which the Trader confirms execution in the application. It MUST be recorded by the system, not supplied by the client.
-- `DealingReference` MUST be generated by the system during execution.
-- `ContractNumber` MUST be generated by the system during execution so that downstream integration with Deposits is possible.
-- `Counterparty` MUST be assigned during execution. Execution MUST fail if `Counterparty` is missing.
-- Execution MUST fail if any mandatory execution data (`ExecutedRate`, `Counterparty`) is missing.
-- Only orders in **Assigned** status MAY be executed.
-
-**Rationale**: Capturing execution data within the application creates a reliable audit trail and generates the identifiers required for downstream processing, even though actual market dealing happens externally.
-
-### VI. API and UI Consistency
-
-The backend is the single source of truth for all business rules.
-
-- The frontend MAY perform user-experience validations (e.g., field format, required-field hints) but MUST NOT duplicate or replace backend business rule enforcement.
-- V1 user experience MUST focus exclusively on the Trader workflow:
-  - Receive external orders (via REST API from Portfolio Management)
-  - List Received Term orders
-  - List Received OnCall orders
-  - Assign an order to a Trader
-  - Unassign an order
-  - List assigned orders
-  - Update an assigned order
-  - Execute an order
-  - Cancel an order
-  - Reject an order
-- Term and OnCall orders MUST be visible in separate operational views.
-- The REST API contract MUST be the authoritative interface between frontend and backend.
-
-**Rationale**: Centralizing business rules in the backend prevents divergence between API and UI validation and ensures a single enforcement point for correctness.
-
-### VII. Testing Discipline
+### V. Testing Discipline
 
 Test-Driven Development (TDD) is mandatory for Domain and Application logic.
 
-- **Domain tests** MUST cover: invariants, allowed combinations of `OrderType` and `OrderAction`, `ValueDate` rules, status transitions, assignment rules, idempotency rules, `ContractNumber` constraints, and monetary precision.
+- **Domain tests** MUST cover: invariants, allowed combinations of `OrderType` and `OrderOperation`, `ValueDate` rules, status transitions, assignment rules, idempotency rules, `ContractNumber` constraints, and monetary precision.
 - **Application tests** MUST cover: use-case orchestration and port interactions (using test doubles for outbound ports).
 - **Adapter tests** MUST cover: REST contract compliance, persistence mappings, and external integration boundary behavior.
 - **End-to-end tests** MUST cover the most valuable Trader workflows (receive → assign → execute).
@@ -131,7 +96,7 @@ Test-Driven Development (TDD) is mandatory for Domain and Application logic.
 
 **Rationale**: TDD ensures that business invariants are codified and regression-proof. Layered test coverage aligns with Hexagonal Architecture boundaries, catching defects at the appropriate level.
 
-### VIII. Auditability and Security
+### VI. Auditability and Security
 
 Important business actions MUST be auditable.
 
@@ -142,7 +107,7 @@ Important business actions MUST be auditable.
 
 **Rationale**: Auditability is a regulatory expectation in banking. Recording actor identity from V1 avoids costly retrofitting and establishes a culture of accountability from the start.
 
-### IX. Simplicity and Learning Focus
+### VII. Simplicity and Learning Focus
 
 This project is intended as a disciplined introduction to Spec-Driven Development.
 
@@ -163,7 +128,7 @@ The project MUST preserve a strict ubiquitous language across backend, frontend,
 |------|-------------|
 | `MoneyMarketOrder` | The central aggregate representing an order |
 | `OrderType` | Discriminator: Term or OnCall |
-| `OrderAction` | The action: Subscription, Increase, Decrease, Redemption |
+| `OrderOperation` | The action: Subscription, Increase, Decrease, Redemption |
 | `TermOrder` | A MoneyMarketOrder with OrderType = Term |
 | `OnCallOrder` | A MoneyMarketOrder with OrderType = OnCall |
 | `Subscription` | New order creation action |
@@ -203,4 +168,4 @@ This constitution is the supreme governance document for the Money Market Order 
   - **PATCH**: Clarifications, wording, typo fixes, non-semantic refinements.
 - **Exception process**: Any exception to a constitutional principle MUST be documented in the relevant artifact with rationale, trade-offs, and risks. Undocumented exceptions are violations.
 
-**Version**: 1.0.0 | **Ratified**: 2026-04-28 | **Last Amended**: 2026-04-28
+**Version**: 1.1.0 | **Ratified**: 2026-04-28 | **Last Amended**: 2026-04-29
