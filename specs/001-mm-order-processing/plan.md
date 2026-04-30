@@ -5,12 +5,12 @@
 
 ## Summary
 
-Build an internal application that receives Money Market orders from an external Portfolio Management system via REST API and supports the Trader operational workflow (assign, update, execute, cancel, reject). The backend uses Spring Boot 4.x with strict Hexagonal Architecture inside a Modular Monolith. The frontend uses Angular 18+ with feature-based standalone components. Market dealing itself happens outside the system; execution means the Trader records the outcome. The application generates `ContractNumber` and `DealingReference` at execution time and models integration with the downstream Deposits system as an outbound port.
+Build an internal application that receives Money Market orders from an external Portfolio Management system via REST API and supports the Trader operational workflow (assign, update, execute, cancel, reject). The backend uses Spring Boot 4.0.5 with strict Hexagonal Architecture inside a Modular Monolith. The frontend uses Angular 21 with feature-based standalone components. Market dealing itself happens outside the system; execution means the Trader records the outcome. The application generates `ContractNumber` and `DealingReference` at execution time and models integration with the downstream Deposits system as an outbound port.
 
 ## Technical Context
 
-**Language/Version**: Java 25  
-**Primary Dependencies**: Spring Boot 4.x (adapters and bootstrap only), Angular 18+ (frontend)  
+**Language/Version**: Java 25 (LTS, GA September 2025)
+**Primary Dependencies**: Spring Boot 4.0.5 (adapters and bootstrap only), Angular 21.2.9 (frontend)  
 **Storage**: PostgreSQL 16 with Flyway migrations  
 **Testing**: JUnit 5, AssertJ, Mockito, Testcontainers (backend); Jasmine/Karma + Cypress (frontend)  
 **Target Platform**: JVM server (Linux/macOS) + modern browser  

@@ -6,9 +6,9 @@
 |------|---------|---------------|
 | Java JDK | 21+ | `java --version` |
 | Maven | 3.9+ | `mvn --version` (or use included `./mvnw`) |
-| Node.js | 20 LTS+ | `node --version` |
+| Node.js | 22 LTS+ | `node --version` |
 | npm | 10+ | `npm --version` |
-| Angular CLI | 18+ | `ng version` |
+| Angular CLI | 21+ | `ng version` |
 | Docker | 24+ | `docker --version` |
 | Docker Compose | 2.20+ | `docker compose version` |
 | PostgreSQL | 16+ | Provided via Docker Compose |
@@ -18,7 +18,7 @@
 ```text
 mmx/
 ├── backend/          ← Spring Boot multi-module Maven project
-├── frontend/         ← Angular 18+ application
+├── frontend/         ← Angular 21 application
 ├── specs/            ← Spec Kit specifications and plans
 ├── .specify/         ← Spec Kit configuration
 ├── docker-compose.yml

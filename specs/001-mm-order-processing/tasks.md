@@ -26,17 +26,17 @@
 
 **Purpose**: Project initialization, Maven multi-module scaffold, Angular scaffold, Docker
 
-- [ ] T001 Create Maven parent POM at backend/pom.xml declaring 6 modules (mmx-domain, mmx-application, mmx-adapter-in-rest, mmx-adapter-out-persistence, mmx-adapter-out-integration, mmx-bootstrap) with Spring Boot 3.x parent, Java 21, and shared dependency management for JUnit 5, AssertJ, Mockito, Testcontainers
-- [ ] T002 [P] Create mmx-domain/pom.xml with zero framework dependencies (only JUnit 5 + AssertJ in test scope)
-- [ ] T003 [P] Create mmx-application/pom.xml depending on mmx-domain only (no Spring)
-- [ ] T004 [P] Create mmx-adapter-in-rest/pom.xml depending on mmx-application + spring-boot-starter-web + spring-boot-starter-validation + springdoc-openapi
-- [ ] T005 [P] Create mmx-adapter-out-persistence/pom.xml depending on mmx-application + spring-boot-starter-data-jpa + postgresql + flyway-core + Testcontainers in test scope
-- [ ] T006 [P] Create mmx-adapter-out-integration/pom.xml depending on mmx-application only
-- [ ] T007 Create mmx-bootstrap module: pom.xml depending on all adapter modules, MmxApplication.java at backend/mmx-bootstrap/src/main/java/com/mmx/order/MmxApplication.java, application.yml and application-test.yml at backend/mmx-bootstrap/src/main/resources/
-- [ ] T008 [P] Create docker-compose.yml at repo root with PostgreSQL 16 service (database: mmx, user: mmx, password: mmx, port 5432)
-- [ ] T009 [P] Initialize Angular 18+ project at frontend/ with standalone components, create proxy.conf.json for /api → localhost:8080
-- [ ] T010 [P] Create Angular core models at frontend/src/app/core/models/: order.model.ts (OrderSummary, OrderDetails interfaces), order-type.enum.ts, order-operation.enum.ts, order-status.enum.ts
-- [ ] T011 [P] Create OrderApiService at frontend/src/app/core/api/order-api.service.ts with typed HTTP methods for all 11 endpoints per contracts/api-v1.md
+- [x] T001 Create Maven parent POM at backend/pom.xml declaring 6 modules (mmx-domain, mmx-application, mmx-adapter-in-rest, mmx-adapter-out-persistence, mmx-adapter-out-integration, mmx-bootstrap) with Spring Boot 4.0.5 parent, Java 25, and shared dependency management for JUnit 5, AssertJ, Mockito, Testcontainers
+- [x] T002 [P] Create mmx-domain/pom.xml with zero framework dependencies (only JUnit 5 + AssertJ in test scope)
+- [x] T003 [P] Create mmx-application/pom.xml depending on mmx-domain only (no Spring)
+- [x] T004 [P] Create mmx-adapter-in-rest/pom.xml depending on mmx-application + spring-boot-starter-web + spring-boot-starter-validation + springdoc-openapi
+- [x] T005 [P] Create mmx-adapter-out-persistence/pom.xml depending on mmx-application + spring-boot-starter-data-jpa + postgresql + flyway-core + Testcontainers in test scope
+- [x] T006 [P] Create mmx-adapter-out-integration/pom.xml depending on mmx-application only
+- [x] T007 Create mmx-bootstrap module: pom.xml depending on all adapter modules, MmxApplication.java at backend/mmx-bootstrap/src/main/java/com/mmx/order/MmxApplication.java, application.yml and application-test.yml at backend/mmx-bootstrap/src/main/resources/
+- [x] T008 [P] Create docker-compose.yml at repo root with PostgreSQL 16 service (database: mmx, user: mmx, password: mmx, port 5432)
+- [x] T009 [P] Initialize Angular 21 project at frontend/ with standalone components, create proxy.conf.json for /api → localhost:8080
+- [x] T010 [P] Create Angular core models at frontend/src/app/core/models/: order.model.ts (OrderSummary, OrderDetails interfaces), order-type.enum.ts, order-operation.enum.ts, order-status.enum.ts
+- [x] T011 [P] Create OrderApiService at frontend/src/app/core/api/order-api.service.ts with typed HTTP methods for all 11 endpoints per contracts/api-v1.md
 
 ---
 
