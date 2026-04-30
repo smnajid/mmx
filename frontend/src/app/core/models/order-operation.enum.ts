@@ -1,0 +1,6 @@
+export enum OrderOperation {
+  SUBSCRIPTION = 'SUBSCRIPTION',
+  INCREASE = 'INCREASE',
+  DECREASE = 'DECREASE',
+  REDEMPTION = 'REDEMPTION',
+}

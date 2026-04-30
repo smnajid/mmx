@@ -1,0 +1,96 @@
+import { OrderType } from './order-type.enum';
+import { OrderOperation } from './order-operation.enum';
+import { OrderStatus } from './order-status.enum';
+
+export interface OrderSummary {
+  orderId: string;
+  externalOrderReference: string;
+  orderType: OrderType;
+  orderOperation: OrderOperation;
+  portfolioNumber: string;
+  currency: string;
+  amount: number;
+  valueDate: string;
+  minimumRate: number;
+  status: OrderStatus;
+  assignedTraderId: string | null;
+  createdAt: string;
+}
+
+export interface OrderDetails {
+  orderId: string;
+  externalOrderReference: string;
+  orderType: OrderType;
+  orderOperation: OrderOperation;
+  portfolioNumber: string;
+  currency: string;
+  amount: number;
+  valueDate: string;
+  minimumRate: number;
+  tenor: string | null;
+  noticePeriod: string | null;
+  sourceContractNumber: string | null;
+  desiredCounterpartyComment: string | null;
+  status: OrderStatus;
+  assignedTraderId: string | null;
+  assignedAt: string | null;
+  executedRate: number | null;
+  counterparty: string | null;
+  executionTime: string | null;
+  dealingReference: string | null;
+  generatedContractNumber: string | null;
+  rejectionReason: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ReceiveOrderRequest {
+  externalOrderReference: string;
+  orderType: OrderType;
+  orderOperation: OrderOperation;
+  portfolioNumber: string;
+  currency: string;
+  amount: number;
+  valueDate: string;
+  minimumRate: number;
+  tenor?: string | null;
+  noticePeriod?: string | null;
+  sourceContractNumber?: string | null;
+  desiredCounterpartyComment?: string | null;
+}
+
+export interface AssignOrderRequest {
+  traderId: string;
+}
+
+export interface UpdateOrderRequest {
+  amount?: number;
+  valueDate?: string;
+  minimumRate?: number;
+  desiredCounterpartyComment?: string | null;
+}
+
+export interface ExecuteOrderRequest {
+  executedRate: number;
+  counterparty: string;
+}
+
+export interface RejectOrderRequest {
+  reason: string;
+}
+
+export interface ReceiveOrderResponse {
+  orderId: string;
+  status: OrderStatus;
+}
+
+export interface ErrorDetail {
+  field: string;
+  message: string;
+}
+
+export interface ApiError {
+  error: string;
+  message: string;
+  details: ErrorDetail[];
+}
