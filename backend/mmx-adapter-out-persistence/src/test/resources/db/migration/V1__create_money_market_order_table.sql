@@ -14,14 +14,14 @@ CREATE TABLE money_market_order (
     desired_counterparty_comment TEXT            NULL,
     status                       VARCHAR(20)     NOT NULL,
     assigned_trader_id           VARCHAR(100)    NULL,
-    assigned_at                  TIMESTAMPTZ     NULL,
+    assigned_at                  TIMESTAMP WITH TIME ZONE NULL,
     executed_rate                DECIMAL(12, 8)  NULL,
     counterparty                 VARCHAR(200)    NULL,
-    execution_time               TIMESTAMPTZ     NULL,
+    execution_time               TIMESTAMP WITH TIME ZONE NULL,
     dealing_reference            VARCHAR(50)     NULL,
     generated_contract_number    VARCHAR(50)     NULL,
     rejection_reason             TEXT            NULL,
-    created_at                   TIMESTAMPTZ     NOT NULL,
-    updated_at                   TIMESTAMPTZ     NOT NULL,
+    created_at                   TIMESTAMP WITH TIME ZONE NOT NULL,
+    updated_at                   TIMESTAMP WITH TIME ZONE NOT NULL,
     CONSTRAINT pk_money_market_order PRIMARY KEY (id)
 );

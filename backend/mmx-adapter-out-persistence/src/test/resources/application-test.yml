@@ -1,7 +1,13 @@
 spring:
+  datasource:
+    url: jdbc:h2:mem:mmx_integration;MODE=PostgreSQL;DATABASE_TO_LOWER=FALSE;CASE_INSENSITIVE_IDENTIFIERS=TRUE
+    username: sa
+    password: ""
+    driver-class-name: org.h2.Driver
   jpa:
     hibernate:
-      ddl-auto: validate
+      # Schema comes from Flyway; avoid validate mismatch (JSONB columnDefinition vs H2) on entities
+      ddl-auto: none
     show-sql: false
   flyway:
     enabled: true
