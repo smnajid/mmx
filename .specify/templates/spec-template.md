@@ -85,7 +85,7 @@
 ### Functional Requirements
 
 <!--
-  When the feature includes REST/HTTP APIs: requirements MUST align with the canonical OpenAPI 3 document in `contracts/` (see `.specify/memory/constitution.md`, Principle I — contract-first OpenAPI). Update the OpenAPI spec before locking acceptance criteria that depend on paths, parameters, or payloads.
+  When the feature includes REST/HTTP APIs: requirements MUST align with the canonical OpenAPI 3 document in `contracts/` (see `.specify/memory/constitution.md`, Principle I — contract-first OpenAPI). Backend controllers MUST implement the generated OpenAPI server API interfaces (`*Api`). Update the OpenAPI spec before locking acceptance criteria that depend on paths, parameters, or payloads.
 -->
 
 - **FR-001**: System MUST [specific capability, e.g., "allow users to create accounts"]

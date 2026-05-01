@@ -3,7 +3,7 @@
 **Input**: Design documents from `/specs/001-mm-order-processing/`
 **Prerequisites**: plan.md (required), spec.md (required), research.md, data-model.md, contracts/
 
-**Constitution**: Principle I requires **contract-first OpenAPI 3** (`specs/.../contracts/openapi.yaml`) and **generated** REST artifacts; prose `contracts/api-v1.md` is not sufficient alone (see plan Constitution Check **CF**).
+**Constitution**: Principle I requires **contract-first OpenAPI 3** (`specs/.../contracts/openapi.yaml`), **generated** REST models and API interfaces, and **controllers that implement** those interfaces; prose `contracts/api-v1.md` is not sufficient alone (see plan Constitution Check **CF**).
 
 **Tests**: TDD is mandatory per Constitution Principle V. Domain and application tests are written before production code.
 
@@ -21,7 +21,7 @@
 - **Backend tests**: `backend/mmx-{module}/src/test/java/com/mmx/order/...`
 - **Frontend**: `frontend/src/app/...`
 - **Migrations**: `backend/mmx-bootstrap/src/main/resources/db/migration/`
-- **OpenAPI (canonical HTTP contract)**: `specs/001-mm-order-processing/contracts/openapi.yaml` — generate REST DTOs/interfaces into `mmx-adapter-in-rest` per plan §6 and constitution v1.3.0
+- **OpenAPI (canonical HTTP contract)**: `specs/001-mm-order-processing/contracts/openapi.yaml` — generate REST models (`generated.model`), Spring API interfaces (`generated.api`), and compile sources under `mmx-adapter-in-rest` per plan §6 and constitution v1.4.0; do **not** add hand-written duplicate request/response classes when codegen provides them (extend generated types only with documented exceptions).
 
 ---
 
@@ -100,9 +100,9 @@
 
 ## Phase 2.5: Contract-first OpenAPI (Constitution & plan §6 — CF gate)
 
-**Purpose**: Machine-readable OpenAPI 3 spec and codegen **before** expanding hand-written REST DTOs/controllers; closes Constitution/plan **CF** gap
+**Purpose**: Machine-readable OpenAPI 3 spec and codegen **before** REST controllers; closes Constitution/plan **CF** gap (prefer generated models and `*Api` interfaces over redundant adapter-local DTO duplicates).
 
-**Independent check**: `openapi.yaml` validates; `mvn generate-sources` (or equivalent) produces Java types; runtime controllers/DTOs do not diverge from spec
+**Independent check**: `openapi.yaml` validates; `mvn generate-sources` (or equivalent) produces Java models and API interfaces; controllers implement generated contracts and do not diverge from spec
 
 - [x] T098 [P] Create canonical OpenAPI 3.0 document at specs/001-mm-order-processing/contracts/openapi.yaml covering paths, operations, components/schemas, and errors aligned with contracts/api-v1.md and plan §6 (single source for codegen)
 - [X] T099 Add openapi-generator-maven-plugin (or equivalent) to backend/mmx-adapter-in-rest/pom.xml generating Java API models (and optional Spring interfaces) into target/generated-sources/openapi under package agreed in plan (e.g. `com.mmx.order.adapter.in.rest.generated`)
@@ -135,8 +135,8 @@
 
 ### REST Endpoints
 
-- [X] T047 [US1] Create ReceiveOrderRequest DTO with Bean Validation at backend/mmx-adapter-in-rest/src/main/java/com/mmx/order/adapter/in/rest/dto/ReceiveOrderRequest.java (prefer types generated from contracts/openapi.yaml per T098–T100; extend/wrap generated models only when Bean Validation requires it)
-- [ ] T048 [US1] Create OrderIntakeController (POST /api/v1/orders) at backend/mmx-adapter-in-rest/src/main/java/com/mmx/order/adapter/in/rest/OrderIntakeController.java returning 201 for new, 200 for idempotent duplicate
+- [X] T047 [US1] Use OpenAPI-generated `ReceiveOrderRequest` and Bean Validation from codegen (`useBeanValidation` in `mmx-adapter-in-rest`); **no** hand-written `dto/ReceiveOrderRequest` — intake implements `IntakeApi` with generated model types per constitution
+- [X] T048 [US1] Create OrderIntakeController (POST /api/v1/orders) at backend/mmx-adapter-in-rest/src/main/java/com/mmx/order/adapter/in/rest/OrderIntakeController.java returning 201 for new, 200 for idempotent duplicate
 - [ ] T049 [US1] Create OrderManagementController with GET /api/v1/orders/term/received, GET /api/v1/orders/oncall/received, GET /api/v1/orders/{orderId} at backend/mmx-adapter-in-rest/src/main/java/com/mmx/order/adapter/in/rest/OrderManagementController.java
 - [ ] T050 [US1] Write REST API tests for intake and list endpoints at backend/mmx-adapter-in-rest/src/test/java/com/mmx/order/adapter/in/rest/OrderIntakeControllerTest.java: 201 for new order, 200 for duplicate, 400 for invalid payload, correct Term/OnCall list filtering
 
@@ -200,7 +200,7 @@
 
 ### REST Endpoint
 
-- [ ] T068 [US3] Create ExecuteOrderRequest DTO with Bean Validation at backend/mmx-adapter-in-rest/src/main/java/com/mmx/order/adapter/in/rest/dto/ExecuteOrderRequest.java
+- [ ] T068 [US3] Map execute endpoint to generated `ExecuteOrderRequest` / `OrdersApi` (OpenAPI models + Spring interface from codegen); add mapper/`OrderManagementController` implementation — **no** duplicate `dto/ExecuteOrderRequest.java` unless a documented codegen gap
 - [ ] T069 [US3] Add POST /api/v1/orders/{orderId}/execute endpoint to OrderManagementController
 - [ ] T070 [US3] Write REST API tests for execute endpoint at backend/mmx-adapter-in-rest/src/test/java/com/mmx/order/adapter/in/rest/OrderExecutionControllerTest.java: 200 success with generated fields in response, 400 missing fields, 403 wrong Trader, 409 wrong status
 
@@ -232,7 +232,7 @@
 
 ### REST Endpoints
 
-- [ ] T078 [US4] Create RejectOrderRequest DTO with mandatory reason field at backend/mmx-adapter-in-rest/src/main/java/com/mmx/order/adapter/in/rest/dto/RejectOrderRequest.java
+- [ ] T078 [US4] Use generated `RejectOrderRequest` from OpenAPI for POST reject body (mandatory reason in spec/codegen); wire via `OrdersApi` — **no** hand-written `dto/RejectOrderRequest.java` unless documented exception
 - [ ] T079 [US4] Add POST /api/v1/orders/{orderId}/cancel and POST /api/v1/orders/{orderId}/reject endpoints to OrderManagementController
 - [ ] T080 [US4] Write REST API tests for cancel and reject endpoints at backend/mmx-adapter-in-rest/src/test/java/com/mmx/order/adapter/in/rest/OrderLifecycleControllerTest.java: 200 cancel success, 200 reject success with reason, 409 wrong status, reject without reason → 400
 
@@ -262,7 +262,7 @@
 
 ### REST Endpoint
 
-- [ ] T086 [US5] Create UpdateOrderRequest DTO at backend/mmx-adapter-in-rest/src/main/java/com/mmx/order/adapter/in/rest/dto/UpdateOrderRequest.java (all fields optional)
+- [ ] T086 [US5] Use generated `UpdateOrderRequest` from OpenAPI (optional fields per spec); implement under `OrdersApi` — **no** hand-written `dto/UpdateOrderRequest.java` unless documented exception
 - [ ] T087 [US5] Add PUT /api/v1/orders/{orderId} endpoint to OrderManagementController
 - [ ] T088 [US5] Write REST API tests for update endpoint at backend/mmx-adapter-in-rest/src/test/java/com/mmx/order/adapter/in/rest/OrderUpdateControllerTest.java: 200 success, 400 invalid values, 403 wrong Trader, 409 wrong status
 

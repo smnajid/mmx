@@ -74,7 +74,7 @@ The HTTP contract is defined **contract-first** in [`contracts/openapi.yaml`](co
 
 [`contracts/api-v1.md`](contracts/api-v1.md) is the prose companion: keep it aligned when you change behavior, field meanings, or examples so reviewers and integrators can follow the API without reading YAML only.
 
-The `mmx-adapter-in-rest` module uses the **OpenAPI Generator** Maven plugin to emit Java model classes (package `com.mmx.order.adapter.in.rest.generated.model`) into `backend/mmx-adapter-in-rest/target/generated-sources/openapi/`. Generated sources are **not** checked into Git; they are produced during `generate-sources` / compile.
+The `mmx-adapter-in-rest` module uses the **OpenAPI Generator** Maven plugin twice: **Java** models (package `com.mmx.order.adapter.in.rest.generated.model`) under `target/generated-sources/openapi/`, and **Spring API interfaces** (`com.mmx.order.adapter.in.rest.generated.api`, e.g. `IntakeApi`, `OrdersApi`) under `target/generated-sources/openapi-spring/`. Controllers **implement** those interfaces; hand-written duplicate request/response types under `dto/` are **not** used when generated types suffice. Generated sources are **not** checked into Git; they are produced during `generate-sources` / compile.
 
 **Workflow when you change the API**
 
@@ -87,7 +87,7 @@ The `mmx-adapter-in-rest` module uses the **OpenAPI Generator** Maven plugin to 
    ./mvnw compile -pl mmx-adapter-in-rest
    ```
 
-3. Fix compilation and mapping code: update `OrderRestMapper`, `GlobalExceptionHandler`, and controllers/DTOs if enum names, required fields, or types changed.
+3. Fix compilation and mapping code: update `OrderRestMapper`, `GlobalExceptionHandler`, and controller implementations of generated `*Api` interfaces if enum names, required fields, or types changed.
 4. Run tests for affected modules (for example `./mvnw verify -pl mmx-adapter-in-rest,mmx-bootstrap -am`).
 
 A normal `./mvnw install` or `compile` from `backend/` runs generation automatically for `mmx-adapter-in-rest`, so you only need the explicit `generate-sources` step when iterating on the YAML alone.

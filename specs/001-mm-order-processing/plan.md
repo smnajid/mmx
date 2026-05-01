@@ -160,21 +160,13 @@ backend/
 ├── mmx-adapter-in-rest/
 │   ├── pom.xml                                    ← depends on mmx-application + Spring Web
 │   └── src/main/java/com/mmx/order/adapter/in/rest/
-│       ├── OrderIntakeController.java             ← POST /api/v1/orders (Portfolio Management)
-│       ├── OrderManagementController.java         ← all Trader-facing endpoints
-│       ├── dto/
-│       │   ├── ReceiveOrderRequest.java
-│       │   ├── AssignOrderRequest.java
-│       │   ├── UpdateOrderRequest.java
-│       │   ├── ExecuteOrderRequest.java
-│       │   ├── RejectOrderRequest.java
-│       │   ├── OrderSummaryResponse.java
-│       │   ├── OrderDetailsResponse.java
-│       │   └── ErrorResponse.java
+│       ├── OrderIntakeController.java             ← POST /api/v1/orders; implements generated IntakeApi
+│       ├── OrderManagementController.java         ← Trader-facing endpoints; implements generated OrdersApi
+│       ├── generated/                             ← OpenAPI codegen output (not in repo): model + *Api under target/
 │       ├── mapper/
 │       │   └── OrderRestMapper.java
 │       └── validation/
-│           └── (Bean Validation constraints on DTOs only)
+│           └── (Bean Validation from OpenAPI/codegen on generated models; adapter-specific constraints only if documented)
 │
 ├── mmx-adapter-out-persistence/
 │   ├── pom.xml                                    ← depends on mmx-application + Spring Data JPA
@@ -219,7 +211,7 @@ backend/
 | Application service | `{Concern}Service.java` in `service/`              | `ExecuteOrderService.java`              |
 | Command object      | `{Action}Command.java` in `command/`               | `ExecuteOrderCommand.java`              |
 | REST controller     | `{Concern}Controller.java`                         | `OrderManagementController.java`        |
-| DTO                 | `{Action}Request.java` / `{Name}Response.java`     | `ReceiveOrderRequest.java`              |
+| REST wire types     | Generated from OpenAPI into `adapter.in.rest.generated.model` / `generated.api` | `ReceiveOrderRequest` (generated), `IntakeApi` |
 | JPA entity          | `{Name}Entity.java`                                | `OrderEntity.java`                      |
 | Persistence adapter | `Jpa{Name}.java`                                   | `JpaOrderRepository.java`               |
 | Integration adapter | `{Implementation}{Port}.java`                      | `UuidReferenceGenerator.java`           |
@@ -229,7 +221,7 @@ backend/
 
 1. **Domain layer** (`mmx-domain`): Contains the `MoneyMarketOrder` aggregate root, value objects (implemented as Java `record` types per constitution), enums, and domain exceptions. This module has **zero dependencies** on any framework. It is pure Java. All business invariants (OrderType/OrderOperation validation, status transitions, ValueDate rules, decimal precision) live here.
 2. **Application layer** (`mmx-application`): Defines inbound ports (use case interfaces) and outbound ports (repository, reference generator, audit logger, clock). Application services implement inbound ports by orchestrating domain logic and calling outbound ports. This module depends only on `mmx-domain`. It has **no Spring annotations**.
-3. **Inbound adapters** (`mmx-adapter-in-rest`): REST controllers that receive HTTP requests, validate input format (Bean Validation), map DTOs to commands, and invoke use cases. They do not contain business logic. Spring Web is used here.
+3. **Inbound adapters** (`mmx-adapter-in-rest`): REST controllers that implement OpenAPI-generated `*Api` interfaces, validate input (Bean Validation on generated models), map generated request types to commands, and invoke use cases. They do not contain business logic. Spring Web is used here.
 4. **Outbound adapters** (`mmx-adapter-out-persistence`, `mmx-adapter-out-integration`): Implement the outbound ports defined by the application layer. JPA entities, Spring Data repositories, and mapper classes live here. The domain never sees these implementations.
 5. **Bootstrap** (`mmx-bootstrap`): The Spring Boot entry point that wires everything together via `@Configuration` classes. This is the only module that knows about all other modules.
 
