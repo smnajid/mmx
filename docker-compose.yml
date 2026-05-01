@@ -1,6 +1,10 @@
+name: mmx
+
 services:
   postgres:
     image: postgres:16-alpine
+    # Avoid a slow registry/metadata check on every `docker compose up` when the image exists locally.
+    pull_policy: missing
     container_name: mmx-postgres
     environment:
       POSTGRES_DB: mmx

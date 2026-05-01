@@ -103,15 +103,15 @@
 
 ### Inbound Ports
 
-- [ ] T039 [P] [US1] Create ReceiveOrderUseCase interface at backend/mmx-application/src/main/java/com/mmx/order/application/port/in/ReceiveOrderUseCase.java
-- [ ] T040 [P] [US1] Create ListReceivedTermOrdersUseCase interface at backend/mmx-application/src/main/java/com/mmx/order/application/port/in/ListReceivedTermOrdersUseCase.java
-- [ ] T041 [P] [US1] Create ListReceivedOnCallOrdersUseCase interface at backend/mmx-application/src/main/java/com/mmx/order/application/port/in/ListReceivedOnCallOrdersUseCase.java
-- [ ] T042 [P] [US1] Create GetOrderDetailsUseCase interface at backend/mmx-application/src/main/java/com/mmx/order/application/port/in/GetOrderDetailsUseCase.java
+- [x] T039 [P] [US1] Create ReceiveOrderUseCase interface at backend/mmx-application/src/main/java/com/mmx/order/application/port/in/ReceiveOrderUseCase.java
+- [x] T040 [P] [US1] Create ListReceivedTermOrdersUseCase interface at backend/mmx-application/src/main/java/com/mmx/order/application/port/in/ListReceivedTermOrdersUseCase.java
+- [x] T041 [P] [US1] Create ListReceivedOnCallOrdersUseCase interface at backend/mmx-application/src/main/java/com/mmx/order/application/port/in/ListReceivedOnCallOrdersUseCase.java
+- [x] T042 [P] [US1] Create GetOrderDetailsUseCase interface at backend/mmx-application/src/main/java/com/mmx/order/application/port/in/GetOrderDetailsUseCase.java
 
 ### Application Services (TDD)
 
-- [ ] T043 [US1] Write application tests for ReceiveOrderService at backend/mmx-application/src/test/java/com/mmx/order/application/service/ReceiveOrderServiceTest.java: new order persisted, audit logged, idempotent duplicate returns existing order without modification, validation delegated to domain
-- [ ] T044 [US1] Create ReceiveOrderService implementing ReceiveOrderUseCase at backend/mmx-application/src/main/java/com/mmx/order/application/service/ReceiveOrderService.java
+- [x] T043 [US1] Write application tests for ReceiveOrderService at backend/mmx-application/src/test/java/com/mmx/order/application/service/ReceiveOrderServiceTest.java: new order persisted, audit logged, idempotent duplicate returns existing order without modification, validation delegated to domain
+- [x] T044 [US1] Create ReceiveOrderService implementing ReceiveOrderUseCase at backend/mmx-application/src/main/java/com/mmx/order/application/service/ReceiveOrderService.java
 - [ ] T045 [US1] Write application tests for OrderQueryService (list Term, list OnCall, get details) at backend/mmx-application/src/test/java/com/mmx/order/application/service/OrderQueryServiceTest.java
 - [ ] T046 [US1] Create OrderQueryService implementing List* and GetOrderDetails use cases at backend/mmx-application/src/main/java/com/mmx/order/application/service/OrderQueryService.java
 
@@ -141,9 +141,9 @@
 
 ### Inbound Ports
 
-- [ ] T055 [P] [US2] Create AssignOrderUseCase interface at backend/mmx-application/src/main/java/com/mmx/order/application/port/in/AssignOrderUseCase.java
-- [ ] T056 [P] [US2] Create UnassignOrderUseCase interface at backend/mmx-application/src/main/java/com/mmx/order/application/port/in/UnassignOrderUseCase.java
-- [ ] T057 [P] [US2] Create ListAssignedOrdersUseCase interface at backend/mmx-application/src/main/java/com/mmx/order/application/port/in/ListAssignedOrdersUseCase.java
+- [x] T055 [P] [US2] Create AssignOrderUseCase interface at backend/mmx-application/src/main/java/com/mmx/order/application/port/in/AssignOrderUseCase.java
+- [x] T056 [P] [US2] Create UnassignOrderUseCase interface at backend/mmx-application/src/main/java/com/mmx/order/application/port/in/UnassignOrderUseCase.java
+- [x] T057 [P] [US2] Create ListAssignedOrdersUseCase interface at backend/mmx-application/src/main/java/com/mmx/order/application/port/in/ListAssignedOrdersUseCase.java
 
 ### Application Services (TDD)
 
@@ -173,7 +173,7 @@
 
 ### Inbound Port
 
-- [ ] T065 [US3] Create ExecuteOrderUseCase interface at backend/mmx-application/src/main/java/com/mmx/order/application/port/in/ExecuteOrderUseCase.java
+- [x] T065 [US3] Create ExecuteOrderUseCase interface at backend/mmx-application/src/main/java/com/mmx/order/application/port/in/ExecuteOrderUseCase.java
 
 ### Application Service (TDD)
 
@@ -204,8 +204,8 @@
 
 ### Inbound Ports
 
-- [ ] T074 [P] [US4] Create CancelOrderUseCase interface at backend/mmx-application/src/main/java/com/mmx/order/application/port/in/CancelOrderUseCase.java
-- [ ] T075 [P] [US4] Create RejectOrderUseCase interface at backend/mmx-application/src/main/java/com/mmx/order/application/port/in/RejectOrderUseCase.java
+- [x] T074 [P] [US4] Create CancelOrderUseCase interface at backend/mmx-application/src/main/java/com/mmx/order/application/port/in/CancelOrderUseCase.java
+- [x] T075 [P] [US4] Create RejectOrderUseCase interface at backend/mmx-application/src/main/java/com/mmx/order/application/port/in/RejectOrderUseCase.java
 
 ### Application Service (TDD)
 
@@ -235,7 +235,7 @@
 
 ### Inbound Port
 
-- [ ] T083 [US5] Create UpdateAssignedOrderUseCase interface at backend/mmx-application/src/main/java/com/mmx/order/application/port/in/UpdateAssignedOrderUseCase.java
+- [x] T083 [US5] Create UpdateAssignedOrderUseCase interface at backend/mmx-application/src/main/java/com/mmx/order/application/port/in/UpdateAssignedOrderUseCase.java
 
 ### Application Service (TDD)
 
