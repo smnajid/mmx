@@ -1,5 +1,7 @@
 # REST API Contract: Money Market Order Processing V1
 
+**Canonical OpenAPI 3 spec (contract-first, codegen)**: [openapi.yaml](./openapi.yaml)
+
 **Base URL**: `/api/v1`
 **Content-Type**: `application/json`
 **Trader Identity**: `X-Trader-Id` request header (required for Trader-facing endpoints)

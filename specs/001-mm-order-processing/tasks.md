@@ -3,6 +3,8 @@
 **Input**: Design documents from `/specs/001-mm-order-processing/`
 **Prerequisites**: plan.md (required), spec.md (required), research.md, data-model.md, contracts/
 
+**Constitution**: Principle I requires **contract-first OpenAPI 3** (`specs/.../contracts/openapi.yaml`) and **generated** REST artifacts; prose `contracts/api-v1.md` is not sufficient alone (see plan Constitution Check **CF**).
+
 **Tests**: TDD is mandatory per Constitution Principle V. Domain and application tests are written before production code.
 
 **Organization**: Tasks are grouped by user story to enable independent implementation and testing of each story.
@@ -19,6 +21,7 @@
 - **Backend tests**: `backend/mmx-{module}/src/test/java/com/mmx/order/...`
 - **Frontend**: `frontend/src/app/...`
 - **Migrations**: `backend/mmx-bootstrap/src/main/resources/db/migration/`
+- **OpenAPI (canonical HTTP contract)**: `specs/001-mm-order-processing/contracts/openapi.yaml` — generate REST DTOs/interfaces into `mmx-adapter-in-rest` per plan §6 and constitution v1.3.0
 
 ---
 
@@ -95,6 +98,21 @@
 
 ---
 
+## Phase 2.5: Contract-first OpenAPI (Constitution & plan §6 — CF gate)
+
+**Purpose**: Machine-readable OpenAPI 3 spec and codegen **before** expanding hand-written REST DTOs/controllers; closes Constitution/plan **CF** gap
+
+**Independent check**: `openapi.yaml` validates; `mvn generate-sources` (or equivalent) produces Java types; runtime controllers/DTOs do not diverge from spec
+
+- [x] T098 [P] Create canonical OpenAPI 3.0 document at specs/001-mm-order-processing/contracts/openapi.yaml covering paths, operations, components/schemas, and errors aligned with contracts/api-v1.md and plan §6 (single source for codegen)
+- [ ] T099 Add openapi-generator-maven-plugin (or equivalent) to backend/mmx-adapter-in-rest/pom.xml generating Java API models (and optional Spring interfaces) into target/generated-sources/openapi under package agreed in plan (e.g. `com.mmx.order.adapter.in.rest.generated`)
+- [ ] T100 Wire generated sources into the Maven compile lifecycle for mmx-adapter-in-rest; replace hand-written OrderSummaryResponse, OrderDetailsResponse, ErrorResponse usage in OrderRestMapper and GlobalExceptionHandler with generated equivalents (or thin adapters) so shared REST layer conforms to openapi.yaml
+- [ ] T101 [P] Document OpenAPI maintenance workflow in specs/001-mm-order-processing/quickstart.md (edit YAML → regenerate → align controllers) and note relationship to contracts/api-v1.md
+
+**Checkpoint**: Contract-first pipeline works — generated artifacts compile; remaining REST tasks (T047+) implement controllers against generated contract
+
+---
+
 ## Phase 3: User Story 1 — Receive and List Orders (Priority: P1) 🎯 MVP
 
 **Goal**: Orders from Portfolio Management are received via REST and appear in separate Term/OnCall lists
@@ -117,7 +135,7 @@
 
 ### REST Endpoints
 
-- [ ] T047 [US1] Create ReceiveOrderRequest DTO with Bean Validation at backend/mmx-adapter-in-rest/src/main/java/com/mmx/order/adapter/in/rest/dto/ReceiveOrderRequest.java
+- [ ] T047 [US1] Create ReceiveOrderRequest DTO with Bean Validation at backend/mmx-adapter-in-rest/src/main/java/com/mmx/order/adapter/in/rest/dto/ReceiveOrderRequest.java (prefer types generated from contracts/openapi.yaml per T098–T100; extend/wrap generated models only when Bean Validation requires it)
 - [ ] T048 [US1] Create OrderIntakeController (POST /api/v1/orders) at backend/mmx-adapter-in-rest/src/main/java/com/mmx/order/adapter/in/rest/OrderIntakeController.java returning 201 for new, 200 for idempotent duplicate
 - [ ] T049 [US1] Create OrderManagementController with GET /api/v1/orders/term/received, GET /api/v1/orders/oncall/received, GET /api/v1/orders/{orderId} at backend/mmx-adapter-in-rest/src/main/java/com/mmx/order/adapter/in/rest/OrderManagementController.java
 - [ ] T050 [US1] Write REST API tests for intake and list endpoints at backend/mmx-adapter-in-rest/src/test/java/com/mmx/order/adapter/in/rest/OrderIntakeControllerTest.java: 201 for new order, 200 for duplicate, 400 for invalid payload, correct Term/OnCall list filtering
@@ -263,7 +281,7 @@
 - [ ] T090 Write end-to-end test: full Trader workflow (receive → list → assign → execute → verify) at backend/mmx-bootstrap/src/test/java/com/mmx/order/e2e/TraderWorkflowE2ETest.java using Testcontainers
 - [ ] T091 [P] Write end-to-end test: cancel flow (receive → cancel → verify terminal) at backend/mmx-bootstrap/src/test/java/com/mmx/order/e2e/CancelFlowE2ETest.java
 - [ ] T092 [P] Write end-to-end test: idempotent receive (POST same ExternalOrderReference twice → 201 then 200, same orderId) at backend/mmx-bootstrap/src/test/java/com/mmx/order/e2e/IdempotentReceiveE2ETest.java
-- [ ] T093 [P] Configure springdoc-openapi for Swagger UI at /swagger-ui.html in mmx-bootstrap
+- [ ] T093 [P] Configure springdoc-openapi in mmx-bootstrap to expose Swagger UI (e.g. /swagger-ui.html) using the canonical OpenAPI document from specs/001-mm-order-processing/contracts/openapi.yaml (resource/MBean config) so docs match codegen source
 - [ ] T094 [P] Write Angular component tests for TermOrderListComponent, OnCallOrderListComponent, and AssignedOrderListComponent using HttpClientTestingModule
 - [ ] T095 [P] Write Angular component tests for OrderDetailsComponent: correct action buttons shown per status
 - [ ] T096 Configure Cypress and write e2e test for full Trader workflow (receive → assign → execute) at frontend/cypress/e2e/trader-workflow.cy.ts
@@ -277,7 +295,8 @@
 
 - **Setup (Phase 1)**: No dependencies — can start immediately
 - **Foundational (Phase 2)**: Depends on Setup completion — BLOCKS all user stories
-- **User Stories (Phase 3–7)**: All depend on Foundational phase completion
+- **Contract-first OpenAPI (Phase 2.5)**: Depends on Phase 2 — **strongly recommended before** US1 REST endpoint tasks **T047–T050** (and ideally before other REST DTO/controller tasks) so new code uses generated contract types; application-layer tasks **T043–T046** do not require Phase 2.5
+- **User Stories (Phase 3–7)**: Depend on Foundational completion; REST adapter work should align with **T098–T100** once executed
   - User stories can proceed in priority order (P1 → P2 → P3 → P4 → P5)
   - US4 and US5 can run in parallel after US2 is complete (both need assignment but don't depend on each other)
 - **Polish (Phase 8)**: Depends on all user stories being complete
@@ -304,6 +323,7 @@
 Phase 1: T002–T006 in parallel (module POMs), T008–T011 in parallel (Docker, Angular, models)
 Phase 2: T012–T016 in parallel (enums, VOs, exceptions), T021–T022 in parallel (ports, commands),
          T023–T027 in parallel (migrations, entities, Spring Data repos), T032–T034 in parallel (adapters)
+Phase 2.5: T098, T101 in parallel (openapi.yaml authoring vs docs quickstart); T099→T100 sequential (plugin then migrate DTOs)
 US1:     T039–T042 in parallel (ports), T051–T053 in parallel (frontend features)
 US2:     T055–T057 in parallel (ports), T062 parallel with backend work
 US4/US5: Can run entirely in parallel with US3
@@ -317,19 +337,21 @@ US4/US5: Can run entirely in parallel with US3
 
 1. Complete Phase 1: Setup
 2. Complete Phase 2: Foundational (CRITICAL — blocks all stories)
-3. Complete Phase 3: User Story 1
-4. **STOP and VALIDATE**: Receive orders via curl, verify in Term/OnCall lists
-5. Deploy/demo if ready
+3. Complete Phase 2.5: Contract-first OpenAPI **before** US1 REST controllers (T047+) for constitutional compliance; may overlap with application services already done
+4. Complete Phase 3: User Story 1
+5. **STOP and VALIDATE**: Receive orders via curl, verify in Term/OnCall lists
+6. Deploy/demo if ready
 
 ### Incremental Delivery
 
 1. Setup + Foundational → Foundation ready
-2. Add US1 → Test independently → Deploy/Demo (MVP!)
-3. Add US2 → Assign/unassign works → Deploy/Demo
-4. Add US3 → Full execute flow → Deploy/Demo
-5. Add US4 → Cancel/reject → Deploy/Demo
-6. Add US5 → Update → Deploy/Demo
-7. Polish → E2E tests pass, Swagger live → Final delivery
+2. Add Phase 2.5 OpenAPI + codegen → Align REST layer with constitution
+3. Add US1 → Test independently → Deploy/Demo (MVP!)
+4. Add US2 → Assign/unassign works → Deploy/Demo
+5. Add US3 → Full execute flow → Deploy/Demo
+6. Add US4 → Cancel/reject → Deploy/Demo
+7. Add US5 → Update → Deploy/Demo
+8. Polish → E2E tests pass, Swagger live → Final delivery
 
 ---
 
