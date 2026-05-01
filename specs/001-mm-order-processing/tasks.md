@@ -105,9 +105,9 @@
 **Independent check**: `openapi.yaml` validates; `mvn generate-sources` (or equivalent) produces Java types; runtime controllers/DTOs do not diverge from spec
 
 - [x] T098 [P] Create canonical OpenAPI 3.0 document at specs/001-mm-order-processing/contracts/openapi.yaml covering paths, operations, components/schemas, and errors aligned with contracts/api-v1.md and plan §6 (single source for codegen)
-- [ ] T099 Add openapi-generator-maven-plugin (or equivalent) to backend/mmx-adapter-in-rest/pom.xml generating Java API models (and optional Spring interfaces) into target/generated-sources/openapi under package agreed in plan (e.g. `com.mmx.order.adapter.in.rest.generated`)
-- [ ] T100 Wire generated sources into the Maven compile lifecycle for mmx-adapter-in-rest; replace hand-written OrderSummaryResponse, OrderDetailsResponse, ErrorResponse usage in OrderRestMapper and GlobalExceptionHandler with generated equivalents (or thin adapters) so shared REST layer conforms to openapi.yaml
-- [ ] T101 [P] Document OpenAPI maintenance workflow in specs/001-mm-order-processing/quickstart.md (edit YAML → regenerate → align controllers) and note relationship to contracts/api-v1.md
+- [X] T099 Add openapi-generator-maven-plugin (or equivalent) to backend/mmx-adapter-in-rest/pom.xml generating Java API models (and optional Spring interfaces) into target/generated-sources/openapi under package agreed in plan (e.g. `com.mmx.order.adapter.in.rest.generated`)
+- [X] T100 Wire generated sources into the Maven compile lifecycle for mmx-adapter-in-rest; replace hand-written OrderSummaryResponse, OrderDetailsResponse, ErrorResponse usage in OrderRestMapper and GlobalExceptionHandler with generated equivalents (or thin adapters) so shared REST layer conforms to openapi.yaml
+- [X] T101 [P] Document OpenAPI maintenance workflow in specs/001-mm-order-processing/quickstart.md (edit YAML → regenerate → align controllers) and note relationship to contracts/api-v1.md
 
 **Checkpoint**: Contract-first pipeline works — generated artifacts compile; remaining REST tasks (T047+) implement controllers against generated contract
 

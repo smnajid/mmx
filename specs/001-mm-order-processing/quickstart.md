@@ -68,6 +68,30 @@ Expected: `{"status":"UP"}`
 
 Open `http://localhost:8080/swagger-ui.html` in a browser to explore the API interactively.
 
+### OpenAPI contract maintenance (REST models)
+
+The HTTP contract is defined **contract-first** in [`contracts/openapi.yaml`](contracts/openapi.yaml). That file is the source of truth for request/response shapes, enums, and error payloads on the wire.
+
+[`contracts/api-v1.md`](contracts/api-v1.md) is the prose companion: keep it aligned when you change behavior, field meanings, or examples so reviewers and integrators can follow the API without reading YAML only.
+
+The `mmx-adapter-in-rest` module uses the **OpenAPI Generator** Maven plugin to emit Java model classes (package `com.mmx.order.adapter.in.rest.generated.model`) into `backend/mmx-adapter-in-rest/target/generated-sources/openapi/`. Generated sources are **not** checked into Git; they are produced during `generate-sources` / compile.
+
+**Workflow when you change the API**
+
+1. Edit `openapi.yaml` (and update `api-v1.md` where it documents the same surface).
+2. Regenerate models and compile the REST adapter:
+
+   ```bash
+   cd backend
+   ./mvnw generate-sources -pl mmx-adapter-in-rest
+   ./mvnw compile -pl mmx-adapter-in-rest
+   ```
+
+3. Fix compilation and mapping code: update `OrderRestMapper`, `GlobalExceptionHandler`, and controllers/DTOs if enum names, required fields, or types changed.
+4. Run tests for affected modules (for example `./mvnw verify -pl mmx-adapter-in-rest,mmx-bootstrap -am`).
+
+A normal `./mvnw install` or `compile` from `backend/` runs generation automatically for `mmx-adapter-in-rest`, so you only need the explicit `generate-sources` step when iterating on the YAML alone.
+
 ## 3. Build and Run the Frontend
 
 From the repository root:
