@@ -11,6 +11,7 @@ Build an internal application that receives Money Market orders from an external
 
 **Language/Version**: Java 25 (LTS, GA September 2025)
 **Primary Dependencies**: Spring Boot 4.0.5 (adapters and bootstrap only), Angular 21.2.9 (frontend)  
+**API contract**: OpenAPI 3 (YAML or JSON) under feature `contracts/` is canonical; REST adapters MUST be driven by OpenAPI Generator (or equivalent) — contract-first (see `.specify/memory/constitution.md` v1.3.0). Prose [contracts/api-v1.md](contracts/api-v1.md) documents the same surface for readers; drift MUST NOT exist between OpenAPI and runtime.  
 **Storage**: PostgreSQL 16 with Flyway migrations  
 **Testing**: JUnit 5, AssertJ, Mockito, Testcontainers (backend); Jasmine/Karma + Cypress (frontend)  
 **Target Platform**: JVM server (Linux/macOS) + modern browser  
@@ -37,9 +38,10 @@ Build an internal application that receives Money Market orders from an external
 | VIII | Auditability & Security                   | ✅ PASS | `order_audit_log` table; all 8 auditable events covered; actor identity recorded                                           |
 | IX   | Simplicity & Learning Focus               | ✅ PASS | No event sourcing, no CQRS, no generic frameworks; explicit code over abstractions                                         |
 | UL   | Ubiquitous Language                       | ✅ PASS | All 25 approved terms used consistently; no synonyms introduced                                                            |
+| CF   | Contract-first REST (OpenAPI)             | ⚠️ GAP  | Constitution v1.3.0: `openapi.yaml`/`openapi.json` + codegen not yet wired; REST layer currently hand-written against [contracts/api-v1.md](contracts/api-v1.md) — migrate per constitution Sync Impact follow-up |
 
 
-No violations. Complexity Tracking table not needed.
+No violations of principles I–IX beyond documented OpenAPI adoption gap. Complexity Tracking table not needed.
 
 ## 1. Monorepo Structure
 
@@ -504,7 +506,9 @@ The caller (Portfolio Management) can distinguish new creation (`201`) from idem
 
 ## 6. REST API Design
 
-See [contracts/api-v1.md](contracts/api-v1.md) for complete request/response payloads. Summary:
+**Contract-first (constitutional requirement, v1.3.0)**: The authoritative HTTP contract is the **OpenAPI 3** artifact under this feature’s `contracts/` directory (to be added: e.g. `openapi.yaml`). It MUST stay equivalent to the human-readable reference [contracts/api-v1.md](contracts/api-v1.md). The `mmx-adapter-in-rest` module MUST consume **generated** request/response types and, where applicable, generated server interfaces from that OpenAPI file; API changes start by editing OpenAPI and regenerating — not by editing hand-written DTOs first.
+
+See [contracts/api-v1.md](contracts/api-v1.md) for complete request/response payloads (narrative mirror of the OpenAPI). Summary:
 
 ### Endpoints
 

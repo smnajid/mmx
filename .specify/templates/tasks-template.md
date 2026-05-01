@@ -23,6 +23,7 @@ description: "Task list template for feature implementation"
 - **Single project**: `src/`, `tests/` at repository root
 - **Web app**: `backend/src/`, `frontend/src/`
 - **Mobile**: `api/src/`, `ios/src/` or `android/src/`
+- **OpenAPI / REST (contract-first)**: Canonical API description lives under `specs/[###-feature]/contracts/` as OpenAPI 3 (`openapi.yaml` / `openapi.json`, alongside any prose such as `api-v1.md`). Generate REST DTOs/interfaces into the backend inbound adapter per constitution; tasks SHOULD include maintaining the spec, codegen, and adapter wiring.
 - Paths shown below assume single project - adjust based on plan.md structure
 
 <!-- 

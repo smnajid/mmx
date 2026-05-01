@@ -1,14 +1,14 @@
 <!--
 ## Sync Impact Report
 
-- **Version change**: 1.1.0 → 1.2.0 (MINOR — materially expanded Domain Integrity guidance)
+- **Version change**: 1.2.0 → 1.3.0 (MINOR — contract-first OpenAPI / REST generation added under Principle I)
 - **Modified principles**:
-  - II. Domain Integrity — added mandatory Java `record` implementation for domain value objects
+  - I. Hexagonal Architecture and Modular Monolith — added mandatory contract-first OpenAPI; REST surface generated from spec
 - **Templates requiring updates**:
-  - `.specify/templates/plan-template.md` — ✅ Constitution Check gate text aligned
-  - `.specify/templates/spec-template.md` — ✅ no change needed
-  - `.specify/templates/tasks-template.md` — ✅ no change needed
-- **Follow-up TODOs**: None
+  - `.specify/templates/plan-template.md` — ✅ Constitution Check updated for OpenAPI gate
+  - `.specify/templates/spec-template.md` — ✅ added OpenAPI / REST guidance under Requirements
+  - `.specify/templates/tasks-template.md` — ✅ contracts / codegen note in Path Conventions
+- **Follow-up TODOs**: Add `contracts/openapi.yaml` (or equivalent) and wire OpenAPI Generator in `mmx-adapter-in-rest`; migrate hand-written REST DTOs/controllers to generated contract. Active feature plans under `specs/*/plan.md` MUST stay aligned with constitution checks when principles change (no feature-specific paths belong in the principles body).
 -->
 
 # Money Market Order Processing Constitution
@@ -25,10 +25,12 @@ The application MUST follow strict Hexagonal Architecture (Ports & Adapters).
 - Outbound adapters (persistence, messaging, external APIs) MUST implement ports owned by the domain or application core. The core MUST NOT reference adapter implementations.
 - No business rule may reside in controllers, persistence entities, JPA repositories, Angular components, or infrastructure mappers.
 - The backend is the single source of truth for all business rules. A frontend MAY perform user-experience validations (e.g., field format hints) but MUST NOT duplicate or replace backend business rule enforcement.
-- The REST API contract MUST be the authoritative interface between frontend and backend.
+- **Contract-first REST (OpenAPI)**: The HTTP API between clients and the backend MUST be defined **first** in a **machine-readable OpenAPI 3** document (YAML or JSON) versioned with the feature (e.g. under `specs/<feature>/contracts/`). That document is the **canonical** contract for paths, operations, request/response schemas, security requirements at the transport layer, and documented error response shapes. Prose documentation (e.g. `api-v1.md`) MAY accompany the spec but MUST NOT be the only source of truth.
+- **Generated REST surface**: Inbound REST adapters MUST **generate** API-facing artifacts from the OpenAPI document (e.g. DTOs, server interfaces, or stubs using OpenAPI Generator or an equivalent tool integrated in the build). Controllers and request/response types MUST **not** be hand-written in ways that **diverge** from the generated contract. Workflow: change the OpenAPI file → regenerate → adapt adapter wiring and mapping to use cases only. If generated code is unsuitable for a small subset, the exception MUST be documented in the plan with rationale and MUST still be validated against the same OpenAPI operations (no ad-hoc routes or DTOs).
+- The shared OpenAPI document SHOULD be used (where tooling allows) to generate or validate **frontend** API clients so browser and server stay aligned.
 - The system MUST be implemented as a Modular Monolith. Microservice decomposition is explicitly out of scope.
 
-**Rationale**: Hexagonal Architecture enforces a clean separation between business logic and technical infrastructure, making the domain testable in isolation and portable across frameworks. Designating the backend as the single enforcement point for business rules prevents divergence between API and UI. The Modular Monolith constraint avoids premature distributed-system complexity for a learning-focused product.
+**Rationale**: Hexagonal Architecture enforces a clean separation between business logic and technical infrastructure, making the domain testable in isolation and portable across frameworks. Designating the backend as the single enforcement point for business rules prevents divergence between API and UI. **OpenAPI as the single contract with codegen** prevents silent drift between documentation, DTOs, and runtime behavior, supports automated contract tests, and scales with team changes. The Modular Monolith constraint avoids premature distributed-system complexity for a learning-focused product.
 
 ### II. Domain Integrity
 
@@ -84,7 +86,7 @@ Test-Driven Development (TDD) is mandatory for Domain and Application logic.
 
 - **Domain tests** MUST cover: invariants, allowed combinations of `OrderType` and `OrderOperation`, `ValueDate` rules, status transitions, assignment rules, idempotency rules, `ContractNumber` constraints, and monetary precision.
 - **Application tests** MUST cover: use-case orchestration and port interactions (using test doubles for outbound ports).
-- **Adapter tests** MUST cover: REST contract compliance, persistence mappings, and external integration boundary behavior.
+- **Adapter tests** MUST cover: REST contract compliance (including **OpenAPI** document vs runtime), persistence mappings, and external integration boundary behavior.
 - **End-to-end tests** MUST cover the most valuable Trader workflows (receive → assign → execute).
 - No feature is considered complete without automated tests that exercise the feature's acceptance criteria.
 - Tests MUST be written before production code for domain and application layers (Red-Green-Refactor).
@@ -163,4 +165,4 @@ This constitution is the supreme governance document for the Money Market Order 
   - **PATCH**: Clarifications, wording, typo fixes, non-semantic refinements.
 - **Exception process**: Any exception to a constitutional principle MUST be documented in the relevant artifact with rationale, trade-offs, and risks. Undocumented exceptions are violations.
 
-**Version**: 1.2.0 | **Ratified**: 2026-04-28 | **Last Amended**: 2026-05-01
+**Version**: 1.3.0 | **Ratified**: 2026-04-28 | **Last Amended**: 2026-05-02

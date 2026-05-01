@@ -35,6 +35,8 @@
 
 For Java backends aligned with this repository’s constitution: domain value objects MUST be Java `record` types (aggregate roots and enums excepted), with validation in compact constructors; verify naming and accessors match record conventions.
 
+**REST / OpenAPI (when the feature exposes HTTP APIs)**: The machine-readable **OpenAPI 3** document under the feature’s `contracts/` directory is the **contract-first** source of truth. REST inbound adapters MUST use **code generation** from that spec (DTOs, server interfaces, or stubs). Hand-written controller signatures or DTOs that are not traceable to the OpenAPI file MUST NOT be added; change the spec, regenerate, then map to application use cases.
+
 ## Project Structure
 
 ### Documentation (this feature)

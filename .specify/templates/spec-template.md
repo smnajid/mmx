@@ -84,6 +84,10 @@
 
 ### Functional Requirements
 
+<!--
+  When the feature includes REST/HTTP APIs: requirements MUST align with the canonical OpenAPI 3 document in `contracts/` (see `.specify/memory/constitution.md`, Principle I — contract-first OpenAPI). Update the OpenAPI spec before locking acceptance criteria that depend on paths, parameters, or payloads.
+-->
+
 - **FR-001**: System MUST [specific capability, e.g., "allow users to create accounts"]
 - **FR-002**: System MUST [specific capability, e.g., "validate email addresses"]  
 - **FR-003**: Users MUST be able to [key interaction, e.g., "reset their password"]
