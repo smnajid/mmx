@@ -105,13 +105,13 @@ backend/
 │       │   ├── OrderStatus.java                   ← enum with transition validation
 │       │   ├── Tenor.java                         ← enum: _1W, _2W, _1M, _3M, _6M, _1Y
 │       │   ├── NoticePeriod.java                  ← enum: _24H, _48H
-│       │   ├── Assignment.java                    ← value object
-│       │   ├── ExecutionDetails.java              ← value object
-│       │   ├── ExternalOrderReference.java        ← value object (typed wrapper)
-│       │   ├── ContractNumber.java                ← value object (typed wrapper)
-│       │   ├── DealingReference.java              ← value object (typed wrapper)
-│       │   ├── PortfolioNumber.java               ← value object (typed wrapper)
-│       │   └── TraderId.java                      ← value object (typed wrapper)
+│       │   ├── Assignment.java                    ← value object (`record`)
+│       │   ├── ExecutionDetails.java              ← value object (`record`)
+│       │   ├── ExternalOrderReference.java        ← value object (`record`, typed wrapper)
+│       │   ├── ContractNumber.java                ← value object (`record`, typed wrapper)
+│       │   ├── DealingReference.java              ← value object (`record`, typed wrapper)
+│       │   ├── PortfolioNumber.java               ← value object (`record`, typed wrapper)
+│       │   └── TraderId.java                      ← value object (`record`, typed wrapper)
 │       └── exception/
 │           ├── InvalidOrderException.java
 │           ├── InvalidStatusTransitionException.java
@@ -225,7 +225,7 @@ backend/
 
 ### How Hexagonal Architecture Works in This Project
 
-1. **Domain layer** (`mmx-domain`): Contains the `MoneyMarketOrder` aggregate root, value objects, enums, and domain exceptions. This module has **zero dependencies** on any framework. It is pure Java. All business invariants (OrderType/OrderOperation validation, status transitions, ValueDate rules, decimal precision) live here.
+1. **Domain layer** (`mmx-domain`): Contains the `MoneyMarketOrder` aggregate root, value objects (implemented as Java `record` types per constitution), enums, and domain exceptions. This module has **zero dependencies** on any framework. It is pure Java. All business invariants (OrderType/OrderOperation validation, status transitions, ValueDate rules, decimal precision) live here.
 2. **Application layer** (`mmx-application`): Defines inbound ports (use case interfaces) and outbound ports (repository, reference generator, audit logger, clock). Application services implement inbound ports by orchestrating domain logic and calling outbound ports. This module depends only on `mmx-domain`. It has **no Spring annotations**.
 3. **Inbound adapters** (`mmx-adapter-in-rest`): REST controllers that receive HTTP requests, validate input format (Bean Validation), map DTOs to commands, and invoke use cases. They do not contain business logic. Spring Web is used here.
 4. **Outbound adapters** (`mmx-adapter-out-persistence`, `mmx-adapter-out-integration`): Implement the outbound ports defined by the application layer. JPA entities, Spring Data repositories, and mapper classes live here. The domain never sees these implementations.
@@ -274,11 +274,13 @@ The aggregate enforces the allowed combinations:
 
 ### Key Value Objects
 
-- `**ExternalOrderReference`**: Typed wrapper around `String`. The idempotency key for order intake. Unique across the system.
-- `**ContractNumber**`: Typed wrapper. Used in two contexts: `sourceContractNumber` (existing contract for lifecycle actions) and `generatedContractNumber` (created at execution for Deposits integration).
-- `**DealingReference**`: Typed wrapper. System-generated at execution time.
-- `**Assignment**`: Composite value object: `traderId: TraderId` + `assignedAt: Instant`. Cleared on unassign.
-- `**ExecutionDetails**`: Composite value object: `executedRate: BigDecimal` + `counterparty: String` + `executionTime: Instant` + `dealingReference: DealingReference` + `generatedContractNumber: ContractNumber`. Immutable once set.
+Domain value objects are Java `record` types with validation in compact constructors (see constitution II).
+
+- **ExternalOrderReference**: Typed wrapper around `String` (`record`). The idempotency key for order intake. Unique across the system.
+- **ContractNumber**: Typed wrapper (`record`). Used in two contexts: `sourceContractNumber` (existing contract for lifecycle actions) and `generatedContractNumber` (created at execution for Deposits integration).
+- **DealingReference**: Typed wrapper (`record`). System-generated at execution time.
+- **Assignment**: Composite record: `traderId: TraderId` + `assignedAt: Instant`. Cleared on unassign.
+- **ExecutionDetails**: Composite record: `executedRate: BigDecimal` + `counterparty: String` + `executionTime: Instant` + `dealingReference: DealingReference` + `generatedContractNumber: ContractNumber`. Immutable once set.
 
 ### Status State Machine
 

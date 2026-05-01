@@ -48,48 +48,48 @@
 
 ### Domain Model (TDD: write tests first)
 
-- [ ] T012 [P] Create domain enums at backend/mmx-domain/src/main/java/com/mmx/order/domain/model/: OrderType.java (TERM, ON_CALL), OrderOperation.java (SUBSCRIPTION, INCREASE, DECREASE, REDEMPTION), Tenor.java (_1W through _1Y with code field), NoticePeriod.java (_24H, _48H with code field)
-- [ ] T013 [P] Create OrderStatus enum with transitionTo(OrderStatus) method and allowed-transitions validation at backend/mmx-domain/src/main/java/com/mmx/order/domain/model/OrderStatus.java
-- [ ] T014 [P] Create typed value objects at backend/mmx-domain/src/main/java/com/mmx/order/domain/model/: ExternalOrderReference.java, ContractNumber.java, DealingReference.java, PortfolioNumber.java, TraderId.java (all immutable wrappers with validation)
-- [ ] T015 [P] Create composite value objects at backend/mmx-domain/src/main/java/com/mmx/order/domain/model/: Assignment.java (traderId + assignedAt), ExecutionDetails.java (executedRate + counterparty + executionTime + dealingReference + generatedContractNumber)
-- [ ] T016 [P] Create domain exceptions at backend/mmx-domain/src/main/java/com/mmx/order/domain/exception/: InvalidOrderException.java, InvalidStatusTransitionException.java, OrderNotFoundException.java
-- [ ] T017 Write domain unit tests for OrderStatus transitions (all 5 valid transitions pass, all invalid transitions throw InvalidStatusTransitionException) at backend/mmx-domain/src/test/java/com/mmx/order/domain/model/OrderStatusTest.java
-- [ ] T018 Create MoneyMarketOrder aggregate root with static factory method, all creation invariants (OrderType/OrderOperation combos, field requirements per operation, ValueDate >= today+2, Amount > 0, MinimumRate >= 0, Tenor/NoticePeriod exclusivity), and lifecycle methods (assign, unassign, update, execute, cancel, reject) at backend/mmx-domain/src/main/java/com/mmx/order/domain/model/MoneyMarketOrder.java
-- [ ] T019 Write domain unit tests for MoneyMarketOrder creation invariants at backend/mmx-domain/src/test/java/com/mmx/order/domain/model/MoneyMarketOrderCreationTest.java: valid Term/Subscription, valid OnCall/Subscription, valid OnCall/Increase, all invalid OrderType/OrderOperation combos rejected, missing required fields rejected, invalid Tenor rejected, invalid NoticePeriod rejected, ValueDate in past rejected, Amount <= 0 rejected, MinimumRate < 0 rejected, BigDecimal precision preserved
-- [ ] T020 Write domain unit tests for MoneyMarketOrder lifecycle methods at backend/mmx-domain/src/test/java/com/mmx/order/domain/model/MoneyMarketOrderLifecycleTest.java: assign from RECEIVED, unassign from ASSIGNED, unassign by wrong Trader rejected, execute from ASSIGNED, execute by wrong Trader rejected, execute with missing data rejected, cancel from RECEIVED, reject from RECEIVED with reason, all invalid transitions rejected, update by assigned Trader, update by wrong Trader rejected, update from wrong status rejected
+- [x] T012 [P] Create domain enums at backend/mmx-domain/src/main/java/com/mmx/order/domain/model/: OrderType.java (TERM, ON_CALL), OrderOperation.java (SUBSCRIPTION, INCREASE, DECREASE, REDEMPTION), Tenor.java (_1W through _1Y with code field), NoticePeriod.java (_24H, _48H with code field)
+- [x] T013 [P] Create OrderStatus enum with transitionTo(OrderStatus) method and allowed-transitions validation at backend/mmx-domain/src/main/java/com/mmx/order/domain/model/OrderStatus.java
+- [x] T014 [P] Create typed value objects at backend/mmx-domain/src/main/java/com/mmx/order/domain/model/: ExternalOrderReference.java, ContractNumber.java, DealingReference.java, PortfolioNumber.java, TraderId.java (immutable Java `record` types with validation in compact constructors)
+- [x] T015 [P] Create composite value objects at backend/mmx-domain/src/main/java/com/mmx/order/domain/model/: Assignment.java (traderId + assignedAt), ExecutionDetails.java (executedRate + counterparty + executionTime + dealingReference + generatedContractNumber) — both Java `record` types
+- [x] T016 [P] Create domain exceptions at backend/mmx-domain/src/main/java/com/mmx/order/domain/exception/: InvalidOrderException.java, InvalidStatusTransitionException.java, OrderNotFoundException.java
+- [x] T017 Write domain unit tests for OrderStatus transitions (all 5 valid transitions pass, all invalid transitions throw InvalidStatusTransitionException) at backend/mmx-domain/src/test/java/com/mmx/order/domain/model/OrderStatusTest.java
+- [x] T018 Create MoneyMarketOrder aggregate root with static factory method, all creation invariants (OrderType/OrderOperation combos, field requirements per operation, ValueDate >= today+2, Amount > 0, MinimumRate >= 0, Tenor/NoticePeriod exclusivity), and lifecycle methods (assign, unassign, update, execute, cancel, reject) at backend/mmx-domain/src/main/java/com/mmx/order/domain/model/MoneyMarketOrder.java
+- [x] T019 Write domain unit tests for MoneyMarketOrder creation invariants at backend/mmx-domain/src/test/java/com/mmx/order/domain/model/MoneyMarketOrderCreationTest.java: valid Term/Subscription, valid OnCall/Subscription, valid OnCall/Increase, all invalid OrderType/OrderOperation combos rejected, missing required fields rejected, invalid Tenor rejected, invalid NoticePeriod rejected, ValueDate in past rejected, Amount <= 0 rejected, MinimumRate < 0 rejected, BigDecimal precision preserved
+- [x] T020 Write domain unit tests for MoneyMarketOrder lifecycle methods at backend/mmx-domain/src/test/java/com/mmx/order/domain/model/MoneyMarketOrderLifecycleTest.java: assign from RECEIVED, unassign from ASSIGNED, unassign by wrong Trader rejected, execute from ASSIGNED, execute by wrong Trader rejected, execute with missing data rejected, cancel from RECEIVED, reject from RECEIVED with reason, all invalid transitions rejected, update by assigned Trader, update by wrong Trader rejected, update from wrong status rejected
 
 ### Outbound Ports and Commands
 
-- [ ] T021 [P] Create all outbound port interfaces at backend/mmx-application/src/main/java/com/mmx/order/application/port/out/: OrderRepository.java (save, findById, findByExternalOrderReference, findByStatusAndOrderType, findByAssignedTraderIdAndStatus), ReferenceGenerator.java (generateDealingReference, generateContractNumber), AuditLogger.java (log event), DepositsGateway.java (notifyExecution — no-op in V1), Clock.java (now → Instant)
-- [ ] T022 [P] Create all command records at backend/mmx-application/src/main/java/com/mmx/order/application/command/: ReceiveOrderCommand, AssignOrderCommand, UnassignOrderCommand, UpdateOrderCommand, ExecuteOrderCommand, CancelOrderCommand, RejectOrderCommand
+- [x] T021 [P] Create all outbound port interfaces at backend/mmx-application/src/main/java/com/mmx/order/application/port/out/: OrderRepository.java (save, findById, findByExternalOrderReference, findByStatusAndOrderType, findByAssignedTraderIdAndStatus), ReferenceGenerator.java (generateDealingReference, generateContractNumber), AuditLogger.java (log event), DepositsGateway.java (notifyExecution — no-op in V1), Clock.java (now → Instant)
+- [x] T022 [P] Create all command records at backend/mmx-application/src/main/java/com/mmx/order/application/command/: ReceiveOrderCommand, AssignOrderCommand, UnassignOrderCommand, UpdateOrderCommand, ExecuteOrderCommand, CancelOrderCommand, RejectOrderCommand
 
 ### Persistence Adapter
 
-- [ ] T023 [P] Create Flyway migrations at backend/mmx-bootstrap/src/main/resources/db/migration/: V1__create_money_market_order_table.sql (all columns per plan section 7), V2__create_order_audit_log_table.sql, V3__add_indexes.sql (unique on external_order_reference, composite on status+order_type, composite on assigned_trader_id+status, on value_date, on audit order_id and event_time)
-- [ ] T024 [P] Create OrderEntity JPA entity at backend/mmx-adapter-out-persistence/src/main/java/com/mmx/order/adapter/out/persistence/entity/OrderEntity.java mapping all columns from the money_market_order table
-- [ ] T025 [P] Create AuditLogEntity JPA entity at backend/mmx-adapter-out-persistence/src/main/java/com/mmx/order/adapter/out/persistence/entity/AuditLogEntity.java
-- [ ] T026 [P] Create SpringDataOrderRepository (Spring Data JPA interface) at backend/mmx-adapter-out-persistence/src/main/java/com/mmx/order/adapter/out/persistence/repository/SpringDataOrderRepository.java with query methods for findByExternalOrderReference, findByStatusAndOrderType, findByAssignedTraderIdAndStatus
-- [ ] T027 [P] Create SpringDataAuditLogRepository at backend/mmx-adapter-out-persistence/src/main/java/com/mmx/order/adapter/out/persistence/repository/SpringDataAuditLogRepository.java
-- [ ] T028 Create OrderPersistenceMapper at backend/mmx-adapter-out-persistence/src/main/java/com/mmx/order/adapter/out/persistence/mapper/OrderPersistenceMapper.java mapping MoneyMarketOrder ↔ OrderEntity (manual, explicit)
-- [ ] T029 Create JpaOrderRepository implementing OrderRepository port at backend/mmx-adapter-out-persistence/src/main/java/com/mmx/order/adapter/out/persistence/JpaOrderRepository.java
-- [ ] T030 Create JpaAuditLogger implementing AuditLogger port at backend/mmx-adapter-out-persistence/src/main/java/com/mmx/order/adapter/out/persistence/JpaAuditLogger.java
-- [ ] T031 Write persistence integration tests with Testcontainers at backend/mmx-adapter-out-persistence/src/test/java/com/mmx/order/adapter/out/persistence/JpaOrderRepositoryTest.java: save and retrieve, unique constraint on external_order_reference, query by status+orderType, query by assignedTraderId+status, OrderEntity ↔ MoneyMarketOrder mapping roundtrip
+- [x] T023 [P] Create Flyway migrations at backend/mmx-bootstrap/src/main/resources/db/migration/: V1__create_money_market_order_table.sql (all columns per plan section 7), V2__create_order_audit_log_table.sql, V3__add_indexes.sql (unique on external_order_reference, composite on status+order_type, composite on assigned_trader_id+status, on value_date, on audit order_id and event_time)
+- [x] T024 [P] Create OrderEntity JPA entity at backend/mmx-adapter-out-persistence/src/main/java/com/mmx/order/adapter/out/persistence/entity/OrderEntity.java mapping all columns from the money_market_order table
+- [x] T025 [P] Create AuditLogEntity JPA entity at backend/mmx-adapter-out-persistence/src/main/java/com/mmx/order/adapter/out/persistence/entity/AuditLogEntity.java
+- [x] T026 [P] Create SpringDataOrderRepository (Spring Data JPA interface) at backend/mmx-adapter-out-persistence/src/main/java/com/mmx/order/adapter/out/persistence/repository/SpringDataOrderRepository.java with query methods for findByExternalOrderReference, findByStatusAndOrderType, findByAssignedTraderIdAndStatus
+- [x] T027 [P] Create SpringDataAuditLogRepository at backend/mmx-adapter-out-persistence/src/main/java/com/mmx/order/adapter/out/persistence/repository/SpringDataAuditLogRepository.java
+- [x] T028 Create OrderPersistenceMapper at backend/mmx-adapter-out-persistence/src/main/java/com/mmx/order/adapter/out/persistence/mapper/OrderPersistenceMapper.java mapping MoneyMarketOrder ↔ OrderEntity (manual, explicit)
+- [x] T029 Create JpaOrderRepository implementing OrderRepository port at backend/mmx-adapter-out-persistence/src/main/java/com/mmx/order/adapter/out/persistence/JpaOrderRepository.java
+- [x] T030 Create JpaAuditLogger implementing AuditLogger port at backend/mmx-adapter-out-persistence/src/main/java/com/mmx/order/adapter/out/persistence/JpaAuditLogger.java
+- [x] T031 Write persistence integration tests with Testcontainers at backend/mmx-adapter-out-persistence/src/test/java/com/mmx/order/adapter/out/persistence/JpaOrderRepositoryTest.java: save and retrieve, unique constraint on external_order_reference, query by status+orderType, query by assignedTraderId+status, OrderEntity ↔ MoneyMarketOrder mapping roundtrip
 
 ### Integration Adapters
 
-- [ ] T032 [P] Create UuidReferenceGenerator at backend/mmx-adapter-out-integration/src/main/java/com/mmx/order/adapter/out/integration/UuidReferenceGenerator.java (DL-{UUID}, CN-{UUID})
-- [ ] T033 [P] Create NoOpDepositsGateway at backend/mmx-adapter-out-integration/src/main/java/com/mmx/order/adapter/out/integration/NoOpDepositsGateway.java
-- [ ] T034 [P] Create SystemClock at backend/mmx-adapter-out-integration/src/main/java/com/mmx/order/adapter/out/integration/SystemClock.java
+- [x] T032 [P] Create UuidReferenceGenerator at backend/mmx-adapter-out-integration/src/main/java/com/mmx/order/adapter/out/integration/UuidReferenceGenerator.java (DL-{UUID}, CN-{UUID})
+- [x] T033 [P] Create NoOpDepositsGateway at backend/mmx-adapter-out-integration/src/main/java/com/mmx/order/adapter/out/integration/NoOpDepositsGateway.java
+- [x] T034 [P] Create SystemClock at backend/mmx-adapter-out-integration/src/main/java/com/mmx/order/adapter/out/integration/SystemClock.java
 
 ### Shared REST Infrastructure
 
-- [ ] T035 [P] Create ErrorResponse DTO at backend/mmx-adapter-in-rest/src/main/java/com/mmx/order/adapter/in/rest/dto/ErrorResponse.java and GlobalExceptionHandler at backend/mmx-adapter-in-rest/src/main/java/com/mmx/order/adapter/in/rest/GlobalExceptionHandler.java mapping domain exceptions to HTTP status codes (InvalidOrderException→400, OrderNotFoundException→404, InvalidStatusTransitionException→409)
-- [ ] T036 [P] Create OrderSummaryResponse and OrderDetailsResponse DTOs at backend/mmx-adapter-in-rest/src/main/java/com/mmx/order/adapter/in/rest/dto/
-- [ ] T037 [P] Create OrderRestMapper at backend/mmx-adapter-in-rest/src/main/java/com/mmx/order/adapter/in/rest/mapper/OrderRestMapper.java (MoneyMarketOrder → OrderSummaryResponse, MoneyMarketOrder → OrderDetailsResponse)
+- [x] T035 [P] Create ErrorResponse DTO at backend/mmx-adapter-in-rest/src/main/java/com/mmx/order/adapter/in/rest/dto/ErrorResponse.java and GlobalExceptionHandler at backend/mmx-adapter-in-rest/src/main/java/com/mmx/order/adapter/in/rest/GlobalExceptionHandler.java mapping domain exceptions to HTTP status codes (InvalidOrderException→400, OrderNotFoundException→404, InvalidStatusTransitionException→409)
+- [x] T036 [P] Create OrderSummaryResponse and OrderDetailsResponse DTOs at backend/mmx-adapter-in-rest/src/main/java/com/mmx/order/adapter/in/rest/dto/
+- [x] T037 [P] Create OrderRestMapper at backend/mmx-adapter-in-rest/src/main/java/com/mmx/order/adapter/in/rest/mapper/OrderRestMapper.java (MoneyMarketOrder → OrderSummaryResponse, MoneyMarketOrder → OrderDetailsResponse)
 
 ### Bootstrap Wiring
 
-- [ ] T038 Create OrderModuleConfiguration at backend/mmx-bootstrap/src/main/java/com/mmx/order/config/OrderModuleConfiguration.java wiring all ports to adapter implementations via @Bean methods
+- [x] T038 Create OrderModuleConfiguration at backend/mmx-bootstrap/src/main/java/com/mmx/order/config/OrderModuleConfiguration.java wiring all ports to adapter implementations via @Bean methods
 
 **Checkpoint**: Foundation ready — verify Maven builds cleanly, Flyway migrations run against Docker PostgreSQL, all domain tests pass
 

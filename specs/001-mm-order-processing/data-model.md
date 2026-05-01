@@ -1,5 +1,7 @@
 # Data Model: Money Market Order Processing
 
+**Java implementation:** Domain value objects modeled here (`ExternalOrderReference`, `ContractNumber`, `DealingReference`, `PortfolioNumber`, `TraderId`, `Assignment`, `ExecutionDetails`) are implemented as Java `record` types with compact-constructor validation (see `.specify/memory/constitution.md`, Principle II). Aggregate roots (`MoneyMarketOrder`) and enumerations remain classes or enums.
+
 ## Aggregate Root
 
 ### MoneyMarketOrder

@@ -48,7 +48,7 @@
 - DealingReference format: `DL-{UUID}` (e.g., `DL-a3f2b8c1-7d4e-4a9f-b123-...`)
 - ContractNumber format: `CN-{UUID}` (e.g., `CN-e9d1f4a2-8b3c-4d5e-a678-...`)
 - UUID guarantees uniqueness without a database sequence or coordination
-- The prefix (`DL-`, `CN-`) is domain knowledge validated in the value object constructor
+- The prefix (`DL-`, `CN-`) is domain knowledge validated in the value object record’s compact constructor
 - The actual UUID generation is an infrastructure concern delegated to the `ReferenceGenerator` outbound port
 - `UuidReferenceGenerator` adapter uses `java.util.UUID.randomUUID()`
 - In tests, a deterministic stub can return predictable references

@@ -33,6 +33,8 @@
 
 [Gates determined based on constitution file]
 
+For Java backends aligned with this repository’s constitution: domain value objects MUST be Java `record` types (aggregate roots and enums excepted), with validation in compact constructors; verify naming and accessors match record conventions.
+
 ## Project Structure
 
 ### Documentation (this feature)

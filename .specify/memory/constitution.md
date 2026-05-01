@@ -1,20 +1,14 @@
 <!--
 ## Sync Impact Report
 
-- **Version change**: 1.0.1 → 1.1.0 (MINOR — principles removed and restructured)
+- **Version change**: 1.1.0 → 1.2.0 (MINOR — materially expanded Domain Integrity guidance)
 - **Modified principles**:
-  - I. Hexagonal Architecture — absorbed "backend is single source of truth" and "REST API is authoritative interface" from former VI
-  - III. Workflow Discipline — absorbed "execution must be explicit and complete; system-generated data must originate from the system" from former V
-- **Removed sections**:
-  - V. Execution Rules — V1-specific execution details (fields, references, timestamps) moved to spec/plan
-  - VI. API and UI Consistency — V1-specific workflow list and UI layout moved to spec/plan
-- **Renumbered**: VII → V, VIII → VI, IX → VII (now 7 principles total)
+  - II. Domain Integrity — added mandatory Java `record` implementation for domain value objects
 - **Templates requiring updates**:
-  - `.specify/templates/plan-template.md` — ✅ no update needed
-  - `.specify/templates/spec-template.md` — ✅ no update needed
-  - `.specify/templates/tasks-template.md` — ✅ no update needed
+  - `.specify/templates/plan-template.md` — ✅ Constitution Check gate text aligned
+  - `.specify/templates/spec-template.md` — ✅ no change needed
+  - `.specify/templates/tasks-template.md` — ✅ no change needed
 - **Follow-up TODOs**: None
-- **Note**: V1 execution details (ExecutedRate, Counterparty, DealingReference, ContractNumber, ExecutionTime) and V1 Trader workflow/UI layout remain defined in plan.md, data-model.md, and contracts/api-v1.md.
 -->
 
 # Money Market Order Processing Constitution
@@ -40,6 +34,7 @@ The application MUST follow strict Hexagonal Architecture (Ports & Adapters).
 
 All business rules MUST be enforced within the domain core.
 
+- Immutable domain **value objects** (typed wrappers and small composites modeled in the domain, excluding aggregate roots and excluding Java `enum` types) MUST be implemented as Java `record` types. Validation and normalization MUST run in compact constructors (or in a small static factory that delegates to the canonical record constructor). Accessors MUST follow Java record conventions (component accessor methods).
 - The domain MUST validate that every `OrderOperation` is allowed for its `OrderType`. Invalid combinations MUST be rejected at creation time.
 - The domain MUST enforce that allowed values for constrained fields (e.g., `Tenor`, `NoticePeriod`) are drawn from a closed set defined in the domain model. Any value outside the set MUST be rejected.
 - The domain MUST enforce mandatory field requirements per `OrderOperation`. An order MUST NOT be created if required fields are missing or if fields exclusive to another `OrderType` are provided.
@@ -48,7 +43,7 @@ All business rules MUST be enforced within the domain core.
 - Orders are processed all-or-nothing. Partial execution is forbidden.
 - Monetary values and rate values MUST use exact decimal handling appropriate for financial applications (e.g., `BigDecimal` in Java). Floating-point types (`float`, `double`) MUST NOT be used for monetary or rate calculations.
 
-**Rationale**: Encoding structural invariants in the domain core ensures correctness regardless of which adapter or entry point triggers the operation. The specific allowed values (which tenors, which notice periods, which operations per type) are defined in the domain model and may evolve across versions, but the principle that the domain validates and rejects invalid combinations is non-negotiable. Financial precision rules prevent rounding errors that could have regulatory or monetary impact.
+**Rationale**: Encoding structural invariants in the domain core ensures correctness regardless of which adapter or entry point triggers the operation. Records remove boilerplate for immutable carriers of validated data while keeping semantics explicit in one place. The specific allowed values (which tenors, which notice periods, which operations per type) are defined in the domain model and may evolve across versions, but the principle that the domain validates and rejects invalid combinations is non-negotiable. Financial precision rules prevent rounding errors that could have regulatory or monetary impact.
 
 ### III. Workflow Discipline
 
@@ -168,4 +163,4 @@ This constitution is the supreme governance document for the Money Market Order 
   - **PATCH**: Clarifications, wording, typo fixes, non-semantic refinements.
 - **Exception process**: Any exception to a constitutional principle MUST be documented in the relevant artifact with rationale, trade-offs, and risks. Undocumented exceptions are violations.
 
-**Version**: 1.1.0 | **Ratified**: 2026-04-28 | **Last Amended**: 2026-04-29
+**Version**: 1.2.0 | **Ratified**: 2026-04-28 | **Last Amended**: 2026-05-01
