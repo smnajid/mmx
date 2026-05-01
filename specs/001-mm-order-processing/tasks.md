@@ -112,8 +112,8 @@
 
 - [x] T043 [US1] Write application tests for ReceiveOrderService at backend/mmx-application/src/test/java/com/mmx/order/application/service/ReceiveOrderServiceTest.java: new order persisted, audit logged, idempotent duplicate returns existing order without modification, validation delegated to domain
 - [x] T044 [US1] Create ReceiveOrderService implementing ReceiveOrderUseCase at backend/mmx-application/src/main/java/com/mmx/order/application/service/ReceiveOrderService.java
-- [ ] T045 [US1] Write application tests for OrderQueryService (list Term, list OnCall, get details) at backend/mmx-application/src/test/java/com/mmx/order/application/service/OrderQueryServiceTest.java
-- [ ] T046 [US1] Create OrderQueryService implementing List* and GetOrderDetails use cases at backend/mmx-application/src/main/java/com/mmx/order/application/service/OrderQueryService.java
+- [x] T045 [US1] Write application tests for OrderQueryService (list Term, list OnCall, get details) at backend/mmx-application/src/test/java/com/mmx/order/application/service/OrderQueryServiceTest.java
+- [x] T046 [US1] Create OrderQueryService implementing List* and GetOrderDetails use cases at backend/mmx-application/src/main/java/com/mmx/order/application/service/OrderQueryService.java
 
 ### REST Endpoints
 
