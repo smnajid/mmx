@@ -135,7 +135,7 @@
 
 ### REST Endpoints
 
-- [ ] T047 [US1] Create ReceiveOrderRequest DTO with Bean Validation at backend/mmx-adapter-in-rest/src/main/java/com/mmx/order/adapter/in/rest/dto/ReceiveOrderRequest.java (prefer types generated from contracts/openapi.yaml per T098–T100; extend/wrap generated models only when Bean Validation requires it)
+- [X] T047 [US1] Create ReceiveOrderRequest DTO with Bean Validation at backend/mmx-adapter-in-rest/src/main/java/com/mmx/order/adapter/in/rest/dto/ReceiveOrderRequest.java (prefer types generated from contracts/openapi.yaml per T098–T100; extend/wrap generated models only when Bean Validation requires it)
 - [ ] T048 [US1] Create OrderIntakeController (POST /api/v1/orders) at backend/mmx-adapter-in-rest/src/main/java/com/mmx/order/adapter/in/rest/OrderIntakeController.java returning 201 for new, 200 for idempotent duplicate
 - [ ] T049 [US1] Create OrderManagementController with GET /api/v1/orders/term/received, GET /api/v1/orders/oncall/received, GET /api/v1/orders/{orderId} at backend/mmx-adapter-in-rest/src/main/java/com/mmx/order/adapter/in/rest/OrderManagementController.java
 - [ ] T050 [US1] Write REST API tests for intake and list endpoints at backend/mmx-adapter-in-rest/src/test/java/com/mmx/order/adapter/in/rest/OrderIntakeControllerTest.java: 201 for new order, 200 for duplicate, 400 for invalid payload, correct Term/OnCall list filtering
