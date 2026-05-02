@@ -1,0 +1,13 @@
+---
+description: Apply frontend-design skill for UI implementation (distinctive, production-grade interfaces)
+globs: frontend/**,**/*.tsx,**/*.jsx,**/*.vue,**/*.svelte,**/*.css,**/*.scss,**/*.html
+alwaysApply: false
+---
+
+When implementing or substantially changing **frontend UI** (this workspace’s `frontend/` tree, or matching globs above):
+
+1. **Read** `.cursor/skills/frontend-design/SKILL.md` **before** writing or editing components, styles, layouts, or pages, and follow its design-thinking and aesthetics guidance end-to-end.
+
+2. If the user’s request is clearly **frontend/UI work** (components, styling, layouts, dashboards, landing pages) but no matching file is open yet, **still read** that skill first, then proceed.
+
+Do not skip this for “quick” UI tweaks; keep typography, color, motion, and composition aligned with the skill unless the user explicitly overrides.
