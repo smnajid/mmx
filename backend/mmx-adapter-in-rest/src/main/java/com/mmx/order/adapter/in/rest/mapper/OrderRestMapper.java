@@ -7,7 +7,9 @@ import com.mmx.order.adapter.in.rest.generated.model.OrderStatus;
 import com.mmx.order.adapter.in.rest.generated.model.OrderSummaryResponse;
 import com.mmx.order.adapter.in.rest.generated.model.OrderType;
 import com.mmx.order.adapter.in.rest.generated.model.ReceiveOrderResponse;
+import com.mmx.order.adapter.in.rest.generated.model.OrderSummaryPage;
 import com.mmx.order.application.command.ReceiveOrderCommand;
+import com.mmx.order.application.port.in.OrderPage;
 import com.mmx.order.application.port.in.ReceiveOrderUseCase;
 import com.mmx.order.domain.model.Assignment;
 import com.mmx.order.domain.model.ContractNumber;
@@ -112,6 +114,15 @@ public class OrderRestMapper {
         return new ReceiveOrderResponse()
                 .orderId(result.orderId())
                 .status(OrderStatus.fromValue(result.status().name()));
+    }
+
+    public OrderSummaryPage toSummaryPage(OrderPage page) {
+        var items = page.content().stream().map(this::toSummary).toList();
+        return new OrderSummaryPage()
+                .content(items)
+                .totalElements(page.totalElements())
+                .page(page.page())
+                .size(page.size());
     }
 
     private static Tenor mapApiTenorToDomain(com.mmx.order.adapter.in.rest.generated.model.Tenor api) {

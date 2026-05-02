@@ -137,8 +137,8 @@
 
 - [X] T047 [US1] Use OpenAPI-generated `ReceiveOrderRequest` and Bean Validation from codegen (`useBeanValidation` in `mmx-adapter-in-rest`); **no** hand-written `dto/ReceiveOrderRequest` — intake implements `IntakeApi` with generated model types per constitution
 - [X] T048 [US1] Create OrderIntakeController (POST /api/v1/orders) at backend/mmx-adapter-in-rest/src/main/java/com/mmx/order/adapter/in/rest/OrderIntakeController.java returning 201 for new, 200 for idempotent duplicate
-- [ ] T049 [US1] Create OrderManagementController with GET /api/v1/orders/term/received, GET /api/v1/orders/oncall/received, GET /api/v1/orders/{orderId} at backend/mmx-adapter-in-rest/src/main/java/com/mmx/order/adapter/in/rest/OrderManagementController.java
-- [ ] T050 [US1] Write REST API tests for intake and list endpoints at backend/mmx-adapter-in-rest/src/test/java/com/mmx/order/adapter/in/rest/OrderIntakeControllerTest.java: 201 for new order, 200 for duplicate, 400 for invalid payload, correct Term/OnCall list filtering
+- [X] T049 [US1] Create OrderManagementController with GET /api/v1/orders/term/received, GET /api/v1/orders/oncall/received, GET /api/v1/orders/{orderId} at backend/mmx-adapter-in-rest/src/main/java/com/mmx/order/adapter/in/rest/OrderManagementController.java
+- [X] T050 [US1] Write REST API tests for intake and list/detail endpoints at backend/mmx-bootstrap/src/test/java/com/mmx/order/rest/OrderRestApiIntegrationTest.java (`@ActiveProfiles("rest-test")`): 201 new order, 200 duplicate, 400 invalid payload, Term/OnCall list filtering, GET details 200
 
 ### Frontend
 

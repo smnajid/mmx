@@ -10,6 +10,7 @@ import com.mmx.order.adapter.out.persistence.repository.SpringDataAuditLogReposi
 import com.mmx.order.adapter.out.persistence.repository.SpringDataOrderRepository;
 import com.mmx.order.application.port.in.ReceiveOrderUseCase;
 import com.mmx.order.application.port.out.*;
+import com.mmx.order.application.service.OrderQueryService;
 import com.mmx.order.application.service.ReceiveOrderService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -46,5 +47,10 @@ public class OrderModuleConfiguration {
     @Bean
     public ReceiveOrderUseCase receiveOrderUseCase(OrderRepository orderRepository, AuditLogger auditLogger, Clock clock) {
         return new ReceiveOrderService(orderRepository, auditLogger, clock);
+    }
+
+    @Bean
+    public OrderQueryService orderQueryService(OrderRepository orderRepository) {
+        return new OrderQueryService(orderRepository);
     }
 }
