@@ -29,6 +29,8 @@ import { OrderTableComponent } from '../../shared/components/order-table.compone
         [orders]="orders()"
         [loading]="loading()"
         [errorMessage]="error()"
+        [enableAssign]="true"
+        (assignClick)="onAssign($event)"
       />
     </section>
   `,
@@ -105,6 +107,18 @@ export class TermOrderListComponent implements OnInit {
 
   refresh(): void {
     this.load();
+  }
+
+  onAssign(row: OrderSummary): void {
+    this.loading.set(true);
+    this.error.set(null);
+    this.api.assignOrder(row.orderId, this.trader.traderId()).subscribe({
+      next: () => this.load(),
+      error: (err) => {
+        this.loading.set(false);
+        this.error.set(this.formatHttpError(err));
+      },
+    });
   }
 
   private load(): void {

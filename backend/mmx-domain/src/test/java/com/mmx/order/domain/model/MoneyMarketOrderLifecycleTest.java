@@ -2,6 +2,7 @@ package com.mmx.order.domain.model;
 
 import com.mmx.order.domain.exception.InvalidOrderException;
 import com.mmx.order.domain.exception.InvalidStatusTransitionException;
+import com.mmx.order.domain.exception.UnauthorizedTraderException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -93,7 +94,7 @@ class MoneyMarketOrderLifecycleTest {
         @Test
         void unassign_by_different_trader_throws() {
             assertThatThrownBy(() -> receivedOrder.unassign(TRADER_B, NOW))
-                    .isInstanceOf(InvalidStatusTransitionException.class);
+                    .isInstanceOf(UnauthorizedTraderException.class);
         }
     }
 

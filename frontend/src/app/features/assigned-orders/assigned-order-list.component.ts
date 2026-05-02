@@ -11,26 +11,26 @@ import { TraderContextService } from '../../core/trader/trader-context.service';
 import { OrderTableComponent } from '../../shared/components/order-table.component';
 
 @Component({
-  selector: 'mmx-oncall-order-list',
+  selector: 'mmx-assigned-order-list',
   standalone: true,
   imports: [OrderTableComponent],
   template: `
     <section class="feature">
       <header class="feature-head">
         <div class="feature-head-row">
-          <h1>Received — On call</h1>
+          <h1>Assigned to you</h1>
           <button type="button" class="refresh" (click)="refresh()">Refresh</button>
         </div>
         <p class="lede">
-          Notice-based liquidity; separate queue from Term so traders never mix workflows.
+          Orders you have claimed from the received queues. Unassign to return them to the pool.
         </p>
       </header>
       <mmx-order-table
         [orders]="orders()"
         [loading]="loading()"
         [errorMessage]="error()"
-        [enableAssign]="true"
-        (assignClick)="onAssign($event)"
+        [enableUnassign]="true"
+        (unassignClick)="onUnassign($event)"
       />
     </section>
   `,
@@ -93,7 +93,7 @@ import { OrderTableComponent } from '../../shared/components/order-table.compone
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class OnCallOrderListComponent implements OnInit {
+export class AssignedOrderListComponent implements OnInit {
   private readonly api = inject(OrderApiService);
   private readonly trader = inject(TraderContextService);
 
@@ -109,10 +109,10 @@ export class OnCallOrderListComponent implements OnInit {
     this.load();
   }
 
-  onAssign(row: OrderSummary): void {
+  onUnassign(row: OrderSummary): void {
     this.loading.set(true);
     this.error.set(null);
-    this.api.assignOrder(row.orderId, this.trader.traderId()).subscribe({
+    this.api.unassignOrder(row.orderId, this.trader.traderId()).subscribe({
       next: () => this.load(),
       error: (err) => {
         this.loading.set(false);
@@ -125,7 +125,7 @@ export class OnCallOrderListComponent implements OnInit {
     this.loading.set(true);
     this.error.set(null);
     this.api
-      .listReceivedOnCallOrders(this.trader.traderId(), { page: 0, size: 100 })
+      .listAssignedOrders(this.trader.traderId(), { page: 0, size: 100 })
       .subscribe({
         next: (page) => {
           this.orders.set(page.content ?? []);
@@ -145,6 +145,6 @@ export class OnCallOrderListComponent implements OnInit {
         return body.message;
       }
     }
-    return 'Could not load On-call orders. Is the API running (proxy /api → backend)?';
+    return 'Could not load assigned orders. Is the API running (proxy /api → backend)?';
   }
 }

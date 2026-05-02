@@ -6,6 +6,7 @@ import com.mmx.order.adapter.in.rest.generated.model.FieldError;
 import com.mmx.order.domain.exception.InvalidOrderException;
 import com.mmx.order.domain.exception.InvalidStatusTransitionException;
 import com.mmx.order.domain.exception.OrderNotFoundException;
+import com.mmx.order.domain.exception.UnauthorizedTraderException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -43,6 +44,15 @@ public class GlobalExceptionHandler {
                 .body(
                         new ErrorResponse()
                                 .error(ErrorCode.INVALID_STATUS_TRANSITION)
+                                .message(ex.getMessage()));
+    }
+
+    @ExceptionHandler(UnauthorizedTraderException.class)
+    public ResponseEntity<ErrorResponse> handleUnauthorizedTrader(UnauthorizedTraderException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(
+                        new ErrorResponse()
+                                .error(ErrorCode.UNAUTHORIZED_TRADER)
                                 .message(ex.getMessage()));
     }
 

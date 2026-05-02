@@ -7,8 +7,12 @@ import com.mmx.order.adapter.in.rest.generated.model.OrderSummaryPage;
 import com.mmx.order.adapter.in.rest.generated.model.RejectOrderRequest;
 import com.mmx.order.adapter.in.rest.generated.model.UpdateOrderRequest;
 import com.mmx.order.adapter.in.rest.mapper.OrderRestMapper;
+import com.mmx.order.application.command.AssignOrderCommand;
+import com.mmx.order.application.command.UnassignOrderCommand;
+import com.mmx.order.application.service.AssignmentService;
 import com.mmx.order.application.service.OrderQueryService;
 import com.mmx.order.domain.exception.OrderNotFoundException;
+import com.mmx.order.domain.model.TraderId;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -32,10 +36,15 @@ import java.util.UUID;
 public class OrderManagementController implements OrdersApi {
 
     private final OrderQueryService orderQueryService;
+    private final AssignmentService assignmentService;
     private final OrderRestMapper orderRestMapper;
 
-    public OrderManagementController(OrderQueryService orderQueryService, OrderRestMapper orderRestMapper) {
+    public OrderManagementController(
+            OrderQueryService orderQueryService,
+            AssignmentService assignmentService,
+            OrderRestMapper orderRestMapper) {
         this.orderQueryService = orderQueryService;
+        this.assignmentService = assignmentService;
         this.orderRestMapper = orderRestMapper;
     }
 
@@ -77,7 +86,8 @@ public class OrderManagementController implements OrdersApi {
             @RequestHeader(value = "X-Trader-Id", required = true) String xTraderId,
             @RequestParam(value = "page", required = false, defaultValue = "0") Integer page,
             @RequestParam(value = "size", required = false, defaultValue = "20") Integer size) {
-        throw new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED);
+        var result = assignmentService.listAssignedOrders(new TraderId(xTraderId), page, size);
+        return ResponseEntity.ok(orderRestMapper.toSummaryPage(result));
     }
 
     @Override
@@ -85,7 +95,8 @@ public class OrderManagementController implements OrdersApi {
     public ResponseEntity<OrderDetailsResponse> assignOrder(
             @RequestHeader(value = "X-Trader-Id", required = true) String xTraderId,
             @PathVariable("orderId") UUID orderId) {
-        throw new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED);
+        var order = assignmentService.assign(new AssignOrderCommand(orderId, new TraderId(xTraderId)));
+        return ResponseEntity.ok(orderRestMapper.toDetails(order));
     }
 
     @Override
@@ -93,7 +104,8 @@ public class OrderManagementController implements OrdersApi {
     public ResponseEntity<OrderDetailsResponse> unassignOrder(
             @RequestHeader(value = "X-Trader-Id", required = true) String xTraderId,
             @PathVariable("orderId") UUID orderId) {
-        throw new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED);
+        var order = assignmentService.unassign(new UnassignOrderCommand(orderId, new TraderId(xTraderId)));
+        return ResponseEntity.ok(orderRestMapper.toDetails(order));
     }
 
     @Override

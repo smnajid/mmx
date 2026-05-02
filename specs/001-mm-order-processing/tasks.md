@@ -165,19 +165,19 @@
 
 ### Application Services (TDD)
 
-- [ ] T058 [US2] Write application tests for AssignmentService at backend/mmx-application/src/test/java/com/mmx/order/application/service/AssignmentServiceTest.java: assign from RECEIVED, unassign from ASSIGNED, unassign by wrong Trader → 403, assign non-RECEIVED → 409, audit events logged
-- [ ] T059 [US2] Create AssignmentService implementing Assign/Unassign/ListAssigned use cases at backend/mmx-application/src/main/java/com/mmx/order/application/service/AssignmentService.java
+- [x] T058 [US2] Write application tests for AssignmentService at backend/mmx-application/src/test/java/com/mmx/order/application/service/AssignmentServiceTest.java: assign from RECEIVED, unassign from ASSIGNED, unassign by wrong Trader → 403, assign non-RECEIVED → 409, audit events logged
+- [x] T059 [US2] Create AssignmentService implementing Assign/Unassign/ListAssigned use cases at backend/mmx-application/src/main/java/com/mmx/order/application/service/AssignmentService.java
 
 ### REST Endpoints
 
-- [ ] T060 [US2] Add POST /api/v1/orders/{orderId}/assign, POST /api/v1/orders/{orderId}/unassign, GET /api/v1/orders/assigned endpoints to OrderManagementController
-- [ ] T061 [US2] Write REST API tests for assignment endpoints at backend/mmx-adapter-in-rest/src/test/java/com/mmx/order/adapter/in/rest/OrderAssignmentControllerTest.java: 200 assign success, 409 wrong status, 403 wrong Trader on unassign, assigned list filtered by X-Trader-Id
+- [x] T060 [US2] Add POST /api/v1/orders/{orderId}/assign, POST /api/v1/orders/{orderId}/unassign, GET /api/v1/orders/assigned endpoints to OrderManagementController
+- [x] T061 [US2] Write REST API tests for assignment endpoints at backend/mmx-adapter-in-rest/src/test/java/com/mmx/order/adapter/in/rest/OrderAssignmentControllerTest.java: 200 assign success, 409 wrong status, 403 wrong Trader on unassign, assigned list filtered by X-Trader-Id
 
 ### Frontend
 
-- [ ] T062 [P] [US2] Create assigned-orders feature: AssignedOrderListComponent and routes at frontend/src/app/features/assigned-orders/
-- [ ] T063 [US2] Add Assign and Unassign action buttons to order list rows and order detail view, calling OrderApiService.assign/unassign
-- [ ] T064 [US2] Add /assigned-orders route to app.routes.ts and navigation
+- [x] T062 [P] [US2] Create assigned-orders feature: AssignedOrderListComponent and routes at frontend/src/app/features/assigned-orders/
+- [x] T063 [US2] Add Assign and Unassign action buttons to order list rows and order detail view, calling OrderApiService.assign/unassign
+- [x] T064 [US2] Add /assigned-orders route to app.routes.ts and navigation
 
 **Checkpoint**: User Story 2 complete — assign from list, see in assigned orders, unassign back to Received
 

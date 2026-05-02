@@ -2,6 +2,7 @@ package com.mmx.order.domain.model;
 
 import com.mmx.order.domain.exception.InvalidOrderException;
 import com.mmx.order.domain.exception.InvalidStatusTransitionException;
+import com.mmx.order.domain.exception.UnauthorizedTraderException;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -168,8 +169,11 @@ public class MoneyMarketOrder {
 
     public void unassign(TraderId requestingTraderId, Instant now) {
         Objects.requireNonNull(requestingTraderId);
+        if (this.status != OrderStatus.ASSIGNED) {
+            throw new InvalidStatusTransitionException(this.status, OrderStatus.RECEIVED);
+        }
         if (assignment == null || !assignment.traderId().equals(requestingTraderId)) {
-            throw new InvalidStatusTransitionException(status, status);
+            throw new UnauthorizedTraderException("Only the assigned Trader may unassign the order");
         }
         this.status = this.status.transitionTo(OrderStatus.RECEIVED);
         this.assignment = null;

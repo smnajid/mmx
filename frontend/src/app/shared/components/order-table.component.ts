@@ -2,15 +2,19 @@ import { DecimalPipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
+  EventEmitter,
   Input,
+  Output,
 } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { OrderSummary } from '../../core/models/order.model';
+import { OrderStatus } from '../../core/models/order-status.enum';
 import { StatusBadgeComponent } from './status-badge.component';
 
 @Component({
   selector: 'mmx-order-table',
   standalone: true,
-  imports: [DecimalPipe, StatusBadgeComponent],
+  imports: [DecimalPipe, StatusBadgeComponent, RouterLink],
   template: `
     @if (loading) {
       <p class="state">Loading orders…</p>
@@ -31,6 +35,7 @@ import { StatusBadgeComponent } from './status-badge.component';
               <th class="num">Min rate</th>
               <th>Operation</th>
               <th>Status</th>
+              <th class="col-actions">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -44,6 +49,19 @@ import { StatusBadgeComponent } from './status-badge.component';
                 <td class="num mono">{{ row.minimumRate | number: '1.2-8' }}</td>
                 <td><span class="op">{{ row.orderOperation }}</span></td>
                 <td><mmx-status-badge [status]="row.status" /></td>
+                <td class="actions">
+                  <a class="link" [routerLink]="['/orders', row.orderId]">View</a>
+                  @if (enableAssign && row.status === received) {
+                    <button type="button" class="btn-action" (click)="assignClick.emit(row)">
+                      Assign
+                    </button>
+                  }
+                  @if (enableUnassign && row.status === assigned) {
+                    <button type="button" class="btn-action secondary" (click)="unassignClick.emit(row)">
+                      Unassign
+                    </button>
+                  }
+                </td>
               </tr>
             }
           </tbody>
@@ -93,6 +111,11 @@ import { StatusBadgeComponent } from './status-badge.component';
       text-align: right;
     }
 
+    th.col-actions {
+      text-align: right;
+      white-space: nowrap;
+    }
+
     td {
       padding: 0.55rem 0.85rem;
       border-bottom: 1px solid rgba(255, 255, 255, 0.05);
@@ -130,6 +153,61 @@ import { StatusBadgeComponent } from './status-badge.component';
       color: var(--mmx-text-muted);
     }
 
+    .actions {
+      text-align: right;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .link {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      color: var(--mmx-accent);
+      text-decoration: none;
+    }
+
+    .link:hover {
+      text-decoration: underline;
+    }
+
+    .btn-action {
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 0.35rem 0.55rem;
+      border-radius: 4px;
+      border: 1px solid var(--mmx-accent);
+      background: var(--mmx-accent-dim);
+      color: var(--mmx-accent);
+      cursor: pointer;
+      transition:
+        background 0.2s ease,
+        border-color 0.2s ease;
+    }
+
+    .btn-action:hover {
+      background: rgba(232, 168, 56, 0.18);
+    }
+
+    .btn-action.secondary {
+      border-color: var(--mmx-border);
+      background: transparent;
+      color: var(--mmx-text-muted);
+    }
+
+    .btn-action.secondary:hover {
+      border-color: var(--mmx-text-muted);
+      color: var(--mmx-text);
+    }
+
     .state {
       margin: 0;
       padding: 1.25rem;
@@ -149,7 +227,17 @@ import { StatusBadgeComponent } from './status-badge.component';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class OrderTableComponent {
+  readonly received = OrderStatus.RECEIVED;
+  readonly assigned = OrderStatus.ASSIGNED;
+
   @Input() orders: OrderSummary[] = [];
   @Input() loading = false;
   @Input() errorMessage: string | null = null;
+  /** Received queues: show Assign for RECEIVED rows. */
+  @Input() enableAssign = false;
+  /** Assigned queue: show Unassign for ASSIGNED rows. */
+  @Input() enableUnassign = false;
+
+  @Output() readonly assignClick = new EventEmitter<OrderSummary>();
+  @Output() readonly unassignClick = new EventEmitter<OrderSummary>();
 }
