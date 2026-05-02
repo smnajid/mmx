@@ -1,1 +1,43 @@
-/* You can add global styles to this file, and also import other style files */
+/* MMx — industrial desk theme (distinct from generic AI purple gradients) */
+:root {
+  --mmx-bg: #0c0f12;
+  --mmx-surface: #151b22;
+  --mmx-surface-elevated: #1c2430;
+  --mmx-border: rgba(232, 168, 56, 0.22);
+  --mmx-text: #e8ecf1;
+  --mmx-text-muted: #8b98a8;
+  --mmx-accent: #e8a838;
+  --mmx-accent-dim: rgba(232, 168, 56, 0.14);
+  --mmx-grid: rgba(255, 255, 255, 0.03);
+
+  --font-display: 'Literata', 'Georgia', serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: var(--font-display);
+  background-color: var(--mmx-bg);
+  background-image:
+    linear-gradient(135deg, transparent 0%, rgba(232, 168, 56, 0.03) 40%, transparent 70%),
+    repeating-linear-gradient(
+      -12deg,
+      transparent,
+      transparent 48px,
+      var(--mmx-grid) 48px,
+      var(--mmx-grid) 49px
+    );
+  color: var(--mmx-text);
+  -webkit-font-smoothing: antialiased;
+}

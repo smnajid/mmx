@@ -142,10 +142,10 @@
 
 ### Frontend
 
-- [ ] T051 [P] [US1] Create term-orders feature: TermOrderListComponent and routes at frontend/src/app/features/term-orders/
-- [ ] T052 [P] [US1] Create oncall-orders feature: OnCallOrderListComponent and routes at frontend/src/app/features/oncall-orders/
-- [ ] T053 [P] [US1] Create shared OrderTableComponent at frontend/src/app/shared/components/order-table.component.ts and StatusBadgeComponent at frontend/src/app/shared/components/status-badge.component.ts
-- [ ] T054 [US1] Create app.routes.ts with /term-orders, /oncall-orders routes and navigation layout in app.component.ts
+- [X] T051 [P] [US1] Create term-orders feature: TermOrderListComponent and routes at frontend/src/app/features/term-orders/
+- [X] T052 [P] [US1] Create oncall-orders feature: OnCallOrderListComponent and routes at frontend/src/app/features/oncall-orders/
+- [X] T053 [P] [US1] Create shared OrderTableComponent at frontend/src/app/shared/components/order-table.component.ts and StatusBadgeComponent at frontend/src/app/shared/components/status-badge.component.ts
+- [X] T054 [US1] Create app.routes.ts with /term-orders, /oncall-orders routes and navigation layout in app.component.ts
 
 **Checkpoint**: User Story 1 complete — receive orders via curl, verify they appear in Term/OnCall lists in both API and UI
 
