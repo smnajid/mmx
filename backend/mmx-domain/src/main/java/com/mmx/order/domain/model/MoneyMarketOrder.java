@@ -184,16 +184,15 @@ public class MoneyMarketOrder {
             BigDecimal amount,
             LocalDate valueDate,
             BigDecimal minimumRate,
-            String desiredCounterpartyComment,
             TraderId requestingTraderId,
             LocalDate today,
             Instant now
     ) {
         if (this.status != OrderStatus.ASSIGNED) {
-            throw new InvalidOrderException("Order must be in ASSIGNED status to update");
+            throw new InvalidStatusTransitionException("Order must be in ASSIGNED status to update");
         }
         if (assignment == null || !assignment.traderId().equals(requestingTraderId)) {
-            throw new InvalidOrderException("Only the assigned Trader may update the order");
+            throw new UnauthorizedTraderException("Only the assigned Trader may update the order");
         }
         if (amount != null) {
             validateAmount(amount);
@@ -206,9 +205,6 @@ public class MoneyMarketOrder {
         if (minimumRate != null) {
             validateMinimumRate(minimumRate);
             this.minimumRate = minimumRate.setScale(8, java.math.RoundingMode.UNNECESSARY);
-        }
-        if (desiredCounterpartyComment != null) {
-            this.desiredCounterpartyComment = desiredCounterpartyComment;
         }
         this.updatedAt = now;
     }

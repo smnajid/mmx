@@ -10,12 +10,18 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { OrderApiService } from '../../core/api/order-api.service';
-import type { ExecuteOrderRequest, OrderDetails, RejectOrderRequest } from '../../core/models/order.model';
+import type {
+  ExecuteOrderRequest,
+  OrderDetails,
+  RejectOrderRequest,
+  UpdateOrderRequest,
+} from '../../core/models/order.model';
 import { OrderStatus } from '../../core/models/order-status.enum';
 import { TraderContextService } from '../../core/trader/trader-context.service';
 import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog.component';
 import { StatusBadgeComponent } from '../../shared/components/status-badge.component';
 import { OrderExecutionFormComponent } from './order-execution-form.component';
+import { OrderUpdateFormComponent } from './order-update-form.component';
 
 @Component({
   selector: 'mmx-order-details',
@@ -25,6 +31,7 @@ import { OrderExecutionFormComponent } from './order-execution-form.component';
     RouterLink,
     StatusBadgeComponent,
     OrderExecutionFormComponent,
+    OrderUpdateFormComponent,
     ConfirmDialogComponent,
   ],
   template: `
@@ -110,6 +117,13 @@ import { OrderExecutionFormComponent } from './order-execution-form.component';
               Unassign
             </button>
           </div>
+          @if (o.assignedTraderId === trader.traderId()) {
+            <mmx-order-update-form
+              [order]="o"
+              [submitting]="acting()"
+              (submitUpdate)="updateOrder($event)"
+            />
+          }
           <mmx-order-execution-form
             [submitting]="acting()"
             (submitExecute)="execute($event)"
@@ -399,7 +413,7 @@ export class OrderDetailsComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
   private readonly api = inject(OrderApiService);
-  private readonly trader = inject(TraderContextService);
+  readonly trader = inject(TraderContextService);
 
   readonly received = OrderStatus.RECEIVED;
   readonly assigned = OrderStatus.ASSIGNED;
@@ -516,6 +530,25 @@ export class OrderDetailsComponent implements OnInit {
       next: (details) => {
         this.order.set(details);
         this.rejectDialogOpen.set(false);
+        this.acting.set(false);
+      },
+      error: (err) => {
+        this.acting.set(false);
+        this.error.set(this.formatHttpError(err));
+      },
+    });
+  }
+
+  updateOrder(body: UpdateOrderRequest): void {
+    const id = this.order()?.orderId;
+    if (!id) {
+      return;
+    }
+    this.acting.set(true);
+    this.error.set(null);
+    this.api.updateOrder(id, this.trader.traderId(), body).subscribe({
+      next: (details) => {
+        this.order.set(details);
         this.acting.set(false);
       },
       error: (err) => {

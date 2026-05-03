@@ -257,18 +257,18 @@
 
 ### Application Service (TDD)
 
-- [ ] T084 [US5] Write application tests for UpdateOrderService at backend/mmx-application/src/test/java/com/mmx/order/application/service/UpdateOrderServiceTest.java: update Amount success, update ValueDate too soon rejected, update by wrong Trader → 403, update non-ASSIGNED → 409, audit event with changed fields (Amount / MinimumRate / ValueDate only)
-- [ ] T085 [US5] Create UpdateOrderService implementing UpdateAssignedOrderUseCase at backend/mmx-application/src/main/java/com/mmx/order/application/service/UpdateOrderService.java
+- [x] T084 [US5] Write application tests for UpdateOrderService at backend/mmx-application/src/test/java/com/mmx/order/application/service/UpdateOrderServiceTest.java: update Amount success, update ValueDate too soon rejected, update by wrong Trader → 403, update non-ASSIGNED → 409, audit event with changed fields (Amount / MinimumRate / ValueDate only)
+- [x] T085 [US5] Create UpdateOrderService implementing UpdateAssignedOrderUseCase at backend/mmx-application/src/main/java/com/mmx/order/application/service/UpdateOrderService.java
 
 ### REST Endpoint
 
-- [ ] T086 [US5] Use generated `UpdateOrderRequest` from OpenAPI (optional fields per spec); implement under `OrdersApi` — **no** hand-written `dto/UpdateOrderRequest.java` unless documented exception
-- [ ] T087 [US5] Add PUT /api/v1/orders/{orderId} endpoint to OrderManagementController
-- [ ] T088 [US5] Write REST API tests for update endpoint at backend/mmx-adapter-in-rest/src/test/java/com/mmx/order/adapter/in/rest/OrderUpdateControllerTest.java: 200 success, 400 invalid values, 403 wrong Trader, 409 wrong status
+- [x] T086 [US5] Use generated `UpdateOrderRequest` from OpenAPI (optional fields per spec); implement under `OrdersApi` — **no** hand-written `dto/UpdateOrderRequest.java` unless documented exception
+- [x] T087 [US5] Add PUT /api/v1/orders/{orderId} endpoint to OrderManagementController
+- [x] T088 [US5] Write REST API tests for update endpoint at backend/mmx-adapter-in-rest/src/test/java/com/mmx/order/adapter/in/rest/OrderUpdateControllerTest.java: 200 success, 400 invalid values, 403 wrong Trader, 409 wrong status
 
 ### Frontend
 
-- [ ] T089 [US5] Create OrderUpdateFormComponent at frontend/src/app/features/order-details/order-update-form.component.ts with editable Amount, MinimumRate, and ValueDate fields only (visible only for ASSIGNED orders owned by current Trader); display DesiredCounterpartyComment read-only when present
+- [x] T089 [US5] Create OrderUpdateFormComponent at frontend/src/app/features/order-details/order-update-form.component.ts with editable Amount, MinimumRate, and ValueDate fields only (visible only for ASSIGNED orders owned by current Trader); display DesiredCounterpartyComment read-only when present
 
 **Checkpoint**: User Story 5 complete — Amount, MinimumRate, ValueDate updatable with revalidation; counterparty comment unchanged after intake
 

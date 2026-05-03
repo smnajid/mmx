@@ -3,6 +3,7 @@ package com.mmx.order.adapter.in.rest.mapper;
 import com.mmx.order.adapter.in.rest.generated.model.ExecuteOrderRequest;
 import com.mmx.order.adapter.in.rest.generated.model.RejectOrderRequest;
 import com.mmx.order.adapter.in.rest.generated.model.ReceiveOrderRequest;
+import com.mmx.order.adapter.in.rest.generated.model.UpdateOrderRequest;
 import com.mmx.order.adapter.in.rest.generated.model.OrderDetailsResponse;
 import com.mmx.order.adapter.in.rest.generated.model.OrderOperation;
 import com.mmx.order.adapter.in.rest.generated.model.OrderStatus;
@@ -14,6 +15,7 @@ import com.mmx.order.application.command.CancelOrderCommand;
 import com.mmx.order.application.command.ExecuteOrderCommand;
 import com.mmx.order.application.command.ReceiveOrderCommand;
 import com.mmx.order.application.command.RejectOrderCommand;
+import com.mmx.order.application.command.UpdateOrderCommand;
 import com.mmx.order.application.port.in.OrderPage;
 import com.mmx.order.application.port.in.ReceiveOrderUseCase;
 import com.mmx.order.domain.model.Assignment;
@@ -109,6 +111,15 @@ public class OrderRestMapper {
 
     public CancelOrderCommand toCancelCommand(UUID orderId, String xTraderId) {
         return new CancelOrderCommand(orderId, new TraderId(xTraderId));
+    }
+
+    public UpdateOrderCommand toUpdateCommand(UpdateOrderRequest request, UUID orderId, String xTraderId) {
+        BigDecimal amount =
+                request.getAmount() != null ? BigDecimal.valueOf(request.getAmount()) : null;
+        BigDecimal minimumRate =
+                request.getMinimumRate() != null ? BigDecimal.valueOf(request.getMinimumRate()) : null;
+        return new UpdateOrderCommand(
+                orderId, new TraderId(xTraderId), amount, request.getValueDate(), minimumRate);
     }
 
     public RejectOrderCommand toRejectCommand(RejectOrderRequest request, UUID orderId, String xTraderId) {

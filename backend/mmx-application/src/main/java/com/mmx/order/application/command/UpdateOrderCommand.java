@@ -11,6 +11,5 @@ public record UpdateOrderCommand(
         TraderId traderId,
         BigDecimal amount,
         LocalDate valueDate,
-        BigDecimal minimumRate,
-        String desiredCounterpartyComment
+        BigDecimal minimumRate
 ) {}

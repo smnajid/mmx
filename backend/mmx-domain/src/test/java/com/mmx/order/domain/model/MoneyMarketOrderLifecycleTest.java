@@ -229,21 +229,19 @@ class MoneyMarketOrderLifecycleTest {
                     new BigDecimal("6000000.00"),
                     TODAY.plusDays(5),
                     new BigDecimal("3.50000000"),
-                    "Updated preference",
                     TRADER_A, TODAY, NOW
             );
 
             assertThat(receivedOrder.getAmount()).isEqualByComparingTo(new BigDecimal("6000000.00"));
             assertThat(receivedOrder.getValueDate()).isEqualTo(TODAY.plusDays(5));
             assertThat(receivedOrder.getMinimumRate()).isEqualByComparingTo(new BigDecimal("3.50000000"));
-            assertThat(receivedOrder.getDesiredCounterpartyComment()).isEqualTo("Updated preference");
         }
 
         @Test
         void update_by_wrong_trader_throws() {
             assertThatThrownBy(() -> receivedOrder.update(
-                    null, null, null, null, TRADER_B, TODAY, NOW
-            )).isInstanceOf(InvalidOrderException.class);
+                    null, null, null, TRADER_B, TODAY, NOW
+            )).isInstanceOf(UnauthorizedTraderException.class);
         }
 
         @Test
@@ -251,8 +249,8 @@ class MoneyMarketOrderLifecycleTest {
             receivedOrder.unassign(TRADER_A, NOW);
 
             assertThatThrownBy(() -> receivedOrder.update(
-                    null, null, null, null, TRADER_A, TODAY, NOW
-            )).isInstanceOf(InvalidOrderException.class);
+                    null, null, null, TRADER_A, TODAY, NOW
+            )).isInstanceOf(InvalidStatusTransitionException.class);
         }
     }
 }

@@ -12,12 +12,14 @@ import com.mmx.order.application.port.in.CancelOrderUseCase;
 import com.mmx.order.application.port.in.ExecuteOrderUseCase;
 import com.mmx.order.application.port.in.ReceiveOrderUseCase;
 import com.mmx.order.application.port.in.RejectOrderUseCase;
+import com.mmx.order.application.port.in.UpdateAssignedOrderUseCase;
 import com.mmx.order.application.port.out.*;
 import com.mmx.order.application.service.AssignmentService;
 import com.mmx.order.application.service.ExecuteOrderService;
 import com.mmx.order.application.service.OrderLifecycleService;
 import com.mmx.order.application.service.OrderQueryService;
 import com.mmx.order.application.service.ReceiveOrderService;
+import com.mmx.order.application.service.UpdateOrderService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -72,6 +74,12 @@ public class OrderModuleConfiguration {
             AuditLogger auditLogger,
             Clock clock) {
         return new ExecuteOrderService(orderRepository, referenceGenerator, auditLogger, clock);
+    }
+
+    @Bean
+    public UpdateAssignedOrderUseCase updateAssignedOrderUseCase(
+            OrderRepository orderRepository, AuditLogger auditLogger, Clock clock) {
+        return new UpdateOrderService(orderRepository, auditLogger, clock);
     }
 
     @Bean

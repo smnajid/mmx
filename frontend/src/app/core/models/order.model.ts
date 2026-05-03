@@ -67,7 +67,6 @@ export interface UpdateOrderRequest {
   amount?: number;
   valueDate?: string;
   minimumRate?: number;
-  desiredCounterpartyComment?: string | null;
 }
 
 export interface ExecuteOrderRequest {

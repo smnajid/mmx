@@ -1,0 +1,58 @@
+package com.mmx.order.application.service;
+
+import com.mmx.order.application.command.UpdateOrderCommand;
+import com.mmx.order.application.port.in.UpdateAssignedOrderUseCase;
+import com.mmx.order.application.port.out.AuditLogger;
+import com.mmx.order.application.port.out.Clock;
+import com.mmx.order.application.port.out.OrderRepository;
+import com.mmx.order.domain.exception.InvalidOrderException;
+import com.mmx.order.domain.exception.OrderNotFoundException;
+import com.mmx.order.domain.model.MoneyMarketOrder;
+
+import java.util.Objects;
+
+public final class UpdateOrderService implements UpdateAssignedOrderUseCase {
+
+    static final String EVENT_ORDER_UPDATED = "ORDER_UPDATED";
+
+    private final OrderRepository orderRepository;
+    private final AuditLogger auditLogger;
+    private final Clock clock;
+
+    public UpdateOrderService(OrderRepository orderRepository, AuditLogger auditLogger, Clock clock) {
+        this.orderRepository = orderRepository;
+        this.auditLogger = auditLogger;
+        this.clock = clock;
+    }
+
+    @Override
+    public MoneyMarketOrder update(UpdateOrderCommand command) {
+        validate(command);
+        MoneyMarketOrder order =
+                orderRepository.findById(command.orderId()).orElseThrow(() -> new OrderNotFoundException(command.orderId()));
+
+        var now = clock.now();
+        var today = clock.today();
+        order.update(
+                command.amount(),
+                command.valueDate(),
+                command.minimumRate(),
+                command.traderId(),
+                today,
+                now);
+
+        MoneyMarketOrder saved = orderRepository.save(order);
+        auditLogger.log(saved.getId(), EVENT_ORDER_UPDATED, command.traderId().value(), now);
+        return saved;
+    }
+
+    private static void validate(UpdateOrderCommand command) {
+        if (command.amount() == null
+                && command.valueDate() == null
+                && command.minimumRate() == null) {
+            throw new InvalidOrderException("At least one of amount, minimumRate, or valueDate must be provided");
+        }
+        Objects.requireNonNull(command.orderId(), "orderId");
+        Objects.requireNonNull(command.traderId(), "traderId");
+    }
+}
