@@ -278,7 +278,7 @@
 
 **Purpose**: End-to-end tests, OpenAPI documentation, Angular component tests, final cleanup
 
-- [ ] T090 Write end-to-end test: full Trader workflow (receive → list → assign → execute → verify) at backend/mmx-bootstrap/src/test/java/com/mmx/order/e2e/TraderWorkflowE2ETest.java using Testcontainers
+- [x] T090 Write end-to-end test: full Trader workflow (receive → list → assign → execute → verify) at backend/mmx-bootstrap/src/test/java/com/mmx/order/e2e/TraderWorkflowE2ETest.java using Testcontainers
 - [ ] T091 [P] Write end-to-end test: cancel flow (receive → cancel → verify terminal) at backend/mmx-bootstrap/src/test/java/com/mmx/order/e2e/CancelFlowE2ETest.java
 - [ ] T092 [P] Write end-to-end test: idempotent receive (POST same ExternalOrderReference twice → 201 then 200, same orderId) at backend/mmx-bootstrap/src/test/java/com/mmx/order/e2e/IdempotentReceiveE2ETest.java
 - [ ] T093 [P] Configure springdoc-openapi in mmx-bootstrap to expose Swagger UI (e.g. /swagger-ui.html) using the canonical OpenAPI document from specs/001-mm-order-processing/contracts/openapi.yaml (resource/MBean config) so docs match codegen source

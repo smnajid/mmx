@@ -15,6 +15,11 @@
     <name>mmx-bootstrap</name>
     <description>Bootstrap module: Spring Boot entry point, wires all adapters, owns application configuration and Flyway migrations.</description>
 
+    <properties>
+        <!-- Skip Testcontainers-backed tests unless -Pdocker-e2e is active (Docker not required for default builds). -->
+        <surefire.excluded.groups>docker</surefire.excluded.groups>
+    </properties>
+
     <dependencies>
         <!-- All adapter modules assembled here -->
         <dependency>
@@ -43,6 +48,16 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers-junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers-postgresql</artifactId>
+            <scope>test</scope>
+        </dependency>
         <!-- Runtime: optional in-memory DB for spring.profiles.active=local (no Docker/PostgreSQL). Tests use it too. -->
         <dependency>
             <groupId>com.h2database</groupId>
@@ -54,10 +69,26 @@
     <build>
         <plugins>
             <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <excludedGroups>${surefire.excluded.groups}</excludedGroups>
+                </configuration>
+            </plugin>
+            <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <profile>
+            <id>docker-e2e</id>
+            <properties>
+                <surefire.excluded.groups/>
+            </properties>
+        </profile>
+    </profiles>
 
 </project>
