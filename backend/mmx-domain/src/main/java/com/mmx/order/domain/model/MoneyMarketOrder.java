@@ -221,8 +221,12 @@ public class MoneyMarketOrder {
             TraderId requestingTraderId,
             Instant now
     ) {
+        Objects.requireNonNull(requestingTraderId);
+        if (this.status != OrderStatus.ASSIGNED) {
+            throw new InvalidStatusTransitionException(this.status, OrderStatus.EXECUTED);
+        }
         if (assignment == null || !assignment.traderId().equals(requestingTraderId)) {
-            throw new InvalidOrderException("Only the assigned Trader may execute the order");
+            throw new UnauthorizedTraderException("Only the assigned Trader may execute the order");
         }
         this.status = this.status.transitionTo(OrderStatus.EXECUTED);
         this.executionDetails = new ExecutionDetails(

@@ -135,7 +135,36 @@ class MoneyMarketOrderLifecycleTest {
                     new BigDecimal("3.50000000"), "BankCo",
                     new DealingReference("DL-x"), new ContractNumber("CN-x"),
                     TRADER_B, NOW
-            )).isInstanceOf(InvalidOrderException.class);
+            )).isInstanceOf(UnauthorizedTraderException.class);
+        }
+
+        @Test
+        void execute_from_received_without_assign_throws_invalid_transition() {
+            MoneyMarketOrder receivedOnly = MoneyMarketOrder.create(
+                    new ExternalOrderReference("PM-EXEC-NO-ASSIGN"),
+                    OrderType.TERM,
+                    OrderOperation.SUBSCRIPTION,
+                    new PortfolioNumber("PF-001"),
+                    "EUR",
+                    new BigDecimal("5000000.00"),
+                    TODAY.plusDays(2),
+                    new BigDecimal("3.25000000"),
+                    Tenor._3M,
+                    null,
+                    null,
+                    null,
+                    TODAY
+            );
+            assertThatThrownBy(
+                            () ->
+                                    receivedOnly.execute(
+                                            new BigDecimal("3.50000000"),
+                                            "BankCo",
+                                            new DealingReference("DL-x"),
+                                            new ContractNumber("CN-x"),
+                                            TRADER_A,
+                                            NOW))
+                    .isInstanceOf(InvalidStatusTransitionException.class);
         }
     }
 

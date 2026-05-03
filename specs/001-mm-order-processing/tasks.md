@@ -195,8 +195,8 @@
 
 ### Application Service (TDD)
 
-- [ ] T066 [US3] Write application tests for ExecuteOrderService at backend/mmx-application/src/test/java/com/mmx/order/application/service/ExecuteOrderServiceTest.java: execute success with generated references and system clock time, missing ExecutedRate rejected, missing Counterparty rejected, wrong Trader → 403, non-ASSIGNED → 409, audit event with dealingReference and contractNumber
-- [ ] T067 [US3] Create ExecuteOrderService implementing ExecuteOrderUseCase at backend/mmx-application/src/main/java/com/mmx/order/application/service/ExecuteOrderService.java (calls ReferenceGenerator + Clock ports)
+- [x] T066 [US3] Write application tests for ExecuteOrderService at backend/mmx-application/src/test/java/com/mmx/order/application/service/ExecuteOrderServiceTest.java: execute success with generated references and system clock time, missing ExecutedRate rejected, missing Counterparty rejected, wrong Trader → 403, non-ASSIGNED → 409, audit event with dealingReference and contractNumber
+- [x] T067 [US3] Create ExecuteOrderService implementing ExecuteOrderUseCase at backend/mmx-application/src/main/java/com/mmx/order/application/service/ExecuteOrderService.java (calls ReferenceGenerator + Clock ports)
 
 ### REST Endpoint
 

@@ -8,9 +8,11 @@ import com.mmx.order.adapter.out.persistence.JpaOrderRepository;
 import com.mmx.order.adapter.out.persistence.mapper.OrderPersistenceMapper;
 import com.mmx.order.adapter.out.persistence.repository.SpringDataAuditLogRepository;
 import com.mmx.order.adapter.out.persistence.repository.SpringDataOrderRepository;
+import com.mmx.order.application.port.in.ExecuteOrderUseCase;
 import com.mmx.order.application.port.in.ReceiveOrderUseCase;
 import com.mmx.order.application.port.out.*;
 import com.mmx.order.application.service.AssignmentService;
+import com.mmx.order.application.service.ExecuteOrderService;
 import com.mmx.order.application.service.OrderQueryService;
 import com.mmx.order.application.service.ReceiveOrderService;
 import org.springframework.context.annotation.Bean;
@@ -58,5 +60,14 @@ public class OrderModuleConfiguration {
     @Bean
     public AssignmentService assignmentService(OrderRepository orderRepository, AuditLogger auditLogger, Clock clock) {
         return new AssignmentService(orderRepository, auditLogger, clock);
+    }
+
+    @Bean
+    public ExecuteOrderUseCase executeOrderUseCase(
+            OrderRepository orderRepository,
+            ReferenceGenerator referenceGenerator,
+            AuditLogger auditLogger,
+            Clock clock) {
+        return new ExecuteOrderService(orderRepository, referenceGenerator, auditLogger, clock);
     }
 }
