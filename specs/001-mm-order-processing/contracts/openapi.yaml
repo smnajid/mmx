@@ -251,7 +251,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/OrderDetailsResponse"
         "400":
-          description: Missing or invalid execution data
+          description: Missing or invalid execution data, or executedRate below MinimumRate when order has a PM floor
           content:
             application/json:
               schema:
@@ -306,7 +306,7 @@ paths:
   /api/v1/orders/{orderId}/reject:
     post:
       tags: [Orders]
-      summary: Reject received order
+      summary: Reject received or assigned order
       operationId: rejectOrder
       parameters:
         - $ref: "#/components/parameters/TraderIdHeader"
@@ -330,8 +330,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Caller is not the assigned Trader (when order is ASSIGNED)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "409":
-          description: Order not in RECEIVED status
+          description: Order must be in RECEIVED or ASSIGNED status to reject
           content:
             application/json:
               schema:
@@ -441,7 +447,6 @@ components:
         - currency
         - amount
         - valueDate
-        - minimumRate
       properties:
         externalOrderReference:
           type: string
@@ -468,6 +473,8 @@ components:
           type: number
           format: double
           minimum: 0
+          nullable: true
+          description: Optional PM execution floor; when omitted, Trader executes subject to best market conditions.
         tenor:
           $ref: "#/components/schemas/Tenor"
         noticePeriod:
@@ -502,7 +509,6 @@ components:
         - currency
         - amount
         - valueDate
-        - minimumRate
         - status
         - createdAt
       properties:
@@ -528,6 +534,8 @@ components:
         minimumRate:
           type: number
           format: double
+          nullable: true
+          description: Present when supplied at intake; Trader cannot alter after reception.
         status:
           $ref: "#/components/schemas/OrderStatus"
         assignedTraderId:
@@ -548,7 +556,6 @@ components:
         - currency
         - amount
         - valueDate
-        - minimumRate
         - status
         - createdAt
         - updatedAt
@@ -575,6 +582,8 @@ components:
         minimumRate:
           type: number
           format: double
+          nullable: true
+          description: Optional PM execution floor when supplied at intake; immutable after reception.
         tenor:
           type: string
           nullable: true
@@ -646,16 +655,12 @@ components:
 
     UpdateOrderRequest:
       type: object
-      description: Partial update — only sent fields are applied (Amount, MinimumRate, ValueDate). DesiredCounterpartyComment is intake-only and not mutable via this endpoint.
+      description: Partial update — only Amount and ValueDate may be changed. MinimumRate and DesiredCounterpartyComment are intake-only and not mutable via this endpoint.
       properties:
         amount:
           type: number
           format: double
           exclusiveMinimum: 0
-        minimumRate:
-          type: number
-          format: double
-          minimum: 0
         valueDate:
           type: string
           format: date

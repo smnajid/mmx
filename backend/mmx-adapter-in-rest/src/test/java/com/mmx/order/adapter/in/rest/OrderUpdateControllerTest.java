@@ -84,13 +84,7 @@ class OrderUpdateControllerTest {
     @Test
     void putUpdate_returns200_whenSuccessful() throws Exception {
         MoneyMarketOrder order = assignedOrder();
-        order.update(
-                new BigDecimal("6000000.00"),
-                null,
-                null,
-                new TraderId("trader-a"),
-                TODAY,
-                NOW);
+        order.update(new BigDecimal("6000000.00"), null, new TraderId("trader-a"), TODAY, NOW);
         when(updateAssignedOrderUseCase.update(any(UpdateOrderCommand.class))).thenReturn(order);
 
         mockMvc.perform(
@@ -109,7 +103,7 @@ class OrderUpdateControllerTest {
         when(updateAssignedOrderUseCase.update(any(UpdateOrderCommand.class)))
                 .thenThrow(
                         new InvalidOrderException(
-                                "At least one of amount, minimumRate, or valueDate must be provided"));
+                                "At least one of amount or valueDate must be provided"));
 
         mockMvc.perform(
                         put("/api/v1/orders/" + id)

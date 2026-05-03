@@ -16,7 +16,8 @@ The single aggregate root of the Order Processing bounded context. Encapsulates 
 - OnCall orders MUST have a NoticePeriod and MUST NOT have a Tenor
 - ValueDate MUST be at least 2 calendar days in the future (validated at creation time)
 - Amount MUST be greater than zero
-- MinimumRate MUST be greater than or equal to zero
+- MinimumRate: if present (supplied at intake), MUST be greater than or equal to zero; if absent, no PM-specified rate floor exists
+- MinimumRate MUST NOT be changed after intake
 - Status transitions MUST follow the allowed state machine
 - Only the assigned Trader may update, execute, or unassign the order
 
@@ -32,7 +33,7 @@ The single aggregate root of the Order Processing bounded context. Encapsulates 
 | `currency` | `String` | No | ISO 4217 currency code (e.g., EUR, USD, CHF) |
 | `amount` | `BigDecimal` | No | Monetary amount; must be > 0; scale=2 |
 | `valueDate` | `LocalDate` | No | Settlement date; must be ≥ today + 2 days |
-| `minimumRate` | `BigDecimal` | No | Minimum acceptable rate; must be ≥ 0; scale=8 |
+| `minimumRate` | `BigDecimal` | Yes | Optional PM execution floor at intake; when present must be ≥ 0; scale=8; immutable after creation |
 | `tenor` | `Tenor` | Yes | Required for TERM orders; null for ON_CALL |
 | `noticePeriod` | `NoticePeriod` | Yes | Required for ON_CALL orders; null for TERM |
 | `sourceContractNumber` | `ContractNumber` | Yes | Existing contract referenced by Increase/Decrease/Redemption; null for Subscription |
@@ -51,10 +52,10 @@ The single aggregate root of the Order Processing bounded context. Encapsulates 
 | Create (factory) | `MoneyMarketOrder.create(command, today)` | Validates all creation invariants; sets status to RECEIVED |
 | Assign | `assign(traderId, now)` | RECEIVED → ASSIGNED; sets Assignment |
 | Unassign | `unassign(traderId, now)` | ASSIGNED → RECEIVED; clears Assignment; only assigned Trader |
-| Update | `update(command, traderId, today)` | Validates ASSIGNED status and Trader identity; updates Amount, MinimumRate, and ValueDate only |
-| Execute | `execute(command, traderId, dealingRef, contractNum, now)` | ASSIGNED → EXECUTED; creates ExecutionDetails; only assigned Trader |
+| Update | `update(command, traderId, today)` | Validates ASSIGNED status and Trader identity; updates Amount and ValueDate only (MinimumRate is intake-only) |
+| Execute | `execute(command, traderId, dealingRef, contractNum, now)` | ASSIGNED → EXECUTED; creates ExecutionDetails; only assigned Trader; if MinimumRate is set on the order, executedRate MUST be ≥ MinimumRate |
 | Cancel | `cancel(now)` | RECEIVED → CANCELLED |
-| Reject | `reject(reason, now)` | RECEIVED → REJECTED; stores rejectionReason |
+| Reject | `reject(reason, traderId, now)` | RECEIVED → REJECTED (any Trader) or ASSIGNED → REJECTED (only assigned Trader); stores rejectionReason |
 
 ## Value Objects
 
@@ -148,7 +149,7 @@ The aggregate validates OrderOperation against OrderType at creation time.
 | Value | Description | Transitions From | Transitions To |
 |-------|-------------|------------------|----------------|
 | `RECEIVED` | Order received from Portfolio Management | (initial) | ASSIGNED, CANCELLED, REJECTED |
-| `ASSIGNED` | Order assigned to a Trader | RECEIVED | RECEIVED (unassign), EXECUTED |
+| `ASSIGNED` | Order assigned to a Trader | RECEIVED | RECEIVED (unassign), EXECUTED, REJECTED |
 | `EXECUTED` | Execution confirmed by Trader | ASSIGNED | (terminal) |
 | `CANCELLED` | Order cancelled | RECEIVED | (terminal) |
 | `REJECTED` | Order rejected | RECEIVED | (terminal) |
@@ -185,7 +186,7 @@ Same underscore prefix convention as Tenor.
 
 | Exception | Thrown When |
 |-----------|------------|
-| `InvalidOrderException` | Order creation or update violates a domain invariant (invalid OrderType/OrderOperation combination, missing required fields, Amount ≤ 0, MinimumRate < 0, ValueDate too soon, invalid Tenor/NoticePeriod) |
+| `InvalidOrderException` | Order creation or update violates a domain invariant (invalid OrderType/OrderOperation combination, missing required fields, Amount ≤ 0, MinimumRate < 0 when supplied, ValueDate too soon, invalid Tenor/NoticePeriod, execution with ExecutedRate < MinimumRate when MinimumRate present) |
 | `InvalidStatusTransitionException` | Attempted status transition is not allowed (e.g., ASSIGNED → CANCELLED) |
 | `OrderNotFoundException` | Order with given ID does not exist |
 

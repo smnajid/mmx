@@ -139,6 +139,42 @@ class MoneyMarketOrderLifecycleTest {
         }
 
         @Test
+        void execute_below_minimum_rate_throws_when_floor_present() {
+            assertThatThrownBy(() -> receivedOrder.execute(
+                    new BigDecimal("3.24000000"), "BankCo",
+                    new DealingReference("DL-low"), new ContractNumber("CN-low"),
+                    TRADER_A, NOW
+            )).isInstanceOf(InvalidOrderException.class)
+                    .hasMessageContaining("MinimumRate");
+        }
+
+        @Test
+        void execute_succeeds_when_no_minimum_floor() {
+            MoneyMarketOrder openFloor = MoneyMarketOrder.create(
+                    new ExternalOrderReference("PM-NO-FLOOR"),
+                    OrderType.TERM,
+                    OrderOperation.SUBSCRIPTION,
+                    new PortfolioNumber("PF-001"),
+                    "EUR",
+                    new BigDecimal("5000000.00"),
+                    TODAY.plusDays(2),
+                    null,
+                    Tenor._3M,
+                    null,
+                    null,
+                    null,
+                    TODAY
+            );
+            openFloor.assign(TRADER_A, NOW);
+            openFloor.execute(
+                    new BigDecimal("0.01000000"), "BankCo",
+                    new DealingReference("DL-any"), new ContractNumber("CN-any"),
+                    TRADER_A, NOW
+            );
+            assertThat(openFloor.getStatus()).isEqualTo(OrderStatus.EXECUTED);
+        }
+
+        @Test
         void execute_from_received_without_assign_throws_invalid_transition() {
             MoneyMarketOrder receivedOnly = MoneyMarketOrder.create(
                     new ExternalOrderReference("PM-EXEC-NO-ASSIGN"),
@@ -196,18 +232,46 @@ class MoneyMarketOrderLifecycleTest {
     class Reject {
 
         @Test
-        void reject_from_received_with_reason() {
-            receivedOrder.reject("Insufficient allocation", NOW);
+        void reject_from_received_with_reason_any_trader() {
+            receivedOrder.reject(TRADER_B, "Insufficient allocation", NOW);
 
             assertThat(receivedOrder.getStatus()).isEqualTo(OrderStatus.REJECTED);
             assertThat(receivedOrder.getRejectionReason()).isEqualTo("Insufficient allocation");
         }
 
         @Test
-        void reject_from_assigned_throws() {
+        void reject_from_assigned_by_assignee_success() {
+            receivedOrder.assign(TRADER_A, NOW);
+            receivedOrder.reject(TRADER_A, "Market below PM floor", NOW);
+
+            assertThat(receivedOrder.getStatus()).isEqualTo(OrderStatus.REJECTED);
+            assertThat(receivedOrder.getRejectionReason()).isEqualTo("Market below PM floor");
+        }
+
+        @Test
+        void reject_from_assigned_by_other_trader_throws() {
             receivedOrder.assign(TRADER_A, NOW);
 
-            assertThatThrownBy(() -> receivedOrder.reject("reason", NOW))
+            assertThatThrownBy(() -> receivedOrder.reject(TRADER_B, "Cannot meet terms", NOW))
+                    .isInstanceOf(UnauthorizedTraderException.class);
+        }
+
+        @Test
+        void reject_requires_non_blank_reason() {
+            assertThatThrownBy(() -> receivedOrder.reject(TRADER_A, "   ", NOW))
+                    .isInstanceOf(InvalidOrderException.class);
+        }
+
+        @Test
+        void reject_from_executed_throws() {
+            receivedOrder.assign(TRADER_A, NOW);
+            receivedOrder.execute(
+                    new BigDecimal("3.50000000"), "BankCo",
+                    new DealingReference("DL-z"), new ContractNumber("CN-z"),
+                    TRADER_A, NOW
+            );
+
+            assertThatThrownBy(() -> receivedOrder.reject(TRADER_A, "Late change", NOW))
                     .isInstanceOf(InvalidStatusTransitionException.class);
         }
     }
@@ -224,23 +288,23 @@ class MoneyMarketOrderLifecycleTest {
         }
 
         @Test
-        void update_by_assigned_trader_modifies_mutable_fields() {
+        void update_by_assigned_trader_modifies_amount_and_value_date_minimum_unchanged() {
+            BigDecimal originalMin = receivedOrder.getMinimumRate();
             receivedOrder.update(
                     new BigDecimal("6000000.00"),
                     TODAY.plusDays(5),
-                    new BigDecimal("3.50000000"),
                     TRADER_A, TODAY, NOW
             );
 
             assertThat(receivedOrder.getAmount()).isEqualByComparingTo(new BigDecimal("6000000.00"));
             assertThat(receivedOrder.getValueDate()).isEqualTo(TODAY.plusDays(5));
-            assertThat(receivedOrder.getMinimumRate()).isEqualByComparingTo(new BigDecimal("3.50000000"));
+            assertThat(receivedOrder.getMinimumRate()).isEqualByComparingTo(originalMin);
         }
 
         @Test
         void update_by_wrong_trader_throws() {
             assertThatThrownBy(() -> receivedOrder.update(
-                    null, null, null, TRADER_B, TODAY, NOW
+                    null, null, TRADER_B, TODAY, NOW
             )).isInstanceOf(UnauthorizedTraderException.class);
         }
 
@@ -249,7 +313,7 @@ class MoneyMarketOrderLifecycleTest {
             receivedOrder.unassign(TRADER_A, NOW);
 
             assertThatThrownBy(() -> receivedOrder.update(
-                    null, null, null, TRADER_A, TODAY, NOW
+                    null, null, TRADER_A, TODAY, NOW
             )).isInstanceOf(InvalidStatusTransitionException.class);
         }
     }

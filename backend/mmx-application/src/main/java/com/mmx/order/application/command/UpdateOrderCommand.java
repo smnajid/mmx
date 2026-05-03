@@ -10,6 +10,5 @@ public record UpdateOrderCommand(
         UUID orderId,
         TraderId traderId,
         BigDecimal amount,
-        LocalDate valueDate,
-        BigDecimal minimumRate
+        LocalDate valueDate
 ) {}

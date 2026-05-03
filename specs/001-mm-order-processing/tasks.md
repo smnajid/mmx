@@ -23,6 +23,8 @@
 - **Migrations**: `backend/mmx-bootstrap/src/main/resources/db/migration/`
 - **OpenAPI (canonical HTTP contract)**: `specs/001-mm-order-processing/contracts/openapi.yaml` — generate REST models (`generated.model`), Spring API interfaces (`generated.api`), and compile sources under `mmx-adapter-in-rest` per plan §6 and constitution v1.4.0; do **not** add hand-written duplicate request/response classes when codegen provides them (extend generated types only with documented exceptions).
 
+**Spec amendments (2026-05-03)** — documented in `spec.md` Clarifications: `minimumRate` is **optional** at PM intake (PM execution floor when present; Trader executes under best market conditions when absent); Traders **must not** change `minimumRate` after intake (updates: Amount and ValueDate only); execution must enforce `executedRate` ≥ stored `minimumRate` when a floor exists; **Reject** allowed from ASSIGNED by the assigned Trader (and from RECEIVED by any Trader). Completed tasks listed below assumed the earlier contract where `minimumRate` was required on Subscription and Trader-updatable; use **T098** to reconcile code with this amendment.
+
 ---
 
 ## Phase 1: Setup (Shared Infrastructure)
@@ -216,9 +218,9 @@
 
 ## Phase 6: User Story 4 — Cancel and Reject Orders (Priority: P4)
 
-**Goal**: Traders can cancel (withdrawn) or reject (refused, with mandatory reason) Received orders
+**Goal**: Traders can cancel Received orders (withdrawn). Traders can reject from **Received** (any Trader) or **Assigned** (assigned Trader only), with mandatory reason — e.g. when a PM-supplied MinimumRate cannot be met.
 
-**Independent Test**: Receive → cancel → verify CANCELLED; Receive → reject with reason → verify REJECTED + reason stored
+**Independent Test**: Receive → cancel → verify CANCELLED; Receive → reject with reason → verify REJECTED; Assign → reject with reason → verify REJECTED + wrong Trader → 403
 
 ### Inbound Ports
 
@@ -227,29 +229,29 @@
 
 ### Application Service (TDD)
 
-- [x] T076 [US4] Write application tests for OrderLifecycleService at backend/mmx-application/src/test/java/com/mmx/order/application/service/OrderLifecycleServiceTest.java: cancel from RECEIVED, reject from RECEIVED with reason, cancel non-RECEIVED → 409, reject non-RECEIVED → 409, reject without reason → validation error, audit events for both
+- [x] T076 [US4] Write application tests for OrderLifecycleService at backend/mmx-application/src/test/java/com/mmx/order/application/service/OrderLifecycleServiceTest.java: cancel from RECEIVED, reject from RECEIVED with reason, cancel non-RECEIVED → 409, reject from wrong statuses → 409, reject without reason → validation error, audit events for both — *extend coverage per spec amendment*: reject from ASSIGNED, non-assignee → 403
 - [x] T077 [US4] Create OrderLifecycleService implementing Cancel/Reject use cases at backend/mmx-application/src/main/java/com/mmx/order/application/service/OrderLifecycleService.java
 
 ### REST Endpoints
 
 - [x] T078 [US4] Use generated `RejectOrderRequest` from OpenAPI for POST reject body (mandatory reason in spec/codegen); wire via `OrdersApi` — **no** hand-written `dto/RejectOrderRequest.java` unless documented exception
 - [x] T079 [US4] Add POST /api/v1/orders/{orderId}/cancel and POST /api/v1/orders/{orderId}/reject endpoints to OrderManagementController
-- [x] T080 [US4] Write REST API tests for cancel and reject endpoints at backend/mmx-adapter-in-rest/src/test/java/com/mmx/order/adapter/in/rest/OrderLifecycleControllerTest.java: 200 cancel success, 200 reject success with reason, 409 wrong status, reject without reason → 400
+- [x] T080 [US4] Write REST API tests for cancel and reject endpoints at backend/mmx-adapter-in-rest/src/test/java/com/mmx/order/adapter/in/rest/OrderLifecycleControllerTest.java: 200 cancel success, 200 reject success with reason, 409 wrong status, reject without reason → 400 — *extend per amendment*: reject from ASSIGNED success, wrong Trader → 403
 
 ### Frontend
 
-- [x] T081 [US4] Add Cancel and Reject action buttons to order detail view (visible only for RECEIVED orders), with ConfirmDialogComponent for cancel and a reason input dialog for reject at frontend/src/app/features/order-details/
+- [x] T081 [US4] Add Cancel and Reject action buttons to order detail view — Cancel only for RECEIVED; Reject for RECEIVED **or ASSIGNED owned by current Trader**, with ConfirmDialogComponent for cancel and a reason input dialog for reject at frontend/src/app/features/order-details/
 - [x] T082 [P] [US4] Create ConfirmDialogComponent at frontend/src/app/shared/components/confirm-dialog.component.ts
 
-**Checkpoint**: User Story 4 complete — cancel and reject from Received status, rejection reason visible in details
+**Checkpoint**: User Story 4 complete — cancel from Received only; reject from Received or Assigned (with authorization rules above); rejection reason visible in details
 
 ---
 
 ## Phase 7: User Story 5 — Update an Assigned Order (Priority: P5)
 
-**Goal**: Assigned Trader can modify Amount, MinimumRate, and ValueDate before execution (DesiredCounterpartyComment remains as supplied at intake only)
+**Goal**: Assigned Trader can modify **Amount** and **ValueDate** before execution. **MinimumRate** is PM-authored at intake (optional); not editable by Trader. DesiredCounterpartyComment remains as supplied at intake only.
 
-**Independent Test**: Assign → update Amount → verify new value persisted and revalidated
+**Independent Test**: Assign → update Amount or ValueDate → verify new value persisted and revalidated
 
 ### Inbound Port
 
@@ -257,7 +259,7 @@
 
 ### Application Service (TDD)
 
-- [x] T084 [US5] Write application tests for UpdateOrderService at backend/mmx-application/src/test/java/com/mmx/order/application/service/UpdateOrderServiceTest.java: update Amount success, update ValueDate too soon rejected, update by wrong Trader → 403, update non-ASSIGNED → 409, audit event with changed fields (Amount / MinimumRate / ValueDate only)
+- [x] T084 [US5] Write application tests for UpdateOrderService at backend/mmx-application/src/test/java/com/mmx/order/application/service/UpdateOrderServiceTest.java: update Amount success, update ValueDate too soon rejected, update by wrong Trader → 403, update non-ASSIGNED → 409, audit event with changed fields (Amount / ValueDate only — MinimumRate immutable)
 - [x] T085 [US5] Create UpdateOrderService implementing UpdateAssignedOrderUseCase at backend/mmx-application/src/main/java/com/mmx/order/application/service/UpdateOrderService.java
 
 ### REST Endpoint
@@ -268,9 +270,9 @@
 
 ### Frontend
 
-- [x] T089 [US5] Create OrderUpdateFormComponent at frontend/src/app/features/order-details/order-update-form.component.ts with editable Amount, MinimumRate, and ValueDate fields only (visible only for ASSIGNED orders owned by current Trader); display DesiredCounterpartyComment read-only when present
+- [x] T089 [US5] Create OrderUpdateFormComponent at frontend/src/app/features/order-details/order-update-form.component.ts with editable Amount and ValueDate fields only; display MinimumRate **read-only** when present at intake **or omit label when null** (visible only for ASSIGNED orders owned by current Trader); display DesiredCounterpartyComment read-only when present
 
-**Checkpoint**: User Story 5 complete — Amount, MinimumRate, ValueDate updatable with revalidation; counterparty comment unchanged after intake
+**Checkpoint**: User Story 5 complete — Amount and ValueDate updatable with revalidation; MinimumRate unchanged after intake (display only); counterparty comment unchanged after intake
 
 ---
 
@@ -278,14 +280,16 @@
 
 **Purpose**: End-to-end tests, OpenAPI documentation, Angular component tests, final cleanup
 
+- [x] T098 Align implementation with MinimumRate semantics (optional nullable intake field; forbid Trader updates to MinimumRate on PUT; execute validates executedRate vs floor when present; reject-from-ASSIGNED with auth; regenerate OpenAPI clients after `openapi.yaml` change): domain, persistence, REST, Angular update/reject UX, Flyway/schema if nullable column not yet reflected
+
 - [x] T090 Write end-to-end test: full Trader workflow (receive → list → assign → execute → verify) at backend/mmx-bootstrap/src/test/java/com/mmx/order/e2e/TraderWorkflowE2ETest.java using Testcontainers
 - [ ] T091 [P] Write end-to-end test: cancel flow (receive → cancel → verify terminal) at backend/mmx-bootstrap/src/test/java/com/mmx/order/e2e/CancelFlowE2ETest.java
 - [ ] T092 [P] Write end-to-end test: idempotent receive (POST same ExternalOrderReference twice → 201 then 200, same orderId) at backend/mmx-bootstrap/src/test/java/com/mmx/order/e2e/IdempotentReceiveE2ETest.java
-- [ ] T093 [P] Configure springdoc-openapi in mmx-bootstrap to expose Swagger UI (e.g. /swagger-ui.html) using the canonical OpenAPI document from specs/001-mm-order-processing/contracts/openapi.yaml (resource/MBean config) so docs match codegen source
-- [ ] T094 [P] Write Angular component tests for TermOrderListComponent, OnCallOrderListComponent, and AssignedOrderListComponent using HttpClientTestingModule
-- [ ] T095 [P] Write Angular component tests for OrderDetailsComponent: correct action buttons shown per status
-- [ ] T096 Configure Cypress and write e2e test for full Trader workflow (receive → assign → execute) at frontend/cypress/e2e/trader-workflow.cy.ts
-- [ ] T097 Run full build verification (mvn verify + ng test + Cypress) and fix any remaining issues
+- [x] T093 [P] Configure springdoc-openapi in mmx-bootstrap to expose Swagger UI (e.g. /swagger-ui.html) using the canonical OpenAPI document from specs/001-mm-order-processing/contracts/openapi.yaml (resource/MBean config) so docs match codegen source
+- [x] T094 [P] Write Angular component tests for TermOrderListComponent, OnCallOrderListComponent, and AssignedOrderListComponent using HttpClientTestingModule
+- [x] T095 [P] Write Angular component tests for OrderDetailsComponent: correct action buttons shown per status
+- [x] T096 Configure Cypress and write e2e test for full Trader workflow (receive → assign → execute) at frontend/cypress/e2e/trader-workflow.cy.ts
+- [x] T097 Run full build verification (mvn verify + ng test + Cypress) and fix any remaining issues
 
 ---
 

@@ -33,7 +33,9 @@ management:
       show-details: always
 
 springdoc:
+  # Serve only the canonical contract (same file as OpenAPI Generator input); avoids runtime scan drift vs specs/001-mm-order-processing/contracts/openapi.yaml
   api-docs:
-    path: /api-docs
+    enabled: false
   swagger-ui:
     path: /swagger-ui.html
+    url: /openapi.yaml

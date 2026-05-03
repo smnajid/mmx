@@ -35,7 +35,7 @@ public class OrderEntity {
     @Column(name = "value_date", nullable = false)
     private LocalDate valueDate;
 
-    @Column(name = "minimum_rate", nullable = false, precision = 12, scale = 8)
+    @Column(name = "minimum_rate", nullable = true, precision = 12, scale = 8)
     private BigDecimal minimumRate;
 
     @Column(name = "tenor", length = 10)

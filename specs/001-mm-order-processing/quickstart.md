@@ -124,6 +124,8 @@ curl -X POST http://localhost:8080/api/v1/orders \
   }'
 ```
 
+`minimumRate` may be omitted when the Portfolio Manager does not set an execution-floor indication; reception still succeeds without it.
+
 Expected: `201 Created` with `{ "orderId": "...", "status": "RECEIVED" }`
 
 ### List received Term orders

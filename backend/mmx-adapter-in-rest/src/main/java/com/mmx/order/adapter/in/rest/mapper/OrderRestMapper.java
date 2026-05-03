@@ -51,7 +51,8 @@ public class OrderRestMapper {
                 .currency(order.getCurrency())
                 .amount(order.getAmount().doubleValue())
                 .valueDate(order.getValueDate())
-                .minimumRate(order.getMinimumRate().doubleValue())
+                .minimumRate(
+                        order.getMinimumRate() != null ? order.getMinimumRate().doubleValue() : null)
                 .status(OrderStatus.fromValue(order.getStatus().name()))
                 .assignedTraderId(assignment != null ? assignment.traderId().value() : null)
                 .createdAt(OffsetDateTime.ofInstant(order.getCreatedAt(), UTC));
@@ -70,7 +71,8 @@ public class OrderRestMapper {
                         .currency(order.getCurrency())
                         .amount(order.getAmount().doubleValue())
                         .valueDate(order.getValueDate())
-                        .minimumRate(order.getMinimumRate().doubleValue())
+                        .minimumRate(
+                                order.getMinimumRate() != null ? order.getMinimumRate().doubleValue() : null)
                         .status(OrderStatus.fromValue(order.getStatus().name()))
                         .createdAt(OffsetDateTime.ofInstant(order.getCreatedAt(), UTC))
                         .updatedAt(OffsetDateTime.ofInstant(order.getUpdatedAt(), UTC));
@@ -116,10 +118,7 @@ public class OrderRestMapper {
     public UpdateOrderCommand toUpdateCommand(UpdateOrderRequest request, UUID orderId, String xTraderId) {
         BigDecimal amount =
                 request.getAmount() != null ? BigDecimal.valueOf(request.getAmount()) : null;
-        BigDecimal minimumRate =
-                request.getMinimumRate() != null ? BigDecimal.valueOf(request.getMinimumRate()) : null;
-        return new UpdateOrderCommand(
-                orderId, new TraderId(xTraderId), amount, request.getValueDate(), minimumRate);
+        return new UpdateOrderCommand(orderId, new TraderId(xTraderId), amount, request.getValueDate());
     }
 
     public RejectOrderCommand toRejectCommand(RejectOrderRequest request, UUID orderId, String xTraderId) {
@@ -135,7 +134,9 @@ public class OrderRestMapper {
                 request.getCurrency(),
                 BigDecimal.valueOf(request.getAmount()),
                 request.getValueDate(),
-                BigDecimal.valueOf(request.getMinimumRate()),
+                request.getMinimumRate() != null
+                        ? BigDecimal.valueOf(request.getMinimumRate())
+                        : null,
                 mapApiTenorToDomain(request.getTenor()),
                 mapApiNoticeToDomain(request.getNoticePeriod()),
                 request.getSourceContractNumber() == null

@@ -51,6 +51,12 @@ class OrderStatusTest {
             OrderStatus result = OrderStatus.ASSIGNED.transitionTo(OrderStatus.EXECUTED);
             assertThat(result).isEqualTo(OrderStatus.EXECUTED);
         }
+
+        @Test
+        void rejected() {
+            OrderStatus result = OrderStatus.ASSIGNED.transitionTo(OrderStatus.REJECTED);
+            assertThat(result).isEqualTo(OrderStatus.REJECTED);
+        }
     }
 
     // ── Invalid transitions ──────────────────────────────────────────────────
@@ -97,10 +103,5 @@ class OrderStatusTest {
                     .isInstanceOf(InvalidStatusTransitionException.class);
         }
 
-        @Test
-        void assigned_cannot_go_to_rejected() {
-            assertThatThrownBy(() -> OrderStatus.ASSIGNED.transitionTo(OrderStatus.REJECTED))
-                    .isInstanceOf(InvalidStatusTransitionException.class);
-        }
     }
 }

@@ -58,8 +58,10 @@ import { OrderUpdateFormComponent } from './order-update-form.component';
           <dd class="mono">{{ o.amount | number: '1.2-2' }} {{ o.currency }}</dd>
           <dt>Value date</dt>
           <dd class="mono">{{ o.valueDate }}</dd>
-          <dt>Minimum rate</dt>
-          <dd class="mono">{{ o.minimumRate | number: '1.2-8' }}</dd>
+          @if (o.minimumRate !== null && o.minimumRate !== undefined) {
+            <dt>Minimum rate</dt>
+            <dd class="mono">{{ o.minimumRate | number: '1.2-8' }}</dd>
+          }
           @if (o.tenor) {
             <dt>Tenor</dt>
             <dd class="mono">{{ o.tenor }}</dd>
@@ -116,6 +118,16 @@ import { OrderUpdateFormComponent } from './order-update-form.component';
             <button type="button" class="btn secondary" [disabled]="acting()" (click)="unassign()">
               Unassign
             </button>
+            @if (o.assignedTraderId === trader.traderId()) {
+              <button
+                type="button"
+                class="btn danger-outline"
+                [disabled]="acting()"
+                (click)="openRejectDialog()"
+              >
+                Reject
+              </button>
+            }
           </div>
           @if (o.assignedTraderId === trader.traderId()) {
             <mmx-order-update-form

@@ -185,6 +185,48 @@ class ExecuteOrderServiceTest {
         assertThatThrownBy(() -> subject.execute(command)).isInstanceOf(OrderNotFoundException.class);
     }
 
+    @Test
+    void execute_below_pm_minimum_rate_rejected_after_refs_generated() {
+        MoneyMarketOrder assigned = receivedOrder();
+        assigned.assign(TRADER_A, FIXED_NOW);
+        when(orderRepository.findById(assigned.getId())).thenReturn(Optional.of(assigned));
+        when(referenceGenerator.generateDealingReference()).thenReturn(DEAL_REF);
+        when(referenceGenerator.generateContractNumber()).thenReturn(CONTRACT_REF);
+
+        ExecuteOrderCommand command =
+                new ExecuteOrderCommand(
+                        assigned.getId(),
+                        TRADER_A,
+                        new BigDecimal("3.24000000"),
+                        "BankCo International");
+
+        assertThatThrownBy(() -> subject.execute(command)).isInstanceOf(InvalidOrderException.class);
+
+        verify(orderRepository, never()).save(any());
+        verify(auditLogger, never()).log(any(), any(), any(), any());
+    }
+
+    @Test
+    void execute_when_no_pm_minimum_accepts_rate_below_other_orders_typical_floor() {
+        MoneyMarketOrder open = receivedOrderWithoutMinimum();
+        open.assign(TRADER_A, FIXED_NOW);
+        when(orderRepository.findById(open.getId())).thenReturn(Optional.of(open));
+        when(orderRepository.save(any(MoneyMarketOrder.class))).then(returnsFirstArg());
+        when(referenceGenerator.generateDealingReference()).thenReturn(DEAL_REF);
+        when(referenceGenerator.generateContractNumber()).thenReturn(CONTRACT_REF);
+
+        ExecuteOrderCommand command =
+                new ExecuteOrderCommand(
+                        open.getId(),
+                        TRADER_A,
+                        new BigDecimal("0.50000000"),
+                        "BankCo International");
+
+        MoneyMarketOrder result = subject.execute(command);
+
+        assertThat(result.getStatus().name()).isEqualTo("EXECUTED");
+    }
+
     private static MoneyMarketOrder receivedOrder() {
         return MoneyMarketOrder.create(
                 new ExternalOrderReference("PM-EXEC-" + UUID.randomUUID()),
@@ -195,6 +237,23 @@ class ExecuteOrderServiceTest {
                 new BigDecimal("1000000.00"),
                 TODAY.plusDays(3),
                 new BigDecimal("3.25000000"),
+                Tenor._3M,
+                null,
+                null,
+                null,
+                TODAY);
+    }
+
+    private static MoneyMarketOrder receivedOrderWithoutMinimum() {
+        return MoneyMarketOrder.create(
+                new ExternalOrderReference("PM-EXEC-OPEN-" + UUID.randomUUID()),
+                OrderType.TERM,
+                OrderOperation.SUBSCRIPTION,
+                new PortfolioNumber("PF-001"),
+                "EUR",
+                new BigDecimal("1000000.00"),
+                TODAY.plusDays(3),
+                null,
                 Tenor._3M,
                 null,
                 null,

@@ -74,7 +74,7 @@ class UpdateOrderServiceTest {
 
         UpdateOrderCommand command =
                 new UpdateOrderCommand(
-                        assigned.getId(), TRADER_A, new BigDecimal("6000000.00"), null, null);
+                        assigned.getId(), TRADER_A, new BigDecimal("6000000.00"), null);
 
         MoneyMarketOrder result = subject.update(command);
 
@@ -95,7 +95,7 @@ class UpdateOrderServiceTest {
 
         UpdateOrderCommand command =
                 new UpdateOrderCommand(
-                        assigned.getId(), TRADER_A, null, TODAY.plusDays(1), null);
+                        assigned.getId(), TRADER_A, null, TODAY.plusDays(1));
 
         assertThatThrownBy(() -> subject.update(command)).isInstanceOf(InvalidOrderException.class);
 
@@ -109,7 +109,7 @@ class UpdateOrderServiceTest {
         when(orderRepository.findById(assigned.getId())).thenReturn(Optional.of(assigned));
 
         UpdateOrderCommand command =
-                new UpdateOrderCommand(assigned.getId(), TRADER_B, new BigDecimal("6000000.00"), null, null);
+                new UpdateOrderCommand(assigned.getId(), TRADER_B, new BigDecimal("6000000.00"), null);
 
         assertThatThrownBy(() -> subject.update(command)).isInstanceOf(UnauthorizedTraderException.class);
 
@@ -123,7 +123,7 @@ class UpdateOrderServiceTest {
         when(orderRepository.findById(received.getId())).thenReturn(Optional.of(received));
 
         UpdateOrderCommand command =
-                new UpdateOrderCommand(received.getId(), TRADER_A, new BigDecimal("6000000.00"), null, null);
+                new UpdateOrderCommand(received.getId(), TRADER_A, new BigDecimal("6000000.00"), null);
 
         assertThatThrownBy(() -> subject.update(command)).isInstanceOf(InvalidStatusTransitionException.class);
 
@@ -136,7 +136,7 @@ class UpdateOrderServiceTest {
         MoneyMarketOrder assigned = assignedOrder();
 
         UpdateOrderCommand command =
-                new UpdateOrderCommand(assigned.getId(), TRADER_A, null, null, null);
+                new UpdateOrderCommand(assigned.getId(), TRADER_A, null, null);
 
         assertThatThrownBy(() -> subject.update(command)).isInstanceOf(InvalidOrderException.class);
 
@@ -150,7 +150,7 @@ class UpdateOrderServiceTest {
         when(orderRepository.findById(id)).thenReturn(Optional.empty());
 
         UpdateOrderCommand command =
-                new UpdateOrderCommand(id, TRADER_A, new BigDecimal("6000000.00"), null, null);
+                new UpdateOrderCommand(id, TRADER_A, new BigDecimal("6000000.00"), null);
 
         assertThatThrownBy(() -> subject.update(command)).isInstanceOf(OrderNotFoundException.class);
     }

@@ -11,7 +11,7 @@ export interface OrderSummary {
   currency: string;
   amount: number;
   valueDate: string;
-  minimumRate: number;
+  minimumRate: number | null;
   status: OrderStatus;
   assignedTraderId: string | null;
   createdAt: string;
@@ -26,7 +26,7 @@ export interface OrderDetails {
   currency: string;
   amount: number;
   valueDate: string;
-  minimumRate: number;
+  minimumRate: number | null;
   tenor: string | null;
   noticePeriod: string | null;
   sourceContractNumber: string | null;
@@ -52,7 +52,7 @@ export interface ReceiveOrderRequest {
   currency: string;
   amount: number;
   valueDate: string;
-  minimumRate: number;
+  minimumRate?: number | null;
   tenor?: string | null;
   noticePeriod?: string | null;
   sourceContractNumber?: string | null;
@@ -66,7 +66,6 @@ export interface AssignOrderRequest {
 export interface UpdateOrderRequest {
   amount?: number;
   valueDate?: string;
-  minimumRate?: number;
 }
 
 export interface ExecuteOrderRequest {

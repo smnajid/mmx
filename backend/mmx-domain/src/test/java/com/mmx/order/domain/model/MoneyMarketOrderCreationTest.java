@@ -286,6 +286,20 @@ class MoneyMarketOrderCreationTest {
         }
 
         @Test
+        void null_minimum_rate_allowed() {
+            MoneyMarketOrder order = MoneyMarketOrder.create(
+                    new ExternalOrderReference("PM-X"),
+                    OrderType.TERM, OrderOperation.SUBSCRIPTION,
+                    new PortfolioNumber("PF-001"), "EUR",
+                    new BigDecimal("1000000.00"), VALID_VALUE_DATE,
+                    null,
+                    Tenor._1M, null, null, null,
+                    TODAY
+            );
+            assertThat(order.getMinimumRate()).isNull();
+        }
+
+        @Test
         void bigdecimal_precision_preserved() {
             MoneyMarketOrder order = MoneyMarketOrder.create(
                     new ExternalOrderReference("PM-X"),

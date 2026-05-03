@@ -32,4 +32,4 @@
 ## Notes
 
 - All items pass. Spec is ready for `/speckit.clarify` or `/speckit.plan`.
-- 22 functional requirements, 5 user stories with 20 acceptance scenarios, 5 edge cases, 8 success criteria.
+- 22 functional requirements, 5 user stories (acceptance scenarios include MinimumRate optional floor, Assigned reject — see `spec.md` Clarifications 2026-05-03), 5 edge cases, 8 success criteria.

@@ -46,7 +46,13 @@ import { StatusBadgeComponent } from './status-badge.component';
                 <td class="num mono">{{ row.amount | number: '1.2-2' }}</td>
                 <td class="mono">{{ row.currency }}</td>
                 <td class="mono">{{ row.valueDate }}</td>
-                <td class="num mono">{{ row.minimumRate | number: '1.2-8' }}</td>
+                <td class="num mono">
+                  @if (row.minimumRate !== null && row.minimumRate !== undefined) {
+                    {{ row.minimumRate | number: '1.2-8' }}
+                  } @else {
+                    —
+                  }
+                </td>
                 <td><span class="op">{{ row.orderOperation }}</span></td>
                 <td><mmx-status-badge [status]="row.status" /></td>
                 <td class="actions">

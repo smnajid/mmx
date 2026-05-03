@@ -33,13 +33,7 @@ public final class UpdateOrderService implements UpdateAssignedOrderUseCase {
 
         var now = clock.now();
         var today = clock.today();
-        order.update(
-                command.amount(),
-                command.valueDate(),
-                command.minimumRate(),
-                command.traderId(),
-                today,
-                now);
+        order.update(command.amount(), command.valueDate(), command.traderId(), today, now);
 
         MoneyMarketOrder saved = orderRepository.save(order);
         auditLogger.log(saved.getId(), EVENT_ORDER_UPDATED, command.traderId().value(), now);
@@ -47,10 +41,8 @@ public final class UpdateOrderService implements UpdateAssignedOrderUseCase {
     }
 
     private static void validate(UpdateOrderCommand command) {
-        if (command.amount() == null
-                && command.valueDate() == null
-                && command.minimumRate() == null) {
-            throw new InvalidOrderException("At least one of amount, minimumRate, or valueDate must be provided");
+        if (command.amount() == null && command.valueDate() == null) {
+            throw new InvalidOrderException("At least one of amount or valueDate must be provided");
         }
         Objects.requireNonNull(command.orderId(), "orderId");
         Objects.requireNonNull(command.traderId(), "traderId");

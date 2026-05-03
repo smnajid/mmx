@@ -66,7 +66,20 @@
         </dependency>
     </dependencies>
 
+    <!-- Package canonical OpenAPI from Spec Kit contracts so Swagger UI loads the codegen source-of-truth. -->
     <build>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+            </resource>
+            <resource>
+                <directory>${project.basedir}/../../specs/001-mm-order-processing/contracts</directory>
+                <includes>
+                    <include>openapi.yaml</include>
+                </includes>
+                <targetPath>static</targetPath>
+            </resource>
+        </resources>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

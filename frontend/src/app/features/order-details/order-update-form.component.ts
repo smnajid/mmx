@@ -1,3 +1,4 @@
+import { DecimalPipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -12,14 +13,20 @@ import type { OrderDetails, UpdateOrderRequest } from '../../core/models/order.m
 @Component({
   selector: 'mmx-order-update-form',
   standalone: true,
-  imports: [FormsModule],
+  imports: [DecimalPipe, FormsModule],
   template: `
     <div class="panel">
       <h2 class="panel-title">Adjust order parameters</h2>
       <p class="hint">
-        Change amount, minimum rate, or value date before execution. Counterparty preference from intake is shown for
-        reference only.
+        Change amount or value date before execution. Minimum rate is set only by Portfolio Management at intake and
+        cannot be changed here. Counterparty preference from intake is shown for reference only.
       </p>
+      @if (order().minimumRate !== null && order().minimumRate !== undefined) {
+        <div class="readonly-block">
+          <span class="readonly-label">Minimum rate (PM floor)</span>
+          <p class="readonly-value mono">{{ order().minimumRate | number: '1.2-8' }}</p>
+        </div>
+      }
       @if (order().desiredCounterpartyComment) {
         <div class="readonly-comment">
           <span class="readonly-label">Counterparty comment (intake)</span>
@@ -36,19 +43,6 @@ import type { OrderDetails, UpdateOrderRequest } from '../../core/models/order.m
             min="0"
             class="input mono"
             [(ngModel)]="amountModel"
-            [disabled]="submitting()"
-            autocomplete="off"
-          />
-        </label>
-        <label class="field">
-          <span class="label">Minimum rate</span>
-          <input
-            type="number"
-            name="minimumRate"
-            step="any"
-            min="0"
-            class="input mono"
-            [(ngModel)]="minimumRateModel"
             [disabled]="submitting()"
             autocomplete="off"
           />
@@ -97,7 +91,8 @@ import type { OrderDetails, UpdateOrderRequest } from '../../core/models/order.m
       line-height: 1.4;
     }
 
-    .readonly-comment {
+    .readonly-comment,
+    .readonly-block {
       margin-bottom: 1rem;
       padding: 0.65rem 0.75rem;
       border-radius: 4px;
@@ -210,14 +205,12 @@ export class OrderUpdateFormComponent {
   readonly localError = signal<string | null>(null);
 
   amountModel = '';
-  minimumRateModel = '';
   valueDateModel = '';
 
   constructor() {
     effect(() => {
       const o = this.order();
       this.amountModel = String(o.amount);
-      this.minimumRateModel = String(o.minimumRate);
       this.valueDateModel = o.valueDate;
     });
   }
@@ -225,14 +218,9 @@ export class OrderUpdateFormComponent {
   onSubmit(): void {
     this.localError.set(null);
     const amount = this.amountModel === '' ? NaN : Number(this.amountModel);
-    const minR = this.minimumRateModel === '' ? NaN : Number(this.minimumRateModel);
     const vd = this.valueDateModel?.trim() ?? '';
     if (Number.isNaN(amount) || amount <= 0) {
       this.localError.set('Enter a valid amount (> 0).');
-      return;
-    }
-    if (Number.isNaN(minR) || minR < 0) {
-      this.localError.set('Enter a valid minimum rate (≥ 0).');
       return;
     }
     if (!vd) {
@@ -241,7 +229,6 @@ export class OrderUpdateFormComponent {
     }
     const body: UpdateOrderRequest = {
       amount,
-      minimumRate: minR,
       valueDate: vd,
     };
     this.submitUpdate.emit(body);

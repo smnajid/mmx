@@ -144,13 +144,17 @@ The project MUST preserve a strict ubiquitous language across backend, frontend,
 | `ValueDate` | Settlement date for the order |
 | `NoticePeriod` | Required notice for OnCall orders (24H, 48H) |
 | `Tenor` | Duration for Term orders (1W, 2W, 1M, 3M, 6M, 1Y) |
-| `MinimumRate` | The minimum acceptable rate requested by the portfolio manager |
+| `MinimumRate` | Optional Portfolio Manager indication of the minimum acceptable executed rate when supplied at intake; execution must meet or exceed it when present; Traders MUST NOT alter it after reception — if the floor cannot be met, reject the order rather than negotiating the rate through the application |
 | `ExecutedRate` | The actual rate obtained during market dealing |
 | `DealingReference` | System-generated reference for the executed deal |
 | `ExecutionTime` | Timestamp of execution confirmation in the application |
 | `OrderStatus` | Lifecycle state: Received, Assigned, Executed, Cancelled, Rejected |
 
 New domain terms MUST be proposed, reviewed, and added to this table before use in code or specifications. Synonyms and abbreviations MUST NOT be introduced without updating this section.
+
+## Amendment 1.4.1 (2026-05-03)
+
+**Rationale**: Align ubiquitous language with the feature spec: `MinimumRate` is an optional Portfolio Manager execution-floor indication at intake only; Traders do not negotiate it in-app; if the floor cannot be met, reject rather than execute below it.
 
 ## Governance
 
@@ -165,4 +169,4 @@ This constitution is the supreme governance document for the Money Market Order 
   - **PATCH**: Clarifications, wording, typo fixes, non-semantic refinements.
 - **Exception process**: Any exception to a constitutional principle MUST be documented in the relevant artifact with rationale, trade-offs, and risks. Undocumented exceptions are violations.
 
-**Version**: 1.4.0 | **Ratified**: 2026-04-28 | **Last Amended**: 2026-05-02
+**Version**: 1.4.1 | **Ratified**: 2026-04-28 | **Last Amended**: 2026-05-03

@@ -41,6 +41,8 @@ Error codes: `VALIDATION_ERROR`, `ORDER_NOT_FOUND`, `INVALID_STATUS_TRANSITION`,
 }
 ```
 
+`minimumRate` is `null` (or omitted in responses that omit-null) when Portfolio Management did not supply an execution-floor indication at intake. It is not mutable after reception.
+
 ### OrderDetailsResponse
 
 ```json
@@ -110,7 +112,7 @@ Intake endpoint called by the external Portfolio Management system.
 | currency | string | Yes | ISO 4217; 3 chars |
 | amount | decimal | Yes | Must be > 0 |
 | valueDate | date | Yes | ISO 8601; must be ≥ today + 2 days |
-| minimumRate | decimal | Yes | Must be ≥ 0 |
+| minimumRate | decimal | No | Portfolio Manager execution floor when provided; must be ≥ 0 if present; when absent, Trader executes subject to best market conditions |
 | tenor | string | Conditional | Required if orderType=TERM; one of: 1W, 2W, 1M, 3M, 6M, 1Y |
 | noticePeriod | string | Conditional | Required if orderType=ON_CALL; one of: 24H, 48H |
 | sourceContractNumber | string | Conditional | Required if orderOperation ∈ {INCREASE, DECREASE, REDEMPTION} |
@@ -261,7 +263,6 @@ All fields are optional; only provided fields are updated.
 ```json
 {
   "amount": 6000000.00,
-  "minimumRate": 3.50000000,
   "valueDate": "2026-05-05"
 }
 ```
@@ -269,10 +270,9 @@ All fields are optional; only provided fields are updated.
 | Field | Type | Notes |
 |-------|------|-------|
 | amount | decimal | Must be > 0 if provided |
-| minimumRate | decimal | Must be ≥ 0 if provided |
 | valueDate | date | Must be ≥ today + 2 days if provided |
 
-DesiredCounterpartyComment is not included in this request; it is set only at order reception and cannot be changed by the Trader.
+`MinimumRate` is not part of this request; it is set only at intake (optional) and cannot be changed by the Trader. `DesiredCounterpartyComment` is likewise intake-only.
 
 #### Responses
 
@@ -303,7 +303,7 @@ DesiredCounterpartyComment is not included in this request; it is set only at or
 
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
-| executedRate | decimal | Yes | Must be ≥ 0 |
+| executedRate | decimal | Yes | Must be ≥ 0; when the order has a `minimumRate` from intake, must be ≥ `minimumRate` |
 | counterparty | string | Yes | Non-blank; max 200 chars |
 
 #### Responses
@@ -311,7 +311,7 @@ DesiredCounterpartyComment is not included in this request; it is set only at or
 | Status | Condition | Body |
 |--------|-----------|------|
 | `200 OK` | Successfully executed | OrderDetailsResponse (includes generated dealingReference, generatedContractNumber, executionTime) |
-| `400 Bad Request` | Missing or invalid execution data | ErrorResponse |
+| `400 Bad Request` | Missing or invalid execution data, or `executedRate` below PM `minimumRate` when set | ErrorResponse |
 | `403 Forbidden` | Caller is not the assigned Trader | ErrorResponse with `UNAUTHORIZED_TRADER` |
 | `404 Not Found` | Order does not exist | ErrorResponse |
 | `409 Conflict` | Order not in ASSIGNED status | ErrorResponse with `INVALID_STATUS_TRANSITION` |
@@ -354,15 +354,16 @@ No request body.
 
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
-| reason | string | No | Optional rejection reason; max 500 chars |
+| reason | string | Yes | Trader must justify rejection; max 500 chars |
 
 #### Responses
 
 | Status | Condition | Body |
 |--------|-----------|------|
 | `200 OK` | Successfully rejected | OrderDetailsResponse |
+| `403 Forbidden` | Order is ASSIGNED to another Trader | ErrorResponse with `UNAUTHORIZED_TRADER` |
 | `404 Not Found` | Order does not exist | ErrorResponse |
-| `409 Conflict` | Order not in RECEIVED status | ErrorResponse with `INVALID_STATUS_TRANSITION` |
+| `409 Conflict` | Order not in RECEIVED or ASSIGNED status | ErrorResponse with `INVALID_STATUS_TRANSITION` |
 
 ---
 
@@ -384,7 +385,7 @@ All list endpoints use Spring's page-based pagination:
 ### Decimal Serialization
 
 - `amount`: serialized with 2 decimal places (e.g., `5000000.00`)
-- `minimumRate` and `executedRate`: serialized with 8 decimal places (e.g., `3.25000000`)
+- `minimumRate` (when present) and `executedRate`: serialized with 8 decimal places (e.g., `3.25000000`); `minimumRate` may be omitted or null when Portfolio Management did not set a floor at intake
 - JSON numbers, not strings (Jackson handles BigDecimal precision)
 
 ### Date/Time Formats

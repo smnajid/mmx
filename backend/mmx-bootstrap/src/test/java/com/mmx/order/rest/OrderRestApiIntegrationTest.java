@@ -62,6 +62,13 @@ class OrderRestApiIntegrationTest {
     }
 
     @Test
+    void postReceive_returns201_whenMinimumRateOmitted() throws Exception {
+        String ref = "IT-NOMIN-" + System.nanoTime();
+        HttpResponse<String> res = postJson("/api/v1/orders", termSubscribeJsonWithoutMinimum(ref));
+        assertThat(res.statusCode()).isEqualTo(201);
+    }
+
+    @Test
     void getTermReceived_listsOnlyTermOrders() throws Exception {
         String termRef = "IT-TERM-" + System.nanoTime();
         String onCallRef = "IT-OC-" + System.nanoTime();
@@ -162,6 +169,23 @@ class OrderRestApiIntegrationTest {
                   "valueDate": "%s",
                   "minimumRate": 2.50,
                   "noticePeriod": "24H"
+                }
+                """
+                .formatted(externalOrderReference, valueDate);
+    }
+
+    private static String termSubscribeJsonWithoutMinimum(String externalOrderReference) {
+        LocalDate valueDate = LocalDate.now().plusDays(10);
+        return """
+                {
+                  "externalOrderReference": "%s",
+                  "orderType": "TERM",
+                  "orderOperation": "SUBSCRIPTION",
+                  "portfolioNumber": "PF-IT",
+                  "currency": "EUR",
+                  "amount": 1000000.00,
+                  "valueDate": "%s",
+                  "tenor": "3M"
                 }
                 """
                 .formatted(externalOrderReference, valueDate);

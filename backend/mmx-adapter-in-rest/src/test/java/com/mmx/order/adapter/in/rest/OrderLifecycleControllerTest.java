@@ -10,6 +10,7 @@ import com.mmx.order.application.port.in.UpdateAssignedOrderUseCase;
 import com.mmx.order.application.service.AssignmentService;
 import com.mmx.order.application.service.OrderQueryService;
 import com.mmx.order.domain.exception.InvalidStatusTransitionException;
+import com.mmx.order.domain.exception.UnauthorizedTraderException;
 import com.mmx.order.domain.model.ExternalOrderReference;
 import com.mmx.order.domain.model.MoneyMarketOrder;
 import com.mmx.order.domain.model.OrderOperation;
@@ -99,7 +100,7 @@ class OrderLifecycleControllerTest {
     @Test
     void postReject_returns200_withReason() throws Exception {
         MoneyMarketOrder order = receivedOrder();
-        order.reject("Below desk minimum", NOW);
+        order.reject(new TraderId("trader-a"), "Below desk minimum", NOW);
         when(rejectOrderUseCase.reject(any(RejectOrderCommand.class))).thenReturn(order);
 
         mockMvc.perform(
@@ -127,7 +128,7 @@ class OrderLifecycleControllerTest {
     void postReject_returns409_whenWrongStatus() throws Exception {
         UUID id = UUID.randomUUID();
         when(rejectOrderUseCase.reject(any(RejectOrderCommand.class)))
-                .thenThrow(new InvalidStatusTransitionException(OrderStatus.ASSIGNED, OrderStatus.REJECTED));
+                .thenThrow(new InvalidStatusTransitionException(OrderStatus.EXECUTED, OrderStatus.REJECTED));
 
         mockMvc.perform(
                         post("/api/v1/orders/" + id + "/reject")
@@ -136,6 +137,22 @@ class OrderLifecycleControllerTest {
                                 .content("{\"reason\":\"No capacity\"}"))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.error").value("INVALID_STATUS_TRANSITION"));
+    }
+
+    @Test
+    void postReject_returns403_whenNotAssigneeOfAssignedOrder() throws Exception {
+        UUID id = UUID.randomUUID();
+        when(rejectOrderUseCase.reject(any(RejectOrderCommand.class)))
+                .thenThrow(new UnauthorizedTraderException(
+                        "Only the assigned Trader may reject an Assigned order"));
+
+        mockMvc.perform(
+                        post("/api/v1/orders/" + id + "/reject")
+                                .header("X-Trader-Id", "intruder")
+                                .contentType(APPLICATION_JSON)
+                                .content("{\"reason\":\"No capacity\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error").value("UNAUTHORIZED_TRADER"));
     }
 
     @Test

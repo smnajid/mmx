@@ -99,10 +99,14 @@ public class MoneyMarketOrder {
         validateTenorNoticePeriod(orderType, tenor, noticePeriod);
         validateSourceContractNumber(orderOperation, sourceContractNumber);
         validateAmount(amount);
-        validateMinimumRate(minimumRate);
+        if (minimumRate != null) {
+            validateMinimumRate(minimumRate);
+        }
         validateValueDate(valueDate, today);
 
         Instant now = Instant.now();
+        BigDecimal minimumRateScaled =
+                minimumRate == null ? null : minimumRate.setScale(8, java.math.RoundingMode.UNNECESSARY);
         return new MoneyMarketOrder(
                 UUID.randomUUID(),
                 Objects.requireNonNull(externalOrderReference),
@@ -112,7 +116,7 @@ public class MoneyMarketOrder {
                 Objects.requireNonNull(currency),
                 amount.setScale(2, java.math.RoundingMode.UNNECESSARY),
                 valueDate,
-                minimumRate.setScale(8, java.math.RoundingMode.UNNECESSARY),
+                minimumRateScaled,
                 tenor,
                 noticePeriod,
                 sourceContractNumber,
@@ -183,7 +187,6 @@ public class MoneyMarketOrder {
     public void update(
             BigDecimal amount,
             LocalDate valueDate,
-            BigDecimal minimumRate,
             TraderId requestingTraderId,
             LocalDate today,
             Instant now
@@ -201,10 +204,6 @@ public class MoneyMarketOrder {
         if (valueDate != null) {
             validateValueDate(valueDate, today);
             this.valueDate = valueDate;
-        }
-        if (minimumRate != null) {
-            validateMinimumRate(minimumRate);
-            this.minimumRate = minimumRate.setScale(8, java.math.RoundingMode.UNNECESSARY);
         }
         this.updatedAt = now;
     }
@@ -224,6 +223,10 @@ public class MoneyMarketOrder {
         if (assignment == null || !assignment.traderId().equals(requestingTraderId)) {
             throw new UnauthorizedTraderException("Only the assigned Trader may execute the order");
         }
+        if (minimumRate != null && executedRate.compareTo(minimumRate) < 0) {
+            throw new InvalidOrderException(
+                    "executedRate must be greater than or equal to MinimumRate (" + minimumRate + ")");
+        }
         this.status = this.status.transitionTo(OrderStatus.EXECUTED);
         this.executionDetails = new ExecutionDetails(
                 executedRate, counterparty, now, dealingReference, generatedContractNumber
@@ -236,9 +239,28 @@ public class MoneyMarketOrder {
         this.updatedAt = now;
     }
 
-    public void reject(String reason, Instant now) {
-        this.status = this.status.transitionTo(OrderStatus.REJECTED);
-        this.rejectionReason = reason;
+    /**
+     * Reject from RECEIVED (any Trader) or ASSIGNED (assigned Trader only).
+     */
+    public void reject(TraderId requestingTraderId, String reason, Instant now) {
+        Objects.requireNonNull(requestingTraderId);
+        Objects.requireNonNull(reason, "reason must not be null");
+        String trimmed = reason.trim();
+        if (trimmed.isEmpty()) {
+            throw new InvalidOrderException("reason is required");
+        }
+        if (this.status == OrderStatus.RECEIVED) {
+            this.status = this.status.transitionTo(OrderStatus.REJECTED);
+        } else if (this.status == OrderStatus.ASSIGNED) {
+            if (assignment == null || !assignment.traderId().equals(requestingTraderId)) {
+                throw new UnauthorizedTraderException(
+                        "Only the assigned Trader may reject an Assigned order");
+            }
+            this.status = this.status.transitionTo(OrderStatus.REJECTED);
+        } else {
+            throw new InvalidStatusTransitionException(this.status, OrderStatus.REJECTED);
+        }
+        this.rejectionReason = trimmed;
         this.updatedAt = now;
     }
 
@@ -286,7 +308,7 @@ public class MoneyMarketOrder {
     }
 
     private static void validateMinimumRate(BigDecimal minimumRate) {
-        if (minimumRate == null || minimumRate.compareTo(BigDecimal.ZERO) < 0) {
+        if (minimumRate.compareTo(BigDecimal.ZERO) < 0) {
             throw new InvalidOrderException("MinimumRate must be >= 0");
         }
     }

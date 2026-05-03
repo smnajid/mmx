@@ -8,6 +8,7 @@ import com.mmx.order.application.port.out.OrderRepository;
 import com.mmx.order.domain.exception.InvalidOrderException;
 import com.mmx.order.domain.exception.InvalidStatusTransitionException;
 import com.mmx.order.domain.exception.OrderNotFoundException;
+import com.mmx.order.domain.exception.UnauthorizedTraderException;
 import com.mmx.order.domain.model.ExternalOrderReference;
 import com.mmx.order.domain.model.MoneyMarketOrder;
 import com.mmx.order.domain.model.OrderOperation;
@@ -47,6 +48,7 @@ class OrderLifecycleServiceTest {
     private static final Instant FIXED_NOW = Instant.parse("2026-05-01T12:00:00Z");
     private static final LocalDate TODAY = LocalDate.of(2026, 5, 1);
     private static final TraderId TRADER = new TraderId("trader-a");
+    private static final TraderId OTHER_TRADER = new TraderId("trader-b");
 
     @Mock
     OrderRepository orderRepository;
@@ -117,7 +119,26 @@ class OrderLifecycleServiceTest {
     }
 
     @Test
-    void reject_when_not_received_throws_conflict() {
+    void reject_from_assigned_succeeds_for_assignee() {
+        MoneyMarketOrder assigned = receivedOrder();
+        assigned.assign(TRADER, FIXED_NOW);
+        when(orderRepository.findById(assigned.getId())).thenReturn(Optional.of(assigned));
+        when(orderRepository.save(any(MoneyMarketOrder.class))).then(returnsFirstArg());
+
+        MoneyMarketOrder result =
+                subject.reject(new RejectOrderCommand(assigned.getId(), "No capacity", TRADER));
+
+        assertThat(result.getStatus()).isEqualTo(OrderStatus.REJECTED);
+        verify(auditLogger)
+                .log(
+                        eq(assigned.getId()),
+                        eq(OrderLifecycleService.EVENT_ORDER_REJECTED),
+                        eq(TRADER.value()),
+                        eq(FIXED_NOW));
+    }
+
+    @Test
+    void reject_from_assigned_non_assignee_throws_forbidden() {
         MoneyMarketOrder assigned = receivedOrder();
         assigned.assign(TRADER, FIXED_NOW);
         when(orderRepository.findById(assigned.getId())).thenReturn(Optional.of(assigned));
@@ -125,8 +146,8 @@ class OrderLifecycleServiceTest {
         assertThatThrownBy(
                         () ->
                                 subject.reject(
-                                        new RejectOrderCommand(assigned.getId(), "No capacity", TRADER)))
-                .isInstanceOf(InvalidStatusTransitionException.class);
+                                        new RejectOrderCommand(assigned.getId(), "Intruder rejects", OTHER_TRADER)))
+                .isInstanceOf(UnauthorizedTraderException.class);
 
         verify(orderRepository, never()).save(any());
         verify(auditLogger, never()).log(any(), any(), any(), any());

@@ -41,6 +41,9 @@ Thumbs.db
 # ── Test / Coverage ───────────────────────────────────────────────────────────
 coverage/
 *.lcov
+frontend/cypress/videos/
+frontend/cypress/screenshots/
+frontend/cypress/downloads/
 
 # ── Logs ──────────────────────────────────────────────────────────────────────
 *.log

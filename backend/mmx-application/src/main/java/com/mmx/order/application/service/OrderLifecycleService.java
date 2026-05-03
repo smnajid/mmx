@@ -49,7 +49,7 @@ public final class OrderLifecycleService implements CancelOrderUseCase, RejectOr
                         .orElseThrow(() -> new OrderNotFoundException(command.orderId()));
 
         var now = clock.now();
-        order.reject(command.reason().trim(), now);
+        order.reject(command.traderId(), command.reason(), now);
         MoneyMarketOrder saved = orderRepository.save(order);
         auditLogger.log(saved.getId(), EVENT_ORDER_REJECTED, command.traderId().value(), now);
         return saved;

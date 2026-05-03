@@ -243,7 +243,7 @@ The single aggregate root that encapsulates the entire order lifecycle.
 - `currency: String` (ISO 4217)
 - `amount: BigDecimal`
 - `valueDate: LocalDate`
-- `minimumRate: BigDecimal`
+- `minimumRate: BigDecimal` — nullable; optional PM execution floor at intake only; immutable after reception
 - `tenor: Tenor` — nullable, required for TERM
 - `noticePeriod: NoticePeriod` — nullable, required for ON_CALL
 - `sourceContractNumber: ContractNumber` — nullable, required for INCREASE/DECREASE/REDEMPTION
@@ -280,20 +280,22 @@ Domain value objects are Java `record` types with validation in compact construc
 
 ```text
                     ┌──────────┐
-         ┌─cancel──│ RECEIVED │──reject─┐
-         ▼         └────┬─────┘         ▼
-   ┌───────────┐        │         ┌──────────┐
-   │ CANCELLED │     assign       │ REJECTED │
-   └───────────┘        │         └──────────┘
-                   ┌────▼─────┐
-            ┌──────│ ASSIGNED │
+         ┌─cancel──│ RECEIVED │──reject──┐
+         ▼         └────┬─────┘          ▼
+   ┌───────────┐        │          ┌──────────┐
+   │ CANCELLED │     assign        │ REJECTED │
+   └───────────┘        │          └──────────┘
+                   ┌────▼─────┐        ▲
+            ┌──────│ ASSIGNED │──reject
          unassign  └────┬─────┘
-            │        execute
-            ▼           │
-      ┌──────────┐ ┌────▼─────┐
+            │           │ execute
+            ▼           ▼
+      ┌──────────┐ ┌──────────┐
       │ RECEIVED │ │ EXECUTED │
       └──────────┘ └──────────┘
 ```
+
+Reject from **ASSIGNED** is allowed only for the assigned Trader (`spec.md` FR-019). Cancel remains **RECEIVED** only.
 
 ## 4. V1 Use Cases
 
@@ -303,10 +305,10 @@ Domain value objects are Java `record` types with validation in compact construc
 | Aspect                   | Detail                                                                                                                                                                                                                                                                                                                                                              |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Intent**               | Accept a MoneyMarketOrder from the Portfolio Management system                                                                                                                                                                                                                                                                                                      |
-| **Inputs**               | `ReceiveOrderCommand { externalOrderReference, orderType, orderOperation, portfolioNumber, currency, amount, valueDate, minimumRate, tenor?, noticePeriod?, sourceContractNumber?, desiredCounterpartyComment? }`                                                                                                                                                   |
+| **Inputs**               | `ReceiveOrderCommand { externalOrderReference, orderType, orderOperation, portfolioNumber, currency, amount, valueDate, minimumRate?, tenor?, noticePeriod?, sourceContractNumber?, desiredCounterpartyComment? }`                                                                                                                                                     |
 | **Output**               | `OrderId` + `OrderStatus.RECEIVED`                                                                                                                                                                                                                                                                                                                                  |
 | **Idempotency**          | If `externalOrderReference` already exists, return the existing order without modification. Do not fail.                                                                                                                                                                                                                                                            |
-| **Business validations** | OrderType ∈ {TERM, ON_CALL}; OrderOperation valid for OrderType; Subscription requires portfolioNumber, currency, amount, valueDate, minimumRate + (tenor for TERM, noticePeriod for ON_CALL); Increase/Decrease/Redemption requires sourceContractNumber; ValueDate ≥ today + 2 days; Amount > 0; MinimumRate ≥ 0; Tenor ∈ allowed set; NoticePeriod ∈ allowed set |
+| **Business validations** | OrderType ∈ {TERM, ON_CALL}; OrderOperation valid for OrderType; Subscription requires portfolioNumber, currency, amount, valueDate + (tenor for TERM, noticePeriod for ON_CALL); optional `minimumRate` when supplied must be ≥ 0; Increase/Decrease/Redemption requires sourceContractNumber; ValueDate ≥ today + 2 days; Amount > 0; Tenor ∈ allowed set; NoticePeriod ∈ allowed set |
 | **Authorization**        | System caller (Portfolio Management). V1: no fine-grained API key validation.                                                                                                                                                                                                                                                                                       |
 | **Status transition**    | → RECEIVED (new order) or no transition (idempotent return)                                                                                                                                                                                                                                                                                                         |
 | **Failure scenarios**    | Invalid payload → 400 with validation errors; constraint violation → 422                                                                                                                                                                                                                                                                                            |
@@ -409,9 +411,9 @@ Domain value objects are Java `record` types with validation in compact construc
 | Aspect                   | Detail                                                                                                                                                              |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Intent**               | Modify mutable fields of an assigned order before execution                                                                                                         |
-| **Inputs**               | `UpdateOrderCommand { orderId, traderId, amount?, minimumRate?, valueDate? }`                                                          |
+| **Inputs**               | `UpdateOrderCommand { orderId, traderId, amount?, valueDate? }`                                                                                                                                       |
 | **Output**               | Updated order                                                                                                                                                       |
-| **Business validations** | Order must exist; must be ASSIGNED; only assigned Trader can update; if valueDate changed → ≥ today + 2 days; if amount changed → > 0; if minimumRate changed → ≥ 0 |
+| **Business validations** | Order must exist; must be ASSIGNED; only assigned Trader can update; if valueDate changed → ≥ today + 2 days; if amount changed → > 0; MinimumRate MUST NOT appear on the command |
 | **Authorization**        | Only the assigned Trader                                                                                                                                            |
 | **Status transition**    | None (stays ASSIGNED)                                                                                                                                               |
 | **Failure scenarios**    | Not found → 404; not ASSIGNED → 409; wrong Trader → 403; invalid values → 400                                                                                       |
@@ -426,11 +428,11 @@ Domain value objects are Java `record` types with validation in compact construc
 | **Intent**               | Record execution data after market dealing happened externally                                                                                              |
 | **Inputs**               | `ExecuteOrderCommand { orderId, traderId, executedRate, counterparty }`                                                                                     |
 | **Output**               | Executed order with `status=EXECUTED`, generated `DealingReference`, generated `ContractNumber`, system `ExecutionTime`                                     |
-| **Business validations** | Order must exist; must be ASSIGNED; only assigned Trader can execute; executedRate must be provided and ≥ 0; counterparty must be provided and non-blank    |
+| **Business validations** | Order must exist; must be ASSIGNED; only assigned Trader can execute; executedRate must be provided and ≥ 0; counterparty must be provided and non-blank; when order has MinimumRate from intake, executedRate must be ≥ MinimumRate |
 | **Authorization**        | Only the assigned Trader                                                                                                                                    |
 | **Status transition**    | ASSIGNED → EXECUTED                                                                                                                                         |
 | **System actions**       | Generate `DealingReference` via `ReferenceGenerator` port; generate `ContractNumber` via `ReferenceGenerator` port; record `ExecutionTime` via `Clock` port |
-| **Failure scenarios**    | Not found → 404; not ASSIGNED → 409; wrong Trader → 403; missing execution data → 400                                                                       |
+| **Failure scenarios**    | Not found → 404; not ASSIGNED → 409; wrong Trader → 403; missing execution data → 400; executedRate below MinimumRate → 400 when MinimumRate present         |
 | **Audit events**         | `ORDER_EXECUTED` (orderId, traderId, timestamp, dealingReference, contractNumber, executedRate, counterparty)                                               |
 
 
@@ -452,16 +454,16 @@ Domain value objects are Java `record` types with validation in compact construc
 ### 4.11 RejectOrder
 
 
-| Aspect                   | Detail                                                  |
-| ------------------------ | ------------------------------------------------------- |
-| **Intent**               | Reject a received order with an optional reason         |
-| **Inputs**               | `RejectOrderCommand { orderId, traderId, reason? }`     |
-| **Output**               | Order with `status=REJECTED`                            |
-| **Business validations** | Order must exist; must be in RECEIVED status            |
-| **Authorization**        | Any authenticated Trader                                |
-| **Status transition**    | RECEIVED → REJECTED                                     |
-| **Failure scenarios**    | Not found → 404; not RECEIVED → 409                     |
-| **Audit events**         | `ORDER_REJECTED` (orderId, traderId, timestamp, reason) |
+| Aspect                   | Detail                                                                                                                                 |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
+| **Intent**               | Reject an order when the Trader cannot or will not proceed — including inability to meet a PM-supplied MinimumRate                         |
+| **Inputs**               | `RejectOrderCommand { orderId, traderId, reason }`                                                                                    |
+| **Output**               | Order with `status=REJECTED`                                                                                                          |
+| **Business validations** | Order must exist; must be in RECEIVED **or ASSIGNED** status                                                                           |
+| **Authorization**        | RECEIVED → any Trader; ASSIGNED → only the assigned Trader                                                                            |
+| **Status transition**    | RECEIVED → REJECTED or ASSIGNED → REJECTED                                                                                            |
+| **Failure scenarios**    | Not found → 404; wrong status → 409; ASSIGNED reject by non-assignee → 403                                                            |
+| **Audit events**         | `ORDER_REJECTED` (orderId, traderId, timestamp, reason)                                                                               |
 
 
 ## 5. Idempotent Intake Strategy
@@ -710,8 +712,8 @@ frontend/src/app/
 
 | Status           | Available Actions         |
 | ---------------- | ------------------------- |
-| RECEIVED         | Assign, Cancel, Reject    |
-| ASSIGNED (own)   | Unassign, Update, Execute |
+| RECEIVED         | Assign, Cancel, Reject                          |
+| ASSIGNED (own)   | Unassign, Update, Execute, Reject               |
 | ASSIGNED (other) | View only                 |
 | EXECUTED         | View only                 |
 | CANCELLED        | View only                 |
@@ -739,7 +741,7 @@ V1 uses Angular's built-in mechanisms: `HttpClient` calls in `OrderApiService`, 
 | Rule                                                 | REST Layer                       | Domain Layer                                                                 |
 | ---------------------------------------------------- | -------------------------------- | ---------------------------------------------------------------------------- |
 | Amount > 0                                           | `@Positive` on DTO               | `MoneyMarketOrder` constructor guard                                         |
-| MinimumRate ≥ 0                                      | `@PositiveOrZero` on DTO         | Constructor guard                                                            |
+| MinimumRate ≥ 0 when supplied                         | validate if present               | Constructor guard (`Optional`/nullable field)                                     |
 | ValueDate ≥ today + 2                                | Not validated (date format only) | `MoneyMarketOrder.validateValueDate(today)`                                  |
 | OrderType ∈ {TERM, ON_CALL}                          | Enum deserialization             | `OrderType` enum (invalid values fail JSON parsing)                          |
 | OrderOperation valid for OrderType                   | Not validated                    | `MoneyMarketOrder.validateOrderOperationForType()`                           |
@@ -767,7 +769,7 @@ The REST layer validates **syntactic correctness** (is the JSON well-formed? are
   - Tenor validation (valid set, rejected values)
   - NoticePeriod validation (valid set, rejected values)
   - ValueDate rule (≥ today + 2 days)
-  - Amount and MinimumRate precision and bounds
+  - Amount precision and bounds; optional MinimumRate bounds when supplied; executedRate vs MinimumRate when floor present
   - All 5 status transitions (positive)
   - All invalid transitions (negative)
   - Assignment and unassignment rules
@@ -784,8 +786,8 @@ The REST layer validates **syntactic correctness** (is the JSON well-formed? are
   - OrderQueryService: delegation to repository with correct filters
   - AssignmentService: assign success, unassign success, wrong Trader rejection
   - UpdateOrderService: valid update, unauthorized Trader, invalid status
-  - ExecuteOrderService: full execution flow with generated references, missing data rejection
-  - OrderLifecycleService: cancel from RECEIVED, reject from RECEIVED, invalid transitions
+  - ExecuteOrderService: full execution flow with generated references, missing data rejection, reject execution when executedRate is below MinimumRate and a PM floor exists
+  - OrderLifecycleService: cancel from RECEIVED, reject from RECEIVED **and ASSIGNED**, wrong Trader on Assigned reject → 403, invalid transitions
   - Audit event emission for all mutating use cases
 
 ### Persistence Integration Tests (`mmx-adapter-out-persistence`)
