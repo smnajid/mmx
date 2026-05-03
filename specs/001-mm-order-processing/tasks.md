@@ -200,9 +200,9 @@
 
 ### REST Endpoint
 
-- [ ] T068 [US3] Map execute endpoint to generated `ExecuteOrderRequest` / `OrdersApi` (OpenAPI models + Spring interface from codegen); add mapper/`OrderManagementController` implementation — **no** duplicate `dto/ExecuteOrderRequest.java` unless a documented codegen gap
-- [ ] T069 [US3] Add POST /api/v1/orders/{orderId}/execute endpoint to OrderManagementController
-- [ ] T070 [US3] Write REST API tests for execute endpoint at backend/mmx-adapter-in-rest/src/test/java/com/mmx/order/adapter/in/rest/OrderExecutionControllerTest.java: 200 success with generated fields in response, 400 missing fields, 403 wrong Trader, 409 wrong status
+- [x] T068 [US3] Map execute endpoint to generated `ExecuteOrderRequest` / `OrdersApi` (OpenAPI models + Spring interface from codegen); add mapper/`OrderManagementController` implementation — **no** duplicate `dto/ExecuteOrderRequest.java` unless a documented codegen gap
+- [x] T069 [US3] Add POST /api/v1/orders/{orderId}/execute endpoint to OrderManagementController
+- [x] T070 [US3] Write REST API tests for execute endpoint at backend/mmx-adapter-in-rest/src/test/java/com/mmx/order/adapter/in/rest/OrderExecutionControllerTest.java: 200 success with generated fields in response, 400 missing fields, 403 wrong Trader, 409 wrong status
 
 ### Frontend
 

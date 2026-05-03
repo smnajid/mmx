@@ -1,5 +1,6 @@
 package com.mmx.order.adapter.in.rest.mapper;
 
+import com.mmx.order.adapter.in.rest.generated.model.ExecuteOrderRequest;
 import com.mmx.order.adapter.in.rest.generated.model.ReceiveOrderRequest;
 import com.mmx.order.adapter.in.rest.generated.model.OrderDetailsResponse;
 import com.mmx.order.adapter.in.rest.generated.model.OrderOperation;
@@ -8,6 +9,7 @@ import com.mmx.order.adapter.in.rest.generated.model.OrderSummaryResponse;
 import com.mmx.order.adapter.in.rest.generated.model.OrderType;
 import com.mmx.order.adapter.in.rest.generated.model.ReceiveOrderResponse;
 import com.mmx.order.adapter.in.rest.generated.model.OrderSummaryPage;
+import com.mmx.order.application.command.ExecuteOrderCommand;
 import com.mmx.order.application.command.ReceiveOrderCommand;
 import com.mmx.order.application.port.in.OrderPage;
 import com.mmx.order.application.port.in.ReceiveOrderUseCase;
@@ -19,10 +21,12 @@ import com.mmx.order.domain.model.MoneyMarketOrder;
 import com.mmx.order.domain.model.NoticePeriod;
 import com.mmx.order.domain.model.PortfolioNumber;
 import com.mmx.order.domain.model.Tenor;
+import com.mmx.order.domain.model.TraderId;
 import com.mmx.order.domain.exception.InvalidOrderException;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 
@@ -90,6 +94,14 @@ public class OrderRestMapper {
         }
         d.setRejectionReason(order.getRejectionReason());
         return d;
+    }
+
+    public ExecuteOrderCommand toExecuteCommand(ExecuteOrderRequest request, UUID orderId, String xTraderId) {
+        BigDecimal executedRate =
+                request.getExecutedRate() != null
+                        ? BigDecimal.valueOf(request.getExecutedRate())
+                        : null;
+        return new ExecuteOrderCommand(orderId, new TraderId(xTraderId), executedRate, request.getCounterparty());
     }
 
     public ReceiveOrderCommand toCommand(ReceiveOrderRequest request) {

@@ -3,6 +3,7 @@ package com.mmx.order.adapter.in.rest;
 import com.mmx.order.adapter.in.rest.mapper.OrderRestMapper;
 import com.mmx.order.application.command.AssignOrderCommand;
 import com.mmx.order.application.command.UnassignOrderCommand;
+import com.mmx.order.application.port.in.ExecuteOrderUseCase;
 import com.mmx.order.application.port.in.OrderPage;
 import com.mmx.order.application.service.AssignmentService;
 import com.mmx.order.application.service.OrderQueryService;
@@ -51,13 +52,18 @@ class OrderAssignmentControllerTest {
     @Mock
     AssignmentService assignmentService;
 
+    @Mock
+    ExecuteOrderUseCase executeOrderUseCase;
+
     org.springframework.test.web.servlet.MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
         OrderRestMapper mapper = new OrderRestMapper();
         mockMvc =
-                standaloneSetup(new OrderManagementController(orderQueryService, assignmentService, mapper))
+                standaloneSetup(
+                                new OrderManagementController(
+                                        orderQueryService, assignmentService, executeOrderUseCase, mapper))
                         .setControllerAdvice(new GlobalExceptionHandler())
                         .build();
     }

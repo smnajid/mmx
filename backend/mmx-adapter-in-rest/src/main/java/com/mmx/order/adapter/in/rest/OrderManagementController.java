@@ -9,6 +9,7 @@ import com.mmx.order.adapter.in.rest.generated.model.UpdateOrderRequest;
 import com.mmx.order.adapter.in.rest.mapper.OrderRestMapper;
 import com.mmx.order.application.command.AssignOrderCommand;
 import com.mmx.order.application.command.UnassignOrderCommand;
+import com.mmx.order.application.port.in.ExecuteOrderUseCase;
 import com.mmx.order.application.service.AssignmentService;
 import com.mmx.order.application.service.OrderQueryService;
 import com.mmx.order.domain.exception.OrderNotFoundException;
@@ -37,14 +38,17 @@ public class OrderManagementController implements OrdersApi {
 
     private final OrderQueryService orderQueryService;
     private final AssignmentService assignmentService;
+    private final ExecuteOrderUseCase executeOrderUseCase;
     private final OrderRestMapper orderRestMapper;
 
     public OrderManagementController(
             OrderQueryService orderQueryService,
             AssignmentService assignmentService,
+            ExecuteOrderUseCase executeOrderUseCase,
             OrderRestMapper orderRestMapper) {
         this.orderQueryService = orderQueryService;
         this.assignmentService = assignmentService;
+        this.executeOrderUseCase = executeOrderUseCase;
         this.orderRestMapper = orderRestMapper;
     }
 
@@ -117,7 +121,10 @@ public class OrderManagementController implements OrdersApi {
             @RequestHeader(value = "X-Trader-Id", required = true) String xTraderId,
             @PathVariable("orderId") UUID orderId,
             @RequestBody ExecuteOrderRequest executeOrderRequest) {
-        throw new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED);
+        var order =
+                executeOrderUseCase.execute(
+                        orderRestMapper.toExecuteCommand(executeOrderRequest, orderId, xTraderId));
+        return ResponseEntity.ok(orderRestMapper.toDetails(order));
     }
 
     @Override
