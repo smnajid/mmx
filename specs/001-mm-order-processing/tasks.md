@@ -227,19 +227,19 @@
 
 ### Application Service (TDD)
 
-- [ ] T076 [US4] Write application tests for OrderLifecycleService at backend/mmx-application/src/test/java/com/mmx/order/application/service/OrderLifecycleServiceTest.java: cancel from RECEIVED, reject from RECEIVED with reason, cancel non-RECEIVED → 409, reject non-RECEIVED → 409, reject without reason → validation error, audit events for both
-- [ ] T077 [US4] Create OrderLifecycleService implementing Cancel/Reject use cases at backend/mmx-application/src/main/java/com/mmx/order/application/service/OrderLifecycleService.java
+- [x] T076 [US4] Write application tests for OrderLifecycleService at backend/mmx-application/src/test/java/com/mmx/order/application/service/OrderLifecycleServiceTest.java: cancel from RECEIVED, reject from RECEIVED with reason, cancel non-RECEIVED → 409, reject non-RECEIVED → 409, reject without reason → validation error, audit events for both
+- [x] T077 [US4] Create OrderLifecycleService implementing Cancel/Reject use cases at backend/mmx-application/src/main/java/com/mmx/order/application/service/OrderLifecycleService.java
 
 ### REST Endpoints
 
-- [ ] T078 [US4] Use generated `RejectOrderRequest` from OpenAPI for POST reject body (mandatory reason in spec/codegen); wire via `OrdersApi` — **no** hand-written `dto/RejectOrderRequest.java` unless documented exception
-- [ ] T079 [US4] Add POST /api/v1/orders/{orderId}/cancel and POST /api/v1/orders/{orderId}/reject endpoints to OrderManagementController
-- [ ] T080 [US4] Write REST API tests for cancel and reject endpoints at backend/mmx-adapter-in-rest/src/test/java/com/mmx/order/adapter/in/rest/OrderLifecycleControllerTest.java: 200 cancel success, 200 reject success with reason, 409 wrong status, reject without reason → 400
+- [x] T078 [US4] Use generated `RejectOrderRequest` from OpenAPI for POST reject body (mandatory reason in spec/codegen); wire via `OrdersApi` — **no** hand-written `dto/RejectOrderRequest.java` unless documented exception
+- [x] T079 [US4] Add POST /api/v1/orders/{orderId}/cancel and POST /api/v1/orders/{orderId}/reject endpoints to OrderManagementController
+- [x] T080 [US4] Write REST API tests for cancel and reject endpoints at backend/mmx-adapter-in-rest/src/test/java/com/mmx/order/adapter/in/rest/OrderLifecycleControllerTest.java: 200 cancel success, 200 reject success with reason, 409 wrong status, reject without reason → 400
 
 ### Frontend
 
-- [ ] T081 [US4] Add Cancel and Reject action buttons to order detail view (visible only for RECEIVED orders), with ConfirmDialogComponent for cancel and a reason input dialog for reject at frontend/src/app/features/order-details/
-- [ ] T082 [P] [US4] Create ConfirmDialogComponent at frontend/src/app/shared/components/confirm-dialog.component.ts
+- [x] T081 [US4] Add Cancel and Reject action buttons to order detail view (visible only for RECEIVED orders), with ConfirmDialogComponent for cancel and a reason input dialog for reject at frontend/src/app/features/order-details/
+- [x] T082 [P] [US4] Create ConfirmDialogComponent at frontend/src/app/shared/components/confirm-dialog.component.ts
 
 **Checkpoint**: User Story 4 complete — cancel and reject from Received status, rejection reason visible in details
 

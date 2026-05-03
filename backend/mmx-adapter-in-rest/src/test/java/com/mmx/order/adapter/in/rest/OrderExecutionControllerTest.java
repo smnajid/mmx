@@ -2,7 +2,9 @@ package com.mmx.order.adapter.in.rest;
 
 import com.mmx.order.adapter.in.rest.mapper.OrderRestMapper;
 import com.mmx.order.application.command.ExecuteOrderCommand;
+import com.mmx.order.application.port.in.CancelOrderUseCase;
 import com.mmx.order.application.port.in.ExecuteOrderUseCase;
+import com.mmx.order.application.port.in.RejectOrderUseCase;
 import com.mmx.order.application.service.AssignmentService;
 import com.mmx.order.application.service.OrderQueryService;
 import com.mmx.order.domain.exception.InvalidStatusTransitionException;
@@ -51,6 +53,12 @@ class OrderExecutionControllerTest {
     @Mock
     ExecuteOrderUseCase executeOrderUseCase;
 
+    @Mock
+    CancelOrderUseCase cancelOrderUseCase;
+
+    @Mock
+    RejectOrderUseCase rejectOrderUseCase;
+
     org.springframework.test.web.servlet.MockMvc mockMvc;
 
     @BeforeEach
@@ -59,7 +67,12 @@ class OrderExecutionControllerTest {
         mockMvc =
                 standaloneSetup(
                                 new OrderManagementController(
-                                        orderQueryService, assignmentService, executeOrderUseCase, mapper))
+                                        orderQueryService,
+                                        assignmentService,
+                                        executeOrderUseCase,
+                                        cancelOrderUseCase,
+                                        rejectOrderUseCase,
+                                        mapper))
                         .setControllerAdvice(new GlobalExceptionHandler())
                         .build();
     }

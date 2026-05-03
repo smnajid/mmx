@@ -1,6 +1,7 @@
 package com.mmx.order.adapter.in.rest.mapper;
 
 import com.mmx.order.adapter.in.rest.generated.model.ExecuteOrderRequest;
+import com.mmx.order.adapter.in.rest.generated.model.RejectOrderRequest;
 import com.mmx.order.adapter.in.rest.generated.model.ReceiveOrderRequest;
 import com.mmx.order.adapter.in.rest.generated.model.OrderDetailsResponse;
 import com.mmx.order.adapter.in.rest.generated.model.OrderOperation;
@@ -9,8 +10,10 @@ import com.mmx.order.adapter.in.rest.generated.model.OrderSummaryResponse;
 import com.mmx.order.adapter.in.rest.generated.model.OrderType;
 import com.mmx.order.adapter.in.rest.generated.model.ReceiveOrderResponse;
 import com.mmx.order.adapter.in.rest.generated.model.OrderSummaryPage;
+import com.mmx.order.application.command.CancelOrderCommand;
 import com.mmx.order.application.command.ExecuteOrderCommand;
 import com.mmx.order.application.command.ReceiveOrderCommand;
+import com.mmx.order.application.command.RejectOrderCommand;
 import com.mmx.order.application.port.in.OrderPage;
 import com.mmx.order.application.port.in.ReceiveOrderUseCase;
 import com.mmx.order.domain.model.Assignment;
@@ -102,6 +105,14 @@ public class OrderRestMapper {
                         ? BigDecimal.valueOf(request.getExecutedRate())
                         : null;
         return new ExecuteOrderCommand(orderId, new TraderId(xTraderId), executedRate, request.getCounterparty());
+    }
+
+    public CancelOrderCommand toCancelCommand(UUID orderId, String xTraderId) {
+        return new CancelOrderCommand(orderId, new TraderId(xTraderId));
+    }
+
+    public RejectOrderCommand toRejectCommand(RejectOrderRequest request, UUID orderId, String xTraderId) {
+        return new RejectOrderCommand(orderId, request.getReason(), new TraderId(xTraderId));
     }
 
     public ReceiveOrderCommand toCommand(ReceiveOrderRequest request) {

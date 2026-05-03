@@ -8,11 +8,14 @@ import com.mmx.order.adapter.out.persistence.JpaOrderRepository;
 import com.mmx.order.adapter.out.persistence.mapper.OrderPersistenceMapper;
 import com.mmx.order.adapter.out.persistence.repository.SpringDataAuditLogRepository;
 import com.mmx.order.adapter.out.persistence.repository.SpringDataOrderRepository;
+import com.mmx.order.application.port.in.CancelOrderUseCase;
 import com.mmx.order.application.port.in.ExecuteOrderUseCase;
 import com.mmx.order.application.port.in.ReceiveOrderUseCase;
+import com.mmx.order.application.port.in.RejectOrderUseCase;
 import com.mmx.order.application.port.out.*;
 import com.mmx.order.application.service.AssignmentService;
 import com.mmx.order.application.service.ExecuteOrderService;
+import com.mmx.order.application.service.OrderLifecycleService;
 import com.mmx.order.application.service.OrderQueryService;
 import com.mmx.order.application.service.ReceiveOrderService;
 import org.springframework.context.annotation.Bean;
@@ -69,5 +72,21 @@ public class OrderModuleConfiguration {
             AuditLogger auditLogger,
             Clock clock) {
         return new ExecuteOrderService(orderRepository, referenceGenerator, auditLogger, clock);
+    }
+
+    @Bean
+    public OrderLifecycleService orderLifecycleService(
+            OrderRepository orderRepository, AuditLogger auditLogger, Clock clock) {
+        return new OrderLifecycleService(orderRepository, auditLogger, clock);
+    }
+
+    @Bean
+    public CancelOrderUseCase cancelOrderUseCase(OrderLifecycleService orderLifecycleService) {
+        return orderLifecycleService;
+    }
+
+    @Bean
+    public RejectOrderUseCase rejectOrderUseCase(OrderLifecycleService orderLifecycleService) {
+        return orderLifecycleService;
     }
 }

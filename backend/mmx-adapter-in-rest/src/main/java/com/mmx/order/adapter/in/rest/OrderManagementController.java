@@ -9,7 +9,9 @@ import com.mmx.order.adapter.in.rest.generated.model.UpdateOrderRequest;
 import com.mmx.order.adapter.in.rest.mapper.OrderRestMapper;
 import com.mmx.order.application.command.AssignOrderCommand;
 import com.mmx.order.application.command.UnassignOrderCommand;
+import com.mmx.order.application.port.in.CancelOrderUseCase;
 import com.mmx.order.application.port.in.ExecuteOrderUseCase;
+import com.mmx.order.application.port.in.RejectOrderUseCase;
 import com.mmx.order.application.service.AssignmentService;
 import com.mmx.order.application.service.OrderQueryService;
 import com.mmx.order.domain.exception.OrderNotFoundException;
@@ -39,16 +41,22 @@ public class OrderManagementController implements OrdersApi {
     private final OrderQueryService orderQueryService;
     private final AssignmentService assignmentService;
     private final ExecuteOrderUseCase executeOrderUseCase;
+    private final CancelOrderUseCase cancelOrderUseCase;
+    private final RejectOrderUseCase rejectOrderUseCase;
     private final OrderRestMapper orderRestMapper;
 
     public OrderManagementController(
             OrderQueryService orderQueryService,
             AssignmentService assignmentService,
             ExecuteOrderUseCase executeOrderUseCase,
+            CancelOrderUseCase cancelOrderUseCase,
+            RejectOrderUseCase rejectOrderUseCase,
             OrderRestMapper orderRestMapper) {
         this.orderQueryService = orderQueryService;
         this.assignmentService = assignmentService;
         this.executeOrderUseCase = executeOrderUseCase;
+        this.cancelOrderUseCase = cancelOrderUseCase;
+        this.rejectOrderUseCase = rejectOrderUseCase;
         this.orderRestMapper = orderRestMapper;
     }
 
@@ -132,7 +140,8 @@ public class OrderManagementController implements OrdersApi {
     public ResponseEntity<OrderDetailsResponse> cancelOrder(
             @RequestHeader(value = "X-Trader-Id", required = true) String xTraderId,
             @PathVariable("orderId") UUID orderId) {
-        throw new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED);
+        var order = cancelOrderUseCase.cancel(orderRestMapper.toCancelCommand(orderId, xTraderId));
+        return ResponseEntity.ok(orderRestMapper.toDetails(order));
     }
 
     @Override
@@ -144,7 +153,9 @@ public class OrderManagementController implements OrdersApi {
             @RequestHeader(value = "X-Trader-Id", required = true) String xTraderId,
             @PathVariable("orderId") UUID orderId,
             @RequestBody RejectOrderRequest rejectOrderRequest) {
-        throw new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED);
+        var order =
+                rejectOrderUseCase.reject(orderRestMapper.toRejectCommand(rejectOrderRequest, orderId, xTraderId));
+        return ResponseEntity.ok(orderRestMapper.toDetails(order));
     }
 
     @Override

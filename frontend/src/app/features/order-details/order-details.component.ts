@@ -10,9 +10,10 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { OrderApiService } from '../../core/api/order-api.service';
-import type { ExecuteOrderRequest, OrderDetails } from '../../core/models/order.model';
+import type { ExecuteOrderRequest, OrderDetails, RejectOrderRequest } from '../../core/models/order.model';
 import { OrderStatus } from '../../core/models/order-status.enum';
 import { TraderContextService } from '../../core/trader/trader-context.service';
+import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog.component';
 import { StatusBadgeComponent } from '../../shared/components/status-badge.component';
 import { OrderExecutionFormComponent } from './order-execution-form.component';
 
@@ -24,6 +25,7 @@ import { OrderExecutionFormComponent } from './order-execution-form.component';
     RouterLink,
     StatusBadgeComponent,
     OrderExecutionFormComponent,
+    ConfirmDialogComponent,
   ],
   template: `
     <section class="feature">
@@ -83,12 +85,22 @@ import { OrderExecutionFormComponent } from './order-execution-form.component';
             <dt>Execution time</dt>
             <dd class="mono">{{ o.executionTime }}</dd>
           }
+          @if (o.status === rejected && o.rejectionReason) {
+            <dt>Rejection reason</dt>
+            <dd>{{ o.rejectionReason }}</dd>
+          }
         </dl>
 
         @if (o.status === received) {
           <div class="actions">
             <button type="button" class="btn primary" [disabled]="acting()" (click)="assign()">
               Assign to me
+            </button>
+            <button type="button" class="btn secondary" [disabled]="acting()" (click)="openCancelDialog()">
+              Cancel order
+            </button>
+            <button type="button" class="btn danger-outline" [disabled]="acting()" (click)="openRejectDialog()">
+              Reject
             </button>
           </div>
         }
@@ -103,6 +115,48 @@ import { OrderExecutionFormComponent } from './order-execution-form.component';
             (submitExecute)="execute($event)"
           />
         }
+      }
+
+      <mmx-confirm-dialog
+        [open]="cancelDialogOpen()"
+        title="Cancel order"
+        message="Withdraw this order? Its status will become CANCELLED."
+        confirmLabel="Cancel order"
+        cancelLabel="Keep open"
+        (confirm)="confirmCancel()"
+        (cancel)="cancelDialogOpen.set(false)"
+      />
+
+      @if (rejectDialogOpen()) {
+        <div class="backdrop" role="presentation" (click)="closeRejectDialogOnBackdrop($event)">
+          <div class="reject-panel" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+            <h2 class="reject-title">Reject order</h2>
+            <p class="reject-hint">A reason is required for audit.</p>
+            <label class="reject-label" for="reject-reason">Reason</label>
+            <textarea
+              id="reject-reason"
+              class="reject-input"
+              rows="4"
+              maxlength="500"
+              [value]="rejectReasonDraft()"
+              (input)="rejectReasonDraft.set($any($event.target).value)"
+              [disabled]="acting()"
+            ></textarea>
+            <div class="reject-row">
+              <button type="button" class="btn secondary" [disabled]="acting()" (click)="closeRejectDialog()">
+                Back
+              </button>
+              <button
+                type="button"
+                class="btn danger"
+                [disabled]="acting() || !rejectReasonDraft().trim()"
+                (click)="submitReject()"
+              >
+                Reject order
+              </button>
+            </div>
+          </div>
+        </div>
       }
     </section>
   `,
@@ -221,6 +275,106 @@ import { OrderExecutionFormComponent } from './order-execution-form.component';
       color: var(--mmx-text);
     }
 
+    .btn.danger-outline {
+      background: transparent;
+      border-color: rgba(248, 113, 113, 0.45);
+      color: #fecaca;
+    }
+
+    .btn.danger-outline:hover:not(:disabled) {
+      background: rgba(248, 113, 113, 0.1);
+      border-color: rgba(248, 113, 113, 0.65);
+    }
+
+    .btn.danger {
+      background: rgba(248, 113, 113, 0.12);
+      border-color: rgba(248, 113, 113, 0.45);
+      color: #fecaca;
+    }
+
+    .btn.danger:hover:not(:disabled) {
+      background: rgba(248, 113, 113, 0.2);
+    }
+
+    .backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 90;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      background: rgba(5, 8, 12, 0.72);
+      backdrop-filter: blur(4px);
+    }
+
+    .reject-panel {
+      width: 100%;
+      max-width: 420px;
+      padding: 1.25rem 1.35rem;
+      border-radius: 8px;
+      border: 1px solid var(--mmx-border);
+      background: var(--mmx-surface);
+      box-shadow: 0 18px 48px rgba(0, 0, 0, 0.35);
+    }
+
+    .reject-title {
+      margin: 0 0 0.4rem;
+      font-family: var(--font-display);
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--mmx-text);
+    }
+
+    .reject-hint {
+      margin: 0 0 0.85rem;
+      font-size: 0.78rem;
+      color: var(--mmx-text-muted);
+    }
+
+    .reject-label {
+      display: block;
+      margin-bottom: 0.35rem;
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--mmx-text-muted);
+    }
+
+    .reject-input {
+      width: 100%;
+      box-sizing: border-box;
+      margin-bottom: 1rem;
+      padding: 0.6rem 0.75rem;
+      border-radius: 4px;
+      border: 1px solid var(--mmx-border);
+      background: rgba(0, 0, 0, 0.2);
+      color: var(--mmx-text);
+      font-family: var(--font-sans, system-ui);
+      font-size: 0.875rem;
+      line-height: 1.45;
+      resize: vertical;
+      min-height: 5rem;
+    }
+
+    .reject-input:focus {
+      outline: none;
+      border-color: var(--mmx-accent);
+    }
+
+    .reject-input:disabled {
+      opacity: 0.5;
+    }
+
+    .reject-row {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.65rem;
+      flex-wrap: wrap;
+    }
+
     .state {
       margin: 0;
       padding: 1.25rem;
@@ -250,11 +404,15 @@ export class OrderDetailsComponent implements OnInit {
   readonly received = OrderStatus.RECEIVED;
   readonly assigned = OrderStatus.ASSIGNED;
   readonly executed = OrderStatus.EXECUTED;
+  readonly rejected = OrderStatus.REJECTED;
 
   readonly order = signal<OrderDetails | null>(null);
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
   readonly acting = signal(false);
+  readonly cancelDialogOpen = signal(false);
+  readonly rejectDialogOpen = signal(false);
+  readonly rejectReasonDraft = signal('');
 
   ngOnInit(): void {
     this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
@@ -297,6 +455,67 @@ export class OrderDetailsComponent implements OnInit {
     this.api.unassignOrder(id, this.trader.traderId()).subscribe({
       next: (details) => {
         this.order.set(details);
+        this.acting.set(false);
+      },
+      error: (err) => {
+        this.acting.set(false);
+        this.error.set(this.formatHttpError(err));
+      },
+    });
+  }
+
+  openCancelDialog(): void {
+    this.cancelDialogOpen.set(true);
+  }
+
+  confirmCancel(): void {
+    const id = this.order()?.orderId;
+    if (!id) {
+      return;
+    }
+    this.acting.set(true);
+    this.error.set(null);
+    this.cancelDialogOpen.set(false);
+    this.api.cancelOrder(id, this.trader.traderId()).subscribe({
+      next: (details) => {
+        this.order.set(details);
+        this.acting.set(false);
+      },
+      error: (err) => {
+        this.acting.set(false);
+        this.error.set(this.formatHttpError(err));
+      },
+    });
+  }
+
+  openRejectDialog(): void {
+    this.rejectReasonDraft.set('');
+    this.rejectDialogOpen.set(true);
+  }
+
+  closeRejectDialog(): void {
+    this.rejectDialogOpen.set(false);
+  }
+
+  closeRejectDialogOnBackdrop(ev: MouseEvent): void {
+    if (ev.target === ev.currentTarget) {
+      this.closeRejectDialog();
+    }
+  }
+
+  submitReject(): void {
+    const id = this.order()?.orderId;
+    const reason = this.rejectReasonDraft().trim();
+    if (!id || !reason) {
+      return;
+    }
+    this.acting.set(true);
+    this.error.set(null);
+    const body: RejectOrderRequest = { reason };
+    this.api.rejectOrder(id, this.trader.traderId(), body).subscribe({
+      next: (details) => {
+        this.order.set(details);
+        this.rejectDialogOpen.set(false);
         this.acting.set(false);
       },
       error: (err) => {
