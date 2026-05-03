@@ -62,6 +62,8 @@ The backend starts on `http://localhost:8080`.
 
 In the IDE, set VM options `-Dspring.profiles.active=local` (or program args `--spring.profiles.active=local`) on `MmxApplication`.
 
+Run these commands from the `backend` directory (the reactor POM lives there). With `local`, Hibernate uses `ddl-auto: none` so startup does not fail on H2: Flyway still creates the schema, but JSONB-mapped columns are stored as JSON in H2 and do not pass Hibernate’s `validate` check.
+
 Flyway migrations run automatically on startup, creating the `money_market_order` and `order_audit_log` tables.
 
 ### Verify the Backend
