@@ -206,9 +206,9 @@
 
 ### Frontend
 
-- [ ] T071 [US3] Create order-details feature: OrderDetailsComponent at frontend/src/app/features/order-details/order-details.component.ts showing full order details with status-conditional action buttons
-- [ ] T072 [US3] Create OrderExecutionFormComponent at frontend/src/app/features/order-details/order-execution-form.component.ts with ExecutedRate (number) and Counterparty (free text) fields
-- [ ] T073 [US3] Add /orders/:id route to app.routes.ts, wire order list rows to navigate to detail view
+- [x] T071 [US3] Create order-details feature: OrderDetailsComponent at frontend/src/app/features/order-details/order-details.component.ts showing full order details with status-conditional action buttons
+- [x] T072 [US3] Create OrderExecutionFormComponent at frontend/src/app/features/order-details/order-execution-form.component.ts with ExecutedRate (number) and Counterparty (free text) fields
+- [x] T073 [US3] Add /orders/:id route to app.routes.ts, wire order list rows to navigate to detail view
 
 **Checkpoint**: User Story 3 complete — full receive → assign → execute flow works end-to-end
 

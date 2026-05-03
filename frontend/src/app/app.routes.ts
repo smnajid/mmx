@@ -18,9 +18,9 @@ export const routes: Routes = [
       import('./features/assigned-orders/assigned-orders.routes').then((m) => m.ASSIGNED_ORDERS_ROUTES),
   },
   {
-    path: 'orders/:orderId',
+    path: 'orders/:id',
     loadComponent: () =>
-      import('./features/order-detail/order-detail.component').then((m) => m.OrderDetailComponent),
+      import('./features/order-details/order-details.component').then((m) => m.OrderDetailsComponent),
   },
   { path: '**', redirectTo: 'term-orders' },
 ];

@@ -2,21 +2,29 @@ import { DecimalPipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   inject,
   OnInit,
   signal,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { OrderApiService } from '../../core/api/order-api.service';
-import { OrderDetails } from '../../core/models/order.model';
+import type { ExecuteOrderRequest, OrderDetails } from '../../core/models/order.model';
 import { OrderStatus } from '../../core/models/order-status.enum';
 import { TraderContextService } from '../../core/trader/trader-context.service';
 import { StatusBadgeComponent } from '../../shared/components/status-badge.component';
+import { OrderExecutionFormComponent } from './order-execution-form.component';
 
 @Component({
-  selector: 'mmx-order-detail',
+  selector: 'mmx-order-details',
   standalone: true,
-  imports: [DecimalPipe, RouterLink, StatusBadgeComponent],
+  imports: [
+    DecimalPipe,
+    RouterLink,
+    StatusBadgeComponent,
+    OrderExecutionFormComponent,
+  ],
   template: `
     <section class="feature">
       <nav class="crumb">
@@ -63,6 +71,18 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge.compo
             <dt>Assigned trader</dt>
             <dd class="mono">{{ o.assignedTraderId }}</dd>
           }
+          @if (o.status === executed) {
+            <dt>Executed rate</dt>
+            <dd class="mono">{{ o.executedRate | number: '1.2-8' }}</dd>
+            <dt>Counterparty</dt>
+            <dd>{{ o.counterparty }}</dd>
+            <dt>Dealing reference</dt>
+            <dd class="mono">{{ o.dealingReference }}</dd>
+            <dt>Contract number</dt>
+            <dd class="mono">{{ o.generatedContractNumber }}</dd>
+            <dt>Execution time</dt>
+            <dd class="mono">{{ o.executionTime }}</dd>
+          }
         </dl>
 
         @if (o.status === received) {
@@ -78,6 +98,10 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge.compo
               Unassign
             </button>
           </div>
+          <mmx-order-execution-form
+            [submitting]="acting()"
+            (submitExecute)="execute($event)"
+          />
         }
       }
     </section>
@@ -154,6 +178,7 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge.compo
       display: flex;
       gap: 0.75rem;
       flex-wrap: wrap;
+      margin-bottom: 0.5rem;
     }
 
     .btn {
@@ -216,13 +241,15 @@ import { StatusBadgeComponent } from '../../shared/components/status-badge.compo
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class OrderDetailComponent implements OnInit {
+export class OrderDetailsComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly api = inject(OrderApiService);
   private readonly trader = inject(TraderContextService);
 
   readonly received = OrderStatus.RECEIVED;
   readonly assigned = OrderStatus.ASSIGNED;
+  readonly executed = OrderStatus.EXECUTED;
 
   readonly order = signal<OrderDetails | null>(null);
   readonly loading = signal(true);
@@ -230,13 +257,15 @@ export class OrderDetailComponent implements OnInit {
   readonly acting = signal(false);
 
   ngOnInit(): void {
-    const id = this.route.snapshot.paramMap.get('orderId');
-    if (!id) {
-      this.loading.set(false);
-      this.error.set('Missing order id.');
-      return;
-    }
-    this.fetch(id);
+    this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
+      const id = params.get('id');
+      if (!id) {
+        this.loading.set(false);
+        this.error.set('Missing order id.');
+        return;
+      }
+      this.fetch(id);
+    });
   }
 
   assign(): void {
@@ -266,6 +295,25 @@ export class OrderDetailComponent implements OnInit {
     this.acting.set(true);
     this.error.set(null);
     this.api.unassignOrder(id, this.trader.traderId()).subscribe({
+      next: (details) => {
+        this.order.set(details);
+        this.acting.set(false);
+      },
+      error: (err) => {
+        this.acting.set(false);
+        this.error.set(this.formatHttpError(err));
+      },
+    });
+  }
+
+  execute(body: ExecuteOrderRequest): void {
+    const id = this.order()?.orderId;
+    if (!id) {
+      return;
+    }
+    this.acting.set(true);
+    this.error.set(null);
+    this.api.executeOrder(id, this.trader.traderId(), body).subscribe({
       next: (details) => {
         this.order.set(details);
         this.acting.set(false);
