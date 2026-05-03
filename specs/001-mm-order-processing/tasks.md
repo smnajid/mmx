@@ -247,7 +247,7 @@
 
 ## Phase 7: User Story 5 — Update an Assigned Order (Priority: P5)
 
-**Goal**: Assigned Trader can modify Amount, MinimumRate, ValueDate, DesiredCounterpartyComment before execution
+**Goal**: Assigned Trader can modify Amount, MinimumRate, and ValueDate before execution (DesiredCounterpartyComment remains as supplied at intake only)
 
 **Independent Test**: Assign → update Amount → verify new value persisted and revalidated
 
@@ -257,7 +257,7 @@
 
 ### Application Service (TDD)
 
-- [ ] T084 [US5] Write application tests for UpdateOrderService at backend/mmx-application/src/test/java/com/mmx/order/application/service/UpdateOrderServiceTest.java: update Amount success, update ValueDate too soon rejected, update by wrong Trader → 403, update non-ASSIGNED → 409, audit event with changed fields
+- [ ] T084 [US5] Write application tests for UpdateOrderService at backend/mmx-application/src/test/java/com/mmx/order/application/service/UpdateOrderServiceTest.java: update Amount success, update ValueDate too soon rejected, update by wrong Trader → 403, update non-ASSIGNED → 409, audit event with changed fields (Amount / MinimumRate / ValueDate only)
 - [ ] T085 [US5] Create UpdateOrderService implementing UpdateAssignedOrderUseCase at backend/mmx-application/src/main/java/com/mmx/order/application/service/UpdateOrderService.java
 
 ### REST Endpoint
@@ -268,9 +268,9 @@
 
 ### Frontend
 
-- [ ] T089 [US5] Create OrderUpdateFormComponent at frontend/src/app/features/order-details/order-update-form.component.ts with editable Amount, MinimumRate, ValueDate, DesiredCounterpartyComment fields (visible only for ASSIGNED orders owned by current Trader)
+- [ ] T089 [US5] Create OrderUpdateFormComponent at frontend/src/app/features/order-details/order-update-form.component.ts with editable Amount, MinimumRate, and ValueDate fields only (visible only for ASSIGNED orders owned by current Trader); display DesiredCounterpartyComment read-only when present
 
-**Checkpoint**: User Story 5 complete — all mutable fields updatable with revalidation
+**Checkpoint**: User Story 5 complete — Amount, MinimumRate, ValueDate updatable with revalidation; counterparty comment unchanged after intake
 
 ---
 

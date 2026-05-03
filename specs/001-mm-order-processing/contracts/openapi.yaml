@@ -646,7 +646,7 @@ components:
 
     UpdateOrderRequest:
       type: object
-      description: Partial update — only sent fields are applied
+      description: Partial update — only sent fields are applied (Amount, MinimumRate, ValueDate). DesiredCounterpartyComment is intake-only and not mutable via this endpoint.
       properties:
         amount:
           type: number
@@ -659,9 +659,6 @@ components:
         valueDate:
           type: string
           format: date
-        desiredCounterpartyComment:
-          type: string
-          maxLength: 500
 
     ExecuteOrderRequest:
       type: object

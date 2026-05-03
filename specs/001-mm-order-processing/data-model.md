@@ -36,7 +36,7 @@ The single aggregate root of the Order Processing bounded context. Encapsulates 
 | `tenor` | `Tenor` | Yes | Required for TERM orders; null for ON_CALL |
 | `noticePeriod` | `NoticePeriod` | Yes | Required for ON_CALL orders; null for TERM |
 | `sourceContractNumber` | `ContractNumber` | Yes | Existing contract referenced by Increase/Decrease/Redemption; null for Subscription |
-| `desiredCounterpartyComment` | `String` | Yes | Optional free-text counterparty preference from Portfolio Management |
+| `desiredCounterpartyComment` | `String` | Yes | Optional free-text counterparty preference from Portfolio Management at intake only; not mutable by Trader on update |
 | `status` | `OrderStatus` | No | Current lifecycle state |
 | `assignment` | `Assignment` | Yes | Current Trader assignment; null when not assigned |
 | `executionDetails` | `ExecutionDetails` | Yes | Populated only upon execution; null otherwise |
@@ -51,7 +51,7 @@ The single aggregate root of the Order Processing bounded context. Encapsulates 
 | Create (factory) | `MoneyMarketOrder.create(command, today)` | Validates all creation invariants; sets status to RECEIVED |
 | Assign | `assign(traderId, now)` | RECEIVED → ASSIGNED; sets Assignment |
 | Unassign | `unassign(traderId, now)` | ASSIGNED → RECEIVED; clears Assignment; only assigned Trader |
-| Update | `update(command, traderId, today)` | Validates ASSIGNED status and Trader identity; updates mutable fields |
+| Update | `update(command, traderId, today)` | Validates ASSIGNED status and Trader identity; updates Amount, MinimumRate, and ValueDate only |
 | Execute | `execute(command, traderId, dealingRef, contractNum, now)` | ASSIGNED → EXECUTED; creates ExecutionDetails; only assigned Trader |
 | Cancel | `cancel(now)` | RECEIVED → CANCELLED |
 | Reject | `reject(reason, now)` | RECEIVED → REJECTED; stores rejectionReason |

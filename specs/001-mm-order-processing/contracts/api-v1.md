@@ -262,8 +262,7 @@ All fields are optional; only provided fields are updated.
 {
   "amount": 6000000.00,
   "minimumRate": 3.50000000,
-  "valueDate": "2026-05-05",
-  "desiredCounterpartyComment": "Updated preference"
+  "valueDate": "2026-05-05"
 }
 ```
 
@@ -272,7 +271,8 @@ All fields are optional; only provided fields are updated.
 | amount | decimal | Must be > 0 if provided |
 | minimumRate | decimal | Must be ≥ 0 if provided |
 | valueDate | date | Must be ≥ today + 2 days if provided |
-| desiredCounterpartyComment | string | Max 500 chars |
+
+DesiredCounterpartyComment is not included in this request; it is set only at order reception and cannot be changed by the Trader.
 
 #### Responses
 

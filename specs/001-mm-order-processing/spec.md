@@ -87,7 +87,7 @@ A Trader can cancel or reject an order that is still in Received status. Both ar
 
 ### User Story 5 — Update an Assigned Order (Priority: P5)
 
-The assigned Trader can modify certain fields of an order before execution: Amount, MinimumRate, ValueDate, and DesiredCounterpartyComment. The system enforces that updated values remain valid (e.g., ValueDate must still be at least two days in the future, Amount must be positive).
+The assigned Trader can modify certain fields of an order before execution: Amount, MinimumRate, and ValueDate. DesiredCounterpartyComment is supplied only at order reception (Portfolio Management) and is not editable by the Trader. The system enforces that updated values remain valid (e.g., ValueDate must still be at least two days in the future, Amount must be positive).
 
 **Why this priority**: Allows the Trader to adjust order parameters based on market conditions before dealing. Useful but not blocking for the core workflow.
 
@@ -129,13 +129,13 @@ The assigned Trader can modify certain fields of an order before execution: Amou
 - **FR-013**: The assigned Trader MUST be able to unassign an order, returning it to Received status.
 - **FR-014**: Only the assigned Trader MUST be able to update or execute an order.
 - **FR-015**: A Trader MUST be able to view a list of orders assigned to them.
-- **FR-016**: The assigned Trader MUST be able to update Amount, MinimumRate, ValueDate, and DesiredCounterpartyComment on an Assigned order. Updated values MUST pass the same validation rules as initial reception.
+- **FR-016**: The assigned Trader MUST be able to update Amount, MinimumRate, and ValueDate on an Assigned order. Updated values MUST pass the same validation rules as initial reception.
 - **FR-017**: The assigned Trader MUST be able to execute an order by providing ExecutedRate and Counterparty (free-text input). Execution MUST fail if either is missing or blank.
 - **FR-018**: Upon execution, the system MUST generate a DealingReference and a ContractNumber. The system MUST record the ExecutionTime automatically.
 - **FR-019**: Cancellation (order withdrawn, no longer needed) and rejection (Trader refuses to process) are allowed only from Received status. Rejection MUST include a reason.
 - **FR-020**: All status transitions MUST follow the allowed state machine: Received → Assigned, Received → Cancelled, Received → Rejected, Assigned → Received (unassign), Assigned → Executed. Any other transition MUST be rejected.
 - **FR-021**: Every mutating business action MUST produce an audit record capturing who performed it and when.
-- **FR-022**: The DesiredCounterpartyComment MAY be provided at order reception as an optional free-text field. Counterparty itself is assigned only during execution.
+- **FR-022**: The DesiredCounterpartyComment MAY be provided at order reception as an optional free-text field. It MUST NOT be modified by the Trader after intake. Counterparty itself is assigned only during execution.
 - **FR-023**: Any authenticated Trader MUST be able to view the full details of any order regardless of its status or assignment. Mutating actions remain restricted to the assigned Trader.
 
 ### Key Entities

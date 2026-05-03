@@ -138,7 +138,7 @@ The project MUST preserve a strict ubiquitous language across backend, frontend,
 | `ExternalOrderReference` | Unique reference from the Portfolio Management system |
 | `ContractNumber` | System-generated identifier for downstream Deposits integration |
 | `Counterparty` | The financial institution or entity on the other side of the deal |
-| `DesiredCounterpartyComment` | Optional free-text preference for counterparty at reception |
+| `DesiredCounterpartyComment` | Optional free-text preference for counterparty at reception only; Traders MUST NOT change it after intake |
 | `Currency` | ISO currency code for the order |
 | `Amount` | Monetary amount of the order |
 | `ValueDate` | Settlement date for the order |

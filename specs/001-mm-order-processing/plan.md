@@ -409,7 +409,7 @@ Domain value objects are Java `record` types with validation in compact construc
 | Aspect                   | Detail                                                                                                                                                              |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Intent**               | Modify mutable fields of an assigned order before execution                                                                                                         |
-| **Inputs**               | `UpdateOrderCommand { orderId, traderId, amount?, minimumRate?, valueDate?, desiredCounterpartyComment? }`                                                          |
+| **Inputs**               | `UpdateOrderCommand { orderId, traderId, amount?, minimumRate?, valueDate? }`                                                          |
 | **Output**               | Updated order                                                                                                                                                       |
 | **Business validations** | Order must exist; must be ASSIGNED; only assigned Trader can update; if valueDate changed → ≥ today + 2 days; if amount changed → > 0; if minimumRate changed → ≥ 0 |
 | **Authorization**        | Only the assigned Trader                                                                                                                                            |
