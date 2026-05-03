@@ -54,6 +54,8 @@ public class OrderRestMapper {
                 .minimumRate(
                         order.getMinimumRate() != null ? order.getMinimumRate().doubleValue() : null)
                 .tenor(order.getTenor() != null ? order.getTenor().getCode() : null)
+                .noticePeriod(
+                        order.getNoticePeriod() != null ? order.getNoticePeriod().getCode() : null)
                 .status(OrderStatus.fromValue(order.getStatus().name()))
                 .assignedTraderId(assignment != null ? assignment.traderId().value() : null)
                 .createdAt(OffsetDateTime.ofInstant(order.getCreatedAt(), UTC));

@@ -14,6 +14,8 @@ export interface OrderSummary {
   minimumRate: number | null;
   /** Present for term orders when set at intake; null otherwise. */
   tenor: string | null;
+  /** Present for on-call orders when set at intake; null otherwise. */
+  noticePeriod: string | null;
   status: OrderStatus;
   assignedTraderId: string | null;
   createdAt: string;

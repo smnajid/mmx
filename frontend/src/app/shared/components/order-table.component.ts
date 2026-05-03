@@ -35,6 +35,9 @@ import { StatusBadgeComponent } from './status-badge.component';
               @if (showTenorColumn) {
                 <th>Tenor</th>
               }
+              @if (showNoticePeriodColumn) {
+                <th>Notice period</th>
+              }
               <th class="num">Min rate</th>
               <th>Operation</th>
               <th>Status</th>
@@ -53,6 +56,15 @@ import { StatusBadgeComponent } from './status-badge.component';
                   <td class="mono">
                     @if (row.tenor) {
                       {{ row.tenor }}
+                    } @else {
+                      —
+                    }
+                  </td>
+                }
+                @if (showNoticePeriodColumn) {
+                  <td class="mono">
+                    @if (row.noticePeriod) {
+                      {{ row.noticePeriod }}
                     } @else {
                       —
                     }
@@ -253,6 +265,8 @@ export class OrderTableComponent {
   @Input() errorMessage: string | null = null;
   /** Term received queue: show tenor from API summary. */
   @Input() showTenorColumn = false;
+  /** OnCall received queue: show notice period from API summary. */
+  @Input() showNoticePeriodColumn = false;
   /** Received queues: show Assign for RECEIVED rows. */
   @Input() enableAssign = false;
   /** Assigned queue: show Unassign for ASSIGNED rows. */

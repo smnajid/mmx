@@ -64,6 +64,7 @@ describe('OnCallOrderListComponent', () => {
       valueDate: '2026-05-12',
       minimumRate: 2.5,
       tenor: null,
+      noticePeriod: '24H',
       status: OrderStatus.RECEIVED,
       assignedTraderId: null,
       createdAt: '2026-05-03T11:00:00Z',
@@ -71,7 +72,10 @@ describe('OnCallOrderListComponent', () => {
     incoming.flush({ content: [row], totalElements: 1, page: 0, size: 100 });
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.textContent).toContain('OC-777');
-    expect(fixture.nativeElement.textContent).toMatch(/2\.5/);
+    const html = fixture.nativeElement.textContent as string;
+    expect(html).toContain('OC-777');
+    expect(html).toMatch(/2\.5/);
+    expect(html).toContain('Notice period');
+    expect(html).toContain('24H');
   });
 });

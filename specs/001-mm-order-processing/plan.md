@@ -322,7 +322,7 @@ Reject from **ASSIGNED** is allowed only for the assigned Trader (`spec.md` FR-0
 | ------------------------ | ------------------------------------------------------------------- |
 | **Intent**               | Display all Term orders currently in Received status                |
 | **Inputs**               | Pagination parameters (optional)                                    |
-| **Output**               | List of `OrderSummary` where `orderType=TERM` and `status=RECEIVED` — each item includes `tenor` from intake (OpenAPI `OrderSummaryResponse.tenor`) |
+| **Output**               | List of `OrderSummary` where `orderType=TERM` and `status=RECEIVED` — each item includes `tenor` from intake (`OrderSummaryResponse.tenor`); `noticePeriod` is null |
 | **Business validations** | None                                                                |
 | **Authorization**        | Any authenticated Trader                                            |
 | **Status transition**    | None (read-only)                                                    |
@@ -337,7 +337,7 @@ Reject from **ASSIGNED** is allowed only for the assigned Trader (`spec.md` FR-0
 | ------------------------ | ---------------------------------------------------------------------- |
 | **Intent**               | Display all OnCall orders currently in Received status                 |
 | **Inputs**               | Pagination parameters (optional)                                       |
-| **Output**               | List of `OrderSummary` where `orderType=ON_CALL` and `status=RECEIVED`; `tenor` is always null (`OrderSummaryResponse`) |
+| **Output**               | List of `OrderSummary` where `orderType=ON_CALL` and `status=RECEIVED` — each item includes `noticePeriod` from intake (`OrderSummaryResponse.noticePeriod`); `tenor` is null |
 | **Business validations** | None                                                                   |
 | **Authorization**        | Any authenticated Trader                                               |
 | **Status transition**    | None (read-only)                                                       |
@@ -702,7 +702,7 @@ frontend/src/app/
 │       └── order-details.routes.ts
 └── shared/
     └── components/
-        ├── order-table.component.ts     ← reusable table for order lists (optional Tenor column; enabled on Term received only)
+        ├── order-table.component.ts     ← reusable table for order lists (optional Tenor column on Term received; optional Notice period column on OnCall received)
         ├── status-badge.component.ts    ← status-colored badge
         └── confirm-dialog.component.ts  ← confirmation for destructive actions
 ```

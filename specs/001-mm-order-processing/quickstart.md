@@ -135,7 +135,16 @@ curl http://localhost:8080/api/v1/orders/term/received \
   -H "X-Trader-Id: trader-1"
 ```
 
-Each element of `content` is an `OrderSummaryResponse` and includes **`tenor`** for Term rows (e.g. `"3M"`) and **`tenor": null`** for any edge case; see OpenAPI. The Angular Term received screen displays this as a **Tenor** column.
+Each element of `content` is an `OrderSummaryResponse` and includes **`tenor`** for Term rows (e.g. `"3M"`) and **`noticePeriod": null`**; see OpenAPI. The Angular Term received screen displays **Tenor** as a column.
+
+### List received OnCall orders
+
+```bash
+curl http://localhost:8080/api/v1/orders/oncall/received \
+  -H "X-Trader-Id: trader-1"
+```
+
+Each element includes **`noticePeriod`** for OnCall rows (e.g. `"24H"`) and **`tenor": null`**. The Angular OnCall received screen displays **Notice period** as a column.
 
 ### Assign the order
 

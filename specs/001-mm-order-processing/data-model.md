@@ -59,7 +59,7 @@ The single aggregate root of the Order Processing bounded context. Encapsulates 
 
 ### List summaries (REST `OrderSummaryResponse`)
 
-Trader queue endpoints return a paging envelope whose `content` items are summaries aligned with **`contracts/openapi.yaml`** (`OrderSummaryResponse`). **`tenor`** echoes the aggregate’s tenor **code** (e.g. `3M`) for Term orders and is **null** for OnCall. This keeps Term received triage consistent with intake without exposing the full detail payload.
+Trader queue endpoints return a paging envelope whose `content` items are summaries aligned with **`contracts/openapi.yaml`** (`OrderSummaryResponse`). **`tenor`** echoes the aggregate’s tenor **code** (e.g. `3M`) for Term orders and is **null** for OnCall. **`noticePeriod`** echoes the aggregate’s notice period **code** (`24H`, `48H`) for OnCall orders and is **null** for Term. This keeps received-queue triage consistent with intake without exposing the full detail payload.
 
 ## Value Objects
 
