@@ -54,6 +54,14 @@ cd backend
 
 The backend starts on `http://localhost:8080`.
 
+**Without Docker Postgres (optional):** activate the `local` profile so the app uses the H2 definition in [`application-local.yml`](../../../backend/mmx-bootstrap/src/main/resources/application-local.yml):
+
+```bash
+./mvnw spring-boot:run -pl mmx-bootstrap -Dspring-boot.run.profiles=local
+```
+
+In the IDE, set VM options `-Dspring.profiles.active=local` (or program args `--spring.profiles.active=local`) on `MmxApplication`.
+
 Flyway migrations run automatically on startup, creating the `money_market_order` and `order_audit_log` tables.
 
 ### Verify the Backend
