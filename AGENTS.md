@@ -1,3 +1,7 @@
+## Spec-Driven Development (SDD)
+
+Agents MUST keep **specifications and code aligned** for any material change (API, domain behavior, persistence, Trader-facing UX). Operational checklist: `.cursor/rules/spec-sdd-sync.mdc`. Governance: `.specify/memory/constitution.md` Principle VII (Spec–code parity), version **1.5.0+**. Treat missing spec updates as a **blocking** defect, not a follow-up.
+
 ## Agent skills
 
 ### Issue tracker

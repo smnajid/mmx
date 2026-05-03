@@ -135,6 +135,8 @@ curl http://localhost:8080/api/v1/orders/term/received \
   -H "X-Trader-Id: trader-1"
 ```
 
+Each element of `content` is an `OrderSummaryResponse` and includes **`tenor`** for Term rows (e.g. `"3M"`) and **`tenor": null`** for any edge case; see OpenAPI. The Angular Term received screen displays this as a **Tenor** column.
+
 ### Assign the order
 
 ```bash

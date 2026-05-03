@@ -32,6 +32,9 @@ import { StatusBadgeComponent } from './status-badge.component';
               <th class="num">Amount</th>
               <th>Ccy</th>
               <th>Value date</th>
+              @if (showTenorColumn) {
+                <th>Tenor</th>
+              }
               <th class="num">Min rate</th>
               <th>Operation</th>
               <th>Status</th>
@@ -46,6 +49,15 @@ import { StatusBadgeComponent } from './status-badge.component';
                 <td class="num mono">{{ row.amount | number: '1.2-2' }}</td>
                 <td class="mono">{{ row.currency }}</td>
                 <td class="mono">{{ row.valueDate }}</td>
+                @if (showTenorColumn) {
+                  <td class="mono">
+                    @if (row.tenor) {
+                      {{ row.tenor }}
+                    } @else {
+                      —
+                    }
+                  </td>
+                }
                 <td class="num mono">
                   @if (row.minimumRate !== null && row.minimumRate !== undefined) {
                     {{ row.minimumRate | number: '1.2-8' }}
@@ -239,6 +251,8 @@ export class OrderTableComponent {
   @Input() orders: OrderSummary[] = [];
   @Input() loading = false;
   @Input() errorMessage: string | null = null;
+  /** Term received queue: show tenor from API summary. */
+  @Input() showTenorColumn = false;
   /** Received queues: show Assign for RECEIVED rows. */
   @Input() enableAssign = false;
   /** Assigned queue: show Unassign for ASSIGNED rows. */

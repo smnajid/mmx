@@ -63,6 +63,7 @@ describe('TermOrderListComponent', () => {
       amount: 5_000_000,
       valueDate: '2026-06-15',
       minimumRate: null,
+      tenor: '3M',
       status: OrderStatus.RECEIVED,
       assignedTraderId: null,
       createdAt: '2026-05-03T09:00:00Z',

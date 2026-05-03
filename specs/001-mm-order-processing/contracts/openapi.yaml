@@ -536,6 +536,10 @@ components:
           format: double
           nullable: true
           description: Present when supplied at intake; Trader cannot alter after reception.
+        tenor:
+          type: string
+          nullable: true
+          description: Term orders only; echoes intake tenor when applicable.
         status:
           $ref: "#/components/schemas/OrderStatus"
         assignedTraderId:

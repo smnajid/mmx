@@ -63,6 +63,7 @@ describe('OnCallOrderListComponent', () => {
       amount: 250_000,
       valueDate: '2026-05-12',
       minimumRate: 2.5,
+      tenor: null,
       status: OrderStatus.RECEIVED,
       assignedTraderId: null,
       createdAt: '2026-05-03T11:00:00Z',

@@ -57,6 +57,10 @@ The single aggregate root of the Order Processing bounded context. Encapsulates 
 | Cancel | `cancel(now)` | RECEIVED → CANCELLED |
 | Reject | `reject(reason, traderId, now)` | RECEIVED → REJECTED (any Trader) or ASSIGNED → REJECTED (only assigned Trader); stores rejectionReason |
 
+### List summaries (REST `OrderSummaryResponse`)
+
+Trader queue endpoints return a paging envelope whose `content` items are summaries aligned with **`contracts/openapi.yaml`** (`OrderSummaryResponse`). **`tenor`** echoes the aggregate’s tenor **code** (e.g. `3M`) for Term orders and is **null** for OnCall. This keeps Term received triage consistent with intake without exposing the full detail payload.
+
 ## Value Objects
 
 ### ExternalOrderReference

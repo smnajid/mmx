@@ -60,6 +60,7 @@ describe('AssignedOrderListComponent', () => {
       amount: 1_000,
       valueDate: '2026-07-01',
       minimumRate: null,
+      tenor: null,
       status: OrderStatus.ASSIGNED,
       assignedTraderId: 'alice',
       createdAt: '2026-05-03T08:00:00Z',

@@ -1,0 +1,36 @@
+---
+description: Mandatory spec–code parity for Spec-Driven Development (blocking if specs lag implementation)
+alwaysApply: true
+---
+
+# Spec–code parity (blocking)
+
+This project uses **Spec-Driven Development** under `.specify/` and `.specify/memory/constitution.md` **v1.5.0+ Principle VII — Spec–code parity**.
+
+## Before you finish any material change
+
+If the change affects **any** of: HTTP contract, DTOs/OpenAPI shapes, domain rules, persistence/Flyway, queue/list/detail UX, acceptance criteria, ubiquitous language in user-facing text, or documented data model — you **MUST** update the matching feature artifacts **in the same change** (same commit or same PR with no spec drift left behind).
+
+**Default feature root** (adjust if the user names another feature): `specs/001-mm-order-processing/`
+
+| If you changed… | Update at least… |
+|-----------------|------------------|
+| REST paths, payloads, responses, errors | `contracts/openapi.yaml` → regenerate codegen as required; keep `contracts/api-v1.md` in lockstep (no contradiction) |
+| Entities, fields, relationships | `data-model.md`; OpenAPI if exposed on the wire |
+| User stories, behavior, AC, edge cases | `spec.md` |
+| Architecture, tech stack, boundaries | `plan.md` |
+| Task scope or done status | `tasks.md` |
+
+## Stop conditions
+
+- **Do not** present implementation as complete if only code (or only OpenAPI) changed but `spec.md`, `api-v1.md`, or `data-model.md` still describe the old behavior.
+- If the user explicitly asks for “code only”, **refuse or warn** that this violates project SDD; offer to update the spec in the same pass or narrow the change to non-material refactors only.
+
+## Exempt (no spec touch required)
+
+Purely internal refactors with **zero** observable/API/DB/UX effect; comments-only; formatting. When uncertain, **update the spec**.
+
+## Cross-reference
+
+- Governance: `.specify/memory/constitution.md` Principle VII and **Amendment 1.5.0**
+- Speckit workflows must treat missing spec sync as a failed gate

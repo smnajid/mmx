@@ -35,6 +35,7 @@ Error codes: `VALIDATION_ERROR`, `ORDER_NOT_FOUND`, `INVALID_STATUS_TRANSITION`,
   "amount": 1000000.00,
   "valueDate": "2026-05-02",
   "minimumRate": 3.25000000,
+  "tenor": "1W | 2W | 1M | 3M | 6M | 1Y | null",
   "status": "RECEIVED | ASSIGNED | EXECUTED | CANCELLED | REJECTED",
   "assignedTraderId": "string | null",
   "createdAt": "2026-04-28T21:30:00Z"
@@ -42,6 +43,8 @@ Error codes: `VALIDATION_ERROR`, `ORDER_NOT_FOUND`, `INVALID_STATUS_TRANSITION`,
 ```
 
 `minimumRate` is `null` (or omitted in responses that omit-null) when Portfolio Management did not supply an execution-floor indication at intake. It is not mutable after reception.
+
+`tenor` is `null` for on-call orders or when not applicable; populated for term instruments.
 
 ### OrderDetailsResponse
 

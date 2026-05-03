@@ -1,14 +1,11 @@
 <!--
 ## Sync Impact Report
 
-- **Version change**: 1.3.0 → 1.4.0 (MINOR — REST controllers MUST implement OpenAPI-generated API interfaces)
+- **Version change**: 1.4.1 → 1.5.0 (MINOR — mandatory spec–artifact updates alongside significant implementation changes)
 - **Modified principles**:
-  - I. Hexagonal Architecture and Modular Monolith — generated REST surface now explicitly requires implementing generated server API interfaces from the OpenAPI contract
-- **Templates requiring updates**:
-  - `.specify/templates/plan-template.md` — ✅ OpenAPI gate mentions generated `*Api` interfaces
-  - `.specify/templates/spec-template.md` — ✅ REST comment references controllers implement generated `*Api`
-  - `.specify/templates/tasks-template.md` — ✅ codegen note references controller implements generated API
-- **Follow-up TODOs**: None (principle codifies existing `mmx-adapter-in-rest` practice). Active feature plans under `specs/*/plan.md` MUST stay aligned with constitution checks when principles change.
+  - VII. Simplicity and Learning Focus — new **Spec–code parity** subsection (same commit as code for API, domain-behavior, or traceable UX changes)
+- **Templates requiring updates**: None mandatory; Cursor rule `.cursor/rules/spec-sdd-sync.mdc` carries operational checklist for agents.
+- **Follow-up TODOs**: Retro-align any merged drift between `specs/001-mm-order-processing/*` and current runtime (e.g. list DTO/UI fields vs spec prose).
 -->
 
 # Money Market Order Processing Constitution
@@ -112,8 +109,13 @@ This project is intended as a disciplined introduction to Spec-Driven Developmen
 - Avoid premature event-driven complexity, unnecessary generic frameworks, or speculative extensibility.
 - Every design decision MUST favor clarity and maintainability over premature optimization or sophistication.
 - Any exception to this constitution MUST be documented with rationale, trade-offs, and risks in the relevant specification or plan artifact.
+- **Spec–code parity (mandatory)**:
+  - Implementation work MUST NOT materially change behavior, contracts, persisted shape, or user-visible Trader semantics without updating the **active feature specification set in the same change** (single commit or same PR series with no intermediate “spec-empty” revision). “Material” includes: REST paths, headers, query/body/response schemas, domain validation or lifecycle rules, Flyway/database columns, ubiquitous-language terms used in UX or errors, queue/list/detail fields, and any acceptance criterion the product is expected to meet.
+  - At minimum, keep these artifacts aligned with the code that was changed: `specs/<feature>/spec.md` (user-facing requirements and acceptance scenarios), `specs/<feature>/contracts/openapi.yaml` (canonical HTTP contract), `specs/<feature>/contracts/api-v1.md` (prose mirror of the same surface—MUST NOT contradict OpenAPI), and `specs/<feature>/data-model.md` when entities or fields change. Update `specs/<feature>/plan.md` when architecture or stack assumptions change; update `specs/<feature>/tasks.md` when task scope or completion status changes.
+  - Purely internal refactors with no observable effect (rename private method, extract function, formatting) are exempt. When in doubt, update the spec.
+  - AI assistants and human contributors MUST treat missing spec updates for a material code change as a **blocking defect** to be fixed before the work is considered complete.
 
-**Rationale**: The project's educational purpose requires that every architectural choice be understandable and justifiable. Simplicity reduces cognitive load and makes the codebase accessible to developers learning Hexagonal Architecture and Spec-Driven Development.
+**Rationale**: The project's educational purpose requires that every architectural choice be understandable and justifiable. Simplicity reduces cognitive load and makes the codebase accessible to developers learning Hexagonal Architecture and Spec-Driven Development. **Spec-Driven Development fails if specifications lag implementation**; binding parity in the constitution prevents silent drift and preserves traceability from code back to agreed requirements.
 
 ## Ubiquitous Language
 
@@ -156,11 +158,15 @@ New domain terms MUST be proposed, reviewed, and added to this table before use 
 
 **Rationale**: Align ubiquitous language with the feature spec: `MinimumRate` is an optional Portfolio Manager execution-floor indication at intake only; Traders do not negotiate it in-app; if the floor cannot be met, reject rather than execute below it.
 
+## Amendment 1.5.0 (2026-05-03)
+
+**Rationale**: Enforce Spec-Driven Development operationally: material implementation changes MUST land together with updates to the feature spec, OpenAPI, prose contract, and data model as applicable, so agents and developers cannot treat specifications as optional documentation.
+
 ## Governance
 
 This constitution is the supreme governance document for the Money Market Order Processing project. All specifications, plans, task lists, and implementation decisions MUST be checked against this constitution.
 
-- **Compliance**: Every `/speckit.specify`, `/speckit.plan`, `/speckit.tasks`, and `/speckit.implement` execution MUST verify alignment with the principles defined herein.
+- **Compliance**: Every `/speckit.specify`, `/speckit.plan`, `/speckit.tasks`, and `/speckit.implement` execution MUST verify alignment with the principles defined herein, including **VII — Spec–code parity** (no material code change without synchronized spec artifacts in the same delivery).
 - **Rejection**: If a design violates Hexagonal Architecture, the ubiquitous language, idempotency requirements, workflow rules, or any other principle in this constitution, it MUST be rejected or explicitly revised before proceeding.
 - **Priority**: Clarity, traceability, and correctness take priority over optimization in all decisions.
 - **Amendment procedure**: Any change to this constitution MUST be documented with rationale, trade-offs, and a version bump. Amendments follow semantic versioning:
@@ -169,4 +175,4 @@ This constitution is the supreme governance document for the Money Market Order 
   - **PATCH**: Clarifications, wording, typo fixes, non-semantic refinements.
 - **Exception process**: Any exception to a constitutional principle MUST be documented in the relevant artifact with rationale, trade-offs, and risks. Undocumented exceptions are violations.
 
-**Version**: 1.4.1 | **Ratified**: 2026-04-28 | **Last Amended**: 2026-05-03
+**Version**: 1.5.0 | **Ratified**: 2026-04-28 | **Last Amended**: 2026-05-03

@@ -29,6 +29,7 @@ import { OrderTableComponent } from '../../shared/components/order-table.compone
         [orders]="orders()"
         [loading]="loading()"
         [errorMessage]="error()"
+        [showTenorColumn]="true"
         [enableAssign]="true"
         (assignClick)="onAssign($event)"
       />

@@ -29,7 +29,7 @@ The external Portfolio Management system sends Money Market orders to the applic
 
 **Acceptance Scenarios**:
 
-1. **Given** the Portfolio Management system submits a valid Term Subscription order, **When** the system processes it, **Then** the order appears in the Received Term orders list with all submitted details.
+1. **Given** the Portfolio Management system submits a valid Term Subscription order (including Tenor), **When** the system processes it, **Then** the order appears in the Received Term orders list with all submitted details, **and** Tenor is available in the list API (`OrderSummary`) **and** shown as a Tenor column in the Term received UI.
 2. **Given** the Portfolio Management system submits a valid OnCall Subscription order, **When** the system processes it, **Then** the order appears in the Received OnCall orders list.
 3. **Given** the Portfolio Management system submits an OnCall Increase referencing an existing ContractNumber, **When** the system processes it, **Then** the order appears in the Received OnCall orders list.
 4. **Given** a Term order is submitted with an invalid Tenor value, **When** the system validates it, **Then** the order is rejected with a clear error indicating the invalid field.
@@ -134,7 +134,7 @@ The assigned Trader can modify **Amount** and **ValueDate** before execution to 
 - **FR-008**: The system MUST validate that Amount is greater than zero. When MinimumRate is supplied at intake, it MUST be greater than or equal to zero.
 - **FR-009**: The system MUST use exact decimal handling for all monetary and rate values. Floating-point approximation is forbidden.
 - **FR-010**: Order intake MUST be idempotent using ExternalOrderReference. Receiving the same reference twice MUST NOT create a duplicate order.
-- **FR-011**: The system MUST display Received Term orders and Received OnCall orders in separate views.
+- **FR-011**: The system MUST display Received Term orders and Received OnCall orders in separate views. The Received **Term** list MUST expose **Tenor** for each row: the REST paged summaries (`OrderSummaryResponse`) MUST include `tenor` when the order type is Term (code from intake), and **null** for OnCall summaries; the Term orders screen MUST show a Tenor column. Received **OnCall** list views MUST NOT be required to show Tenor as a dedicated column (`tenor` is null).
 - **FR-012**: A Trader MUST be able to assign a Received order to themselves. An order can be assigned to only one Trader at a time.
 - **FR-013**: The assigned Trader MUST be able to unassign an order, returning it to Received status.
 - **FR-014**: Only the assigned Trader MUST be able to update or execute an order.
@@ -150,7 +150,7 @@ The assigned Trader can modify **Amount** and **ValueDate** before execution to 
 
 ### Key Entities
 
-- **MoneyMarketOrder**: The central business object representing an order. Characterized by its OrderType (Term or OnCall), OrderOperation (Subscription, Increase, Decrease, Redemption), financial details (Currency, Amount, ValueDate, optional MinimumRate — PM execution floor when present), and lifecycle status (Received, Assigned, Executed, Cancelled, Rejected).
+- **MoneyMarketOrder**: The central business object representing an order. Characterized by its OrderType (Term or OnCall), OrderOperation (Subscription, Increase, Decrease, Redemption), financial details (Currency, Amount, ValueDate, **Tenor for Term** / **NoticePeriod for OnCall**, optional MinimumRate — PM execution floor when present), and lifecycle status (Received, Assigned, Executed, Cancelled, Rejected).
 - **Trader**: The internal user who assigns orders to themselves, manages them, and records execution outcomes.
 - **Assignment**: The relationship between a Trader and an order. Only one assignment at a time. Created when a Trader assigns an order; cleared on unassignment.
 - **ExecutionDetails**: The data captured when a Trader confirms execution: ExecutedRate, Counterparty (free-text name of the financial institution), ExecutionTime (system-recorded), DealingReference (system-generated), and ContractNumber (system-generated).
