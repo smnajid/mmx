@@ -30,7 +30,7 @@ Build an internal application that receives Money Market orders from an external
 | ---- | ----------------------------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------- |
 | I    | Hexagonal Architecture & Modular Monolith | ✅ PASS | 6 Maven modules with strict dependency direction; domain and application have zero Spring dependencies                     |
 | II   | Domain Integrity                          | ✅ PASS | All invariants (OrderType/OrderOperation combos, tenors, notice periods, ValueDate, decimal precision) enforced in domain  |
-| III  | Workflow Discipline                       | ✅ PASS | Explicit state machine with 5 statuses, 5 transitions, validated in domain aggregate                                       |
+| III  | Order lifecycle (feature spec)            | ✅ PASS | Authoritative rules in [spec.md § Order lifecycle](spec.md#order-lifecycle-workflow-discipline); FR-019 / FR-020; domain aggregate |
 | IV   | Idempotency & Integration Boundaries      | ✅ PASS | ReceiveOrder idempotent via ExternalOrderReference UNIQUE constraint; Deposits modeled as outbound port                    |
 | V    | Execution Rules                           | ✅ PASS | ExecuteOrder captures ExecutedRate, Counterparty; generates DealingReference, ContractNumber; records system ExecutionTime |
 | VI   | API & UI Consistency                      | ✅ PASS | Backend single source of truth; Angular performs UX hints only; separate Term/OnCall views                                 |
@@ -722,7 +722,7 @@ frontend/src/app/
 
 ### State Management
 
-V1 uses Angular's built-in mechanisms: `HttpClient` calls in `OrderApiService`, component-local state, and `OnPush` change detection. No NgRx, no signals store, no state management library. Components call the API service directly and refresh data after mutations. This is intentionally simple per Constitution Principle IX.
+V1 uses Angular's built-in mechanisms: `HttpClient` calls in `OrderApiService`, component-local state, and `OnPush` change detection. No NgRx, no signals store, no state management library. Components call the API service directly and refresh data after mutations. This is intentionally simple per Constitution Principle VI (Simplicity).
 
 ## 10. Validation Strategy
 
@@ -899,8 +899,8 @@ This project serves as an introductory Spec-Driven Development exercise. The sco
 | Alternative                        | Rejected Because                                                                                                                          |
 | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | Microservices                      | Adds network complexity, deployment overhead, and distributed tracing concerns that distract from learning SDD and Hexagonal Architecture |
-| Frontend business rule duplication | Violates Constitution Principle VI; creates divergence risk                                                                               |
-| Shared "common" module             | Becomes a dumping ground; violates Principle IX (simplicity)                                                                              |
+| Frontend business rule duplication | Violates Constitution Principle I (backend single source of truth); creates divergence risk                                               |
+| Shared "common" module             | Becomes a dumping ground; violates Principle VI (Simplicity)                                                                              |
 | Event sourcing                     | Adds significant complexity for a V1 with simple state transitions                                                                        |
 | Generic Repository pattern         | Obscures intent; a specific port per use case is clearer                                                                                  |
 | Gradle                             | Groovy/Kotlin DSL adds learning overhead; Maven is more explicit for beginners (see [research.md](research.md))                           |

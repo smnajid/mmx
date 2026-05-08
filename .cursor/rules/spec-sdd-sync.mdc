@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Spec–code parity (blocking)
 
-This project uses **Spec-Driven Development** under `.specify/` and `.specify/memory/constitution.md` **v1.5.0+ Principle VII — Spec–code parity**.
+This project uses **Spec-Driven Development** under `.specify/` and `.specify/memory/constitution.md` **v1.6.0+ Principle VI — Spec–code parity**.
 
 ## Before you finish any material change
 
@@ -32,5 +32,5 @@ Purely internal refactors with **zero** observable/API/DB/UX effect; comments-on
 
 ## Cross-reference
 
-- Governance: `.specify/memory/constitution.md` Principle VII and **Amendment 1.5.0**
+- Governance: `.specify/memory/constitution.md` Principle VI and **Amendments 1.5.0 / 1.6.0**
 - Speckit workflows must treat missing spec sync as a failed gate

@@ -9,5 +9,5 @@ at `specs/001-mm-order-processing/plan.md`. REST endpoints follow
 **contract-first OpenAPI** (see `.specify/memory/constitution.md` Principle I).
 
 **SDD gate**: Material code changes MUST update the feature spec set in the same
-delivery — see `.cursor/rules/spec-sdd-sync.mdc` and constitution **v1.5.0** Principle VII.
+delivery — see `.cursor/rules/spec-sdd-sync.mdc` and constitution **v1.6.0** Principle VI.
 <!-- SPECKIT END -->

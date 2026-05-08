@@ -5,7 +5,7 @@
 
 **Constitution**: Principle I requires **contract-first OpenAPI 3** (`specs/.../contracts/openapi.yaml`), **generated** REST models and API interfaces, and **controllers that implement** those interfaces; prose `contracts/api-v1.md` is not sufficient alone (see plan Constitution Check **CF**).
 
-**Tests**: TDD is mandatory per Constitution Principle V. Domain and application tests are written before production code.
+**Tests**: TDD is mandatory per Constitution Principle IV (Testing Discipline). Domain and application tests are written before production code.
 
 **Organization**: Tasks are grouped by user story to enable independent implementation and testing of each story.
 
@@ -363,7 +363,7 @@ US4/US5: Can run entirely in parallel with US3
 
 - [P] tasks = different files, no dependencies
 - [Story] label maps task to specific user story for traceability
-- TDD is mandatory for domain and application layers per Constitution Principle V
+- TDD is mandatory for domain and application layers per Constitution Principle IV (Testing Discipline)
 - Each user story should be independently completable and testable
 - Commit after each task or logical group
 - Stop at any checkpoint to validate story independently

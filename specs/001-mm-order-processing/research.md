@@ -16,7 +16,7 @@
 **Alternatives considered:**
 
 - **Gradle with Kotlin DSL:** faster incremental builds, more concise, but adds a second language (Kotlin) to learn alongside Java; Groovy DSL has looser syntax that can confuse beginners
-- Rejected because build performance is not a bottleneck for a learning project, and explicitness is prioritized per Constitution Principle IX
+- Rejected because build performance is not a bottleneck for a learning project, and explicitness is prioritized per Constitution Principle VI (Simplicity)
 
 ---
 
@@ -29,7 +29,7 @@
 - V1 has ~4 routes, ~11 API calls, and no complex shared state across features
 - Each list view fetches fresh data from the API on navigation; mutation operations (assign, execute, etc.) trigger a data refresh
 - Adding NgRx or a signals-based store introduces boilerplate and concepts (reducers, effects, selectors) that provide no value at this scale
-- Aligns with Constitution Principle IX: prefer explicit and simple designs
+- Aligns with Constitution Principle VI (Simplicity): prefer explicit and simple designs
 
 **Alternatives considered:**
 
@@ -87,7 +87,7 @@
 
 - V1 is an internal tool with single-digit Traders; full OAuth2/OIDC would add significant infrastructure complexity
 - The header approach allows every REST endpoint to know which Trader is acting, enabling assignment enforcement and audit logging
-- Constitution Principle VIII requires actor identity on every mutating action; the header provides this
+- Constitution Principle V (Auditability) requires actor identity on every mutating action; the header provides this
 - The application layer receives `TraderId` as a value object, decoupled from how it's extracted at the HTTP level
 - V2 can replace the header extraction with a Spring Security authentication context without changing the application or domain layers
 
@@ -95,7 +95,7 @@
 
 - **Spring Security with in-memory users:** adds security filter chain configuration, login page, session management — too much infrastructure for V1
 - **JWT tokens from an external IdP:** proper solution for production but requires IdP setup; deferred to V2
-- **No identity at all:** violates Constitution Principle VIII (auditability)
+- **No identity at all:** violates Constitution Principle V (auditability)
 
 ---
 
@@ -115,7 +115,7 @@
 - **MapStruct:** type-safe generated mappers, but adds annotation processing and a build-time dependency; mappings are less visible to beginners
 - **ModelMapper:** reflection-based; can silently succeed with incorrect mappings
 - **Direct JPA on domain entities:** violates Constitution Principle I (domain must be framework-agnostic)
-- Rejected automated mappers because explicitness is prioritized per Principle IX
+- Rejected automated mappers because explicitness is prioritized per Principle VI (Simplicity)
 
 ---
 
@@ -170,4 +170,4 @@
 
 - **Jest:** popular but requires ejecting from Angular's default test runner; adds configuration overhead
 - **Playwright:** excellent but less Angular-specific documentation than Cypress
-- **No e2e tests:** rejected because Constitution Principle VII requires e2e coverage of core Trader workflows
+- **No e2e tests:** rejected because Constitution Principle IV (Testing Discipline) requires e2e coverage of core Trader workflows

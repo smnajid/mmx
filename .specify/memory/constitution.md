@@ -1,11 +1,11 @@
 <!--
 ## Sync Impact Report
 
-- **Version change**: 1.4.1 → 1.5.0 (MINOR — mandatory spec–artifact updates alongside significant implementation changes)
+- **Version change**: 1.5.0 → 1.6.0 (MINOR — relocate order lifecycle from constitution to feature spec)
 - **Modified principles**:
-  - VII. Simplicity and Learning Focus — new **Spec–code parity** subsection (same commit as code for API, domain-behavior, or traceable UX changes)
-- **Templates requiring updates**: None mandatory; Cursor rule `.cursor/rules/spec-sdd-sync.mdc` carries operational checklist for agents.
-- **Follow-up TODOs**: Retro-align any merged drift between `specs/001-mm-order-processing/*` and current runtime (e.g. list DTO/UI fields vs spec prose).
+  - Removed former **III. Workflow Discipline** (order statuses and transitions are **feature requirements**: see `specs/001-mm-order-processing/spec.md` § *Order lifecycle (workflow discipline)*).
+  - Renumbered former IV–VII → III–VI (see Governance).
+- **Templates requiring updates**: None mandatory.
 -->
 
 # Money Market Order Processing Constitution
@@ -44,30 +44,7 @@ All business rules MUST be enforced within the domain core.
 
 **Rationale**: Encoding structural invariants in the domain core ensures correctness regardless of which adapter or entry point triggers the operation. Records remove boilerplate for immutable carriers of validated data while keeping semantics explicit in one place. The specific allowed values (which tenors, which notice periods, which operations per type) are defined in the domain model and may evolve across versions, but the principle that the domain validates and rejects invalid combinations is non-negotiable. Financial precision rules prevent rounding errors that could have regulatory or monetary impact.
 
-### III. Workflow Discipline
-
-The order lifecycle MUST follow an explicit, deterministic state machine.
-
-- The only allowed `OrderStatus` values are: **Received**, **Assigned**, **Executed**, **Cancelled**, **Rejected**.
-- An order MAY be assigned to only one Trader at a time.
-- An order MAY be unassigned before execution, returning it to **Received** status.
-- Only the assigned Trader MAY update an order, and only while the order is NOT in **Executed** status.
-- **Cancelled** and **Rejected** are allowed only from **Received** status.
-- **Executed** is allowed only through the explicit execution use case.
-- All status transitions MUST be explicit, validated in the domain, and covered by automated tests.
-- The allowed transitions are:
-  - **Received** → **Assigned** (assign)
-  - **Received** → **Cancelled** (cancel)
-  - **Received** → **Rejected** (reject)
-  - **Assigned** → **Received** (unassign)
-  - **Assigned** → **Executed** (execute)
-- Any transition not listed above MUST be rejected by the domain.
-- Execution MUST be an explicit, complete use case. It MUST NOT succeed if any mandatory execution data is missing. System-generated identifiers and timestamps MUST originate from the system, not from client input.
-- The workflow MUST remain simple and deterministic in V1.
-
-**Rationale**: An explicit state machine prevents invalid lifecycle transitions. Requiring execution to be complete and system-timestamped ensures reliable audit trails and prevents clients from fabricating traceability data.
-
-### IV. Idempotency and Integration Boundaries
+### III. Idempotency and Integration Boundaries
 
 - The `ReceiveOrder` use case MUST be idempotent using `ExternalOrderReference` supplied by the Portfolio Management system. Receiving the same `ExternalOrderReference` twice MUST NOT create a duplicate order.
 - The application MUST prevent duplicate business creation for the same `ExternalOrderReference`.
@@ -77,7 +54,7 @@ The order lifecycle MUST follow an explicit, deterministic state machine.
 
 **Rationale**: Idempotency is critical in an integration context where the upstream Portfolio Management system may retry failed calls. Modeling integration boundaries as ports prepares the system for future connectivity without coupling the domain to external systems.
 
-### V. Testing Discipline
+### IV. Testing Discipline
 
 Test-Driven Development (TDD) is mandatory for Domain and Application logic.
 
@@ -90,7 +67,7 @@ Test-Driven Development (TDD) is mandatory for Domain and Application logic.
 
 **Rationale**: TDD ensures that business invariants are codified and regression-proof. Layered test coverage aligns with Hexagonal Architecture boundaries, catching defects at the appropriate level.
 
-### VI. Auditability and Security
+### V. Auditability and Security
 
 Important business actions MUST be auditable.
 
@@ -101,7 +78,7 @@ Important business actions MUST be auditable.
 
 **Rationale**: Auditability is a regulatory expectation in banking. Recording actor identity from V1 avoids costly retrofitting and establishes a culture of accountability from the start.
 
-### VII. Simplicity and Learning Focus
+### VI. Simplicity and Learning Focus
 
 This project is intended as a disciplined introduction to Spec-Driven Development.
 
@@ -162,12 +139,16 @@ New domain terms MUST be proposed, reviewed, and added to this table before use 
 
 **Rationale**: Enforce Spec-Driven Development operationally: material implementation changes MUST land together with updates to the feature spec, OpenAPI, prose contract, and data model as applicable, so agents and developers cannot treat specifications as optional documentation.
 
+## Amendment 1.6.0 (2026-05-09)
+
+**Rationale**: Order lifecycle (statuses and allowed transitions) is **product scope** for Money Market order processing, not project-wide governance. It is removed as a standalone constitutional principle and documented authoritatively under [`specs/001-mm-order-processing/spec.md`](../../specs/001-mm-order-processing/spec.md) (*Order lifecycle (workflow discipline)*). Principles **IV–VII** are renumbered **III–VI**.
+
 ## Governance
 
 This constitution is the supreme governance document for the Money Market Order Processing project. All specifications, plans, task lists, and implementation decisions MUST be checked against this constitution.
 
-- **Compliance**: Every `/speckit.specify`, `/speckit.plan`, `/speckit.tasks`, and `/speckit.implement` execution MUST verify alignment with the principles defined herein, including **VII — Spec–code parity** (no material code change without synchronized spec artifacts in the same delivery).
-- **Rejection**: If a design violates Hexagonal Architecture, the ubiquitous language, idempotency requirements, workflow rules, or any other principle in this constitution, it MUST be rejected or explicitly revised before proceeding.
+- **Compliance**: Every `/speckit.specify`, `/speckit.plan`, `/speckit.tasks`, and `/speckit.implement` execution MUST verify alignment with the principles defined herein, including **VI — Spec–code parity** (no material code change without synchronized spec artifacts in the same delivery).
+- **Rejection**: If a design violates Hexagonal Architecture, the ubiquitous language, idempotency requirements, order lifecycle rules defined in the active feature specification (`specs/001-mm-order-processing/spec.md` for baseline intake/workflow), or any other principle in this constitution, it MUST be rejected or explicitly revised before proceeding.
 - **Priority**: Clarity, traceability, and correctness take priority over optimization in all decisions.
 - **Amendment procedure**: Any change to this constitution MUST be documented with rationale, trade-offs, and a version bump. Amendments follow semantic versioning:
   - **MAJOR**: Backward-incompatible governance or principle removals/redefinitions.
@@ -175,4 +156,4 @@ This constitution is the supreme governance document for the Money Market Order 
   - **PATCH**: Clarifications, wording, typo fixes, non-semantic refinements.
 - **Exception process**: Any exception to a constitutional principle MUST be documented in the relevant artifact with rationale, trade-offs, and risks. Undocumented exceptions are violations.
 
-**Version**: 1.5.0 | **Ratified**: 2026-04-28 | **Last Amended**: 2026-05-03
+**Version**: 1.6.0 | **Ratified**: 2026-04-28 | **Last Amended**: 2026-05-09

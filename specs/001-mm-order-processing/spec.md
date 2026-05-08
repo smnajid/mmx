@@ -17,6 +17,35 @@
 
 - Q: Who controls MinimumRate, and when is it required? → A: MinimumRate is an **optional** field supplied by Portfolio Management at intake only. When present, it states the Portfolio Manager’s **minimum acceptable executed rate** (execution condition); the Trader MUST NOT edit it after intake. When absent, the Trader places the deposit under **best available market conditions** (no PM-specified rate floor). If a PM-specified floor is present but cannot be met, the Trader MUST **reject** the order (with reason); the system MUST NOT allow recording an execution with ExecutedRate below that floor when MinimumRate was supplied.
 
+## Order lifecycle (workflow discipline)
+
+The order lifecycle MUST follow an explicit, deterministic state machine. This section is the authoritative definition of allowed statuses and transitions (aligned with **FR-019** and **FR-020**).
+
+- The only `OrderStatus` values are: **Received**, **Assigned**, **Executed**, **Cancelled**, **Rejected**.
+- An order MAY be assigned to only one Trader at a time.
+- An order MAY be unassigned before execution, returning it to **Received** status.
+- Only the assigned Trader MAY update an order, and only while the order is NOT in **Executed** status.
+- **Cancel** (order withdrawn) is allowed only from **Received** status.
+- **Reject** is allowed from **Received** or **Assigned** status, with a reason; only the assigned Trader MAY reject an **Assigned** order (**FR-019**).
+- **Executed** is allowed only through the explicit execution use case.
+- All status transitions MUST be explicit, validated in the domain, and covered by automated tests.
+
+**Allowed transitions** — any transition not listed MUST be rejected by the domain:
+
+| From | To | Trigger |
+|------|-----|---------|
+| Received | Assigned | assign |
+| Received | Cancelled | cancel |
+| Received | Rejected | reject |
+| Assigned | Received | unassign |
+| Assigned | Executed | execute |
+| Assigned | Rejected | reject |
+
+- Execution MUST be an explicit, complete use case. It MUST NOT succeed if any mandatory execution data is missing. System-generated identifiers and timestamps MUST originate from the system, not from client input.
+- The workflow MUST remain simple and deterministic in V1.
+
+**Rationale**: An explicit state machine prevents invalid lifecycle transitions. Requiring execution to be complete and system-timestamped ensures reliable audit trails and prevents clients from fabricating traceability data.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 — Receive and List Orders (Priority: P1)
