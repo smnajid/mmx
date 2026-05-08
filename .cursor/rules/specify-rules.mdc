@@ -5,7 +5,7 @@ alwaysApply: true
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at `specs/001-mm-order-processing/plan.md`. REST endpoints follow
+at `specs/002-trader-orders-views/plan.md`. REST endpoints follow
 **contract-first OpenAPI** (see `.specify/memory/constitution.md` Principle I).
 
 **SDD gate**: Material code changes MUST update the feature spec set in the same
