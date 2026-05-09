@@ -19,11 +19,12 @@ import { OrderTableComponent } from '../../shared/components/order-table.compone
     <section class="feature">
       <header class="feature-head">
         <div class="feature-head-row">
-          <h1>Assigned to you</h1>
+          <h1>Assigned</h1>
           <button type="button" class="refresh" (click)="refresh()">Refresh</button>
         </div>
         <p class="lede">
-          Orders you have claimed from the received queues. Unassign to return them to the pool.
+          All assigned orders on this desk for the current workspace. You can unassign only orders
+          assigned to you.
         </p>
       </header>
       <mmx-order-table
@@ -31,6 +32,7 @@ import { OrderTableComponent } from '../../shared/components/order-table.compone
         [loading]="loading()"
         [errorMessage]="error()"
         [enableUnassign]="true"
+        [actingTraderId]="trader.traderId()"
         (unassignClick)="onUnassign($event)"
       />
     </section>
@@ -96,7 +98,7 @@ import { OrderTableComponent } from '../../shared/components/order-table.compone
 })
 export class AssignedOrderListComponent implements OnInit {
   private readonly api = inject(OrderApiService);
-  private readonly trader = inject(TraderContextService);
+  readonly trader = inject(TraderContextService);
   private readonly route = inject(ActivatedRoute);
 
   readonly orders = signal<OrderSummary[]>([]);

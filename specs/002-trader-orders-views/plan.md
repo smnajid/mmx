@@ -1,13 +1,15 @@
-# Implementation Plan: Trader order views and accounting handoff (User Story 1)
+# Implementation Plan: Trader order views and accounting handoff (User Stories 1–2)
 
 **Branch**: `002-trader-orders-views` | **Date**: 2026-05-09 | **Spec**: [spec.md](spec.md)  
-**Input**: [spec.md](spec.md) — **scope of this plan pass**: **User Story 1** (P1) — Term vs OnCall workspace structure, default **OnCall**, no cross-session workspace persistence
+**Input**: [spec.md](spec.md)
 
 ## Summary
 
-Deliver a **desk layout** where traders work in one of two parallel **workspaces** — **Term** and **OnCall** — each exposing the same three **sub-views**: **Received**, **Assigned**, and **Executed**. List APIs and UI routes MUST filter by domain `OrderType` so Term and OnCall orders **never** appear mixed on the same workspace surface ([FR-001](spec.md)). A **new authenticated session** MUST land on **OnCall** until the user switches workspace ([spec.md](spec.md) Clarifications). Backend lists that today mix types (notably flat `GET /api/v1/orders/assigned`) are **replaced or deprecated** in favor of workspace-scoped GETs defined in [contracts/openapi.yaml](contracts/openapi.yaml) v1.1.0.
+**User Story 1 (done)**: **Desk layout** — **Term** and **OnCall** workspaces, each with **Received**, **Assigned**, **Executed**; no mixed `OrderType` on a surface; default **OnCall**; workspace-scoped REST paths in [contracts/openapi.yaml](contracts/openapi.yaml).
 
-**Does not cover in this iteration**: desk-wide Assigned visibility (User Story 2), Received horizon / show-all (US3), accounting handoff and executed-not-accounted cohort (US4–US5) — those stories build on the routing and API shape established here.
+**User Story 2 (this increment)**: **Desk-wide Assigned** — `GET /api/v1/orders/{term|oncall}/assigned` returns **all** orders in **ASSIGNED** status for that workspace type for **every** entitled trader ([FR-002](spec.md)). `X-Trader-Id` remains required on the contract for actor identity consistency; list results **do not** filter by assignee. Execution and unassign remain **assignee-only** (existing domain rules). SPA Assigned copy and **Unassign** affordance MUST align (Unassign only for rows assigned to the current trader).
+
+**Still out of scope**: Received horizon / show-all (US3), accounting handoff cohort (US4–US5).
 
 **Artifacts produced with this command**: [research.md](research.md), [data-model.md](data-model.md), [contracts/](contracts/openapi.yaml), [contracts/api-v1.md](contracts/api-v1.md), [quickstart.md](quickstart.md). **Not** produced here: `tasks.md` (use `/speckit.tasks`).
 
@@ -104,9 +106,25 @@ See [quickstart.md](quickstart.md).
 | 1 | OpenAPI v1.1.0 + prose mirror | [contracts/openapi.yaml](contracts/openapi.yaml), [contracts/api-v1.md](contracts/api-v1.md) |
 | 1 | Manual validation steps | [quickstart.md](quickstart.md) |
 
+## User Story 2 — Implementation outline
+
+### Backend
+
+- **`AssignmentService.listAssignedTermOrders` / `listAssignedOnCallOrders`**: delegate to `OrderRepository.findByStatusAndOrderType(OrderStatus.ASSIGNED, OrderType.TERM|ON_CALL)` — **no** assignee filter ([research.md](research.md) R-006).
+- **REST**: Same paths; update OpenAPI prose (`summary` / `description`) and regenerate if interface signatures unchanged.
+
+### Frontend
+
+- Assigned queue **copy**: desk-wide visibility, not “assigned to you” only.
+- **Unassign**: show only when `orderSummary.assignedTraderId` matches current `X-Trader-Id` context (avoid misleading failures for peers).
+
+### Tests
+
+- Application test: workspace assigned lists use status+type query, not assignee+type.
+- Integration: two distinct trader headers receive the **same** assigned row for a workspace after one assigns.
+
 ## Out of scope (later stories / follow-up plans)
 
-- **US2**: Desk-wide Assigned list ([FR-002](spec.md)) — will likely change assignee filter semantics; OpenAPI paths may stay if query or role semantics evolve (plan update then).
 - **US3–US5**: Received window, accounting, executed-not-accounted — separate plan sections when scheduled.
 
 ## Dependencies & Execution Order

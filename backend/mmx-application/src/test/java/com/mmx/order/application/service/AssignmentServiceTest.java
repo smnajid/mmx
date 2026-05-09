@@ -151,36 +151,32 @@ class AssignmentServiceTest {
     }
 
     @Test
-    void listAssignedTermOrders_usesRepositoryWithTermFilter() {
-        MoneyMarketOrder term = newReceivedOrder();
-        term.assign(TRADER_A, FIXED_NOW);
-        when(orderRepository.findByAssignedTraderIdAndStatusAndOrderType(
-                        TRADER_A, OrderStatus.ASSIGNED, OrderType.TERM))
-                .thenReturn(List.of(term));
+    void listAssignedTermOrders_deskWide_usesStatusAndOrderType() {
+        MoneyMarketOrder termAssignedToA = newReceivedOrder();
+        termAssignedToA.assign(TRADER_A, FIXED_NOW);
+        MoneyMarketOrder termAssignedToB = newReceivedOrder();
+        termAssignedToB.assign(TRADER_B, FIXED_NOW);
+        when(orderRepository.findByStatusAndOrderType(OrderStatus.ASSIGNED, OrderType.TERM))
+                .thenReturn(List.of(termAssignedToA, termAssignedToB));
 
-        OrderPage page = subject.listAssignedTermOrders(TRADER_A, 0, 20);
+        OrderPage page = subject.listAssignedTermOrders(0, 20);
 
-        assertThat(page.content()).containsExactly(term);
-        verify(orderRepository)
-                .findByAssignedTraderIdAndStatusAndOrderType(
-                        TRADER_A, OrderStatus.ASSIGNED, OrderType.TERM);
+        assertThat(page.content()).containsExactly(termAssignedToA, termAssignedToB);
+        verify(orderRepository).findByStatusAndOrderType(OrderStatus.ASSIGNED, OrderType.TERM);
         verifyNoMoreInteractions(orderRepository);
     }
 
     @Test
-    void listAssignedOnCallOrders_usesRepositoryWithOnCallFilter() {
+    void listAssignedOnCallOrders_deskWide_usesStatusAndOrderType() {
         MoneyMarketOrder onCall = newOnCallReceivedOrder();
         onCall.assign(TRADER_A, FIXED_NOW);
-        when(orderRepository.findByAssignedTraderIdAndStatusAndOrderType(
-                        TRADER_A, OrderStatus.ASSIGNED, OrderType.ON_CALL))
+        when(orderRepository.findByStatusAndOrderType(OrderStatus.ASSIGNED, OrderType.ON_CALL))
                 .thenReturn(List.of(onCall));
 
-        OrderPage page = subject.listAssignedOnCallOrders(TRADER_A, 0, 20);
+        OrderPage page = subject.listAssignedOnCallOrders(0, 20);
 
         assertThat(page.content()).containsExactly(onCall);
-        verify(orderRepository)
-                .findByAssignedTraderIdAndStatusAndOrderType(
-                        TRADER_A, OrderStatus.ASSIGNED, OrderType.ON_CALL);
+        verify(orderRepository).findByStatusAndOrderType(OrderStatus.ASSIGNED, OrderType.ON_CALL);
     }
 
     private static MoneyMarketOrder newReceivedOrder() {

@@ -13,11 +13,11 @@ Every list row is still a `MoneyMarketOrder`; workspace routing selects which **
 
 ## List cohorts by sub-view (US1)
 
-| Sub-view   | Domain filter (baseline US1) |
-|-----------|------------------------------|
+| Sub-view   | Domain filter |
+|-----------|----------------|
 | Received  | `OrderStatus.RECEIVED` ∧ `OrderType` matches workspace |
-| Assigned  | `OrderStatus.ASSIGNED` ∧ `OrderType` matches workspace ∧ assignee scope per [research.md](research.md) R-002 |
-| Executed  | `OrderStatus.EXECUTED` ∧ `OrderType` matches workspace (shell; US4 refines cohort) |
+| Assigned  | `OrderStatus.ASSIGNED` ∧ `OrderType` matches workspace — **desk-wide** (all assignees) per User Story 2 / [research.md](research.md) R-006 |
+| Executed  | `OrderStatus.EXECUTED` ∧ `OrderType` matches workspace (shell until US4 narrows cohort) |
 
 ## Session / navigation (non-persisted)
 

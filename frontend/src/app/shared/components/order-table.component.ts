@@ -86,7 +86,7 @@ import { StatusBadgeComponent } from './status-badge.component';
                       Assign
                     </button>
                   }
-                  @if (enableUnassign && row.status === assigned) {
+                  @if (enableUnassign && row.status === assigned && row.assignedTraderId === actingTraderId) {
                     <button type="button" class="btn-action secondary" (click)="unassignClick.emit(row)">
                       Unassign
                     </button>
@@ -271,6 +271,8 @@ export class OrderTableComponent {
   @Input() enableAssign = false;
   /** Assigned queue: show Unassign for ASSIGNED rows. */
   @Input() enableUnassign = false;
+  /** Current trader (required when enableUnassign; desk-wide Assigned lists only allow unassign for own rows). */
+  @Input() actingTraderId: string | null = null;
 
   @Output() readonly assignClick = new EventEmitter<OrderSummary>();
   @Output() readonly unassignClick = new EventEmitter<OrderSummary>();

@@ -1,9 +1,9 @@
-# Tasks: Trader order views and accounting handoff (User Story 1 scope)
+# Tasks: Trader order views and accounting handoff (US1 + US2)
 
 **Input**: Design documents from `/specs/002-trader-orders-views/`  
 **Prerequisites**: [plan.md](plan.md), [spec.md](spec.md), [contracts/openapi.yaml](contracts/openapi.yaml), [research.md](research.md), [data-model.md](data-model.md)
 
-**Scope**: This file was generated for **`/speckit-tasks US1`** — **User Story 1** (P1) only: Term vs OnCall workspace surfaces, default **OnCall**, workspace-scoped lists, no cross-type mixing. **User Stories 2–5** are listed under *Deferred* for a follow-up `/speckit.tasks` pass.
+**Scope**: **User Story 1** — Term vs OnCall workspaces, default **OnCall**, workspace-scoped lists, no cross-type mixing. **User Story 2** — desk-wide workspace Assigned lists ([FR-002](spec.md)); deprecated flat `GET .../assigned` remains assignee-scoped ([research.md](research.md) R-006). **User Stories 3–5** remain deferred below.
 
 **Tests**: Not mandated as separate rows by [spec.md](spec.md); integration and service tests are included where they lock acceptance ([plan.md](plan.md) Constitution Check).
 
@@ -13,7 +13,7 @@
 
 ## Phase 1: Setup (contract codegen)
 
-**Purpose**: Point OpenAPI codegen at the v1.1.0 contract and regenerate server interfaces ([plan.md](plan.md)).
+**Purpose**: Point OpenAPI codegen at the feature contract (v1.2.0 after US2) and regenerate server interfaces ([plan.md](plan.md)).
 
 - [x] T001 Set `openapi-generator-maven-plugin` `inputSpec` to `specs/002-trader-orders-views/contracts/openapi.yaml` in `backend/mmx-adapter-in-rest/pom.xml` (replace `001-mm-order-processing` path).
 
@@ -91,11 +91,26 @@
 
 ---
 
-## Deferred (not in this tasks file — future `/speckit.tasks`)
+## Phase 5: User Story 2 — Desk-wide Assigned ([FR-002](spec.md))
+
+**Goal**: Workspace `GET .../term/assigned` and `.../oncall/assigned` list **all** ASSIGNED orders of that type for **any** assignee; `X-Trader-Id` remains required as the actor. Deprecated flat `GET .../assigned` stays assignee-scoped. UI: desk-wide copy; **Unassign** only for rows assigned to the current trader.
+
+- [x] T022 [US2] Align contract + mirror doc: [contracts/openapi.yaml](contracts/openapi.yaml) v1.2.0 desk-wide descriptions; [contracts/api-v1.md](contracts/api-v1.md).
+
+- [x] T023 [US2] `AssignmentService.listAssignedTermOrders` / `listAssignedOnCallOrders` use `findByStatusAndOrderType(ASSIGNED, TERM|ON_CALL)` in `backend/mmx-application/.../AssignmentService.java`; `OrderManagementController` unchanged paths, passes pagination only.
+
+- [x] T024 [P] [US2] Tests: `AssignmentServiceTest`, `OrderAssignmentControllerTest`, `OrderRestApiIntegrationTest` (two traders, same assigned row on workspace Assigned).
+
+- [x] T025 [US2] Angular: `assigned-order-list.component` copy; `order-table` gate Unassign on `assignedTraderId === actingTraderId`; component spec.
+
+- [x] T026 [US2] Quickstart note for desk-wide Assigned ([quickstart.md](quickstart.md)).
+
+---
+
+## Deferred (future `/speckit.tasks`)
 
 | Story | Topic |
 |-------|--------|
-| US2 | Desk-wide Assigned visibility ([FR-002](spec.md)) |
 | US3 | Received near-term window + session “show all” |
 | US4–US5 | Executed-not-accounted, accounting confirmation, handoff |
 
@@ -156,8 +171,9 @@
 
 | Metric | Value |
 |--------|------:|
-| Total tasks | 21 |
+| Total tasks | 26 |
 | US1 tasks (Phase 3–4) | 14 |
+| US2 tasks (Phase 5) | 5 |
 | Parallel-eligible | T007, T010, T011, T021 |
 
-**Suggested MVP scope**: Complete through **T019** (US1 e2e), then **T020–T021**.
+**Suggested MVP scope**: US1 through **T019** + **T020–T021**; US2 **T022–T026**.

@@ -137,26 +137,26 @@ class OrderAssignmentControllerTest {
     }
 
     @Test
-    void getTermAssigned_passesTraderToWorkspaceAssignedUseCase() throws Exception {
-        when(assignmentService.listAssignedTermOrders(eq(new TraderId("alice")), eq(0), eq(20)))
+    void getTermAssigned_deskWide_doesNotPassTraderToListingUseCase() throws Exception {
+        when(assignmentService.listAssignedTermOrders(eq(0), eq(20)))
                 .thenReturn(new OrderPage(List.of(), 0, 0, 20));
 
         mockMvc.perform(get("/api/v1/orders/term/assigned").header("X-Trader-Id", "alice"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(0));
 
-        verify(assignmentService).listAssignedTermOrders(eq(new TraderId("alice")), eq(0), eq(20));
+        verify(assignmentService).listAssignedTermOrders(eq(0), eq(20));
     }
 
     @Test
-    void getOnCallAssigned_passesTraderToWorkspaceAssignedUseCase() throws Exception {
-        when(assignmentService.listAssignedOnCallOrders(eq(new TraderId("bob")), eq(0), eq(20)))
+    void getOnCallAssigned_deskWide_doesNotPassTraderToListingUseCase() throws Exception {
+        when(assignmentService.listAssignedOnCallOrders(eq(0), eq(20)))
                 .thenReturn(new OrderPage(List.of(), 0, 0, 20));
 
         mockMvc.perform(get("/api/v1/orders/oncall/assigned").header("X-Trader-Id", "bob"))
                 .andExpect(status().isOk());
 
-        verify(assignmentService).listAssignedOnCallOrders(eq(new TraderId("bob")), eq(0), eq(20));
+        verify(assignmentService).listAssignedOnCallOrders(eq(0), eq(20));
     }
 
     private static MoneyMarketOrder receivedOrder() {

@@ -5,9 +5,10 @@ info:
     Contract-first HTTP API for Money Market order processing. Baseline intake and lifecycle
     operations from `001-mm-order-processing`; **002-trader-orders-views** adds workspace-scoped
     list surfaces (`/term/*`, `/oncall/*`) so Term and OnCall orders are never mixed on the same
-    list response. Human-readable mirror: [api-v1.md](./api-v1.md). Trader-facing operations
-    require header `X-Trader-Id`.
-  version: 1.1.0
+    list response. Workspace **Assigned** lists are **desk-wide** (all assignees) per User Story 2.
+    Human-readable mirror: [api-v1.md](./api-v1.md). Trader-facing operations require header
+    `X-Trader-Id` (actor identity; Assigned workspace lists are not filtered by assignee).
+  version: 1.2.0
 
 servers:
   - url: /
@@ -88,7 +89,12 @@ paths:
   /api/v1/orders/term/assigned:
     get:
       tags: [Orders]
-      summary: List assigned Term orders for the requesting Trader
+      summary: List all assigned Term orders (desk-wide)
+      description: |
+        Returns every order in **ASSIGNED** status with `orderType` **TERM** (all assignees).
+        `X-Trader-Id` identifies the caller and is required for consistency with other Trader
+        operations; the response is **not** restricted to orders assigned to that trader.
+        Execute and unassign remain assignee-gated on their respective operations.
       operationId: listAssignedTermOrders
       parameters:
         - $ref: "#/components/parameters/TraderIdHeader"
@@ -96,7 +102,7 @@ paths:
         - $ref: "#/components/parameters/Size"
       responses:
         "200":
-          description: Paged Term orders in ASSIGNED status assigned to the requesting Trader
+          description: Paged Term orders in ASSIGNED status (desk-wide)
           content:
             application/json:
               schema:
@@ -105,7 +111,11 @@ paths:
   /api/v1/orders/oncall/assigned:
     get:
       tags: [Orders]
-      summary: List assigned OnCall orders for the requesting Trader
+      summary: List all assigned OnCall orders (desk-wide)
+      description: |
+        Returns every order in **ASSIGNED** status with `orderType` **ON_CALL** (all assignees).
+        `X-Trader-Id` identifies the caller and is required for consistency; the response is **not**
+        restricted to orders assigned to that trader.
       operationId: listAssignedOnCallOrders
       parameters:
         - $ref: "#/components/parameters/TraderIdHeader"
@@ -113,7 +123,7 @@ paths:
         - $ref: "#/components/parameters/Size"
       responses:
         "200":
-          description: Paged OnCall orders in ASSIGNED status assigned to the requesting Trader
+          description: Paged OnCall orders in ASSIGNED status (desk-wide)
           content:
             application/json:
               schema:

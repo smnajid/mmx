@@ -44,10 +44,10 @@ describe('AssignedOrderListComponent', () => {
     expect(req.request.headers.get('X-Trader-Id')).toBe('alice');
     req.flush({ content: [], totalElements: 0, page: 0, size: 100 });
     fixture.detectChanges();
-    expect(fixture.nativeElement.textContent).toContain('Assigned to you');
+    expect(fixture.nativeElement.textContent).toContain('Assigned');
   });
 
-  it('shows unassign control for ASSIGNED rows', () => {
+  it('shows unassign control for ASSIGNED rows assigned to current trader', () => {
     fixture.detectChanges();
     const incoming = httpMock.expectOne((req) => req.url.startsWith('/api/v1/orders/oncall/assigned'));
     const row: OrderSummary = {
@@ -73,5 +73,32 @@ describe('AssignedOrderListComponent', () => {
       '.btn-action.secondary'
     ) as HTMLButtonElement | null;
     expect(btn?.textContent?.trim()).toBe('Unassign');
+  });
+
+  it('hides unassign when row is assigned to another trader', () => {
+    fixture.detectChanges();
+    const incoming = httpMock.expectOne((req) => req.url.startsWith('/api/v1/orders/oncall/assigned'));
+    const row: OrderSummary = {
+      orderId: 'b-1',
+      externalOrderReference: 'ASG-002',
+      orderType: OrderType.ON_CALL,
+      orderOperation: OrderOperation.SUBSCRIPTION,
+      portfolioNumber: 'PF-Y',
+      currency: 'EUR',
+      amount: 2_000,
+      valueDate: '2026-07-01',
+      minimumRate: null,
+      tenor: null,
+      noticePeriod: null,
+      status: OrderStatus.ASSIGNED,
+      assignedTraderId: 'bob',
+      createdAt: '2026-05-03T08:00:00Z',
+    };
+    incoming.flush({ content: [row], totalElements: 1, page: 0, size: 100 });
+    fixture.detectChanges();
+
+    expect(
+      fixture.nativeElement.querySelector('.btn-action.secondary') as HTMLButtonElement | null
+    ).toBeNull();
   });
 });

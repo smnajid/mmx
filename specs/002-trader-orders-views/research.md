@@ -37,3 +37,11 @@
 **Rationale**: Mirrors the mental model in US1 and keeps URLs bookmarkable per workspace.
 
 **Alternatives considered**: Flat legacy URLs (`/term-orders`, `/assigned-orders`) with global nav only — fails to nest Assigned/Executed under each workspace cleanly.
+
+## R-006 — Desk-wide Assigned (User Story 2)
+
+**Decision**: `GET /api/v1/orders/term/assigned` and `GET /api/v1/orders/oncall/assigned` return **all** `ASSIGNED` orders with matching `OrderType`, using `OrderRepository.findByStatusAndOrderType(ASSIGNED, type)`. **No** filter by `assignedTraderId`. Deprecated `GET /api/v1/orders/assigned` remains assignee-scoped for backward compatibility only.
+
+**Rationale**: Matches [FR-002](spec.md) / User Story 2 — shared desk visibility; execution permission stays assignee-only ([FR-003](spec.md)).
+
+**Alternatives considered**: Query parameter `scope=mine|desk` — unnecessary surface area while the product standard is desk-wide on workspace paths.

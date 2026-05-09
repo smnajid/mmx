@@ -28,6 +28,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -111,7 +112,8 @@ public class OrderManagementController implements OrdersApi {
             @RequestHeader(value = "X-Trader-Id", required = true) String xTraderId,
             @RequestParam(value = "page", required = false, defaultValue = "0") Integer page,
             @RequestParam(value = "size", required = false, defaultValue = "20") Integer size) {
-        var result = assignmentService.listAssignedTermOrders(new TraderId(xTraderId), page, size);
+        Objects.requireNonNull(xTraderId, "X-Trader-Id");
+        var result = assignmentService.listAssignedTermOrders(page, size);
         return ResponseEntity.ok(orderRestMapper.toSummaryPage(result));
     }
 
@@ -121,7 +123,8 @@ public class OrderManagementController implements OrdersApi {
             @RequestHeader(value = "X-Trader-Id", required = true) String xTraderId,
             @RequestParam(value = "page", required = false, defaultValue = "0") Integer page,
             @RequestParam(value = "size", required = false, defaultValue = "20") Integer size) {
-        var result = assignmentService.listAssignedOnCallOrders(new TraderId(xTraderId), page, size);
+        Objects.requireNonNull(xTraderId, "X-Trader-Id");
+        var result = assignmentService.listAssignedOnCallOrders(page, size);
         return ResponseEntity.ok(orderRestMapper.toSummaryPage(result));
     }
 

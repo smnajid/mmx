@@ -27,6 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class OrderRestApiIntegrationTest {
 
     private static final String TRADER = "trader-it-1";
+    private static final String TRADER_OTHER = "trader-it-2";
 
     private final HttpClient httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
 
@@ -115,7 +116,7 @@ class OrderRestApiIntegrationTest {
     }
 
     @Test
-    void getTermAssigned_listsOnlyTermAssignedToTrader() throws Exception {
+    void getTermAssigned_listsDeskWideAssignedTermOrdersOnly() throws Exception {
         HttpResponse<String> termPost = postJson("/api/v1/orders", termSubscribeJson("IT-TA-" + System.nanoTime()));
         HttpResponse<String> ocPost = postJson("/api/v1/orders", onCallSubscribeJson("IT-OA-" + System.nanoTime()));
         String tid = objectMapper.readTree(termPost.body()).path("orderId").asText();
@@ -133,7 +134,7 @@ class OrderRestApiIntegrationTest {
     }
 
     @Test
-    void getOnCallAssigned_listsOnlyOnCallAssignedToTrader() throws Exception {
+    void getOnCallAssigned_listsDeskWideAssignedOnCallOrdersOnly() throws Exception {
         HttpResponse<String> termPost = postJson("/api/v1/orders", termSubscribeJson("IT-TB-" + System.nanoTime()));
         HttpResponse<String> ocPost = postJson("/api/v1/orders", onCallSubscribeJson("IT-OB-" + System.nanoTime()));
         String tid = objectMapper.readTree(termPost.body()).path("orderId").asText();
@@ -148,6 +149,19 @@ class OrderRestApiIntegrationTest {
         for (JsonNode item : root.path("content")) {
             assertThat(item.path("orderType").asText()).isEqualTo("ON_CALL");
         }
+    }
+
+    @Test
+    void getTermAssigned_sameOrdersRegardlessOfTraderHeader() throws Exception {
+        HttpResponse<String> termPost = postJson("/api/v1/orders", termSubscribeJson("IT-TWIN-" + System.nanoTime()));
+        String orderId = objectMapper.readTree(termPost.body()).path("orderId").asText();
+        assertThat(postEmpty("/api/v1/orders/" + orderId + "/assign", TRADER).statusCode()).isEqualTo(200);
+
+        JsonNode asTrader1 = objectMapper.readTree(get("/api/v1/orders/term/assigned", TRADER).body());
+        JsonNode asTrader2 = objectMapper.readTree(get("/api/v1/orders/term/assigned", TRADER_OTHER).body());
+
+        assertThat(contentHasOrderId(asTrader1.path("content"), orderId)).isTrue();
+        assertThat(contentHasOrderId(asTrader2.path("content"), orderId)).isTrue();
     }
 
     @Test
@@ -219,6 +233,15 @@ class OrderRestApiIntegrationTest {
 
     private URI baseUri(String path) {
         return URI.create("http://localhost:" + port + path);
+    }
+
+    private static boolean contentHasOrderId(JsonNode contentArray, String orderId) {
+        for (JsonNode item : contentArray) {
+            if (orderId.equals(item.path("orderId").asText())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static String termSubscribeJson(String externalOrderReference) {

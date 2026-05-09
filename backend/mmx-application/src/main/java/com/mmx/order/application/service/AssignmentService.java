@@ -63,17 +63,17 @@ public final class AssignmentService implements AssignOrderUseCase, UnassignOrde
         return paginate(all, page, size);
     }
 
-    public OrderPage listAssignedTermOrders(TraderId traderId, int page, int size) {
+    /** Desk-wide ASSIGNED Term orders (workspace Assigned view; not filtered by assignee). */
+    public OrderPage listAssignedTermOrders(int page, int size) {
         List<MoneyMarketOrder> all =
-                orderRepository.findByAssignedTraderIdAndStatusAndOrderType(
-                        traderId, OrderStatus.ASSIGNED, OrderType.TERM);
+                orderRepository.findByStatusAndOrderType(OrderStatus.ASSIGNED, OrderType.TERM);
         return paginate(all, page, size);
     }
 
-    public OrderPage listAssignedOnCallOrders(TraderId traderId, int page, int size) {
+    /** Desk-wide ASSIGNED OnCall orders. */
+    public OrderPage listAssignedOnCallOrders(int page, int size) {
         List<MoneyMarketOrder> all =
-                orderRepository.findByAssignedTraderIdAndStatusAndOrderType(
-                        traderId, OrderStatus.ASSIGNED, OrderType.ON_CALL);
+                orderRepository.findByStatusAndOrderType(OrderStatus.ASSIGNED, OrderType.ON_CALL);
         return paginate(all, page, size);
     }
 

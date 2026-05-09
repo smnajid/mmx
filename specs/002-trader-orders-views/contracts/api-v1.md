@@ -179,8 +179,8 @@ These endpoints ensure **Term** and **OnCall** orders are not mixed on the same 
 
 | Method | Path | Summary |
 |--------|------|---------|
-| GET | `/api/v1/orders/term/assigned` | Assigned **Term** orders for the requesting Trader (same assignee semantics as legacy flat list, type-filtered) |
-| GET | `/api/v1/orders/oncall/assigned` | Assigned **OnCall** orders for the requesting Trader |
+| GET | `/api/v1/orders/term/assigned` | **Desk-wide** assigned **Term** orders (all assignees; `X-Trader-Id` is actor only, not an assignee filter) |
+| GET | `/api/v1/orders/oncall/assigned` | **Desk-wide** assigned **OnCall** orders (all assignees) |
 | GET | `/api/v1/orders/term/executed` | **Term** orders in `EXECUTED` status (workspace Executed view shell; accounting-specific cohort in later stories) |
 | GET | `/api/v1/orders/oncall/executed` | **OnCall** orders in `EXECUTED` status |
 

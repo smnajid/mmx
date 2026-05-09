@@ -32,6 +32,14 @@ curl -s "$BASE/api/v1/orders/oncall/assigned?page=0&size=20" -H "X-Trader-Id: $T
 
 **Accept**: No response body mixes `TERM` and `ON_CALL` in `content[]` for a single workspace-scoped URL.
 
+### User Story 2 — desk-wide Assigned
+
+After assigning an order as `alice`, the same row MUST appear on `GET .../term/assigned` or `.../oncall/assigned` when called with a **different** `X-Trader-Id` (e.g. `bob`). Legacy `GET /api/v1/orders/assigned` remains assignee-scoped.
+
+```bash
+# Assign as alice, then list as bob — order id should still appear in the workspace Assigned response.
+```
+
 ## 3. Angular checks
 
 1. Open the app root — **without** manually choosing Term, the first screen MUST land in the **OnCall** workspace (default route).
