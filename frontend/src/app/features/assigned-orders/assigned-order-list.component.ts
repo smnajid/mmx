@@ -33,6 +33,8 @@ import { OrderTableComponent } from '../../shared/components/order-table.compone
         [errorMessage]="error()"
         [enableUnassign]="true"
         [actingTraderId]="trader.traderId()"
+        [listWorkspace]="navWorkspace()"
+        listQueue="assigned"
         (unassignClick)="onUnassign($event)"
       />
     </section>
@@ -104,8 +106,14 @@ export class AssignedOrderListComponent implements OnInit {
   readonly orders = signal<OrderSummary[]>([]);
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
+  /** Workspace segment for View links and shell nav continuity on order details. */
+  readonly navWorkspace = signal<'term' | 'oncall'>('oncall');
 
   ngOnInit(): void {
+    const ws = this.route.snapshot.data['workspace'] as 'term' | 'oncall' | undefined;
+    if (ws === 'term' || ws === 'oncall') {
+      this.navWorkspace.set(ws);
+    }
     this.load();
   }
 

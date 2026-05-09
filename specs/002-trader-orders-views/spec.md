@@ -11,6 +11,7 @@
 
 - Q: How does the Term vs OnCall workspace choice behave across browser sessions / logins? → A: Fixed default **OnCall** each session; **no** cross-session persistence of last workspace (Option D).
 - Q: Navigation chrome on Assigned / Executed? → A: Workspace + sub-view (Received / Assigned / Executed) MUST stay **visually indicated** as active on every desk queue screen so traders are never ambiguous about Term vs OnCall or which tab they chose.
+- Q: Order details vs primary navigation / back? → A: When the trader opens **order details** from a queue list (**View**), the **same** workspace (**Term** vs **OnCall**) and **same** sub-view (**Received** / **Assigned** / **Executed**) MUST remain **visually indicated** as active in the primary navigation. The control that returns to the queue (**Back to …**) MUST navigate to **that** queue, not a fixed default. Opening order details **without** originating queue context (e.g. pasted URL) is allowed to show **no** queue-specific selection until the user navigates; the back target MAY fall back to the default desk entry (**OnCall** > **Received**).
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -32,6 +33,7 @@ The trader application MUST expose **persistent primary navigation** with two ti
 4. **Given** the trader moves from one workspace to the other within the same session, **When** they return to the first workspace, **Then** lists reflect only that order type again without stale cross-type rows.
 5. **Given** the trader used **Term** in a prior session, **When** they start a **new** session, **Then** the desk opens on **OnCall** (workspace choice from the prior session is not restored).
 6. **Given** the trader is viewing **Assigned** or **Executed** inside a workspace (**Term** or **OnCall**), **When** they look at the primary navigation chrome, **Then** **that workspace** appears as the selected workspace **and** **Assigned** or **Executed** appears as the selected sub-view (not Received).
+7. **Given** the trader opened **order details** from a queue (e.g. **Term** > **Assigned** via **View**), **When** they are on the details screen, **Then** the primary navigation still shows **that** workspace and **that** sub-view as active **and** the back control returns to **that** queue (not another sub-view or workspace).
 
 ---
 

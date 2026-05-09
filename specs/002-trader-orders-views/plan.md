@@ -9,6 +9,8 @@
 
 **User Story 2 (this increment)**: **Desk-wide Assigned** — `GET /api/v1/orders/{term|oncall}/assigned` returns **all** orders in **ASSIGNED** status for that workspace type for **every** entitled trader ([FR-002](spec.md)). `X-Trader-Id` remains required on the contract for actor identity consistency; list results **do not** filter by assignee. Execution and unassign remain **assignee-only** (existing domain rules). SPA Assigned copy and **Unassign** affordance MUST align (Unassign only for rows assigned to the current trader).
 
+**SPA — order details & navigation**: List rows link to `/orders/:id` with optional query parameters `ws` and `queue` (`term|oncall` × `received|assigned|executed`) so the shell **workspace + sub-nav** stay highlighted on the details screen and **Back to …** returns to `/{ws}/{queue}`. Without those parameters (cold deep link), highlights may be absent until the user picks a queue; back falls back to **OnCall** > **Received**.
+
 **Still out of scope**: Received horizon / show-all (US3), accounting handoff cohort (US4–US5).
 
 **Artifacts produced with this command**: [research.md](research.md), [data-model.md](data-model.md), [contracts/](contracts/openapi.yaml), [contracts/api-v1.md](contracts/api-v1.md), [quickstart.md](quickstart.md). **Not** produced here: `tasks.md` (use `/speckit.tasks`).

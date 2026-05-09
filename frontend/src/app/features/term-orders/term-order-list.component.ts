@@ -31,6 +31,8 @@ import { OrderTableComponent } from '../../shared/components/order-table.compone
         [errorMessage]="error()"
         [showTenorColumn]="true"
         [enableAssign]="true"
+        listWorkspace="term"
+        listQueue="received"
         (assignClick)="onAssign($event)"
       />
     </section>

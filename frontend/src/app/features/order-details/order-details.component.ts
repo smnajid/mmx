@@ -8,7 +8,7 @@ import {
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, ParamMap, RouterLink } from '@angular/router';
 import { OrderApiService } from '../../core/api/order-api.service';
 import type {
   ExecuteOrderRequest,
@@ -37,7 +37,7 @@ import { OrderUpdateFormComponent } from './order-update-form.component';
   template: `
     <section class="feature">
       <nav class="crumb">
-        <a routerLink="/oncall/received">← Queues</a>
+        <a [routerLink]="queuesReturn().link">← Back to {{ queuesReturn().label }}</a>
       </nav>
 
       @if (loading()) {
@@ -439,8 +439,18 @@ export class OrderDetailsComponent implements OnInit {
   readonly cancelDialogOpen = signal(false);
   readonly rejectDialogOpen = signal(false);
   readonly rejectReasonDraft = signal('');
+  /** From ?ws=&queue= on /orders/:id — restores the desk queue and drives shell nav highlighting. */
+  readonly queuesReturn = signal<{ link: string[]; label: string }>({
+    link: ['/oncall', 'received'],
+    label: 'Queues',
+  });
 
   ngOnInit(): void {
+    this.applyQueuesReturnQuery(this.route.snapshot.queryParamMap);
+    this.route.queryParamMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((q) => {
+      this.applyQueuesReturnQuery(q);
+    });
+
     this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
       const id = params.get('id');
       if (!id) {
@@ -450,6 +460,30 @@ export class OrderDetailsComponent implements OnInit {
       }
       this.fetch(id);
     });
+  }
+
+  private applyQueuesReturnQuery(q: ParamMap): void {
+    const ws = q.get('ws');
+    const queue = q.get('queue');
+    const labels: Record<string, string> = {
+      received: 'Received',
+      assigned: 'Assigned',
+      executed: 'Executed',
+    };
+    if (
+      (ws === 'term' || ws === 'oncall') &&
+      (queue === 'received' || queue === 'assigned' || queue === 'executed')
+    ) {
+      this.queuesReturn.set({
+        link: ['/', ws, queue],
+        label: labels[queue],
+      });
+    } else {
+      this.queuesReturn.set({
+        link: ['/oncall', 'received'],
+        label: 'Queues',
+      });
+    }
   }
 
   assign(): void {

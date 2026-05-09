@@ -80,7 +80,11 @@ import { StatusBadgeComponent } from './status-badge.component';
                 <td><span class="op">{{ row.orderOperation }}</span></td>
                 <td><mmx-status-badge [status]="row.status" /></td>
                 <td class="actions">
-                  <a class="link" [routerLink]="['/orders', row.orderId]">View</a>
+                  <a
+                    class="link"
+                    [routerLink]="['/orders', row.orderId]"
+                    [queryParams]="viewQueryParams()"
+                    >View</a>
                   @if (enableAssign && row.status === received) {
                     <button type="button" class="btn-action" (click)="assignClick.emit(row)">
                       Assign
@@ -273,7 +277,17 @@ export class OrderTableComponent {
   @Input() enableUnassign = false;
   /** Current trader (required when enableUnassign; desk-wide Assigned lists only allow unassign for own rows). */
   @Input() actingTraderId: string | null = null;
+  /** When set with listQueue, View links carry ?ws=&queue= so order details and shell nav keep workspace context. */
+  @Input() listWorkspace: 'term' | 'oncall' | null = null;
+  @Input() listQueue: 'received' | 'assigned' | 'executed' | null = null;
 
   @Output() readonly assignClick = new EventEmitter<OrderSummary>();
   @Output() readonly unassignClick = new EventEmitter<OrderSummary>();
+
+  protected viewQueryParams(): Record<string, string> | undefined {
+    if (this.listWorkspace && this.listQueue) {
+      return { ws: this.listWorkspace, queue: this.listQueue };
+    }
+    return undefined;
+  }
 }

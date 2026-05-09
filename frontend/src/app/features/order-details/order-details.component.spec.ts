@@ -75,12 +75,29 @@ describe('OrderDetailsComponent', () => {
         { provide: TraderContextService, useValue: { traderId: signal('trader-self') } },
         {
           provide: ActivatedRoute,
-          useValue: { paramMap: of(convertToParamMap({ id: 'order-fixture-1' })) },
+          useValue: {
+            paramMap: of(convertToParamMap({ id: 'order-fixture-1' })),
+            queryParamMap: of(convertToParamMap({ ws: 'term', queue: 'assigned' })),
+            snapshot: {
+              paramMap: convertToParamMap({ id: 'order-fixture-1' }),
+              queryParamMap: convertToParamMap({ ws: 'term', queue: 'assigned' }),
+            },
+          },
         },
       ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(OrderDetailsComponent);
+  });
+
+  it('uses back link to the queue from query params', async () => {
+    getOrderDetails.mockReturnValue(of(stubDetails({ status: OrderStatus.RECEIVED })));
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const back = fixture.nativeElement.querySelector('.crumb a') as HTMLAnchorElement | null;
+    expect(back?.getAttribute('href')).toContain('/term/assigned');
   });
 
   it('shows receive-phase actions for RECEIVED', async () => {
@@ -90,6 +107,7 @@ describe('OrderDetailsComponent', () => {
     fixture.detectChanges();
 
     const text = fixture.nativeElement.textContent as string;
+    expect(text).toContain('Back to Assigned');
     expect(text).toContain('Assign to me');
     expect(text).toContain('Cancel order');
     expect(text).toContain('Reject');

@@ -35,6 +35,8 @@ export type WorkspaceKind = 'term' | 'oncall';
         [errorMessage]="error()"
         [showTenorColumn]="workspace() === 'term'"
         [showNoticePeriodColumn]="workspace() === 'oncall'"
+        [listWorkspace]="workspace()"
+        listQueue="executed"
       />
     </section>
   `,
