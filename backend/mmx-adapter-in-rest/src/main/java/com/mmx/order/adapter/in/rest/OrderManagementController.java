@@ -95,12 +95,53 @@ public class OrderManagementController implements OrdersApi {
     }
 
     @Override
+    @Deprecated
     @GetMapping(value = "/api/v1/orders/assigned", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<OrderSummaryPage> listAssignedOrders(
             @RequestHeader(value = "X-Trader-Id", required = true) String xTraderId,
             @RequestParam(value = "page", required = false, defaultValue = "0") Integer page,
             @RequestParam(value = "size", required = false, defaultValue = "20") Integer size) {
         var result = assignmentService.listAssignedOrders(new TraderId(xTraderId), page, size);
+        return ResponseEntity.ok(orderRestMapper.toSummaryPage(result));
+    }
+
+    @Override
+    @GetMapping(value = "/api/v1/orders/term/assigned", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<OrderSummaryPage> listAssignedTermOrders(
+            @RequestHeader(value = "X-Trader-Id", required = true) String xTraderId,
+            @RequestParam(value = "page", required = false, defaultValue = "0") Integer page,
+            @RequestParam(value = "size", required = false, defaultValue = "20") Integer size) {
+        var result = assignmentService.listAssignedTermOrders(new TraderId(xTraderId), page, size);
+        return ResponseEntity.ok(orderRestMapper.toSummaryPage(result));
+    }
+
+    @Override
+    @GetMapping(value = "/api/v1/orders/oncall/assigned", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<OrderSummaryPage> listAssignedOnCallOrders(
+            @RequestHeader(value = "X-Trader-Id", required = true) String xTraderId,
+            @RequestParam(value = "page", required = false, defaultValue = "0") Integer page,
+            @RequestParam(value = "size", required = false, defaultValue = "20") Integer size) {
+        var result = assignmentService.listAssignedOnCallOrders(new TraderId(xTraderId), page, size);
+        return ResponseEntity.ok(orderRestMapper.toSummaryPage(result));
+    }
+
+    @Override
+    @GetMapping(value = "/api/v1/orders/term/executed", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<OrderSummaryPage> listExecutedTermOrders(
+            @RequestHeader(value = "X-Trader-Id", required = true) String xTraderId,
+            @RequestParam(value = "page", required = false, defaultValue = "0") Integer page,
+            @RequestParam(value = "size", required = false, defaultValue = "20") Integer size) {
+        var result = orderQueryService.listExecutedTermOrders(page, size);
+        return ResponseEntity.ok(orderRestMapper.toSummaryPage(result));
+    }
+
+    @Override
+    @GetMapping(value = "/api/v1/orders/oncall/executed", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<OrderSummaryPage> listExecutedOnCallOrders(
+            @RequestHeader(value = "X-Trader-Id", required = true) String xTraderId,
+            @RequestParam(value = "page", required = false, defaultValue = "0") Integer page,
+            @RequestParam(value = "size", required = false, defaultValue = "20") Integer size) {
+        var result = orderQueryService.listExecutedOnCallOrders(page, size);
         return ResponseEntity.ok(orderRestMapper.toSummaryPage(result));
     }
 

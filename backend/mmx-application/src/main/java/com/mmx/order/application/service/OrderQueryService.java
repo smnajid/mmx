@@ -36,6 +36,18 @@ public final class OrderQueryService implements ListReceivedTermOrdersUseCase, L
         return paginate(all, page, size);
     }
 
+    public OrderPage listExecutedTermOrders(int page, int size) {
+        List<MoneyMarketOrder> all =
+                orderRepository.findByStatusAndOrderType(OrderStatus.EXECUTED, OrderType.TERM);
+        return paginate(all, page, size);
+    }
+
+    public OrderPage listExecutedOnCallOrders(int page, int size) {
+        List<MoneyMarketOrder> all =
+                orderRepository.findByStatusAndOrderType(OrderStatus.EXECUTED, OrderType.ON_CALL);
+        return paginate(all, page, size);
+    }
+
     @Override
     public Optional<MoneyMarketOrder> getOrderDetails(UUID orderId) {
         return orderRepository.findById(orderId);

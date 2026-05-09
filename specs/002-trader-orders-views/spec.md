@@ -10,12 +10,15 @@
 ### Session 2026-05-09
 
 - Q: How does the Term vs OnCall workspace choice behave across browser sessions / logins? → A: Fixed default **OnCall** each session; **no** cross-session persistence of last workspace (Option D).
+- Q: Navigation chrome on Assigned / Executed? → A: Workspace + sub-view (Received / Assigned / Executed) MUST stay **visually indicated** as active on every desk queue screen so traders are never ambiguous about Term vs OnCall or which tab they chose.
 
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 — Term vs OnCall workspace structure (Priority: P1)
 
 Traders work Money Market orders in two parallel workspaces: **Term** and **OnCall**. Within each workspace, the same three operational views exist — **Received**, **Assigned**, and **Executed**. Switching between Term and OnCall changes which orders appear everywhere; **Term** and **OnCall** orders MUST NOT appear mixed on the same focused workspace surface. Each **new authenticated session** opens on **OnCall** by default; workspace choice within a session is **not** persisted across logout or session boundary — the next session **again** defaults to **OnCall**.
+
+The trader application MUST expose **persistent primary navigation** with two tiers: (**1**) workspace selection (**Term** vs **OnCall**) and (**2**) sub-view selection (**Received**, **Assigned**, **Executed**). On every desk queue screen (Received, Assigned, Executed for the active workspace), **both** the active workspace **and** the active sub-view MUST be **visually distinguished** (e.g. highlighted or equivalent) so the trader always knows where they are. This MUST hold when navigating directly to Assigned or Executed, not only from Received (no “lost” workspace context on secondary views).
 
 **Why this priority**: Navigation and mental model for everything else; without a clear split, horizon rules, assignment visibility, and executed queues cannot be interpreted correctly.
 
@@ -28,6 +31,7 @@ Traders work Money Market orders in two parallel workspaces: **Term** and **OnCa
 3. **Given** the trader has switched to **OnCall** (after Term or from default), **When** they open Received, Assigned, or Executed there, **Then** every listed order is an OnCall order (no Term rows).
 4. **Given** the trader moves from one workspace to the other within the same session, **When** they return to the first workspace, **Then** lists reflect only that order type again without stale cross-type rows.
 5. **Given** the trader used **Term** in a prior session, **When** they start a **new** session, **Then** the desk opens on **OnCall** (workspace choice from the prior session is not restored).
+6. **Given** the trader is viewing **Assigned** or **Executed** inside a workspace (**Term** or **OnCall**), **When** they look at the primary navigation chrome, **Then** **that workspace** appears as the selected workspace **and** **Assigned** or **Executed** appears as the selected sub-view (not Received).
 
 ---
 
@@ -111,7 +115,7 @@ Failures or delays in transmitting the execution outcome to back-office MUST be 
 
 ### Functional Requirements
 
-- **FR-001**: The trader application MUST present Money Market order work in **two top-level workspaces**: **Term** and **OnCall**. Each workspace MUST offer **Received**, **Assigned**, and **Executed** sub-views. Lists MUST NOT mix Term and OnCall orders on the same workspace surface. On **session start** (after authentication for that session), the **default active workspace MUST be OnCall** until the trader switches to Term; **last workspace MUST NOT be persisted** across sessions or logins — each new session MUST start on **OnCall** again.
+- **FR-001**: The trader application MUST present Money Market order work in **two top-level workspaces**: **Term** and **OnCall**. Each workspace MUST offer **Received**, **Assigned**, and **Executed** sub-views. Lists MUST NOT mix Term and OnCall orders on the same workspace surface. On **session start** (after authentication for that session), the **default active workspace MUST be OnCall** until the trader switches to Term; **last workspace MUST NOT be persisted** across sessions or logins — each new session MUST start on **OnCall** again. The **workspace selector** MUST reflect the active workspace on **all** desk queue screens (**Received**, **Assigned**, **Executed**). The **sub-view selector** MUST reflect the active sub-view on those same screens; navigation MUST NOT leave ambiguous state where Assigned or Executed appears active but the workspace appears inactive or vice versa (except where other screens omit the chrome by design — e.g. order detail may omit sub-view highlighting if clearly out-of-queue scope).
 - **FR-002**: On **Assigned**, all entitled traders MUST see **all** assigned orders for the active workspace type. Any trader MUST be able to open order details subject to existing visibility rules.
 - **FR-003**: Only the trader **currently assigned** to an order MUST be able to **execute** it from Assigned; others MUST receive a clear, safe failure (no silent success).
 - **FR-004**: On **Received** with **default** settings, the system MUST restrict rows to orders whose scheduling date satisfies the **default near-term window** (see Assumptions). The trader MUST have an explicit control to **show all** Received orders for that workspace type within the session.
@@ -144,6 +148,7 @@ Failures or delays in transmitting the execution outcome to back-office MUST be 
 - **SC-003**: For a labelled sample of Received orders spanning in-window and out-of-window scheduling dates, **100%** of **include/exclude** decisions under the **default** filter match the stated window rule in Assumptions.
 - **SC-004**: **100%** of valid accounting confirmations remove the order from the executed-not-accounted view within the product’s normal processing window (target latency defined in planning).
 - **SC-005**: With Term vs OnCall workspaces exercised separately, **zero** cross-type orders appear on the wrong workspace in acceptance testing.
+- **SC-007**: In scripted UX checks covering Received, Assigned, and Executed inside each workspace, **100%** of steps confirm primary navigation shows the **correct active workspace** and **correct active sub-view** (no mismatched highlighting between workspace and queue tab).
 - **SC-006**: In scenarios with at least three executed-not-accounted orders of different ages, ≥ **90%** of participants identify the **longest-waiting** order using only the Executed view.
 
 ## Assumptions

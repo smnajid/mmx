@@ -37,7 +37,7 @@ import { OrderUpdateFormComponent } from './order-update-form.component';
   template: `
     <section class="feature">
       <nav class="crumb">
-        <a routerLink="/term-orders">← Queues</a>
+        <a routerLink="/oncall/received">← Queues</a>
       </nav>
 
       @if (loading()) {

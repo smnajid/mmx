@@ -109,6 +109,30 @@ class OrderQueryServiceTest {
                 .hasMessageContaining("size");
     }
 
+    @Test
+    void listExecutedTermOrders_queriesExecutedTermOnly() {
+        MoneyMarketOrder a = newTermReceived("E-T-a");
+        when(orderRepository.findByStatusAndOrderType(OrderStatus.EXECUTED, OrderType.TERM))
+                .thenReturn(List.of(a));
+
+        OrderPage page = subject.listExecutedTermOrders(0, 20);
+
+        assertThat(page.content()).containsExactly(a);
+        verify(orderRepository).findByStatusAndOrderType(OrderStatus.EXECUTED, OrderType.TERM);
+    }
+
+    @Test
+    void listExecutedOnCallOrders_queriesExecutedOnCallOnly() {
+        MoneyMarketOrder o = newOnCallReceived("E-O-a");
+        when(orderRepository.findByStatusAndOrderType(OrderStatus.EXECUTED, OrderType.ON_CALL))
+                .thenReturn(List.of(o));
+
+        OrderPage page = subject.listExecutedOnCallOrders(0, 20);
+
+        assertThat(page.content()).containsExactly(o);
+        verify(orderRepository).findByStatusAndOrderType(OrderStatus.EXECUTED, OrderType.ON_CALL);
+    }
+
     private static MoneyMarketOrder newTermReceived(String extRef) {
         return MoneyMarketOrder.create(
                 new ExternalOrderReference(extRef),

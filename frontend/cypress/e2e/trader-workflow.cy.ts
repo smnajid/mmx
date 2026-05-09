@@ -34,7 +34,7 @@ describe('Trader workflow', () => {
 
       const orderId = res.body.orderId as string;
 
-      cy.visit('/term-orders', {
+      cy.visit('/term/received', {
         onBeforeLoad(win) {
           win.sessionStorage.setItem('mmx-trader-id', TRADER);
         },

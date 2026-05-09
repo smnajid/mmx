@@ -38,7 +38,7 @@ describe('AssignedOrderListComponent', () => {
     const req = httpMock.expectOne(
       (r) =>
         r.method === 'GET' &&
-        r.url.startsWith('/api/v1/orders/assigned') &&
+        r.url.startsWith('/api/v1/orders/oncall/assigned') &&
         r.params.get('page') === '0'
     );
     expect(req.request.headers.get('X-Trader-Id')).toBe('alice');
@@ -49,7 +49,7 @@ describe('AssignedOrderListComponent', () => {
 
   it('shows unassign control for ASSIGNED rows', () => {
     fixture.detectChanges();
-    const incoming = httpMock.expectOne((req) => req.url.startsWith('/api/v1/orders/assigned'));
+    const incoming = httpMock.expectOne((req) => req.url.startsWith('/api/v1/orders/oncall/assigned'));
     const row: OrderSummary = {
       orderId: 'a-1',
       externalOrderReference: 'ASG-001',

@@ -136,6 +136,29 @@ class OrderAssignmentControllerTest {
         assertThat(traderCaptor.getValue()).isEqualTo(new TraderId("alice"));
     }
 
+    @Test
+    void getTermAssigned_passesTraderToWorkspaceAssignedUseCase() throws Exception {
+        when(assignmentService.listAssignedTermOrders(eq(new TraderId("alice")), eq(0), eq(20)))
+                .thenReturn(new OrderPage(List.of(), 0, 0, 20));
+
+        mockMvc.perform(get("/api/v1/orders/term/assigned").header("X-Trader-Id", "alice"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(0));
+
+        verify(assignmentService).listAssignedTermOrders(eq(new TraderId("alice")), eq(0), eq(20));
+    }
+
+    @Test
+    void getOnCallAssigned_passesTraderToWorkspaceAssignedUseCase() throws Exception {
+        when(assignmentService.listAssignedOnCallOrders(eq(new TraderId("bob")), eq(0), eq(20)))
+                .thenReturn(new OrderPage(List.of(), 0, 0, 20));
+
+        mockMvc.perform(get("/api/v1/orders/oncall/assigned").header("X-Trader-Id", "bob"))
+                .andExpect(status().isOk());
+
+        verify(assignmentService).listAssignedOnCallOrders(eq(new TraderId("bob")), eq(0), eq(20));
+    }
+
     private static MoneyMarketOrder receivedOrder() {
         return MoneyMarketOrder.create(
                 new ExternalOrderReference("REF-CTL-" + UUID.randomUUID()),

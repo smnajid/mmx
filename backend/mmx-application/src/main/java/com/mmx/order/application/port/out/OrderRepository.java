@@ -21,4 +21,7 @@ public interface OrderRepository {
     List<MoneyMarketOrder> findByStatusAndOrderType(OrderStatus status, OrderType orderType);
 
     List<MoneyMarketOrder> findByAssignedTraderIdAndStatus(TraderId traderId, OrderStatus status);
+
+    List<MoneyMarketOrder> findByAssignedTraderIdAndStatusAndOrderType(
+            TraderId traderId, OrderStatus status, OrderType orderType);
 }

@@ -3,6 +3,7 @@ package com.mmx.order.adapter.in.rest;
 import com.mmx.order.adapter.in.rest.mapper.OrderRestMapper;
 import com.mmx.order.application.command.ExecuteOrderCommand;
 import com.mmx.order.application.port.in.CancelOrderUseCase;
+import com.mmx.order.application.port.in.OrderPage;
 import com.mmx.order.application.port.in.ExecuteOrderUseCase;
 import com.mmx.order.application.port.in.RejectOrderUseCase;
 import com.mmx.order.application.port.in.UpdateAssignedOrderUseCase;
@@ -29,11 +30,15 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.mockito.Mockito.verify;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -141,6 +146,32 @@ class OrderExecutionControllerTest {
                                 .content("{\"executedRate\":3.5,\"counterparty\":\"BankCo\"}"))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.error").value("INVALID_STATUS_TRANSITION"));
+    }
+
+    @Test
+    void getExecutedTerm_delegatesToOrderQueryService() throws Exception {
+        when(orderQueryService.listExecutedTermOrders(eq(0), eq(20)))
+                .thenReturn(new OrderPage(List.of(), 0, 0, 20));
+
+        mockMvc.perform(get("/api/v1/orders/term/executed").header("X-Trader-Id", "alice"))
+                .andExpect(status().isOk());
+
+        verify(orderQueryService).listExecutedTermOrders(0, 20);
+    }
+
+    @Test
+    void getExecutedOnCall_delegatesToOrderQueryService() throws Exception {
+        when(orderQueryService.listExecutedOnCallOrders(eq(0), eq(25)))
+                .thenReturn(new OrderPage(List.of(), 0, 0, 25));
+
+        mockMvc.perform(
+                        get("/api/v1/orders/oncall/executed")
+                                .header("X-Trader-Id", "bob")
+                                .queryParam("page", "0")
+                                .queryParam("size", "25"))
+                .andExpect(status().isOk());
+
+        verify(orderQueryService).listExecutedOnCallOrders(0, 25);
     }
 
     private static MoneyMarketOrder assignedOrderExecuted() {

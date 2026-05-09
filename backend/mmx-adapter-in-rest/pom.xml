@@ -74,7 +74,7 @@
                             <goal>generate</goal>
                         </goals>
                         <configuration>
-                            <inputSpec>${project.basedir}/../../specs/001-mm-order-processing/contracts/openapi.yaml</inputSpec>
+                            <inputSpec>${project.basedir}/../../specs/002-trader-orders-views/contracts/openapi.yaml</inputSpec>
                             <generatorName>java</generatorName>
                             <library>native</library>
                             <generateApis>false</generateApis>
@@ -104,7 +104,7 @@
                             <goal>generate</goal>
                         </goals>
                         <configuration>
-                            <inputSpec>${project.basedir}/../../specs/001-mm-order-processing/contracts/openapi.yaml</inputSpec>
+                            <inputSpec>${project.basedir}/../../specs/002-trader-orders-views/contracts/openapi.yaml</inputSpec>
                             <generatorName>spring</generatorName>
                             <output>${project.build.directory}/generated-sources/openapi-spring</output>
                             <generateApis>true</generateApis>

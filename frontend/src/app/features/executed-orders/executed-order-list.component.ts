@@ -11,27 +11,30 @@ import { OrderSummary } from '../../core/models/order.model';
 import { TraderContextService } from '../../core/trader/trader-context.service';
 import { OrderTableComponent } from '../../shared/components/order-table.component';
 
+export type WorkspaceKind = 'term' | 'oncall';
+
 @Component({
-  selector: 'mmx-assigned-order-list',
+  selector: 'mmx-executed-order-list',
   standalone: true,
   imports: [OrderTableComponent],
   template: `
     <section class="feature">
       <header class="feature-head">
         <div class="feature-head-row">
-          <h1>Assigned to you</h1>
+          <h1>Executed — {{ workspaceLabel() }}</h1>
           <button type="button" class="refresh" (click)="refresh()">Refresh</button>
         </div>
         <p class="lede">
-          Orders you have claimed from the received queues. Unassign to return them to the pool.
+          Orders in executed status for this workspace (desk operational view; accounting refinements follow in later
+          releases).
         </p>
       </header>
       <mmx-order-table
         [orders]="orders()"
         [loading]="loading()"
         [errorMessage]="error()"
-        [enableUnassign]="true"
-        (unassignClick)="onUnassign($event)"
+        [showTenorColumn]="workspace() === 'term'"
+        [showNoticePeriodColumn]="workspace() === 'oncall'"
       />
     </section>
   `,
@@ -94,7 +97,7 @@ import { OrderTableComponent } from '../../shared/components/order-table.compone
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class AssignedOrderListComponent implements OnInit {
+export class ExecutedOrderListComponent implements OnInit {
   private readonly api = inject(OrderApiService);
   private readonly trader = inject(TraderContextService);
   private readonly route = inject(ActivatedRoute);
@@ -102,8 +105,16 @@ export class AssignedOrderListComponent implements OnInit {
   readonly orders = signal<OrderSummary[]>([]);
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
+  readonly workspace = signal<WorkspaceKind>('oncall');
+
+  readonly workspaceLabel = signal<string>('On-call');
 
   ngOnInit(): void {
+    const ws = this.route.snapshot.data['workspace'] as WorkspaceKind | undefined;
+    if (ws === 'term' || ws === 'oncall') {
+      this.workspace.set(ws);
+      this.workspaceLabel.set(ws === 'term' ? 'Term' : 'On-call');
+    }
     this.load();
   }
 
@@ -111,28 +122,14 @@ export class AssignedOrderListComponent implements OnInit {
     this.load();
   }
 
-  onUnassign(row: OrderSummary): void {
-    this.loading.set(true);
-    this.error.set(null);
-    this.api.unassignOrder(row.orderId, this.trader.traderId()).subscribe({
-      next: () => this.load(),
-      error: (err) => {
-        this.loading.set(false);
-        this.error.set(this.formatHttpError(err));
-      },
-    });
-  }
-
   private load(): void {
     this.loading.set(true);
     this.error.set(null);
-    const ws =
-      (this.route.snapshot.data['workspace'] as 'term' | 'oncall' | undefined) ?? 'oncall';
     const traderId = this.trader.traderId();
     const req =
-      ws === 'term'
-        ? this.api.listAssignedTermOrders(traderId, { page: 0, size: 100 })
-        : this.api.listAssignedOnCallOrders(traderId, { page: 0, size: 100 });
+      this.workspace() === 'term'
+        ? this.api.listExecutedTermOrders(traderId, { page: 0, size: 100 })
+        : this.api.listExecutedOnCallOrders(traderId, { page: 0, size: 100 });
 
     req.subscribe({
       next: (page) => {
@@ -153,6 +150,6 @@ export class AssignedOrderListComponent implements OnInit {
         return body.message;
       }
     }
-    return 'Could not load assigned orders. Is the API running (proxy /api → backend)?';
+    return 'Could not load executed orders. Is the API running (proxy /api → backend)?';
   }
 }

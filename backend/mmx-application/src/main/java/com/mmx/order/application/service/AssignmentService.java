@@ -12,6 +12,7 @@ import com.mmx.order.application.port.out.OrderRepository;
 import com.mmx.order.domain.exception.OrderNotFoundException;
 import com.mmx.order.domain.model.MoneyMarketOrder;
 import com.mmx.order.domain.model.OrderStatus;
+import com.mmx.order.domain.model.OrderType;
 import com.mmx.order.domain.model.TraderId;
 
 import java.util.List;
@@ -59,6 +60,20 @@ public final class AssignmentService implements AssignOrderUseCase, UnassignOrde
     public OrderPage listAssignedOrders(TraderId traderId, int page, int size) {
         List<MoneyMarketOrder> all =
                 orderRepository.findByAssignedTraderIdAndStatus(traderId, OrderStatus.ASSIGNED);
+        return paginate(all, page, size);
+    }
+
+    public OrderPage listAssignedTermOrders(TraderId traderId, int page, int size) {
+        List<MoneyMarketOrder> all =
+                orderRepository.findByAssignedTraderIdAndStatusAndOrderType(
+                        traderId, OrderStatus.ASSIGNED, OrderType.TERM);
+        return paginate(all, page, size);
+    }
+
+    public OrderPage listAssignedOnCallOrders(TraderId traderId, int page, int size) {
+        List<MoneyMarketOrder> all =
+                orderRepository.findByAssignedTraderIdAndStatusAndOrderType(
+                        traderId, OrderStatus.ASSIGNED, OrderType.ON_CALL);
         return paginate(all, page, size);
     }
 

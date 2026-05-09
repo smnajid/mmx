@@ -14,4 +14,7 @@ public interface SpringDataOrderRepository extends JpaRepository<OrderEntity, UU
     List<OrderEntity> findByStatusAndOrderType(String status, String orderType);
 
     List<OrderEntity> findByAssignedTraderIdAndStatus(String assignedTraderId, String status);
+
+    List<OrderEntity> findByAssignedTraderIdAndStatusAndOrderType(
+            String assignedTraderId, String status, String orderType);
 }

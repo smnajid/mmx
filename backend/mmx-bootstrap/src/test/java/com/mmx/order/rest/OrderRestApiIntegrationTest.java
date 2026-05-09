@@ -114,12 +114,95 @@ class OrderRestApiIntegrationTest {
         assertThat(body.path("externalOrderReference").asText()).isEqualTo(ref);
     }
 
+    @Test
+    void getTermAssigned_listsOnlyTermAssignedToTrader() throws Exception {
+        HttpResponse<String> termPost = postJson("/api/v1/orders", termSubscribeJson("IT-TA-" + System.nanoTime()));
+        HttpResponse<String> ocPost = postJson("/api/v1/orders", onCallSubscribeJson("IT-OA-" + System.nanoTime()));
+        String tid = objectMapper.readTree(termPost.body()).path("orderId").asText();
+        String oid = objectMapper.readTree(ocPost.body()).path("orderId").asText();
+
+        assertThat(postEmpty("/api/v1/orders/" + tid + "/assign", TRADER).statusCode()).isEqualTo(200);
+        assertThat(postEmpty("/api/v1/orders/" + oid + "/assign", TRADER).statusCode()).isEqualTo(200);
+
+        HttpResponse<String> res = get("/api/v1/orders/term/assigned", TRADER);
+        assertThat(res.statusCode()).isEqualTo(200);
+        JsonNode root = objectMapper.readTree(res.body());
+        for (JsonNode item : root.path("content")) {
+            assertThat(item.path("orderType").asText()).isEqualTo("TERM");
+        }
+    }
+
+    @Test
+    void getOnCallAssigned_listsOnlyOnCallAssignedToTrader() throws Exception {
+        HttpResponse<String> termPost = postJson("/api/v1/orders", termSubscribeJson("IT-TB-" + System.nanoTime()));
+        HttpResponse<String> ocPost = postJson("/api/v1/orders", onCallSubscribeJson("IT-OB-" + System.nanoTime()));
+        String tid = objectMapper.readTree(termPost.body()).path("orderId").asText();
+        String oid = objectMapper.readTree(ocPost.body()).path("orderId").asText();
+
+        assertThat(postEmpty("/api/v1/orders/" + tid + "/assign", TRADER).statusCode()).isEqualTo(200);
+        assertThat(postEmpty("/api/v1/orders/" + oid + "/assign", TRADER).statusCode()).isEqualTo(200);
+
+        HttpResponse<String> res = get("/api/v1/orders/oncall/assigned", TRADER);
+        assertThat(res.statusCode()).isEqualTo(200);
+        JsonNode root = objectMapper.readTree(res.body());
+        for (JsonNode item : root.path("content")) {
+            assertThat(item.path("orderType").asText()).isEqualTo("ON_CALL");
+        }
+    }
+
+    @Test
+    void getTermExecuted_listsOnlyExecutedTermOrders() throws Exception {
+        HttpResponse<String> termPost = postJson("/api/v1/orders", termSubscribeJson("IT-TE-" + System.nanoTime()));
+        String orderId = objectMapper.readTree(termPost.body()).path("orderId").asText();
+        assertThat(postEmpty("/api/v1/orders/" + orderId + "/assign", TRADER).statusCode()).isEqualTo(200);
+
+        HttpResponse<String> exec =
+                postJson(
+                        "/api/v1/orders/" + orderId + "/execute",
+                        "{\"executedRate\":3.5,\"counterparty\":\"BankCo International\"}",
+                        TRADER);
+        assertThat(exec.statusCode()).isEqualTo(200);
+
+        HttpResponse<String> res = get("/api/v1/orders/term/executed", TRADER);
+        assertThat(res.statusCode()).isEqualTo(200);
+        JsonNode root = objectMapper.readTree(res.body());
+        boolean seen = false;
+        for (JsonNode item : root.path("content")) {
+            assertThat(item.path("orderType").asText()).isEqualTo("TERM");
+            if (item.path("orderId").asText().equals(orderId)) {
+                seen = true;
+            }
+        }
+        assertThat(seen).isTrue();
+    }
+
     private HttpResponse<String> postJson(String path, String json) throws Exception {
         HttpRequest request =
                 HttpRequest.newBuilder(baseUri(path))
                         .timeout(Duration.ofSeconds(30))
                         .header("Content-Type", "application/json")
                         .POST(HttpRequest.BodyPublishers.ofString(json, StandardCharsets.UTF_8))
+                        .build();
+        return httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+    }
+
+    private HttpResponse<String> postJson(String path, String json, String traderId) throws Exception {
+        HttpRequest request =
+                HttpRequest.newBuilder(baseUri(path))
+                        .timeout(Duration.ofSeconds(30))
+                        .header("Content-Type", "application/json")
+                        .header("X-Trader-Id", traderId)
+                        .POST(HttpRequest.BodyPublishers.ofString(json, StandardCharsets.UTF_8))
+                        .build();
+        return httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+    }
+
+    private HttpResponse<String> postEmpty(String path, String traderId) throws Exception {
+        HttpRequest request =
+                HttpRequest.newBuilder(baseUri(path))
+                        .timeout(Duration.ofSeconds(30))
+                        .header("X-Trader-Id", traderId)
+                        .POST(HttpRequest.BodyPublishers.noBody())
                         .build();
         return httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
     }

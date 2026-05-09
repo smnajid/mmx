@@ -54,10 +54,19 @@
   color: var(--mmx-text-muted);
 }
 
+.nav-cluster {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+}
+
 .nav {
   display: flex;
   gap: 0.35rem;
-  flex: 1;
+  flex-wrap: wrap;
   justify-content: center;
 }
 

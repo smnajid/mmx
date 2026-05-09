@@ -99,6 +99,46 @@ export class OrderApiService {
     );
   }
 
+  listAssignedTermOrders(
+    traderId: string,
+    params: PageParams = {}
+  ): Observable<PagedResponse<OrderSummary>> {
+    return this.http.get<PagedResponse<OrderSummary>>(
+      `${BASE_URL}/term/assigned`,
+      { headers: this.traderHeaders(traderId), params: this.pageParams(params) }
+    );
+  }
+
+  listAssignedOnCallOrders(
+    traderId: string,
+    params: PageParams = {}
+  ): Observable<PagedResponse<OrderSummary>> {
+    return this.http.get<PagedResponse<OrderSummary>>(
+      `${BASE_URL}/oncall/assigned`,
+      { headers: this.traderHeaders(traderId), params: this.pageParams(params) }
+    );
+  }
+
+  listExecutedTermOrders(
+    traderId: string,
+    params: PageParams = {}
+  ): Observable<PagedResponse<OrderSummary>> {
+    return this.http.get<PagedResponse<OrderSummary>>(
+      `${BASE_URL}/term/executed`,
+      { headers: this.traderHeaders(traderId), params: this.pageParams(params) }
+    );
+  }
+
+  listExecutedOnCallOrders(
+    traderId: string,
+    params: PageParams = {}
+  ): Observable<PagedResponse<OrderSummary>> {
+    return this.http.get<PagedResponse<OrderSummary>>(
+      `${BASE_URL}/oncall/executed`,
+      { headers: this.traderHeaders(traderId), params: this.pageParams(params) }
+    );
+  }
+
   // ── Endpoint 8: Update Assigned Order ────────────────────────────────────────
 
   updateOrder(

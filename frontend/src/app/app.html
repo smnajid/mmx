@@ -8,17 +8,22 @@
       </div>
     </div>
 
-    <nav class="nav" aria-label="Primary">
-      <a routerLink="/term-orders" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
-        Term received
-      </a>
-      <a routerLink="/oncall-orders" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
-        On-call received
-      </a>
-      <a routerLink="/assigned-orders" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
-        Assigned
-      </a>
-    </nav>
+    <div class="nav-cluster">
+      <nav class="nav workspace-nav" aria-label="Workspace">
+        <a routerLink="/oncall/received" [class.active]="workspaceActive('oncall')">
+          On-call workspace
+        </a>
+        <a routerLink="/term/received" [class.active]="workspaceActive('term')">
+          Term workspace
+        </a>
+      </nav>
+
+      <nav class="nav sub-nav" aria-label="Queues">
+        <a [routerLink]="queuePrefix() + '/received'" [class.active]="queueActive('received')">Received</a>
+        <a [routerLink]="queuePrefix() + '/assigned'" [class.active]="queueActive('assigned')">Assigned</a>
+        <a [routerLink]="queuePrefix() + '/executed'" [class.active]="queueActive('executed')">Executed</a>
+      </nav>
+    </div>
 
     <label class="trader">
       <span class="trader-label">Trader</span>
