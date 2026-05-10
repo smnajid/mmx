@@ -1,6 +1,8 @@
 package com.mmx.order.application.service;
 
 import com.mmx.order.application.port.in.GetOrderDetailsUseCase;
+import com.mmx.order.application.port.in.ListExecutedOnCallOrdersUseCase;
+import com.mmx.order.application.port.in.ListExecutedTermOrdersUseCase;
 import com.mmx.order.application.port.in.ListReceivedOnCallOrdersUseCase;
 import com.mmx.order.application.port.in.ListReceivedTermOrdersUseCase;
 import com.mmx.order.application.port.in.OrderPage;
@@ -18,7 +20,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 public final class OrderQueryService implements ListReceivedTermOrdersUseCase, ListReceivedOnCallOrdersUseCase,
-        GetOrderDetailsUseCase {
+        ListExecutedTermOrdersUseCase, ListExecutedOnCallOrdersUseCase, GetOrderDetailsUseCase {
 
     /** Business calendar for Received near-term window (spec 002 assumptions). */
     static final ZoneId BUSINESS_CALENDAR_ZONE = ZoneId.of("Europe/Paris");
@@ -62,12 +64,14 @@ public final class OrderQueryService implements ListReceivedTermOrdersUseCase, L
         return LocalDate.ofInstant(clock.now(), BUSINESS_CALENDAR_ZONE);
     }
 
+    @Override
     public OrderPage listExecutedTermOrders(int page, int size) {
         List<MoneyMarketOrder> all =
                 orderRepository.findByStatusAndOrderType(OrderStatus.EXECUTED, OrderType.TERM);
         return paginate(all, page, size);
     }
 
+    @Override
     public OrderPage listExecutedOnCallOrders(int page, int size) {
         List<MoneyMarketOrder> all =
                 orderRepository.findByStatusAndOrderType(OrderStatus.EXECUTED, OrderType.ON_CALL);

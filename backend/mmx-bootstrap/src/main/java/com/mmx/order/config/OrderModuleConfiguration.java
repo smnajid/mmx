@@ -1,6 +1,6 @@
 package com.mmx.order.config;
 
-import com.mmx.order.adapter.out.integration.NoOpDepositsGateway;
+import com.mmx.order.adapter.out.integration.NoOpBackOfficeGateway;
 import com.mmx.order.adapter.out.integration.SystemClock;
 import com.mmx.order.adapter.out.integration.UuidReferenceGenerator;
 import com.mmx.order.adapter.out.persistence.JpaAuditLogger;
@@ -10,12 +10,14 @@ import com.mmx.order.adapter.out.persistence.repository.SpringDataAuditLogReposi
 import com.mmx.order.adapter.out.persistence.repository.SpringDataOrderRepository;
 import com.mmx.order.application.port.in.CancelOrderUseCase;
 import com.mmx.order.application.port.in.ExecuteOrderUseCase;
+import com.mmx.order.application.port.in.MarkOrderAccountedUseCase;
 import com.mmx.order.application.port.in.ReceiveOrderUseCase;
 import com.mmx.order.application.port.in.RejectOrderUseCase;
 import com.mmx.order.application.port.in.UpdateAssignedOrderUseCase;
 import com.mmx.order.application.port.out.*;
 import com.mmx.order.application.service.AssignmentService;
 import com.mmx.order.application.service.ExecuteOrderService;
+import com.mmx.order.application.service.MarkOrderAccountedService;
 import com.mmx.order.application.service.OrderLifecycleService;
 import com.mmx.order.application.service.OrderQueryService;
 import com.mmx.order.application.service.ReceiveOrderService;
@@ -43,8 +45,14 @@ public class OrderModuleConfiguration {
     }
 
     @Bean
-    public DepositsGateway depositsGateway() {
-        return new NoOpDepositsGateway();
+    public BackOfficeGateway backOfficeGateway() {
+        return new NoOpBackOfficeGateway();
+    }
+
+    @Bean
+    public MarkOrderAccountedUseCase markOrderAccountedUseCase(
+            OrderRepository orderRepository, AuditLogger auditLogger, Clock clock) {
+        return new MarkOrderAccountedService(orderRepository, auditLogger, clock);
     }
 
     @Bean

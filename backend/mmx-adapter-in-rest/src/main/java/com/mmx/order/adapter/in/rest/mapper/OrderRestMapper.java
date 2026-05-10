@@ -42,23 +42,29 @@ public class OrderRestMapper {
 
     public OrderSummaryResponse toSummary(MoneyMarketOrder order) {
         Assignment assignment = order.getAssignment();
-        return new OrderSummaryResponse()
-                .orderId(order.getId())
-                .externalOrderReference(order.getExternalOrderReference().value())
-                .orderType(OrderType.fromValue(order.getOrderType().name()))
-                .orderOperation(OrderOperation.fromValue(order.getOrderOperation().name()))
-                .portfolioNumber(order.getPortfolioNumber().value())
-                .currency(order.getCurrency())
-                .amount(order.getAmount().doubleValue())
-                .valueDate(order.getValueDate())
-                .minimumRate(
-                        order.getMinimumRate() != null ? order.getMinimumRate().doubleValue() : null)
-                .tenor(order.getTenor() != null ? order.getTenor().getCode() : null)
-                .noticePeriod(
-                        order.getNoticePeriod() != null ? order.getNoticePeriod().getCode() : null)
-                .status(OrderStatus.fromValue(order.getStatus().name()))
-                .assignedTraderId(assignment != null ? assignment.traderId().value() : null)
-                .createdAt(OffsetDateTime.ofInstant(order.getCreatedAt(), UTC));
+        var summary =
+                new OrderSummaryResponse()
+                        .orderId(order.getId())
+                        .externalOrderReference(order.getExternalOrderReference().value())
+                        .orderType(OrderType.fromValue(order.getOrderType().name()))
+                        .orderOperation(OrderOperation.fromValue(order.getOrderOperation().name()))
+                        .portfolioNumber(order.getPortfolioNumber().value())
+                        .currency(order.getCurrency())
+                        .amount(order.getAmount().doubleValue())
+                        .valueDate(order.getValueDate())
+                        .minimumRate(
+                                order.getMinimumRate() != null ? order.getMinimumRate().doubleValue() : null)
+                        .tenor(order.getTenor() != null ? order.getTenor().getCode() : null)
+                        .noticePeriod(
+                                order.getNoticePeriod() != null ? order.getNoticePeriod().getCode() : null)
+                        .status(OrderStatus.fromValue(order.getStatus().name()))
+                        .assignedTraderId(assignment != null ? assignment.traderId().value() : null)
+                        .createdAt(OffsetDateTime.ofInstant(order.getCreatedAt(), UTC));
+        ExecutionDetails summaryEx = order.getExecutionDetails();
+        if (summaryEx != null) {
+            summary.setCounterparty(summaryEx.counterparty());
+        }
+        return summary;
     }
 
     public OrderDetailsResponse toDetails(MoneyMarketOrder order) {

@@ -62,6 +62,27 @@ describe('Trader workflow', () => {
       cy.get("[data-status='EXECUTED']", { timeout: 20000 }).should('exist');
       cy.contains('dt', 'Dealing reference').should('exist');
       cy.contains('dt', 'Contract number').should('exist');
+
+      cy.visit('/term/executed', {
+        onBeforeLoad(win) {
+          win.sessionStorage.setItem('mmx-trader-id', TRADER);
+        },
+      });
+
+      cy.contains('th', 'Counterparty').should('exist');
+      cy.contains('td.mono', externalRef).should('exist');
+      cy.contains('tr', externalRef).should('contain.text', 'BankCo International');
+
+      cy.request({
+        method: 'POST',
+        url: `${apiUrl()}/api/v1/back-office/orders/${orderId}/accounted`,
+        headers: { 'Content-Type': 'application/json' },
+        body: {},
+        failOnStatusCode: true,
+      }).then(() => {
+        cy.reload();
+        cy.contains('td.mono', externalRef).should('not.exist');
+      });
     });
   });
 });

@@ -7,6 +7,7 @@ import com.mmx.order.application.port.in.CancelOrderUseCase;
 import com.mmx.order.application.port.in.ExecuteOrderUseCase;
 import com.mmx.order.application.port.in.RejectOrderUseCase;
 import com.mmx.order.application.port.in.UpdateAssignedOrderUseCase;
+import com.mmx.order.application.port.out.BackOfficeGateway;
 import com.mmx.order.application.port.in.OrderPage;
 import com.mmx.order.application.service.AssignmentService;
 import com.mmx.order.application.service.OrderQueryService;
@@ -67,6 +68,9 @@ class OrderAssignmentControllerTest {
     @Mock
     UpdateAssignedOrderUseCase updateAssignedOrderUseCase;
 
+    @Mock
+    BackOfficeGateway backOfficeGateway;
+
     org.springframework.test.web.servlet.MockMvc mockMvc;
 
     @BeforeEach
@@ -81,7 +85,8 @@ class OrderAssignmentControllerTest {
                                         cancelOrderUseCase,
                                         rejectOrderUseCase,
                                         updateAssignedOrderUseCase,
-                                        mapper))
+                                        mapper,
+                                        backOfficeGateway))
                         .setControllerAdvice(new GlobalExceptionHandler())
                         .build();
     }

@@ -2,8 +2,8 @@ package com.mmx.order.application.port.out;
 
 import com.mmx.order.domain.model.MoneyMarketOrder;
 
-public interface DepositsGateway {
+public interface BackOfficeGateway {
 
-    /** Notify the downstream Deposits system after execution. No-op in V1. */
+    /** Notify back-office after execution so accounting can proceed without re-keying. */
     void notifyExecution(MoneyMarketOrder order);
 }

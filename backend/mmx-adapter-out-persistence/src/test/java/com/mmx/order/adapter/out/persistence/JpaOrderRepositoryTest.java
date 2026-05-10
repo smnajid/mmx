@@ -101,6 +101,29 @@ class JpaOrderRepositoryTest {
         }
 
         @Test
+        void save_and_retrieve_preserves_accounted_status() {
+            Instant t0 = Instant.parse("2026-05-01T10:00:00Z");
+            Instant t1 = Instant.parse("2026-05-01T11:00:00Z");
+            MoneyMarketOrder order = createTermOrder("ACC-ROUNDTRIP");
+            order.assign(new TraderId("trader-a"), t0);
+            order.execute(
+                    new BigDecimal("3.5"),
+                    "BankCo",
+                    new DealingReference("DL-acc-1"),
+                    new ContractNumber("CN-acc-1"),
+                    new TraderId("trader-a"),
+                    t0);
+            order.markAccounted(t1);
+
+            MoneyMarketOrder saved = repository.save(order);
+            Optional<MoneyMarketOrder> found = repository.findById(saved.getId());
+
+            assertThat(found).isPresent();
+            assertThat(found.get().getStatus()).isEqualTo(OrderStatus.ACCOUNTED);
+            assertThat(found.get().getUpdatedAt()).isEqualTo(t1);
+        }
+
+        @Test
         void findById_returns_empty_for_unknown_id() {
             Optional<MoneyMarketOrder> found = repository.findById(java.util.UUID.randomUUID());
             assertThat(found).isEmpty();

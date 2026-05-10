@@ -113,6 +113,17 @@ Failures or delays in transmitting the execution outcome to back-office MUST be 
 - **Switch workspace while “show all” is on**: Filtering reapplies to the **new** workspace’s dataset; session toggle behaviour unchanged.
 - **New session vs last workspace**: After logout or session end, the next session MUST **default to OnCall** even if the trader had **Term** active when the prior session ended.
 
+### REST contract acceptance (**executed-orders-accounting**)
+
+The following behaviours are exercised through the canonical HTTP contract in `contracts/openapi.yaml` / `contracts/api-v1.md`:
+
+- **`GET …/orders/term/executed`** and **`GET …/orders/oncall/executed`** return paged **`OrderSummaryResponse`** rows scoped to workspace type (`TERM` vs `ON_CALL`) and **`EXECUTED`** status only; **`ACCOUNTED`** orders do **not** appear. Each executed row exposes **counterparty** (omit-null when absent).
+- **`POST …/back-office/orders/{orderId}/accounted`** (no Trader header baseline) acknowledges portfolio accounting **idempotently** (`EXECUTED` → `ACCOUNTED`; **`409`** if the order is not in **`EXECUTED`**; **`200`** replay when already **`ACCOUNTED`**). **`ORDER_NOT_FOUND`** is **`404`**.
+
+Detailed user narratives remain in User Stories 4–5 and FR-008–FR-012 below.
+
+---
+
 ## Requirements *(mandatory)*
 
 ### Functional Requirements

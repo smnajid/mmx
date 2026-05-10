@@ -17,6 +17,8 @@ export interface OrderSummary {
   /** Present for on-call orders when set at intake; null otherwise. */
   noticePeriod: string | null;
   status: OrderStatus;
+  /** Execution counterparty; present on executed summaries when omit-null exposes it from the API. */
+  counterparty?: string | null;
   assignedTraderId: string | null;
   createdAt: string;
 }

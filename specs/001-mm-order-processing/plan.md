@@ -139,7 +139,7 @@ backend/
 │       │       ├── OrderRepository.java           ← persistence port
 │       │       ├── ReferenceGenerator.java        ← generates DealingReference + ContractNumber
 │       │       ├── AuditLogger.java               ← audit port
-│       │       ├── DepositsGateway.java           ← integration boundary (no-op in V1)
+│       │       ├── BackOfficeGateway.java         ← integration boundary (no-op in V1)
 │       │       └── Clock.java                     ← time abstraction for testability
 │       ├── service/
 │       │   ├── ReceiveOrderService.java           ← implements ReceiveOrderUseCase
@@ -186,7 +186,7 @@ backend/
 │   ├── pom.xml                                    ← depends on mmx-application
 │   └── src/main/java/com/mmx/order/adapter/out/integration/
 │       ├── UuidReferenceGenerator.java            ← implements ReferenceGenerator port
-│       ├── NoOpDepositsGateway.java               ← implements DepositsGateway (V1 no-op)
+│       ├── NoOpBackOfficeGateway.java             ← implements BackOfficeGateway (V1 no-op)
 │       └── SystemClock.java                       ← implements Clock port
 │
 └── mmx-bootstrap/
@@ -886,8 +886,8 @@ This project serves as an introductory Spec-Driven Development exercise. The sco
 | Extension                           | How V1 Prepares                                                             |
 | ----------------------------------- | --------------------------------------------------------------------------- |
 | Manual order entry                  | `ReceiveOrderUseCase` already abstracts intake; a UI adapter can invoke it  |
-| Outbound email                      | `DepositsGateway` pattern can be replicated for `NotificationGateway`       |
-| Deposits integration                | `DepositsGateway` port exists; V2 implements a real adapter                 |
+| Outbound email                      | `BackOfficeGateway` pattern can be replicated for `NotificationGateway`       |
+| Back-office integration             | `BackOfficeGateway` port exists; V2 implements a real adapter                 |
 | Additional roles (Manager, Auditor) | Actor identity recorded in audit; authorization can be layered              |
 | Advanced search                     | Persistence adapter can add query methods; use case layer remains stable    |
 | Richer audit                        | `AuditLogger` port can be replaced with a more sophisticated implementation |
@@ -935,7 +935,7 @@ This project serves as an introductory Spec-Driven Development exercise. The sco
 
 - Manual order entry (new inbound adapter/UI)
 - Richer search and filtering (date ranges, counterparty, amounts)
-- Real Deposits integration (implement `DepositsGateway` adapter)
+- Real Back-office integration (implement `BackOfficeGateway` adapter)
 - Outbound notification (new `NotificationGateway` port and adapter)
 - Proper authentication (Spring Security with OAuth2/OIDC)
 - Additional roles (Manager view, Auditor read-only access)

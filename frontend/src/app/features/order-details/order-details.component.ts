@@ -82,7 +82,7 @@ import { OrderUpdateFormComponent } from './order-update-form.component';
             <dt>Assigned trader</dt>
             <dd class="mono">{{ o.assignedTraderId }}</dd>
           }
-          @if (o.status === executed) {
+          @if (o.status === executed || o.status === accounted) {
             <dt>Executed rate</dt>
             <dd class="mono">{{ o.executedRate | number: '1.2-8' }}</dd>
             <dt>Counterparty</dt>
@@ -430,6 +430,7 @@ export class OrderDetailsComponent implements OnInit {
   readonly received = OrderStatus.RECEIVED;
   readonly assigned = OrderStatus.ASSIGNED;
   readonly executed = OrderStatus.EXECUTED;
+  readonly accounted = OrderStatus.ACCOUNTED;
   readonly rejected = OrderStatus.REJECTED;
 
   readonly order = signal<OrderDetails | null>(null);

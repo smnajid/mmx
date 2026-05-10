@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  Input,
   inject,
   OnInit,
   signal,
@@ -25,8 +26,8 @@ export type WorkspaceKind = 'term' | 'oncall';
           <button type="button" class="refresh" (click)="refresh()">Refresh</button>
         </div>
         <p class="lede">
-          Orders in executed status for this workspace (desk operational view; accounting refinements follow in later
-          releases).
+          Executed orders that are not yet accounted at portfolio level. Execution counterparty is shown below; accounting
+          confirmation removes rows via the back-office path.
         </p>
       </header>
       <mmx-order-table
@@ -35,6 +36,7 @@ export type WorkspaceKind = 'term' | 'oncall';
         [errorMessage]="error()"
         [showTenorColumn]="workspace() === 'term'"
         [showNoticePeriodColumn]="workspace() === 'oncall'"
+        [showCounterpartyColumn]="true"
         [listWorkspace]="workspace()"
         listQueue="executed"
       />
@@ -104,6 +106,9 @@ export class ExecutedOrderListComponent implements OnInit {
   private readonly trader = inject(TraderContextService);
   private readonly route = inject(ActivatedRoute);
 
+  /** When set (thin workspace wrappers), bypasses router data for workspace resolution. */
+  @Input() fixedWorkspace: WorkspaceKind | null = null;
+
   readonly orders = signal<OrderSummary[]>([]);
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
@@ -112,11 +117,11 @@ export class ExecutedOrderListComponent implements OnInit {
   readonly workspaceLabel = signal<string>('On-call');
 
   ngOnInit(): void {
-    const ws = this.route.snapshot.data['workspace'] as WorkspaceKind | undefined;
-    if (ws === 'term' || ws === 'oncall') {
-      this.workspace.set(ws);
-      this.workspaceLabel.set(ws === 'term' ? 'Term' : 'On-call');
-    }
+    const fromInput = this.fixedWorkspace;
+    const fromRoute = this.route.snapshot.data['workspace'] as WorkspaceKind | undefined;
+    const ws = fromInput ?? (fromRoute === 'term' || fromRoute === 'oncall' ? fromRoute : 'oncall');
+    this.workspace.set(ws);
+    this.workspaceLabel.set(ws === 'term' ? 'Term' : 'On-call');
     this.load();
   }
 

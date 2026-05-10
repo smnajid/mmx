@@ -59,6 +59,17 @@ class OrderStatusTest {
         }
     }
 
+    @Nested
+    @DisplayName("EXECUTED can transition to")
+    class FromExecuted {
+
+        @Test
+        void accounted() {
+            OrderStatus result = OrderStatus.EXECUTED.transitionTo(OrderStatus.ACCOUNTED);
+            assertThat(result).isEqualTo(OrderStatus.ACCOUNTED);
+        }
+    }
+
     // ── Invalid transitions ──────────────────────────────────────────────────
 
     @Nested
@@ -66,7 +77,14 @@ class OrderStatusTest {
     class TerminalStatuses {
 
         @Test
-        void executed_is_terminal() {
+        void accounted_is_terminal() {
+            assertThatThrownBy(() -> OrderStatus.ACCOUNTED.transitionTo(OrderStatus.RECEIVED))
+                    .isInstanceOf(InvalidStatusTransitionException.class)
+                    .hasMessageContaining("ACCOUNTED");
+        }
+
+        @Test
+        void executed_cannot_receiver_without_accounted() {
             assertThatThrownBy(() -> OrderStatus.EXECUTED.transitionTo(OrderStatus.RECEIVED))
                     .isInstanceOf(InvalidStatusTransitionException.class)
                     .hasMessageContaining("EXECUTED");
@@ -100,6 +118,36 @@ class OrderStatusTest {
         @Test
         void assigned_cannot_go_to_cancelled() {
             assertThatThrownBy(() -> OrderStatus.ASSIGNED.transitionTo(OrderStatus.CANCELLED))
+                    .isInstanceOf(InvalidStatusTransitionException.class);
+        }
+
+        @Test
+        void received_cannot_go_to_accounted() {
+            assertThatThrownBy(() -> OrderStatus.RECEIVED.transitionTo(OrderStatus.ACCOUNTED))
+                    .isInstanceOf(InvalidStatusTransitionException.class);
+        }
+
+        @Test
+        void assigned_cannot_go_to_accounted() {
+            assertThatThrownBy(() -> OrderStatus.ASSIGNED.transitionTo(OrderStatus.ACCOUNTED))
+                    .isInstanceOf(InvalidStatusTransitionException.class);
+        }
+
+        @Test
+        void cancelled_cannot_go_to_accounted() {
+            assertThatThrownBy(() -> OrderStatus.CANCELLED.transitionTo(OrderStatus.ACCOUNTED))
+                    .isInstanceOf(InvalidStatusTransitionException.class);
+        }
+
+        @Test
+        void rejected_cannot_go_to_accounted() {
+            assertThatThrownBy(() -> OrderStatus.REJECTED.transitionTo(OrderStatus.ACCOUNTED))
+                    .isInstanceOf(InvalidStatusTransitionException.class);
+        }
+
+        @Test
+        void accounted_cannot_transition_anywhere() {
+            assertThatThrownBy(() -> OrderStatus.ACCOUNTED.transitionTo(OrderStatus.EXECUTED))
                     .isInstanceOf(InvalidStatusTransitionException.class);
         }
 

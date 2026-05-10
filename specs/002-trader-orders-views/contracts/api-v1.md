@@ -1,6 +1,6 @@
 # REST API Contract: Money Market Order Processing (baseline + trader workspaces)
 
-**Canonical OpenAPI 3 spec (contract-first, codegen)**: [openapi.yaml](./openapi.yaml) — **v1.1.0** extends V1 with workspace-scoped list endpoints for **002-trader-orders-views** (Term vs OnCall surfaces).
+**Canonical OpenAPI 3 spec (contract-first, codegen)**: [openapi.yaml](./openapi.yaml) — **v1.4.0** adds `ACCOUNTED` lifecycle, executed-list **counterparty** on summaries, workspace executed endpoints, and the back-office accounted callback (**executed-orders-accounting**).
 
 **Base URL**: `/api/v1`
 **Content-Type**: `application/json`
@@ -37,11 +37,14 @@ Error codes: `VALIDATION_ERROR`, `ORDER_NOT_FOUND`, `INVALID_STATUS_TRANSITION`,
   "minimumRate": 3.25000000,
   "tenor": "1W | 2W | 1M | 3M | 6M | 1Y | null",
   "noticePeriod": "24H | 48H | null",
-  "status": "RECEIVED | ASSIGNED | EXECUTED | CANCELLED | REJECTED",
+  "status": "RECEIVED | ASSIGNED | EXECUTED | ACCOUNTED | CANCELLED | REJECTED",
+  "counterparty": "string | null",
   "assignedTraderId": "string | null",
   "createdAt": "2026-04-28T21:30:00Z"
 }
 ```
+
+`counterparty` is populated from execution details once the order is **EXECUTED** (or thereafter). When there is no counterparty yet, the field is **omitted** from JSON responses (omit-null), not serialized as `"counterparty": null`.
 
 `minimumRate` is `null` (or omitted in responses that omit-null) when Portfolio Management did not supply an execution-floor indication at intake. It is not mutable after reception.
 
@@ -66,7 +69,7 @@ Error codes: `VALIDATION_ERROR`, `ORDER_NOT_FOUND`, `INVALID_STATUS_TRANSITION`,
   "noticePeriod": "24H | 48H | null",
   "sourceContractNumber": "string | null",
   "desiredCounterpartyComment": "string | null",
-  "status": "RECEIVED | ASSIGNED | EXECUTED | CANCELLED | REJECTED",
+  "status": "RECEIVED | ASSIGNED | EXECUTED | ACCOUNTED | CANCELLED | REJECTED",
   "assignedTraderId": "string | null",
   "assignedAt": "2026-04-28T21:30:00Z | null",
   "executedRate": 3.50000000,
@@ -182,12 +185,48 @@ These endpoints ensure **Term** and **OnCall** orders are not mixed on the same 
 |--------|------|---------|
 | GET | `/api/v1/orders/term/assigned` | **Desk-wide** assigned **Term** orders (all assignees; `X-Trader-Id` is actor only, not an assignee filter) |
 | GET | `/api/v1/orders/oncall/assigned` | **Desk-wide** assigned **OnCall** orders (all assignees) |
-| GET | `/api/v1/orders/term/executed` | **Term** orders in `EXECUTED` status (workspace Executed view shell; accounting-specific cohort in later stories) |
-| GET | `/api/v1/orders/oncall/executed` | **OnCall** orders in `EXECUTED` status |
+| GET | `/api/v1/orders/term/executed` | **Term** orders in `EXECUTED` status ( **`ACCOUNTED`** excluded; workspace executed-not-accounted view) |
+| GET | `/api/v1/orders/oncall/executed` | **OnCall** orders in `EXECUTED` status ( **`ACCOUNTED`** orders excluded ) |
 
 **Headers**: `X-Trader-Id` required. **Query**: `page`, `size` — same as received list endpoints.
 
 **Deprecated**: `GET /api/v1/orders/assigned` (mixes order types) — clients MUST migrate to the workspace-scoped paths above.
+
+List rows include **counterparty** when execution exists (omit-null).
+
+---
+
+### Back-office accounted callback
+
+This path is intentionally **outside** Trader header rules: callers MUST NOT send `X-Trader-Id` for authentication baseline (endpoint remains reachable with no Trader identity header).
+
+#### Request
+
+**POST** `/api/v1/back-office/orders/{orderId}/accounted`
+
+Optional JSON body:
+
+```json
+{}
+```
+
+or
+
+```json
+{
+  "accountedAt": "2026-05-02T09:30:00Z"
+}
+```
+
+`accountedAt` is optional metadata; implementations may ignore it and use server time for the lifecycle transition.
+
+#### Responses
+
+| Status | Condition |
+|--------|-----------|
+| `200 OK` | Order transitioned `EXECUTED` → `ACCOUNTED`, **or** was already `ACCOUNTED` (idempotent replay) |
+| `404 Not Found` | Unknown `orderId` — `ORDER_NOT_FOUND` |
+| `409 Conflict` | Order not in `EXECUTED` status — `INVALID_STATUS_TRANSITION` |
 
 ---
 

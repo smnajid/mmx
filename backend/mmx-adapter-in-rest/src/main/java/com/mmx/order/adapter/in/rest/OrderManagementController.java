@@ -13,8 +13,12 @@ import com.mmx.order.application.port.in.CancelOrderUseCase;
 import com.mmx.order.application.port.in.ExecuteOrderUseCase;
 import com.mmx.order.application.port.in.RejectOrderUseCase;
 import com.mmx.order.application.port.in.UpdateAssignedOrderUseCase;
+import com.mmx.order.application.port.out.BackOfficeGateway;
 import com.mmx.order.application.service.AssignmentService;
 import com.mmx.order.application.service.OrderQueryService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.mmx.order.domain.exception.OrderNotFoundException;
 import com.mmx.order.domain.model.ReceivedListView;
 import com.mmx.order.domain.model.TraderId;
@@ -39,6 +43,8 @@ import java.util.UUID;
 @RestController
 public class OrderManagementController implements OrdersApi {
 
+    private static final Logger log = LoggerFactory.getLogger(OrderManagementController.class);
+
     private final OrderQueryService orderQueryService;
     private final AssignmentService assignmentService;
     private final ExecuteOrderUseCase executeOrderUseCase;
@@ -46,6 +52,7 @@ public class OrderManagementController implements OrdersApi {
     private final RejectOrderUseCase rejectOrderUseCase;
     private final UpdateAssignedOrderUseCase updateAssignedOrderUseCase;
     private final OrderRestMapper orderRestMapper;
+    private final BackOfficeGateway backOfficeGateway;
 
     public OrderManagementController(
             OrderQueryService orderQueryService,
@@ -54,7 +61,8 @@ public class OrderManagementController implements OrdersApi {
             CancelOrderUseCase cancelOrderUseCase,
             RejectOrderUseCase rejectOrderUseCase,
             UpdateAssignedOrderUseCase updateAssignedOrderUseCase,
-            OrderRestMapper orderRestMapper) {
+            OrderRestMapper orderRestMapper,
+            BackOfficeGateway backOfficeGateway) {
         this.orderQueryService = orderQueryService;
         this.assignmentService = assignmentService;
         this.executeOrderUseCase = executeOrderUseCase;
@@ -62,6 +70,7 @@ public class OrderManagementController implements OrdersApi {
         this.rejectOrderUseCase = rejectOrderUseCase;
         this.updateAssignedOrderUseCase = updateAssignedOrderUseCase;
         this.orderRestMapper = orderRestMapper;
+        this.backOfficeGateway = backOfficeGateway;
     }
 
     @Override
@@ -193,6 +202,11 @@ public class OrderManagementController implements OrdersApi {
         var order =
                 executeOrderUseCase.execute(
                         orderRestMapper.toExecuteCommand(executeOrderRequest, orderId, xTraderId));
+        try {
+            backOfficeGateway.notifyExecution(order);
+        } catch (Exception ex) {
+            log.warn("Back-office notifyExecution failed for orderId={}", orderId, ex);
+        }
         return ResponseEntity.ok(orderRestMapper.toDetails(order));
     }
 

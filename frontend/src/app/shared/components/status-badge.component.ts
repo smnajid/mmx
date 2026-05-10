@@ -49,6 +49,12 @@ import { OrderStatus } from '../../core/models/order-status.enum';
       color: #6ee7b7;
     }
 
+    .badge[data-status='ACCOUNTED'] {
+      background: rgba(110, 160, 130, 0.1);
+      border-color: rgba(134, 180, 150, 0.28);
+      color: #9cb8a8;
+    }
+
     .badge[data-status='CANCELLED'],
     .badge[data-status='REJECTED'] {
       background: rgba(251, 113, 133, 0.08);

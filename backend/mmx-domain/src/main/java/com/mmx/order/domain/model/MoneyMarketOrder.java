@@ -234,6 +234,18 @@ public class MoneyMarketOrder {
         this.updatedAt = now;
     }
 
+    /**
+     * Back-office confirmation that portfolio position reflects this execution (EXECUTED → ACCOUNTED).
+     */
+    public void markAccounted(Instant now) {
+        Objects.requireNonNull(now, "now must not be null");
+        if (this.status != OrderStatus.EXECUTED) {
+            throw new InvalidStatusTransitionException(this.status, OrderStatus.ACCOUNTED);
+        }
+        this.status = this.status.transitionTo(OrderStatus.ACCOUNTED);
+        this.updatedAt = now;
+    }
+
     public void cancel(Instant now) {
         this.status = this.status.transitionTo(OrderStatus.CANCELLED);
         this.updatedAt = now;

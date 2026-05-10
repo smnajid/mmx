@@ -7,6 +7,7 @@ import com.mmx.order.application.port.in.OrderPage;
 import com.mmx.order.application.port.in.ExecuteOrderUseCase;
 import com.mmx.order.application.port.in.RejectOrderUseCase;
 import com.mmx.order.application.port.in.UpdateAssignedOrderUseCase;
+import com.mmx.order.application.port.out.BackOfficeGateway;
 import com.mmx.order.application.service.AssignmentService;
 import com.mmx.order.application.service.OrderQueryService;
 import com.mmx.order.domain.exception.InvalidStatusTransitionException;
@@ -24,6 +25,7 @@ import com.mmx.order.domain.model.TraderId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -35,6 +37,8 @@ import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.when;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.mockito.Mockito.verify;
@@ -68,6 +72,9 @@ class OrderExecutionControllerTest {
     @Mock
     UpdateAssignedOrderUseCase updateAssignedOrderUseCase;
 
+    @Mock
+    BackOfficeGateway backOfficeGateway;
+
     org.springframework.test.web.servlet.MockMvc mockMvc;
 
     @BeforeEach
@@ -82,7 +89,8 @@ class OrderExecutionControllerTest {
                                         cancelOrderUseCase,
                                         rejectOrderUseCase,
                                         updateAssignedOrderUseCase,
-                                        mapper))
+                                        mapper,
+                                        backOfficeGateway))
                         .setControllerAdvice(new GlobalExceptionHandler())
                         .build();
     }
@@ -91,6 +99,8 @@ class OrderExecutionControllerTest {
     void postExecute_returns200_withExecutionFields() throws Exception {
         MoneyMarketOrder order = assignedOrderExecuted();
         when(executeOrderUseCase.execute(any(ExecuteOrderCommand.class))).thenReturn(order);
+
+        InOrder sequencing = inOrder(executeOrderUseCase, backOfficeGateway);
 
         mockMvc.perform(
                         post("/api/v1/orders/" + order.getId() + "/execute")
@@ -104,6 +114,28 @@ class OrderExecutionControllerTest {
                 .andExpect(jsonPath("$.counterparty").value("BankCo International"))
                 .andExpect(jsonPath("$.dealingReference").value("DL-exec-test"))
                 .andExpect(jsonPath("$.generatedContractNumber").value("CN-exec-test"));
+
+        sequencing.verify(executeOrderUseCase).execute(any(ExecuteOrderCommand.class));
+        sequencing.verify(backOfficeGateway).notifyExecution(order);
+    }
+
+    @Test
+    void postExecute_returns200_whenGatewayThrows() throws Exception {
+        MoneyMarketOrder order = assignedOrderExecuted();
+        when(executeOrderUseCase.execute(any(ExecuteOrderCommand.class))).thenReturn(order);
+        doThrow(new RuntimeException("downstream unavailable"))
+                .when(backOfficeGateway)
+                .notifyExecution(order);
+
+        mockMvc.perform(
+                        post("/api/v1/orders/" + order.getId() + "/execute")
+                                .header("X-Trader-Id", "trader-a")
+                                .contentType(APPLICATION_JSON)
+                                .content("{\"executedRate\":3.55,\"counterparty\":\"BankCo\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("EXECUTED"));
+
+        verify(backOfficeGateway).notifyExecution(order);
     }
 
     @Test

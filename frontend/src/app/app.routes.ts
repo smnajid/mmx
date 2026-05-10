@@ -22,10 +22,9 @@ export const routes: Routes = [
       {
         path: 'executed',
         loadComponent: () =>
-          import('./features/executed-orders/executed-order-list.component').then(
-            (m) => m.ExecutedOrderListComponent
+          import('./features/term-orders/term-executed-order-list.component').then(
+            (m) => m.TermExecutedOrderListComponent
           ),
-        data: { workspace: 'term' },
       },
     ],
   },
@@ -49,10 +48,9 @@ export const routes: Routes = [
       {
         path: 'executed',
         loadComponent: () =>
-          import('./features/executed-orders/executed-order-list.component').then(
-            (m) => m.ExecutedOrderListComponent
+          import('./features/oncall-orders/oncall-executed-order-list.component').then(
+            (m) => m.OnCallExecutedOrderListComponent
           ),
-        data: { workspace: 'oncall' },
       },
     ],
   },

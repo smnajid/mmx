@@ -9,6 +9,8 @@
 
 **Organization**: Tasks are grouped by user story to enable independent implementation and testing of each story.
 
+> **Historical rename**: The outbound port delivered as `DepositsGateway` / `NoOpDepositsGateway` in `[x]` tasks T021 and T033 below was later renamed to `BackOfficeGateway` / `NoOpBackOfficeGateway` under OpenSpec change [`executed-orders-accounting` (archived)](../../openspec/changes/archive/2026-05-10-executed-orders-accounting). The `[x]` lines are left unchanged as a record of what shipped in feature 001.
+
 ## Format: `[ID] [P?] [Story] Description`
 
 - **[P]**: Can run in parallel (different files, no dependencies)

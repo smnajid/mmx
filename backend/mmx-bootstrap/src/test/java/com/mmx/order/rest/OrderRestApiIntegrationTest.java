@@ -208,6 +208,154 @@ class OrderRestApiIntegrationTest {
         assertThat(seen).isTrue();
     }
 
+    @Test
+    void getTermExecuted_rowsIncludeCounterpartyAndExcludeOnCallWorkspace() throws Exception {
+        String termRef = "IT-TEC-" + System.nanoTime();
+        String onRef = "IT-OEC-" + System.nanoTime();
+        HttpResponse<String> termPost = postJson("/api/v1/orders", termSubscribeJson(termRef));
+        HttpResponse<String> ocPost = postJson("/api/v1/orders", onCallSubscribeJson(onRef));
+        assertThat(termPost.statusCode()).isEqualTo(201);
+        assertThat(ocPost.statusCode()).isEqualTo(201);
+        String termId = objectMapper.readTree(termPost.body()).path("orderId").asText();
+        String onId = objectMapper.readTree(ocPost.body()).path("orderId").asText();
+        assertThat(postEmpty("/api/v1/orders/" + termId + "/assign", TRADER).statusCode()).isEqualTo(200);
+        assertThat(postEmpty("/api/v1/orders/" + onId + "/assign", TRADER).statusCode()).isEqualTo(200);
+        String execPayload = "{\"executedRate\":3.5,\"counterparty\":\"BankCo International\"}";
+        assertThat(postJson("/api/v1/orders/" + termId + "/execute", execPayload, TRADER).statusCode()).isEqualTo(200);
+        assertThat(postJson("/api/v1/orders/" + onId + "/execute", execPayload, TRADER).statusCode()).isEqualTo(200);
+
+        HttpResponse<String> res = get("/api/v1/orders/term/executed", TRADER);
+        assertThat(res.statusCode()).isEqualTo(200);
+        JsonNode root = objectMapper.readTree(res.body());
+        boolean termSeen = false;
+        for (JsonNode item : root.path("content")) {
+            assertThat(item.path("orderType").asText()).isEqualTo("TERM");
+            assertThat(item.path("status").asText()).isEqualTo("EXECUTED");
+            assertThat(onId.equals(item.path("orderId").asText())).isFalse();
+            if (termId.equals(item.path("orderId").asText())) {
+                assertThat(item.path("counterparty").asText()).isEqualTo("BankCo International");
+                termSeen = true;
+            }
+        }
+        assertThat(termSeen).isTrue();
+    }
+
+    @Test
+    void getOnCallExecuted_rowsIncludeCounterpartyAndExcludeTermWorkspace() throws Exception {
+        String termRef = "IT-TE2-" + System.nanoTime();
+        String onRef = "IT-OC2-" + System.nanoTime();
+        HttpResponse<String> termPost = postJson("/api/v1/orders", termSubscribeJson(termRef));
+        HttpResponse<String> ocPost = postJson("/api/v1/orders", onCallSubscribeJson(onRef));
+        String termId = objectMapper.readTree(termPost.body()).path("orderId").asText();
+        String onId = objectMapper.readTree(ocPost.body()).path("orderId").asText();
+        postEmpty("/api/v1/orders/" + termId + "/assign", TRADER);
+        postEmpty("/api/v1/orders/" + onId + "/assign", TRADER);
+        String execPayload = "{\"executedRate\":3.5,\"counterparty\":\"CP-OC\"}";
+        postJson("/api/v1/orders/" + termId + "/execute", execPayload, TRADER);
+        postJson("/api/v1/orders/" + onId + "/execute", execPayload, TRADER);
+
+        HttpResponse<String> res = get("/api/v1/orders/oncall/executed", TRADER);
+        assertThat(res.statusCode()).isEqualTo(200);
+        JsonNode root = objectMapper.readTree(res.body());
+        boolean onSeen = false;
+        for (JsonNode item : root.path("content")) {
+            assertThat(item.path("orderType").asText()).isEqualTo("ON_CALL");
+            assertThat(item.path("status").asText()).isEqualTo("EXECUTED");
+            assertThat(termId.equals(item.path("orderId").asText())).isFalse();
+            if (onId.equals(item.path("orderId").asText())) {
+                assertThat(item.path("counterparty").asText()).isEqualTo("CP-OC");
+                onSeen = true;
+            }
+        }
+        assertThat(onSeen).isTrue();
+    }
+
+    @Test
+    void postBackOfficeAccounted_transitionsExecutedToAccounted() throws Exception {
+        HttpResponse<String> termPost = postJson("/api/v1/orders", termSubscribeJson("IT-BOA-" + System.nanoTime()));
+        String orderId = objectMapper.readTree(termPost.body()).path("orderId").asText();
+        assertThat(postEmpty("/api/v1/orders/" + orderId + "/assign", TRADER).statusCode()).isEqualTo(200);
+        assertThat(
+                        postJson(
+                                        "/api/v1/orders/" + orderId + "/execute",
+                                        "{\"executedRate\":3.5,\"counterparty\":\"BankCo\"}",
+                                        TRADER)
+                                .statusCode())
+                .isEqualTo(200);
+
+        HttpResponse<String> bo = postJsonBackOffice("/api/v1/back-office/orders/" + orderId + "/accounted", "{}");
+        assertThat(bo.statusCode()).isEqualTo(200);
+
+        HttpResponse<String> detail = get("/api/v1/orders/" + orderId, TRADER);
+        assertThat(detail.statusCode()).isEqualTo(200);
+        assertThat(objectMapper.readTree(detail.body()).path("status").asText()).isEqualTo("ACCOUNTED");
+
+        HttpResponse<String> executedList = get("/api/v1/orders/term/executed", TRADER);
+        assertThat(executedList.statusCode()).isEqualTo(200);
+        assertThat(contentHasOrderId(objectMapper.readTree(executedList.body()).path("content"), orderId))
+                .isFalse();
+    }
+
+    @Test
+    void postBackOfficeAccounted_unknownOrder_returns404() throws Exception {
+        String fakeId = "00000000-0000-0000-0000-000000000099";
+        HttpResponse<String> bo = postJsonBackOffice("/api/v1/back-office/orders/" + fakeId + "/accounted", "{}");
+        assertThat(bo.statusCode()).isEqualTo(404);
+        assertThat(objectMapper.readTree(bo.body()).path("error").asText()).isEqualTo("ORDER_NOT_FOUND");
+    }
+
+    @Test
+    void postBackOfficeAccounted_nonExecuted_returns409() throws Exception {
+        HttpResponse<String> termPost = postJson("/api/v1/orders", termSubscribeJson("IT-BO409-" + System.nanoTime()));
+        String orderId = objectMapper.readTree(termPost.body()).path("orderId").asText();
+        HttpResponse<String> bo = postJsonBackOffice("/api/v1/back-office/orders/" + orderId + "/accounted", "{}");
+        assertThat(bo.statusCode()).isEqualTo(409);
+        assertThat(objectMapper.readTree(bo.body()).path("error").asText()).isEqualTo("INVALID_STATUS_TRANSITION");
+    }
+
+    @Test
+    void postBackOfficeAccounted_idempotent_secondCall_leavesUpdatedAt() throws Exception {
+        HttpResponse<String> termPost = postJson("/api/v1/orders", termSubscribeJson("IT-BOI-" + System.nanoTime()));
+        String orderId = objectMapper.readTree(termPost.body()).path("orderId").asText();
+        postEmpty("/api/v1/orders/" + orderId + "/assign", TRADER);
+        postJson("/api/v1/orders/" + orderId + "/execute", "{\"executedRate\":3.5,\"counterparty\":\"X\"}", TRADER);
+
+        assertThat(postJsonBackOffice("/api/v1/back-office/orders/" + orderId + "/accounted", "{}").statusCode())
+                .isEqualTo(200);
+        String updatedAt1 = objectMapper.readTree(get("/api/v1/orders/" + orderId, TRADER).body())
+                .path("updatedAt")
+                .asText();
+
+        assertThat(postJsonBackOffice("/api/v1/back-office/orders/" + orderId + "/accounted", "{}").statusCode())
+                .isEqualTo(200);
+        String updatedAt2 = objectMapper.readTree(get("/api/v1/orders/" + orderId, TRADER).body())
+                .path("updatedAt")
+                .asText();
+
+        assertThat(updatedAt2).isEqualTo(updatedAt1);
+    }
+
+    @Test
+    void postBackOfficeAccounted_reachableWithoutTraderHeader() throws Exception {
+        HttpResponse<String> termPost = postJson("/api/v1/orders", termSubscribeJson("IT-BONH-" + System.nanoTime()));
+        String orderId = objectMapper.readTree(termPost.body()).path("orderId").asText();
+        postEmpty("/api/v1/orders/" + orderId + "/assign", TRADER);
+        postJson("/api/v1/orders/" + orderId + "/execute", "{\"executedRate\":3.5,\"counterparty\":\"Y\"}", TRADER);
+
+        HttpResponse<String> bo = postJsonBackOffice("/api/v1/back-office/orders/" + orderId + "/accounted", "{}");
+        assertThat(bo.statusCode()).isEqualTo(200);
+    }
+
+    private HttpResponse<String> postJsonBackOffice(String path, String json) throws Exception {
+        HttpRequest request =
+                HttpRequest.newBuilder(baseUri(path))
+                        .timeout(Duration.ofSeconds(30))
+                        .header("Content-Type", "application/json")
+                        .POST(HttpRequest.BodyPublishers.ofString(json, StandardCharsets.UTF_8))
+                        .build();
+        return httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+    }
+
     private HttpResponse<String> postJson(String path, String json) throws Exception {
         HttpRequest request =
                 HttpRequest.newBuilder(baseUri(path))

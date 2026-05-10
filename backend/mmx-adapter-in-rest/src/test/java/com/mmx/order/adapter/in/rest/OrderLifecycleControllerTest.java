@@ -7,6 +7,7 @@ import com.mmx.order.application.port.in.CancelOrderUseCase;
 import com.mmx.order.application.port.in.ExecuteOrderUseCase;
 import com.mmx.order.application.port.in.RejectOrderUseCase;
 import com.mmx.order.application.port.in.UpdateAssignedOrderUseCase;
+import com.mmx.order.application.port.out.BackOfficeGateway;
 import com.mmx.order.application.service.AssignmentService;
 import com.mmx.order.application.service.OrderQueryService;
 import com.mmx.order.domain.exception.InvalidStatusTransitionException;
@@ -63,6 +64,9 @@ class OrderLifecycleControllerTest {
     @Mock
     UpdateAssignedOrderUseCase updateAssignedOrderUseCase;
 
+    @Mock
+    BackOfficeGateway backOfficeGateway;
+
     org.springframework.test.web.servlet.MockMvc mockMvc;
 
     @BeforeEach
@@ -79,7 +83,8 @@ class OrderLifecycleControllerTest {
                                         cancelOrderUseCase,
                                         rejectOrderUseCase,
                                         updateAssignedOrderUseCase,
-                                        mapper))
+                                        mapper,
+                                        backOfficeGateway))
                         .setValidator(validator)
                         .setControllerAdvice(new GlobalExceptionHandler())
                         .build();

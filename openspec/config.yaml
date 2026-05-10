@@ -46,7 +46,7 @@ rules:
 
   design:
     - Describe adapter placement (which module/port), dependency direction inward toward domain/application, and where tests will live.
-    - For HTTP: cite canonical **`openapi.yaml`** / **`api-v1.md`** paths and how codegen plugs into `mmx-adapter-in-rest`.
+    - 'For HTTP: cite canonical **`openapi.yaml`** / **`api-v1.md`** paths and how codegen plugs into `mmx-adapter-in-rest`.'
 
   specs:
     - Requirements should be testable; tie scenarios to verifiable outcomes suitable for automated tests.
@@ -55,6 +55,6 @@ rules:
   tasks:
     - Prefer ordering **failing tests before implementation** for new behaviour and fixes (TDD).
     - Backend tasks MUST name layers (`domain` / `application` / `adapter-in-rest` / `adapter-out-*` / `bootstrap`) — no shortcutting through the wrong module.
-    - **REST changes**: explicit steps to update **`openapi.yaml`**, **`api-v1.md`**, run **codegen**, then adapt controllers/domain — never the reverse order.
+    - '**REST changes**: explicit steps to update **`openapi.yaml`**, **`api-v1.md`**, run **codegen**, then adapt controllers/domain — never the reverse order.'
     - Frontend tasks SHOULD reference `frontend/` patterns (standalone components, services, existing API client conventions).
     - Include running or extending tests (`mvn test`, `npm run test`, Cypress) as concrete checklist items when behaviour changes.

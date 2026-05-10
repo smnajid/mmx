@@ -13,7 +13,7 @@
 
     <artifactId>mmx-adapter-out-integration</artifactId>
     <name>mmx-adapter-out-integration</name>
-    <description>Outbound integration adapter: ReferenceGenerator (UUID-based), NoOpDepositsGateway (V1), SystemClock.</description>
+    <description>Outbound integration adapter: ReferenceGenerator (UUID-based), NoOpBackOfficeGateway (V1), SystemClock.</description>
 
     <dependencies>
         <dependency>

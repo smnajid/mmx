@@ -8,7 +8,7 @@ info:
     list response. Workspace **Assigned** lists are **desk-wide** (all assignees) per User Story 2.
     Human-readable mirror: [api-v1.md](./api-v1.md). Trader-facing operations require header
     `X-Trader-Id` (actor identity; Assigned workspace lists are not filtered by assignee).
-  version: 1.3.0
+  version: 1.4.0
 
 servers:
   - url: /
@@ -19,6 +19,8 @@ tags:
     description: Portfolio Management order reception (no Trader header)
   - name: Orders
     description: Trader-facing order operations
+  - name: BackOffice
+    description: Portfolio accounting callbacks (no X-Trader-Id; unauthenticated baseline)
 
 paths:
   /api/v1/orders:
@@ -168,6 +170,39 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/OrderSummaryPage"
+
+  /api/v1/back-office/orders/{orderId}/accounted:
+    post:
+      tags: [BackOffice]
+      summary: Confirm execution accounted (portfolio position updated)
+      description: |
+        Idempotent callback from back-office. Transitions EXECUTED → ACCOUNTED. Does **not**
+        require `X-Trader-Id` or any other caller authentication for this baseline.
+      operationId: markOrderAccounted
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/OrderIdPath"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MarkOrderAccountedRequest"
+      responses:
+        "200":
+          description: Order is now ACCOUNTED or was already ACCOUNTED (idempotent)
+        "404":
+          description: Order does not exist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Invalid status for accounting confirmation (order must currently be EXECUTED)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /api/v1/orders/{orderId}:
     get:
@@ -532,7 +567,7 @@ components:
 
     OrderStatus:
       type: string
-      enum: [RECEIVED, ASSIGNED, EXECUTED, CANCELLED, REJECTED]
+      enum: [RECEIVED, ASSIGNED, EXECUTED, ACCOUNTED, CANCELLED, REJECTED]
 
     Tenor:
       type: string
@@ -658,6 +693,22 @@ components:
         createdAt:
           type: string
           format: date-time
+        counterparty:
+          type: string
+          nullable: true
+          description: |
+            Execution counterparty; present once the order has been executed.
+            Omit from JSON when null (omit-null serialization).
+          x-field-extra-annotation: "@com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)"
+
+    MarkOrderAccountedRequest:
+      type: object
+      properties:
+        accountedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Optional bookkeeping timestamp supplied by caller; baseline processing may ignore it.
 
     OrderDetailsResponse:
       type: object

@@ -10,13 +10,15 @@ public enum OrderStatus {
     RECEIVED,
     ASSIGNED,
     EXECUTED,
+    ACCOUNTED,
     CANCELLED,
     REJECTED;
 
     private static final Map<OrderStatus, Set<OrderStatus>> ALLOWED_TRANSITIONS = Map.of(
             RECEIVED, EnumSet.of(ASSIGNED, CANCELLED, REJECTED),
             ASSIGNED, EnumSet.of(RECEIVED, EXECUTED, REJECTED),
-            EXECUTED, EnumSet.noneOf(OrderStatus.class),
+            EXECUTED, EnumSet.of(ACCOUNTED),
+            ACCOUNTED, EnumSet.noneOf(OrderStatus.class),
             CANCELLED, EnumSet.noneOf(OrderStatus.class),
             REJECTED, EnumSet.noneOf(OrderStatus.class)
     );

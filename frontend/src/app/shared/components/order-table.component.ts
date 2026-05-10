@@ -38,6 +38,9 @@ import { StatusBadgeComponent } from './status-badge.component';
               @if (showNoticePeriodColumn) {
                 <th>Notice period</th>
               }
+              @if (showCounterpartyColumn) {
+                <th>Counterparty</th>
+              }
               <th class="num">Min rate</th>
               <th>Operation</th>
               <th>Status</th>
@@ -65,6 +68,15 @@ import { StatusBadgeComponent } from './status-badge.component';
                   <td class="mono">
                     @if (row.noticePeriod) {
                       {{ row.noticePeriod }}
+                    } @else {
+                      —
+                    }
+                  </td>
+                }
+                @if (showCounterpartyColumn) {
+                  <td class="mono">
+                    @if (row.counterparty) {
+                      {{ row.counterparty }}
                     } @else {
                       —
                     }
@@ -271,6 +283,8 @@ export class OrderTableComponent {
   @Input() showTenorColumn = false;
   /** OnCall received queue: show notice period from API summary. */
   @Input() showNoticePeriodColumn = false;
+  /** Executed-not-accounted lists: execution counterparty. */
+  @Input() showCounterpartyColumn = false;
   /** Received queues: show Assign for RECEIVED rows. */
   @Input() enableAssign = false;
   /** Assigned queue: show Unassign for ASSIGNED rows. */
