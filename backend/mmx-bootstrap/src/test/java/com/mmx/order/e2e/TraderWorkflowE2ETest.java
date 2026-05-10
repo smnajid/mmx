@@ -75,7 +75,7 @@ class TraderWorkflowE2ETest {
         String orderId = receivedBody.path("orderId").asText();
         assertThat(orderId).isNotBlank();
 
-        HttpResponse<String> listTerm = get("/api/v1/orders/term/received", TRADER);
+        HttpResponse<String> listTerm = get("/api/v1/orders/term/received?receivedView=ALL", TRADER);
         assertThat(listTerm.statusCode()).isEqualTo(200);
         JsonNode listBody = objectMapper.readTree(listTerm.body());
         assertThat(findOrderIdInPagedContent(listBody, orderId)).as("order appears in Term received queue").isTrue();

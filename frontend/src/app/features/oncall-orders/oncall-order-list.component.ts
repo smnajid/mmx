@@ -7,6 +7,7 @@ import {
 } from '@angular/core';
 import { OrderApiService } from '../../core/api/order-api.service';
 import { OrderSummary } from '../../core/models/order.model';
+import { ReceivedViewModeService } from '../../core/trader/received-view-mode.service';
 import { TraderContextService } from '../../core/trader/trader-context.service';
 import { OrderTableComponent } from '../../shared/components/order-table.component';
 
@@ -19,7 +20,17 @@ import { OrderTableComponent } from '../../shared/components/order-table.compone
       <header class="feature-head">
         <div class="feature-head-row">
           <h1>Received — On call</h1>
-          <button type="button" class="refresh" (click)="refresh()">Refresh</button>
+          <div class="toolbar-actions">
+            <label class="show-all">
+              <input
+                type="checkbox"
+                [checked]="receivedMode.showAll()"
+                (change)="onShowAllChange($event)"
+              />
+              Show all value dates
+            </label>
+            <button type="button" class="refresh" (click)="refresh()">Refresh</button>
+          </div>
         </div>
         <p class="lede">
           Notice-based liquidity; separate queue from Term so traders never mix workflows.
@@ -53,6 +64,29 @@ import { OrderTableComponent } from '../../shared/components/order-table.compone
       justify-content: space-between;
       gap: 1rem;
       flex-wrap: wrap;
+    }
+
+    .toolbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .show-all {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: var(--mmx-text-muted);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      cursor: pointer;
+      user-select: none;
+      letter-spacing: 0.04em;
+    }
+
+    .show-all input {
+      accent-color: var(--mmx-accent);
     }
 
     .refresh {
@@ -99,6 +133,7 @@ import { OrderTableComponent } from '../../shared/components/order-table.compone
 export class OnCallOrderListComponent implements OnInit {
   private readonly api = inject(OrderApiService);
   private readonly trader = inject(TraderContextService);
+  readonly receivedMode = inject(ReceivedViewModeService);
 
   readonly orders = signal<OrderSummary[]>([]);
   readonly loading = signal(true);
@@ -109,6 +144,12 @@ export class OnCallOrderListComponent implements OnInit {
   }
 
   refresh(): void {
+    this.load();
+  }
+
+  onShowAllChange(ev: Event): void {
+    const input = ev.target as HTMLInputElement;
+    this.receivedMode.setShowAll(input.checked);
     this.load();
   }
 
@@ -128,7 +169,11 @@ export class OnCallOrderListComponent implements OnInit {
     this.loading.set(true);
     this.error.set(null);
     this.api
-      .listReceivedOnCallOrders(this.trader.traderId(), { page: 0, size: 100 })
+      .listReceivedOnCallOrders(this.trader.traderId(), {
+        page: 0,
+        size: 100,
+        receivedView: this.receivedMode.mode(),
+      })
       .subscribe({
         next: (page) => {
           this.orders.set(page.content ?? []);

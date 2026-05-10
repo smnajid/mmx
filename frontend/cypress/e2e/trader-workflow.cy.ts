@@ -40,6 +40,7 @@ describe('Trader workflow', () => {
         },
       });
 
+      cy.get('label.show-all input').check();
       cy.contains('td.mono', externalRef, { timeout: 20000 }).should('exist');
       cy.contains('tr', externalRef).within(() => {
         cy.contains('button', 'Assign').click();

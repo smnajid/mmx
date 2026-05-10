@@ -1,0 +1,60 @@
+schema: spec-driven
+
+context: |
+  **mmx — Money Market order processing (POC)**
+
+  **Stack**
+  - Backend: Java, **Spring Boot 4** (parent BOM 4.0.x), Maven multi-module. JUnit 5, Spring Data JPA,
+    Flyway, **contract-first OpenAPI** + codegen for REST.
+  - Frontend: **Angular** 21.x, standalone components, Vitest via `ng test`, Cypress for e2e where needed.
+
+  **Contract-first product API (mandatory)**
+  - The **trader/product HTTP API** is defined only in the **canonical OpenAPI** for the active feature
+    (e.g. `specs/002-trader-orders-views/contracts/openapi.yaml`) and its prose mirror **`api-v1.md`**.
+  - **Never** implement ad-hoc REST shapes in code first: extend the contract, regenerate server stubs / models,
+    then implement controllers against the generated API interfaces and keep runtime behaviour aligned.
+  - Frontend and integration tests MUST target paths, parameters, and bodies that match the published contract.
+
+
+  **Backend architecture — hexagonal / ports & adapters**
+  - **`mmx-domain`**: entities, value objects, domain exceptions — no Spring, no framework adapters.
+  - **`mmx-application`**: use cases, `port/in` (use case interfaces), `port/out` (repositories, clock, etc.),
+    pure application services orchestrating domain.
+  - **`mmx-adapter-in-rest`**: HTTP controllers implementing generated API interfaces; DTO mapping; must not own business rules.
+  - **`mmx-adapter-out-persistence`** (and other `adapter-out-*`): JPA, Spring Data, integrations — implement `port/out`.
+  - **`mmx-bootstrap`**: Spring `@Configuration`, wiring beans, app entry — composition only.
+  - Prefer extending existing ports/services over leaking persistence or HTTP concerns into `mmx-domain` /
+    `mmx-application`.
+
+  **Test-Driven Development (default)**
+  - For **new behaviour** and **bug fixes**: write a **failing automated test first** (red), implement the smallest
+    change to pass (green), then refactor. Use the narrowest layer that can fail for the wrong reason
+    (unit vs integration vs e2e).
+  - Backend: JUnit 5; frontend: Angular/Vitest; HTTP contract: integration tests against running app where appropriate.
+  - OpenSpec **`tasks.md` should explicitly call out test tasks** alongside implementation (or order them red-first).
+
+  **Specifications (SDD)**
+  - Material API or behaviour changes remain aligned with the matching feature specs under `specs/` (OpenAPI,
+    `api-v1.md`, `spec.md`, etc.) — same delivery as implementation.
+
+
+rules:
+  proposal:
+    - Call out stack assumptions (Spring Boot 4 backend, Angular SPA) and hexagonal module boundaries when scope touches code.
+    - Note TDD expectation for behavioural work unless explicitly waived.
+    - Any new or changed **product REST** surface MUST be framed as contract-first OpenAPI (+ mirror doc), not controller-first.
+
+  design:
+    - Describe adapter placement (which module/port), dependency direction inward toward domain/application, and where tests will live.
+    - For HTTP: cite canonical **`openapi.yaml`** / **`api-v1.md`** paths and how codegen plugs into `mmx-adapter-in-rest`.
+
+  specs:
+    - Requirements should be testable; tie scenarios to verifiable outcomes suitable for automated tests.
+    - If behaviour is exposed over HTTP, requirement text SHOULD be consistent with eventual **OpenAPI** operations and schemas (contract-first).
+
+  tasks:
+    - Prefer ordering **failing tests before implementation** for new behaviour and fixes (TDD).
+    - Backend tasks MUST name layers (`domain` / `application` / `adapter-in-rest` / `adapter-out-*` / `bootstrap`) — no shortcutting through the wrong module.
+    - **REST changes**: explicit steps to update **`openapi.yaml`**, **`api-v1.md`**, run **codegen**, then adapt controllers/domain — never the reverse order.
+    - Frontend tasks SHOULD reference `frontend/` patterns (standalone components, services, existing API client conventions).
+    - Include running or extending tests (`mvn test`, `npm run test`, Cypress) as concrete checklist items when behaviour changes.

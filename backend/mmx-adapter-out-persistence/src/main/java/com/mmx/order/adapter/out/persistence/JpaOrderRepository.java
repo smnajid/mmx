@@ -1,10 +1,16 @@
 package com.mmx.order.adapter.out.persistence;
 
+import com.mmx.order.adapter.out.persistence.entity.OrderEntity;
 import com.mmx.order.adapter.out.persistence.mapper.OrderPersistenceMapper;
 import com.mmx.order.adapter.out.persistence.repository.SpringDataOrderRepository;
+import com.mmx.order.application.port.in.OrderPage;
 import com.mmx.order.application.port.out.OrderRepository;
 import com.mmx.order.domain.model.*;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -46,6 +52,38 @@ public class JpaOrderRepository implements OrderRepository {
                 .stream()
                 .map(mapper::toDomain)
                 .toList();
+    }
+
+    @Override
+    public OrderPage findReceivedPageByOrderType(
+            OrderType orderType,
+            Optional<LocalDate> valueDateFrom,
+            Optional<LocalDate> valueDateTo,
+            int page,
+            int size) {
+        if (page < 0) {
+            throw new IllegalArgumentException("page must be non-negative");
+        }
+        if (size <= 0) {
+            throw new IllegalArgumentException("size must be positive");
+        }
+        if (valueDateFrom.isEmpty() != valueDateTo.isEmpty()) {
+            throw new IllegalArgumentException("valueDate range: both bounds required or neither");
+        }
+        var pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "valueDate"));
+        String status = OrderStatus.RECEIVED.name();
+        String type = orderType.name();
+        Page<OrderEntity> slice =
+                valueDateFrom.isPresent()
+                        ? springDataRepository.findByStatusAndOrderTypeAndValueDateBetweenOrderByValueDateAsc(
+                                status, type, valueDateFrom.get(), valueDateTo.get(), pageable)
+                        : springDataRepository.findByStatusAndOrderTypeOrderByValueDateAsc(
+                                status, type, pageable);
+        return new OrderPage(
+                slice.getContent().stream().map(mapper::toDomain).toList(),
+                slice.getTotalElements(),
+                slice.getNumber(),
+                slice.getSize());
     }
 
     @Override

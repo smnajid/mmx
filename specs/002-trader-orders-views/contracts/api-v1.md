@@ -146,6 +146,7 @@ Intake endpoint called by the external Portfolio Management system.
 |-------|------|---------|-------------|
 | page | int | 0 | Zero-based page number |
 | size | int | 20 | Page size (max 100) |
+| receivedView | enum | `NEAR_TERM` | `NEAR_TERM`: only orders whose `valueDate` falls within **today and the next two calendar days** inclusive in the **Europe/Paris** business calendar. `ALL`: full `RECEIVED` cohort for Term (no value-date window). |
 
 #### Responses
 
@@ -163,7 +164,7 @@ Intake endpoint called by the external Portfolio Management system.
 
 #### Query Parameters
 
-Same as List Received Term Orders.
+Same as List Received Term Orders (including `receivedView`).
 
 #### Responses
 

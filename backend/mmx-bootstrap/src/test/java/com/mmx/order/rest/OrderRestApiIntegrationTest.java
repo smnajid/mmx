@@ -76,7 +76,7 @@ class OrderRestApiIntegrationTest {
         assertThat(postJson("/api/v1/orders", termSubscribeJson(termRef)).statusCode()).isEqualTo(201);
         assertThat(postJson("/api/v1/orders", onCallSubscribeJson(onCallRef)).statusCode()).isEqualTo(201);
 
-        HttpResponse<String> res = get("/api/v1/orders/term/received", TRADER);
+        HttpResponse<String> res = get("/api/v1/orders/term/received?receivedView=ALL", TRADER);
         assertThat(res.statusCode()).isEqualTo(200);
         JsonNode root = objectMapper.readTree(res.body());
         assertThat(root.path("content").isArray()).isTrue();
@@ -93,12 +93,30 @@ class OrderRestApiIntegrationTest {
         postJson("/api/v1/orders", termSubscribeJson(termRef));
         postJson("/api/v1/orders", onCallSubscribeJson(onCallRef));
 
-        HttpResponse<String> res = get("/api/v1/orders/oncall/received", TRADER);
+        HttpResponse<String> res = get("/api/v1/orders/oncall/received?receivedView=ALL", TRADER);
         assertThat(res.statusCode()).isEqualTo(200);
         JsonNode root = objectMapper.readTree(res.body());
         for (JsonNode item : root.path("content")) {
             assertThat(item.path("orderType").asText()).isEqualTo("ON_CALL");
         }
+    }
+
+    @Test
+    void getTermReceived_nearTerm_excludesFarValueDate_allShowsThem() throws Exception {
+        String ref = "IT-FAR-" + System.nanoTime();
+        HttpResponse<String> created = postJson("/api/v1/orders", termSubscribeJson(ref));
+        assertThat(created.statusCode()).isEqualTo(201);
+        String orderId = objectMapper.readTree(created.body()).path("orderId").asText();
+
+        HttpResponse<String> narrow = get("/api/v1/orders/term/received", TRADER);
+        assertThat(narrow.statusCode()).isEqualTo(200);
+        JsonNode narrowRoot = objectMapper.readTree(narrow.body());
+        assertThat(contentHasOrderId(narrowRoot.path("content"), orderId)).isFalse();
+
+        HttpResponse<String> all = get("/api/v1/orders/term/received?receivedView=ALL", TRADER);
+        assertThat(all.statusCode()).isEqualTo(200);
+        JsonNode allRoot = objectMapper.readTree(all.body());
+        assertThat(contentHasOrderId(allRoot.path("content"), orderId)).isTrue();
     }
 
     @Test

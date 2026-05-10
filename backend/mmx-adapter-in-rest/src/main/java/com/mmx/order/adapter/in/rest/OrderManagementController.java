@@ -16,6 +16,7 @@ import com.mmx.order.application.port.in.UpdateAssignedOrderUseCase;
 import com.mmx.order.application.service.AssignmentService;
 import com.mmx.order.application.service.OrderQueryService;
 import com.mmx.order.domain.exception.OrderNotFoundException;
+import com.mmx.order.domain.model.ReceivedListView;
 import com.mmx.order.domain.model.TraderId;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -68,8 +69,11 @@ public class OrderManagementController implements OrdersApi {
     public ResponseEntity<OrderSummaryPage> listReceivedTermOrders(
             @RequestHeader(value = "X-Trader-Id", required = true) String xTraderId,
             @RequestParam(value = "page", required = false, defaultValue = "0") Integer page,
-            @RequestParam(value = "size", required = false, defaultValue = "20") Integer size) {
-        var result = orderQueryService.listReceivedTermOrders(page, size);
+            @RequestParam(value = "size", required = false, defaultValue = "20") Integer size,
+            @RequestParam(value = "receivedView", required = false, defaultValue = "NEAR_TERM")
+                    com.mmx.order.adapter.in.rest.generated.model.ReceivedListView receivedView) {
+        ReceivedListView view = mapReceivedView(receivedView);
+        var result = orderQueryService.listReceivedTermOrders(page, size, view);
         return ResponseEntity.ok(orderRestMapper.toSummaryPage(result));
     }
 
@@ -78,9 +82,20 @@ public class OrderManagementController implements OrdersApi {
     public ResponseEntity<OrderSummaryPage> listReceivedOnCallOrders(
             @RequestHeader(value = "X-Trader-Id", required = true) String xTraderId,
             @RequestParam(value = "page", required = false, defaultValue = "0") Integer page,
-            @RequestParam(value = "size", required = false, defaultValue = "20") Integer size) {
-        var result = orderQueryService.listReceivedOnCallOrders(page, size);
+            @RequestParam(value = "size", required = false, defaultValue = "20") Integer size,
+            @RequestParam(value = "receivedView", required = false, defaultValue = "NEAR_TERM")
+                    com.mmx.order.adapter.in.rest.generated.model.ReceivedListView receivedView) {
+        ReceivedListView view = mapReceivedView(receivedView);
+        var result = orderQueryService.listReceivedOnCallOrders(page, size, view);
         return ResponseEntity.ok(orderRestMapper.toSummaryPage(result));
+    }
+
+    private static ReceivedListView mapReceivedView(
+            com.mmx.order.adapter.in.rest.generated.model.ReceivedListView api) {
+        if (api == null) {
+            return ReceivedListView.NEAR_TERM;
+        }
+        return ReceivedListView.valueOf(api.name());
     }
 
     @Override

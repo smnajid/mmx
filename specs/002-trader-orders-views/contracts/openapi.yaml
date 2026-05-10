@@ -8,7 +8,7 @@ info:
     list response. Workspace **Assigned** lists are **desk-wide** (all assignees) per User Story 2.
     Human-readable mirror: [api-v1.md](./api-v1.md). Trader-facing operations require header
     `X-Trader-Id` (actor identity; Assigned workspace lists are not filtered by assignee).
-  version: 1.2.0
+  version: 1.3.0
 
 servers:
   - url: /
@@ -56,11 +56,14 @@ paths:
     get:
       tags: [Orders]
       summary: List received Term orders
+      description: |
+        By default (`receivedView=NEAR_TERM`) returns only orders whose `valueDate` falls within **today and the next two calendar days** inclusive in the business calendar (**Europe/Paris**). Use `receivedView=ALL` for the full RECEIVED cohort for this workspace type (session UX may pass this from a trader “show all” control).
       operationId: listReceivedTermOrders
       parameters:
         - $ref: "#/components/parameters/TraderIdHeader"
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/Size"
+        - $ref: "#/components/parameters/ReceivedListView"
       responses:
         "200":
           description: Paged Term orders in RECEIVED status
@@ -73,11 +76,14 @@ paths:
     get:
       tags: [Orders]
       summary: List received OnCall orders
+      description: |
+        Same near-term window behaviour as Term Received; see `GET /api/v1/orders/term/received`.
       operationId: listReceivedOnCallOrders
       parameters:
         - $ref: "#/components/parameters/TraderIdHeader"
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/Size"
+        - $ref: "#/components/parameters/ReceivedListView"
       responses:
         "200":
           description: Paged OnCall orders in RECEIVED status
@@ -467,6 +473,16 @@ components:
         maximum: 100
         default: 20
 
+    ReceivedListView:
+      name: receivedView
+      in: query
+      required: false
+      description: |
+        `NEAR_TERM` (default): only orders with `valueDate` in the inclusive three-calendar-day window (**today** through **today+2**) in **Europe/Paris**.
+        `ALL`: every RECEIVED order for this workspace type (matches legacy unpaged-all behaviour).
+      schema:
+        $ref: "#/components/schemas/ReceivedListView"
+
   schemas:
     ErrorCode:
       type: string
@@ -499,6 +515,12 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/FieldError"
+
+    ReceivedListView:
+      type: string
+      description: Received list horizon for workspace Received queues (US3)
+      enum: [NEAR_TERM, ALL]
+      default: NEAR_TERM
 
     OrderType:
       type: string

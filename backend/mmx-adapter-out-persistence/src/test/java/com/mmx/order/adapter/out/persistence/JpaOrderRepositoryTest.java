@@ -2,6 +2,7 @@ package com.mmx.order.adapter.out.persistence;
 
 import com.mmx.order.adapter.out.persistence.mapper.OrderPersistenceMapper;
 import com.mmx.order.adapter.out.persistence.repository.SpringDataOrderRepository;
+import com.mmx.order.application.port.in.OrderPage;
 import com.mmx.order.domain.model.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -138,6 +139,42 @@ class JpaOrderRepositoryTest {
 
             assertThat(termReceived).hasSize(2);
             assertThat(termReceived).allMatch(o -> o.getOrderType() == OrderType.TERM);
+        }
+    }
+
+    @Nested
+    @DisplayName("findReceivedPageByOrderType")
+    class FindReceivedPage {
+
+        @Test
+        void valueDateRange_excludes_outside_bounds() {
+            repository.save(createTermOrder("PAGE-IN"));
+            MoneyMarketOrder far = MoneyMarketOrder.create(
+                    new ExternalOrderReference("PAGE-OUT"),
+                    OrderType.TERM,
+                    OrderOperation.SUBSCRIPTION,
+                    new PortfolioNumber("PF-R"),
+                    "EUR",
+                    new BigDecimal("100000.00"),
+                    TODAY.plusDays(20),
+                    new BigDecimal("3.00000000"),
+                    Tenor._1M,
+                    null,
+                    null,
+                    null,
+                    TODAY);
+            repository.save(far);
+
+            OrderPage page =
+                    repository.findReceivedPageByOrderType(
+                            OrderType.TERM,
+                            java.util.Optional.of(TODAY),
+                            java.util.Optional.of(TODAY.plusDays(2)),
+                            0,
+                            20);
+
+            assertThat(page.content()).hasSize(1);
+            assertThat(page.content().getFirst().getExternalOrderReference().value()).isEqualTo("PAGE-IN");
         }
     }
 

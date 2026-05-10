@@ -107,11 +107,21 @@
 
 ---
 
+## Phase 6: User Story 3 — Received near-term + show all (OpenSpec `received-near-term-window`)
+
+**Goal**: Default `receivedView=NEAR_TERM` on `GET .../term|oncall/received`; optional `ALL`; SPA session toggle without persisting preference ([spec.md](spec.md) FR-004, FR-005).
+
+- [x] T027 [US3] Contracts: [contracts/openapi.yaml](contracts/openapi.yaml) v1.3.0 `receivedView`; [contracts/api-v1.md](contracts/api-v1.md).
+- [x] T028 [US3] Backend: paged `findReceivedPageByOrderType`; `OrderQueryService` + Paris calendar window; `OrderManagementController` mapping.
+- [x] T029 [P] [US3] Tests: `OrderQueryServiceTest`, `JpaOrderRepositoryTest` (range), `OrderRestApiIntegrationTest` (default vs `ALL`).
+- [x] T030 [US3] Angular: `ReceivedViewModeService`, `OrderApiService` query param, Received list checkboxes (Term + OnCall), Cypress `trader-workflow.cy.ts` enables show-all for far-dated seed.
+
+---
+
 ## Deferred (future `/speckit.tasks`)
 
 | Story | Topic |
 |-------|--------|
-| US3 | Received near-term window + session “show all” |
 | US4–US5 | Executed-not-accounted, accounting confirmation, handoff |
 
 ---
@@ -171,9 +181,10 @@
 
 | Metric | Value |
 |--------|------:|
-| Total tasks | 26 |
+| Total tasks | 30 |
 | US1 tasks (Phase 3–4) | 14 |
 | US2 tasks (Phase 5) | 5 |
+| US3 tasks (Phase 6) | 4 |
 | Parallel-eligible | T007, T010, T011, T021 |
 
-**Suggested MVP scope**: US1 through **T019** + **T020–T021**; US2 **T022–T026**.
+**Suggested MVP scope**: US1 through **T019** + **T020–T021**; US2 **T022–T026**; US3 **T027–T030**.

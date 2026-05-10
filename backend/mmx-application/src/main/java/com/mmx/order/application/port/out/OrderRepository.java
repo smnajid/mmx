@@ -6,6 +6,9 @@ import com.mmx.order.domain.model.OrderStatus;
 import com.mmx.order.domain.model.OrderType;
 import com.mmx.order.domain.model.TraderId;
 
+import com.mmx.order.application.port.in.OrderPage;
+
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -19,6 +22,14 @@ public interface OrderRepository {
     Optional<MoneyMarketOrder> findByExternalOrderReference(ExternalOrderReference reference);
 
     List<MoneyMarketOrder> findByStatusAndOrderType(OrderStatus status, OrderType orderType);
+
+    /**
+     * Paged RECEIVED orders for a workspace type. When {@code valueDateFrom} and {@code valueDateTo}
+     * are present, restricts to {@code valueDate} in that inclusive range; when both are empty, no
+     * valueDate filter.
+     */
+    OrderPage findReceivedPageByOrderType(
+            OrderType orderType, Optional<LocalDate> valueDateFrom, Optional<LocalDate> valueDateTo, int page, int size);
 
     List<MoneyMarketOrder> findByAssignedTraderIdAndStatus(TraderId traderId, OrderStatus status);
 

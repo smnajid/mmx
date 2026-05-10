@@ -58,8 +58,8 @@ public class OrderModuleConfiguration {
     }
 
     @Bean
-    public OrderQueryService orderQueryService(OrderRepository orderRepository) {
-        return new OrderQueryService(orderRepository);
+    public OrderQueryService orderQueryService(OrderRepository orderRepository, Clock clock) {
+        return new OrderQueryService(orderRepository, clock);
     }
 
     @Bean

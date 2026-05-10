@@ -18,9 +18,13 @@ export interface PagedResponse<T> {
   size: number;
 }
 
+export type ReceivedListView = 'NEAR_TERM' | 'ALL';
+
 export interface PageParams {
   page?: number;
   size?: number;
+  /** Received queues only (GET .../term|oncall/received). */
+  receivedView?: ReceivedListView;
 }
 
 const BASE_URL = '/api/v1/orders';
@@ -202,6 +206,9 @@ export class OrderApiService {
     }
     if (params.size !== undefined) {
       httpParams = httpParams.set('size', params.size.toString());
+    }
+    if (params.receivedView !== undefined) {
+      httpParams = httpParams.set('receivedView', params.receivedView);
     }
     return httpParams;
   }
