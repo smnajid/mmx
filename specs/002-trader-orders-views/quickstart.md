@@ -4,7 +4,7 @@
 
 ## Preconditions
 
-- Backend and DB running per [001 quickstart](../001-mm-order-processing/quickstart.md) (same stack).
+- Backend and DB running per [001 quickstart](../001-mm-order-processing/quickstart.md) (same stack). On **GitHub Codespaces**, use the **GitHub Codespaces** section there (dev container + forwarded ports).
 - OpenAPI codegen in `mmx-adapter-in-rest` points at `specs/002-trader-orders-views/contracts/openapi.yaml` after implementation tasks (see [plan.md](plan.md)).
 
 ## 1. Seed two orders (Term + OnCall)

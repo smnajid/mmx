@@ -4,8 +4,8 @@
 
 | Tool | Version | Verify Command |
 |------|---------|---------------|
-| Java JDK | 21+ | `java --version` |
-| Maven | 3.9+ | `mvn --version` (or use included `./mvnw`) |
+| Java JDK | 25 (matches `backend/pom.xml`) | `java --version` |
+| Maven | 3.9+ | `mvn --version` |
 | Node.js | 22 LTS+ | `node --version` |
 | npm | 10+ | `npm --version` |
 | Angular CLI | 21+ | `ng version` |
@@ -22,8 +22,29 @@ mmx/
 ├── specs/            ← Spec Kit specifications and plans
 ├── .specify/         ← Spec Kit configuration
 ├── docker-compose.yml
+├── .devcontainer/      ← GitHub Codespaces / Dev Containers (Java, Node, Docker)
 └── docs/
 ```
+
+## GitHub Codespaces
+
+The repo includes [`.devcontainer/devcontainer.json`](../../.devcontainer/devcontainer.json). Creating a Codespace (or opening the folder in a Dev Container locally) will:
+
+1. Install **Java 25 (Temurin)**, **Maven**, **Node 22**, the **Docker CLI** (Compose v2), and optional **SSHD**.
+2. Run **`.devcontainer/post-create.sh` once**: `docker compose up -d postgres`, wait for `pg_isready`, **`npm ci`** in `frontend/`, then **`mvn -B -DskipTests install`** in `backend/`.
+3. On each container start, **`postStartCommand`** runs `docker compose up -d postgres` so the DB is up after stop/start.
+
+Run the app the same as below, but bind Angular to all interfaces so forwarded ports work:
+
+```bash
+cd backend && mvn spring-boot:run -pl mmx-bootstrap
+```
+
+```bash
+cd frontend && npm run start -- --proxy-config proxy.conf.json --host 0.0.0.0 --port 4200
+```
+
+Then use the **Ports** tab (forward **8080** and **4200**) in the browser or desktop client.
 
 ## 1. Start the Database
 
@@ -48,8 +69,8 @@ From the repository root:
 
 ```bash
 cd backend
-./mvnw clean install
-./mvnw spring-boot:run -pl mmx-bootstrap
+mvn clean install
+mvn spring-boot:run -pl mmx-bootstrap
 ```
 
 The backend starts on `http://localhost:8080`.
@@ -57,7 +78,7 @@ The backend starts on `http://localhost:8080`.
 **Without Docker Postgres (optional):** activate the `local` profile so the app uses the H2 definition in [`application-local.yml`](../../../backend/mmx-bootstrap/src/main/resources/application-local.yml):
 
 ```bash
-./mvnw spring-boot:run -pl mmx-bootstrap -Dspring-boot.run.profiles=local
+mvn spring-boot:run -pl mmx-bootstrap -Dspring-boot.run.profiles=local
 ```
 
 In the IDE, set VM options `-Dspring.profiles.active=local` (or program args `--spring.profiles.active=local`) on `MmxApplication`.
@@ -93,14 +114,14 @@ The `mmx-adapter-in-rest` module uses the **OpenAPI Generator** Maven plugin twi
 
    ```bash
    cd backend
-   ./mvnw generate-sources -pl mmx-adapter-in-rest
-   ./mvnw compile -pl mmx-adapter-in-rest
+   mvn generate-sources -pl mmx-adapter-in-rest
+   mvn compile -pl mmx-adapter-in-rest
    ```
 
 3. Fix compilation and mapping code: update `OrderRestMapper`, `GlobalExceptionHandler`, and controller implementations of generated `*Api` interfaces if enum names, required fields, or types changed.
-4. Run tests for affected modules (for example `./mvnw verify -pl mmx-adapter-in-rest,mmx-bootstrap -am`).
+4. Run tests for affected modules (for example `mvn verify -pl mmx-adapter-in-rest,mmx-bootstrap -am`).
 
-A normal `./mvnw install` or `compile` from `backend/` runs generation automatically for `mmx-adapter-in-rest`, so you only need the explicit `generate-sources` step when iterating on the YAML alone.
+A normal `mvn install` or `compile` from `backend/` runs generation automatically for `mmx-adapter-in-rest`, so you only need the explicit `generate-sources` step when iterating on the YAML alone.
 
 ## 3. Build and Run the Frontend
 
@@ -108,11 +129,11 @@ From the repository root:
 
 ```bash
 cd frontend
-npm install
-ng serve
+npm ci
+npm run start -- --proxy-config proxy.conf.json
 ```
 
-The frontend starts on `http://localhost:4200` and proxies API calls to the backend at `http://localhost:8080`.
+The frontend starts on `http://localhost:4200` and proxies API calls to the backend at `http://localhost:8080`. For **GitHub Codespaces**, add `--host 0.0.0.0` to the `npm run start` command so port forwarding can reach the dev server (see [GitHub Codespaces](#github-codespaces) above).
 
 ## 4. Test a Complete Workflow
 
@@ -185,13 +206,13 @@ Expected: `200 OK` with the order in `EXECUTED` status, including generated `dea
 cd backend
 
 # Unit tests only (domain + application)
-./mvnw test -pl mmx-domain,mmx-application
+mvn test -pl mmx-domain,mmx-application
 
 # Integration tests (requires Docker for Testcontainers)
-./mvnw verify -pl mmx-adapter-out-persistence
+mvn verify -pl mmx-adapter-out-persistence
 
 # All tests
-./mvnw verify
+mvn verify
 ```
 
 ### Frontend Tests
@@ -259,7 +280,7 @@ server:
 }
 ```
 
-Run with proxy: `ng serve --proxy-config proxy.conf.json`
+Run with proxy: `npm run start -- --proxy-config proxy.conf.json` (from `frontend/`).
 
 ## Troubleshooting
 
@@ -267,6 +288,6 @@ Run with proxy: `ng serve --proxy-config proxy.conf.json`
 |---------|----------|
 | Port 5432 in use | Stop existing PostgreSQL: `docker compose down` then `docker compose up -d postgres` |
 | Flyway migration error | Drop and recreate the database: `docker compose down -v && docker compose up -d postgres` |
-| Backend won't start | Check Java version: `java --version` (must be 21+) |
-| Frontend can't reach backend | Ensure proxy config is active: `ng serve --proxy-config proxy.conf.json` |
+| Backend won't start | Check Java version: `java --version` (must match `java.version` in `backend/pom.xml`, currently 25) |
+| Frontend can't reach backend | Ensure proxy config is active: `npm run start -- --proxy-config proxy.conf.json` (add `--host 0.0.0.0` in Codespaces) |
 | Tests fail with Docker error | Ensure Docker is running: `docker info` |
