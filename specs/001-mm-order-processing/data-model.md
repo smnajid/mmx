@@ -10,7 +10,7 @@ The single aggregate root of the Order Processing bounded context. Encapsulates 
 
 **Invariants enforced in the aggregate:**
 - OrderOperation MUST be valid for the given OrderType
-- Subscription orders MUST have all required fields populated (no sourceContractNumber)
+- Subscription orders MUST have all required fields populated; persisted `sourceContractNumber` MUST be null (PM MAY send the field on the wire — application receive discards it)
 - Increase/Decrease/Redemption orders MUST have sourceContractNumber
 - Term orders MUST have a Tenor and MUST NOT have a NoticePeriod
 - OnCall orders MUST have a NoticePeriod and MUST NOT have a Tenor
@@ -36,7 +36,7 @@ The single aggregate root of the Order Processing bounded context. Encapsulates 
 | `minimumRate` | `BigDecimal` | Yes | Optional PM execution floor at intake; when present must be ≥ 0; scale=8; immutable after creation |
 | `tenor` | `Tenor` | Yes | Required for TERM orders; null for ON_CALL |
 | `noticePeriod` | `NoticePeriod` | Yes | Required for ON_CALL orders; null for TERM |
-| `sourceContractNumber` | `ContractNumber` | Yes | Existing contract referenced by Increase/Decrease/Redemption; null for Subscription |
+| `sourceContractNumber` | `ContractNumber` | Yes | Existing contract referenced by Increase/Decrease/Redemption; always null for persisted Subscription orders (ignored at reception if PM sends it) |
 | `desiredCounterpartyComment` | `String` | Yes | Optional free-text counterparty preference from Portfolio Management at intake only; not mutable by Trader on update |
 | `status` | `OrderStatus` | No | Current lifecycle state |
 | `assignment` | `Assignment` | Yes | Current Trader assignment; null when not assigned |
@@ -126,7 +126,7 @@ Composite value object capturing all data recorded at execution time. Immutable 
 | `counterparty` | `String` | Not blank; max 200 characters |
 | `executionTime` | `Instant` | Not null; system-generated |
 | `dealingReference` | `DealingReference` | Not null; system-generated |
-| `generatedContractNumber` | `ContractNumber` | Not null; system-generated |
+| `generatedContractNumber` | `ContractNumber` | Not null; for Subscription, newly generated at execution; for Increase/Decrease/Redemption, equals persisted intake `sourceContractNumber` |
 
 ## Enumerations
 

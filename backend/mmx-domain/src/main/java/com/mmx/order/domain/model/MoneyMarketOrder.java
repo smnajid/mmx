@@ -227,6 +227,10 @@ public class MoneyMarketOrder {
             throw new InvalidOrderException(
                     "executedRate must be greater than or equal to MinimumRate (" + minimumRate + ")");
         }
+        if (LIFECYCLE_OPERATIONS.contains(this.orderOperation) && generatedContractNumber == null) {
+            throw new InvalidOrderException(
+                    "sourceContractNumber is required for " + this.orderOperation + " operations");
+        }
         this.status = this.status.transitionTo(OrderStatus.EXECUTED);
         this.executionDetails = new ExecutionDetails(
                 executedRate, counterparty, now, dealingReference, generatedContractNumber

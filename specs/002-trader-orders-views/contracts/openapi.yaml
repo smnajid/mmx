@@ -624,6 +624,9 @@ components:
           type: string
           nullable: true
           maxLength: 50
+          description: >
+            Required when orderOperation is INCREASE, DECREASE, or REDEMPTION (existing MM contract).
+            When orderOperation is SUBSCRIPTION, MUST NOT be persisted; if supplied, the service discards it at reception.
         desiredCounterpartyComment:
           type: string
           nullable: true
@@ -758,6 +761,10 @@ components:
         sourceContractNumber:
           type: string
           nullable: true
+          description: >
+            Intake contract reference for lifecycle operations (INCREASE, DECREASE, REDEMPTION); null for Subscription
+            (PM-supplied value is discarded at reception). After execute on lifecycle orders, echoes the same reference
+            as used for execution contract identity.
         desiredCounterpartyComment:
           type: string
           nullable: true
@@ -787,6 +794,9 @@ components:
         generatedContractNumber:
           type: string
           nullable: true
+          description: >
+            After execution: new Money Market contract reference allocated by the system for SUBSCRIPTION orders;
+            for INCREASE, DECREASE, and REDEMPTION equals the persisted intake sourceContractNumber (same underlying contract).
         rejectionReason:
           type: string
           nullable: true

@@ -83,6 +83,8 @@ Error codes: `VALIDATION_ERROR`, `ORDER_NOT_FOUND`, `INVALID_STATUS_TRANSITION`,
 }
 ```
 
+Execution identifiers: `dealingReference` is always newly generated when an order is executed. `generatedContractNumber` is newly allocated for **SUBSCRIPTION** executions; for **INCREASE**, **DECREASE**, and **REDEMPTION** it matches the persisted intake `sourceContractNumber`.
+
 ---
 
 ## Endpoints
@@ -124,7 +126,7 @@ Intake endpoint called by the external Portfolio Management system.
 | minimumRate | decimal | No | Portfolio Manager execution floor when provided; must be ≥ 0 if present; when absent, Trader executes subject to best market conditions |
 | tenor | string | Conditional | Required if orderType=TERM; one of: 1W, 2W, 1M, 3M, 6M, 1Y |
 | noticePeriod | string | Conditional | Required if orderType=ON_CALL; one of: 24H, 48H |
-| sourceContractNumber | string | Conditional | Required if orderOperation ∈ {INCREASE, DECREASE, REDEMPTION} |
+| sourceContractNumber | string | Conditional | Required if orderOperation ∈ {INCREASE, DECREASE, REDEMPTION}. For SUBSCRIPTION the system does not store this field; if PM sends it, it is discarded at reception. |
 | desiredCounterpartyComment | string | No | Free text; max 500 chars |
 
 #### Responses

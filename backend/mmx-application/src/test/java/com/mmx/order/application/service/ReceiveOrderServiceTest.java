@@ -6,6 +6,7 @@ import com.mmx.order.application.port.out.AuditLogger;
 import com.mmx.order.application.port.out.Clock;
 import com.mmx.order.application.port.out.OrderRepository;
 import com.mmx.order.domain.exception.InvalidOrderException;
+import com.mmx.order.domain.model.ContractNumber;
 import com.mmx.order.domain.model.ExternalOrderReference;
 import com.mmx.order.domain.model.MoneyMarketOrder;
 import com.mmx.order.domain.model.OrderOperation;
@@ -82,6 +83,34 @@ class ReceiveOrderServiceTest {
         assertThat(result.orderId()).isEqualTo(persisted.getId());
         assertThat(persisted.getExternalOrderReference()).isEqualTo(ref);
         assertThat(persisted.getAmount()).isEqualByComparingTo(new BigDecimal("1000000.00"));
+    }
+
+    @Test
+    void receive_subscription_withSourceContractNumber_persistsNullSource() {
+        var ref = new ExternalOrderReference("PM-sub-src-001");
+        ReceiveOrderCommand command =
+                new ReceiveOrderCommand(
+                        ref,
+                        OrderType.TERM,
+                        OrderOperation.SUBSCRIPTION,
+                        new PortfolioNumber("PF-1"),
+                        "EUR",
+                        new BigDecimal("1000000.00"),
+                        TODAY.plusDays(5),
+                        new BigDecimal("3.25000000"),
+                        Tenor._3M,
+                        null,
+                        new ContractNumber("CN-should-not-stick"),
+                        "note");
+
+        when(orderRepository.findByExternalOrderReference(ref)).thenReturn(Optional.empty());
+        when(orderRepository.save(any(MoneyMarketOrder.class))).then(returnsFirstArg());
+
+        subject.receive(command);
+
+        ArgumentCaptor<MoneyMarketOrder> orderCaptor = ArgumentCaptor.forClass(MoneyMarketOrder.class);
+        verify(orderRepository).save(orderCaptor.capture());
+        assertThat(orderCaptor.getValue().getSourceContractNumber()).isNull();
     }
 
     @Test

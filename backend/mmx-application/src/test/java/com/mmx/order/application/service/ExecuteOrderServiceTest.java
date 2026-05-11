@@ -11,9 +11,12 @@ import com.mmx.order.domain.exception.OrderNotFoundException;
 import com.mmx.order.domain.exception.UnauthorizedTraderException;
 import com.mmx.order.domain.model.ContractNumber;
 import com.mmx.order.domain.model.DealingReference;
+import com.mmx.order.domain.model.Assignment;
 import com.mmx.order.domain.model.ExternalOrderReference;
 import com.mmx.order.domain.model.MoneyMarketOrder;
+import com.mmx.order.domain.model.NoticePeriod;
 import com.mmx.order.domain.model.OrderOperation;
+import com.mmx.order.domain.model.OrderStatus;
 import com.mmx.order.domain.model.OrderType;
 import com.mmx.order.domain.model.PortfolioNumber;
 import com.mmx.order.domain.model.Tenor;
@@ -54,6 +57,7 @@ class ExecuteOrderServiceTest {
 
     private static final DealingReference DEAL_REF = new DealingReference("DL-test-001");
     private static final ContractNumber CONTRACT_REF = new ContractNumber("CN-test-001");
+    private static final ContractNumber LIFECYCLE_SOURCE_REF = new ContractNumber("CN-lifecycle-src");
 
     @Mock
     OrderRepository orderRepository;
@@ -207,6 +211,69 @@ class ExecuteOrderServiceTest {
     }
 
     @Test
+    void execute_lifecycle_success_reuses_source_never_calls_contract_generator() {
+        MoneyMarketOrder assigned = assignedOnCallIncreaseOrder();
+        when(orderRepository.findById(assigned.getId())).thenReturn(Optional.of(assigned));
+        when(orderRepository.save(any(MoneyMarketOrder.class))).then(returnsFirstArg());
+        when(referenceGenerator.generateDealingReference()).thenReturn(DEAL_REF);
+
+        ExecuteOrderCommand command =
+                new ExecuteOrderCommand(
+                        assigned.getId(),
+                        TRADER_A,
+                        new BigDecimal("3.55000000"),
+                        "BankCo International");
+
+        MoneyMarketOrder result = subject.execute(command);
+
+        assertThat(result.getStatus()).isEqualTo(OrderStatus.EXECUTED);
+        assertThat(result.getExecutionDetails().generatedContractNumber()).isEqualTo(LIFECYCLE_SOURCE_REF);
+        assertThat(result.getExecutionDetails().dealingReference()).isEqualTo(DEAL_REF);
+
+        verify(referenceGenerator).generateDealingReference();
+        verify(referenceGenerator, never()).generateContractNumber();
+    }
+
+    @Test
+    void execute_lifecycle_missing_source_rejected_before_refs_and_save() {
+        UUID id = UUID.randomUUID();
+        MoneyMarketOrder corrupted =
+                MoneyMarketOrder.reconstitute(
+                        id,
+                        new ExternalOrderReference("PM-BAD-SRC"),
+                        OrderType.ON_CALL,
+                        OrderOperation.INCREASE,
+                        new PortfolioNumber("PF-1"),
+                        "EUR",
+                        new BigDecimal("1000000.00"),
+                        TODAY.plusDays(5),
+                        null,
+                        null,
+                        NoticePeriod._24H,
+                        null,
+                        null,
+                        OrderStatus.ASSIGNED,
+                        new Assignment(TRADER_A, FIXED_NOW),
+                        null,
+                        null,
+                        FIXED_NOW,
+                        FIXED_NOW);
+
+        when(orderRepository.findById(id)).thenReturn(Optional.of(corrupted));
+
+        ExecuteOrderCommand command =
+                new ExecuteOrderCommand(
+                        id, TRADER_A, new BigDecimal("3.55"), "BankCo International");
+
+        assertThatThrownBy(() -> subject.execute(command)).isInstanceOf(InvalidOrderException.class);
+
+        verify(referenceGenerator, never()).generateDealingReference();
+        verify(referenceGenerator, never()).generateContractNumber();
+        verify(orderRepository, never()).save(any());
+        verify(auditLogger, never()).log(any(), any(), any(), any());
+    }
+
+    @Test
     void execute_when_no_pm_minimum_accepts_rate_below_other_orders_typical_floor() {
         MoneyMarketOrder open = receivedOrderWithoutMinimum();
         open.assign(TRADER_A, FIXED_NOW);
@@ -242,6 +309,26 @@ class ExecuteOrderServiceTest {
                 null,
                 null,
                 TODAY);
+    }
+
+    private static MoneyMarketOrder assignedOnCallIncreaseOrder() {
+        MoneyMarketOrder order =
+                MoneyMarketOrder.create(
+                        new ExternalOrderReference("PM-LIFE-" + UUID.randomUUID()),
+                        OrderType.ON_CALL,
+                        OrderOperation.INCREASE,
+                        new PortfolioNumber("PF-L"),
+                        "EUR",
+                        new BigDecimal("500000.00"),
+                        TODAY.plusDays(5),
+                        null,
+                        null,
+                        NoticePeriod._24H,
+                        LIFECYCLE_SOURCE_REF,
+                        null,
+                        TODAY);
+        order.assign(TRADER_A, FIXED_NOW);
+        return order;
     }
 
     private static MoneyMarketOrder receivedOrderWithoutMinimum() {

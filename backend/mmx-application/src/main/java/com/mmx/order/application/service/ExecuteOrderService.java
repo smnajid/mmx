@@ -8,7 +8,9 @@ import com.mmx.order.application.port.out.OrderRepository;
 import com.mmx.order.application.port.out.ReferenceGenerator;
 import com.mmx.order.domain.exception.InvalidOrderException;
 import com.mmx.order.domain.exception.OrderNotFoundException;
+import com.mmx.order.domain.model.ContractNumber;
 import com.mmx.order.domain.model.MoneyMarketOrder;
+import com.mmx.order.domain.model.OrderOperation;
 
 public final class ExecuteOrderService implements ExecuteOrderUseCase {
 
@@ -37,8 +39,8 @@ public final class ExecuteOrderService implements ExecuteOrderUseCase {
                 orderRepository.findById(command.orderId()).orElseThrow(() -> new OrderNotFoundException(command.orderId()));
 
         var now = clock.now();
+        ContractNumber contractNumber = resolveExecutionContractNumber(order);
         var dealingReference = referenceGenerator.generateDealingReference();
-        var contractNumber = referenceGenerator.generateContractNumber();
 
         order.execute(
                 command.executedRate(),
@@ -60,5 +62,17 @@ public final class ExecuteOrderService implements ExecuteOrderUseCase {
         if (command.counterparty() == null || command.counterparty().isBlank()) {
             throw new InvalidOrderException("counterparty is required");
         }
+    }
+
+    private ContractNumber resolveExecutionContractNumber(MoneyMarketOrder order) {
+        if (order.getOrderOperation() == OrderOperation.SUBSCRIPTION) {
+            return referenceGenerator.generateContractNumber();
+        }
+        ContractNumber source = order.getSourceContractNumber();
+        if (source == null) {
+            throw new InvalidOrderException(
+                    "sourceContractNumber is required for " + order.getOrderOperation() + " operations");
+        }
+        return source;
     }
 }

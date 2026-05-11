@@ -139,6 +139,38 @@ class MoneyMarketOrderLifecycleTest {
         }
 
         @Test
+        void execute_lifecycle_with_null_contract_parameter_throws() {
+            MoneyMarketOrder increase =
+                    MoneyMarketOrder.create(
+                            new ExternalOrderReference("PM-LC-NULL-CN"),
+                            OrderType.ON_CALL,
+                            OrderOperation.INCREASE,
+                            new PortfolioNumber("PF-001"),
+                            "EUR",
+                            new BigDecimal("5000000.00"),
+                            TODAY.plusDays(2),
+                            null,
+                            null,
+                            NoticePeriod._24H,
+                            new ContractNumber("CN-SRC"),
+                            null,
+                            TODAY);
+            increase.assign(TRADER_A, NOW);
+
+            assertThatThrownBy(
+                            () ->
+                                    increase.execute(
+                                            new BigDecimal("3.50000000"),
+                                            "BankCo International",
+                                            new DealingReference("DL-x"),
+                                            null,
+                                            TRADER_A,
+                                            NOW))
+                    .isInstanceOf(InvalidOrderException.class)
+                    .hasMessageContaining("sourceContractNumber");
+        }
+
+        @Test
         void execute_below_minimum_rate_throws_when_floor_present() {
             assertThatThrownBy(() -> receivedOrder.execute(
                     new BigDecimal("3.24000000"), "BankCo",

@@ -5,7 +5,7 @@
 
 ## Summary
 
-Build an internal application that receives Money Market orders from an external Portfolio Management system via REST API and supports the Trader operational workflow (assign, update, execute, cancel, reject). The backend uses Spring Boot 4.0.5 with strict Hexagonal Architecture inside a Modular Monolith. The frontend uses Angular 21 with feature-based standalone components. Market dealing itself happens outside the system; execution means the Trader records the outcome. The application generates `ContractNumber` and `DealingReference` at execution time and models integration with the downstream Deposits system as an outbound port.
+Build an internal application that receives Money Market orders from an external Portfolio Management system via REST API and supports the Trader operational workflow (assign, update, execute, cancel, reject). The backend uses Spring Boot 4.0.5 with strict Hexagonal Architecture inside a Modular Monolith. The frontend uses Angular 21 with feature-based standalone components. Market dealing itself happens outside the system; execution means the Trader records the outcome. The application generates `DealingReference` at every execution; execution `ContractNumber` is newly generated for Subscription orders and reused from intake `sourceContractNumber` for lifecycle orders (Increase / Decrease / Redemption). Deposits integration is modeled as an outbound port.
 
 ## Technical Context
 
@@ -32,7 +32,7 @@ Build an internal application that receives Money Market orders from an external
 | II   | Domain Integrity                          | ✅ PASS | All invariants (OrderType/OrderOperation combos, tenors, notice periods, ValueDate, decimal precision) enforced in domain  |
 | III  | Order lifecycle (feature spec)            | ✅ PASS | Authoritative rules in [spec.md § Order lifecycle](spec.md#order-lifecycle-workflow-discipline); FR-019 / FR-020; domain aggregate |
 | IV   | Idempotency & Integration Boundaries      | ✅ PASS | ReceiveOrder idempotent via ExternalOrderReference UNIQUE constraint; Deposits modeled as outbound port                    |
-| V    | Execution Rules                           | ✅ PASS | ExecuteOrder captures ExecutedRate, Counterparty; generates DealingReference, ContractNumber; records system ExecutionTime |
+| V    | Execution Rules                           | ✅ PASS | ExecuteOrder captures ExecutedRate, Counterparty; generates DealingReference; allocates or reuses ContractNumber per operation; records system ExecutionTime |
 | VI   | API & UI Consistency                      | ✅ PASS | Backend single source of truth; Angular performs UX hints only; separate Term/OnCall views                                 |
 | VII  | Testing Discipline                        | ✅ PASS | TDD for domain/application; layered strategy: domain → application → adapter → e2e                                         |
 | VIII | Auditability & Security                   | ✅ PASS | `order_audit_log` table; all 8 auditable events covered; actor identity recorded                                           |
@@ -271,10 +271,10 @@ The aggregate enforces the allowed combinations:
 Domain value objects are Java `record` types with validation in compact constructors (see constitution II).
 
 - **ExternalOrderReference**: Typed wrapper around `String` (`record`). The idempotency key for order intake. Unique across the system.
-- **ContractNumber**: Typed wrapper (`record`). Used in two contexts: `sourceContractNumber` (existing contract for lifecycle actions) and `generatedContractNumber` (created at execution for Deposits integration).
+- **ContractNumber**: Typed wrapper (`record`). Used in two contexts: `sourceContractNumber` (existing contract for lifecycle actions at intake) and `generatedContractNumber` on `ExecutionDetails` (new allocation at execution for Subscription; equals `sourceContractNumber` for lifecycle operations).
 - **DealingReference**: Typed wrapper (`record`). System-generated at execution time.
 - **Assignment**: Composite record: `traderId: TraderId` + `assignedAt: Instant`. Cleared on unassign.
-- **ExecutionDetails**: Composite record: `executedRate: BigDecimal` + `counterparty: String` + `executionTime: Instant` + `dealingReference: DealingReference` + `generatedContractNumber: ContractNumber`. Immutable once set.
+- **ExecutionDetails**: Composite record: `executedRate: BigDecimal` + `counterparty: String` + `executionTime: Instant` + `dealingReference: DealingReference` + `generatedContractNumber: ContractNumber` (subscription: newly generated; lifecycle: same reference as intake `sourceContractNumber`). Immutable once set.
 
 ### Status State Machine
 
@@ -427,11 +427,11 @@ Reject from **ASSIGNED** is allowed only for the assigned Trader (`spec.md` FR-0
 | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Intent**               | Record execution data after market dealing happened externally                                                                                              |
 | **Inputs**               | `ExecuteOrderCommand { orderId, traderId, executedRate, counterparty }`                                                                                     |
-| **Output**               | Executed order with `status=EXECUTED`, generated `DealingReference`, generated `ContractNumber`, system `ExecutionTime`                                     |
-| **Business validations** | Order must exist; must be ASSIGNED; only assigned Trader can execute; executedRate must be provided and ≥ 0; counterparty must be provided and non-blank; when order has MinimumRate from intake, executedRate must be ≥ MinimumRate |
+| **Output**               | Executed order with `status=EXECUTED`, generated `DealingReference`, execution `generatedContractNumber` (new for Subscription; lifecycle equals `sourceContractNumber`), system `ExecutionTime`                                     |
+| **Business validations** | Order must exist; must be ASSIGNED; only assigned Trader can execute; executedRate must be provided and ≥ 0; counterparty must be provided and non-blank; when order has MinimumRate from intake, executedRate must be ≥ MinimumRate; lifecycle operations must have persisted `sourceContractNumber` at execute |
 | **Authorization**        | Only the assigned Trader                                                                                                                                    |
 | **Status transition**    | ASSIGNED → EXECUTED                                                                                                                                         |
-| **System actions**       | Generate `DealingReference` via `ReferenceGenerator` port; generate `ContractNumber` via `ReferenceGenerator` port; record `ExecutionTime` via `Clock` port |
+| **System actions**       | Generate `DealingReference` via `ReferenceGenerator` port; resolve execution contract number (Subscription → `generateContractNumber()`; lifecycle → persisted `sourceContractNumber`, no generator call); record `ExecutionTime` via `Clock` port |
 | **Failure scenarios**    | Not found → 404; not ASSIGNED → 409; wrong Trader → 403; missing execution data → 400; executedRate below MinimumRate → 400 when MinimumRate present         |
 | **Audit events**         | `ORDER_EXECUTED` (orderId, traderId, timestamp, dealingReference, contractNumber, executedRate, counterparty)                                               |
 
@@ -631,9 +631,10 @@ CREATE INDEX idx_audit_event_time ON order_audit_log (event_time);
 
 ### ContractNumber Generation
 
-- **Format**: `CN-{UUID}` (e.g., `CN-e9d1f4a2-8b3c-...`)
-- **Where**: Same pattern as DealingReference. Domain defines the contract; adapter implements generation.
-- **Implementation**: `UuidReferenceGenerator` generates a UUID and prepends the `CN-` prefix.
+- **Format**: `CN-{UUID}` (e.g., `CN-e9d1f4a2-8b3c-...`) when newly allocated at execution (**Subscription** only in this product slice).
+- **Lifecycle orders**: Execution uses the existing intake reference (`sourceContractNumber`); **no** `generateContractNumber()` call for that execution path.
+- **Where**: Same pattern as DealingReference for generated values. Domain defines the contract; adapter implements generation.
+- **Implementation**: `UuidReferenceGenerator` generates a UUID and prepends the `CN-` prefix when invoked.
 
 ### What Belongs Where
 

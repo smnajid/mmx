@@ -483,6 +483,9 @@ components:
           type: string
           nullable: true
           maxLength: 50
+          description: >
+            Required when orderOperation is INCREASE, DECREASE, or REDEMPTION (existing MM contract).
+            When orderOperation is SUBSCRIPTION, MUST NOT be persisted; if supplied, the service discards it at reception.
         desiredCounterpartyComment:
           type: string
           nullable: true
@@ -601,6 +604,9 @@ components:
         sourceContractNumber:
           type: string
           nullable: true
+          description: >
+            Intake contract reference for lifecycle operations; null for persisted Subscription orders.
+            PM may send this field on Subscription requests; it is discarded at reception.
         desiredCounterpartyComment:
           type: string
           nullable: true
@@ -630,6 +636,8 @@ components:
         generatedContractNumber:
           type: string
           nullable: true
+          description: >
+            Populated after execution: newly allocated for SUBSCRIPTION; for lifecycle operations equals intake sourceContractNumber.
         rejectionReason:
           type: string
           nullable: true

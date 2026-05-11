@@ -5,7 +5,9 @@ import com.mmx.order.application.port.in.ReceiveOrderUseCase;
 import com.mmx.order.application.port.out.AuditLogger;
 import com.mmx.order.application.port.out.Clock;
 import com.mmx.order.application.port.out.OrderRepository;
+import com.mmx.order.domain.model.ContractNumber;
 import com.mmx.order.domain.model.MoneyMarketOrder;
+import com.mmx.order.domain.model.OrderOperation;
 
 public final class ReceiveOrderService implements ReceiveOrderUseCase {
 
@@ -44,12 +46,20 @@ public final class ReceiveOrderService implements ReceiveOrderUseCase {
                         command.minimumRate(),
                         command.tenor(),
                         command.noticePeriod(),
-                        command.sourceContractNumber(),
+                        intakeSourceContractNumber(command),
                         command.desiredCounterpartyComment(),
                         clock.today());
 
         MoneyMarketOrder saved = orderRepository.save(created);
         auditLogger.log(saved.getId(), EVENT_ORDER_RECEIVED, AUDIT_ACTOR_SYSTEM, clock.now());
         return new Result(saved.getId(), saved.getStatus(), true);
+    }
+
+    /** Subscription: ignore PM {@code sourceContractNumber} — not persisted. */
+    private static ContractNumber intakeSourceContractNumber(ReceiveOrderCommand command) {
+        if (command.orderOperation() == OrderOperation.SUBSCRIPTION) {
+            return null;
+        }
+        return command.sourceContractNumber();
     }
 }

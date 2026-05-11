@@ -85,7 +85,7 @@ A Trader selects a Received order and assigns it to themselves. This signals tha
 
 ### User Story 3 — Execute an Order (Priority: P3)
 
-After market dealing happens outside the system, the assigned Trader records the execution outcome. The Trader provides the ExecutedRate and the chosen Counterparty. The system generates a DealingReference, a ContractNumber (for downstream Deposits integration), and records the ExecutionTime automatically. The order then moves to Executed status. When Portfolio Management supplied a MinimumRate at intake, ExecutedRate must meet or exceed it; when MinimumRate was omitted, execution reflects best market outcome with no PM rate floor enforced beyond ExecutedRate being valid.
+After market dealing happens outside the system, the assigned Trader records the execution outcome. The Trader provides the ExecutedRate and the chosen Counterparty. The system generates a DealingReference, allocates or reuses the ContractNumber recorded as execution `generatedContractNumber` (**new** for Subscription via `ReferenceGenerator`; **equal to intake** `sourceContractNumber` for Increase, Decrease, and Redemption), and records the ExecutionTime automatically. The order then moves to Executed status. When Portfolio Management supplied a MinimumRate at intake, ExecutedRate must meet or exceed it; when MinimumRate was omitted, execution reflects best market outcome with no PM rate floor enforced beyond ExecutedRate being valid.
 
 **Why this priority**: Execution is the primary business outcome — it captures the result of market dealing and generates the identifiers needed by downstream systems.
 
@@ -93,7 +93,7 @@ After market dealing happens outside the system, the assigned Trader records the
 
 **Acceptance Scenarios**:
 
-1. **Given** an order assigned to a Trader, **When** the Trader provides a valid ExecutedRate and Counterparty, **Then** the order moves to Executed status with a system-generated DealingReference, ContractNumber, and ExecutionTime.
+1. **Given** an order assigned to a Trader, **When** the Trader provides a valid ExecutedRate and Counterparty, **Then** the order moves to Executed status with a system-generated DealingReference, an execution ContractNumber per Subscription vs lifecycle rules (see FR-018), and ExecutionTime.
 2. **Given** an order assigned to a Trader, **When** the Trader attempts to execute without providing ExecutedRate, **Then** the system rejects the execution with a clear error.
 3. **Given** an order assigned to a Trader, **When** the Trader attempts to execute without providing Counterparty, **Then** the system rejects the execution.
 4. **Given** an order assigned to Trader A, **When** Trader B attempts to execute it, **Then** the system rejects the action because only the assigned Trader can execute.
@@ -144,7 +144,7 @@ The assigned Trader can modify **Amount** and **ValueDate** before execution to 
 - What happens when the Portfolio Management system sends an order with an OrderOperation that is not allowed for the given OrderType (e.g., Redemption for a Term order)? The system rejects the order with a validation error specifying the invalid combination.
 - What happens when the Portfolio Management system sends an order with a ValueDate in the past? The system rejects the order.
 - What happens when the Portfolio Management system sends an order with Amount = 0 or a negative amount? The system rejects the order.
-- What happens when a Trader executes an order but the system fails to generate the DealingReference or ContractNumber? The execution fails entirely — no partial state is persisted.
+- What happens when a Trader executes an order but the system fails to generate the DealingReference, fails to allocate a new ContractNumber for a Subscription, or a lifecycle order lacks `sourceContractNumber` at execute? The execution fails entirely — no partial state is persisted.
 - What happens when two Traders try to assign the same Received order simultaneously? Only one succeeds; the other receives an error indicating the order is no longer in Received status.
 - What happens when Portfolio Management omits MinimumRate? The order is valid without a PM rate floor; the Trader may execute at the best rate achieved in the market (subject to normal execution validation).
 - What happens when Portfolio Management supplies MinimumRate but market conditions do not allow meeting it? The Trader must reject the order (with reason); the system must not accept an execution with ExecutedRate below that MinimumRate.
@@ -170,19 +170,20 @@ The assigned Trader can modify **Amount** and **ValueDate** before execution to 
 - **FR-015**: A Trader MUST be able to view a list of orders assigned to them.
 - **FR-016**: The assigned Trader MUST be able to update Amount and ValueDate on an Assigned order. Updated values MUST pass the same validation rules as the corresponding intake fields. The Trader MUST NOT change MinimumRate after intake.
 - **FR-017**: The assigned Trader MUST be able to execute an order by providing ExecutedRate and Counterparty (free-text input). Execution MUST fail if either is missing or blank. When the order has a MinimumRate from intake, ExecutedRate MUST be greater than or equal to MinimumRate; when MinimumRate was not supplied, no PM rate floor applies beyond valid execution data.
-- **FR-018**: Upon execution, the system MUST generate a DealingReference and a ContractNumber. The system MUST record the ExecutionTime automatically.
+- **FR-018**: Upon execution, the system MUST generate a DealingReference and MUST record the ExecutionTime automatically. For **Subscription** orders, the system MUST allocate a new ContractNumber via `ReferenceGenerator` (or equivalent) for execution `generatedContractNumber`. For **Increase**, **Decrease**, and **Redemption**, execution `generatedContractNumber` MUST equal the persisted intake `sourceContractNumber`, and the system MUST NOT call `ReferenceGenerator.generateContractNumber()` for that execution.
 - **FR-019**: Cancellation (order withdrawn, no longer needed) MUST be allowed only from Received status. Rejection (Trader refuses to proceed, including when PM execution conditions such as MinimumRate cannot be met) MUST be allowed from Received or Assigned status. Only the assigned Trader MAY reject an Assigned order; any Trader MAY reject a Received order. Rejection MUST include a reason.
 - **FR-020**: All status transitions MUST follow the allowed state machine: Received → Assigned, Received → Cancelled, Received → Rejected, Assigned → Received (unassign), Assigned → Executed, Assigned → Rejected. Any other transition MUST be rejected.
 - **FR-021**: Every mutating business action MUST produce an audit record capturing who performed it and when.
 - **FR-022**: The DesiredCounterpartyComment MAY be provided at order reception as an optional free-text field. It MUST NOT be modified by the Trader after intake. Counterparty itself is assigned only during execution.
 - **FR-023**: Any authenticated Trader MUST be able to view the full details of any order regardless of its status or assignment. Mutating actions remain restricted to the assigned Trader.
+- **FR-024**: On intake, when OrderOperation is Subscription, the system MUST NOT persist `sourceContractNumber`. If Portfolio Management supplies `sourceContractNumber` on a Subscription payload, the system MUST discard it at reception (the stored order has null `sourceContractNumber`).
 
 ### Key Entities
 
 - **MoneyMarketOrder**: The central business object representing an order. Characterized by its OrderType (Term or OnCall), OrderOperation (Subscription, Increase, Decrease, Redemption), financial details (Currency, Amount, ValueDate, **Tenor for Term** / **NoticePeriod for OnCall**, optional MinimumRate — PM execution floor when present), and lifecycle status (Received, Assigned, Executed, Cancelled, Rejected).
 - **Trader**: The internal user who assigns orders to themselves, manages them, and records execution outcomes.
 - **Assignment**: The relationship between a Trader and an order. Only one assignment at a time. Created when a Trader assigns an order; cleared on unassignment.
-- **ExecutionDetails**: The data captured when a Trader confirms execution: ExecutedRate, Counterparty (free-text name of the financial institution), ExecutionTime (system-recorded), DealingReference (system-generated), and ContractNumber (system-generated).
+- **ExecutionDetails**: The data captured when a Trader confirms execution: ExecutedRate, Counterparty (free-text name of the financial institution), ExecutionTime (system-recorded), DealingReference (system-generated), and `generatedContractNumber` (new allocation for Subscription; for lifecycle operations, same value as intake `sourceContractNumber`).
 
 ## Success Criteria *(mandatory)*
 
