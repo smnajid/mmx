@@ -3,7 +3,6 @@ package com.mmx.order.e2e;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mmx.order.MmxApplication;
-import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
@@ -30,15 +29,12 @@ import static org.assertj.core.api.Assertions.assertThat;
  * receive, list Term received, assign, execute, then verify EXECUTED payload (dealing reference and
  * generated contract number).
  *
- * <p>Excluded from {@code mvn test} by default via JUnit tag {@code docker}, so builds work without
- * Docker or spare RAM for the daemon. Run when Docker is up:
+ * <p>{@code disabledWithoutDocker} skips this class (no failure) when Docker is not available, so
+ * {@code mvn test} stays usable on machines without the daemon.
  *
- * <pre>mvn test -pl mmx-bootstrap -Pdocker-e2e</pre>
- *
- * {@code disabledWithoutDocker} keeps the class skipped (not failed) if Docker is unreachable when
- * the profile is enabled.
+ * <p>{@code spring.datasource.driver-class-name} is set explicitly because the {@code rest-test} profile
+ * pins the H2 driver while this test overrides the JDBC URL to PostgreSQL.
  */
-@Tag("docker")
 @Testcontainers(disabledWithoutDocker = true)
 @SpringBootTest(classes = MmxApplication.class, webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("rest-test")
@@ -62,6 +58,8 @@ class TraderWorkflowE2ETest {
         registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
         registry.add("spring.datasource.username", POSTGRES::getUsername);
         registry.add("spring.datasource.password", POSTGRES::getPassword);
+        // rest-test profile pins H2 driver; override so Flyway/JPA use Postgres with the container URL.
+        registry.add("spring.datasource.driver-class-name", () -> "org.postgresql.Driver");
     }
 
     @Test

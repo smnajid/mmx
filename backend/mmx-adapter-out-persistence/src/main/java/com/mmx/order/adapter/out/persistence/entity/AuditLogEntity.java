@@ -1,8 +1,6 @@
 package com.mmx.order.adapter.out.persistence.entity;
 
 import jakarta.persistence.*;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -28,7 +26,6 @@ public class AuditLogEntity {
     @Column(name = "event_time", nullable = false)
     private Instant eventTime;
 
-    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "details")
     private String details;
 

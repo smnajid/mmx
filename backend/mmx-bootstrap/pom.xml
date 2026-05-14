@@ -15,11 +15,6 @@
     <name>mmx-bootstrap</name>
     <description>Bootstrap module: Spring Boot entry point, wires all adapters, owns application configuration and Flyway migrations.</description>
 
-    <properties>
-        <!-- Skip Testcontainers-backed tests unless -Pdocker-e2e is active (Docker not required for default builds). -->
-        <surefire.excluded.groups>docker</surefire.excluded.groups>
-    </properties>
-
     <dependencies>
         <!-- All adapter modules assembled here -->
         <dependency>
@@ -90,26 +85,10 @@
         </resources>
         <plugins>
             <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <configuration>
-                    <excludedGroups>${surefire.excluded.groups}</excludedGroups>
-                </configuration>
-            </plugin>
-            <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
             </plugin>
         </plugins>
     </build>
-
-    <profiles>
-        <profile>
-            <id>docker-e2e</id>
-            <properties>
-                <surefire.excluded.groups/>
-            </properties>
-        </profile>
-    </profiles>
 
 </project>

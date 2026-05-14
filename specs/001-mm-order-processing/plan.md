@@ -597,7 +597,7 @@ V1 uses path-based versioning (`/api/v1/`). This is the simplest approach and su
 | `event_type` | `VARCHAR(50)`  | NOT NULL                             |
 | `actor_id`   | `VARCHAR(100)` | NOT NULL                             |
 | `event_time` | `TIMESTAMPTZ`  | NOT NULL                             |
-| `details`    | `JSONB`        | NULLABLE                             |
+| `details`    | `VARCHAR(10000)` | NULLABLE (JSON text; widened from JSONB via Flyway Java migration V5 for JDBC/Hibernate compatibility) |
 
 
 ### Indexes
@@ -616,6 +616,8 @@ CREATE INDEX idx_audit_event_time ON order_audit_log (event_time);
 - `V1__create_money_market_order_table.sql`
 - `V2__create_order_audit_log_table.sql`
 - `V3__add_indexes.sql`
+- `V4__minimum_rate_nullable.sql`
+- `V5__order_audit_log_details_varchar.java` (Java migration: `details` column string type for PostgreSQL/H2)
 
 ### Generated References Storage
 

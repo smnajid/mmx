@@ -143,9 +143,9 @@
 
 **Rationale:**
 
-- `order_audit_log` table stores `event_type`, `actor_id`, `event_time`, and optional JSONB `details`
+- `order_audit_log` table stores `event_type`, `actor_id`, `event_time`, and optional string `details` (JSON-shaped text; column is `VARCHAR(10000)` after migration V5 for Hibernate/JDBC compatibility)
 - The `AuditLogger` port is called by application services after each mutating operation
-- JSONB details field captures context-specific data (e.g., changed fields for updates, rejection reason for rejects)
+- JSON-shaped `details` field captures context-specific data (e.g., changed fields for updates, rejection reason for rejects); stored as nullable string (`VARCHAR(10000)`).
 - Simple and queryable; no external audit service or event bus needed
 
 **Alternatives considered:**
