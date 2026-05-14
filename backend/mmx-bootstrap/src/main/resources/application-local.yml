@@ -1,8 +1,8 @@
 # Activated with: --spring.profiles.active=local  (IDE run config or Maven)
 # Uses in-memory H2 in PostgreSQL compatibility mode so Postgres + Docker are not required for day-to-day dev.
 #
-# ddl-auto: none — schema comes from Flyway only. validate fails on H2 because order_audit_log.details is
-# materialized as JSON in H2 while the JPA mapping uses PostgreSQL JSONB (see AuditLogEntity).
+# ddl-auto: none — schema comes from Flyway only. For schema validation parity with PostgreSQL
+# (including JSON columns), prefer Docker Postgres over H2; local profile uses H2 for convenience.
 spring:
   datasource:
     url: jdbc:h2:mem:mmx_local;MODE=PostgreSQL;DATABASE_TO_LOWER=FALSE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
