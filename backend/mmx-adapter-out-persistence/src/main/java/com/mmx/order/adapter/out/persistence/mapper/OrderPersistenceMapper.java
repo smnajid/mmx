@@ -1,10 +1,21 @@
 package com.mmx.order.adapter.out.persistence.mapper;
 
-import com.mmx.order.adapter.out.persistence.entity.OrderEntity;
-import com.mmx.order.domain.model.*;
 import org.springframework.stereotype.Component;
 
-import java.time.Instant;
+import com.mmx.order.adapter.out.persistence.entity.OrderEntity;
+import com.mmx.order.domain.model.Assignment;
+import com.mmx.order.domain.model.ContractNumber;
+import com.mmx.order.domain.model.DealingReference;
+import com.mmx.order.domain.model.ExecutionDetails;
+import com.mmx.order.domain.model.ExternalOrderReference;
+import com.mmx.order.domain.model.MoneyMarketOrder;
+import com.mmx.order.domain.model.NoticePeriod;
+import com.mmx.order.domain.model.OrderOperation;
+import com.mmx.order.domain.model.OrderStatus;
+import com.mmx.order.domain.model.OrderType;
+import com.mmx.order.domain.model.PortfolioNumber;
+import com.mmx.order.domain.model.Tenor;
+import com.mmx.order.domain.model.TraderId;
 
 @Component
 public class OrderPersistenceMapper {
