@@ -3,6 +3,7 @@ package com.mmx.order.application.service;
 import com.mmx.order.application.command.ExecuteOrderCommand;
 import com.mmx.order.application.port.out.AuditLogger;
 import com.mmx.order.application.port.out.Clock;
+import com.mmx.order.application.port.out.ExecutionHandoffOutbox;
 import com.mmx.order.application.port.out.OrderRepository;
 import com.mmx.order.application.port.out.ReferenceGenerator;
 import com.mmx.order.domain.exception.InvalidOrderException;
@@ -71,6 +72,9 @@ class ExecuteOrderServiceTest {
     @Mock
     Clock clock;
 
+    @Mock
+    ExecutionHandoffOutbox executionHandoffOutbox;
+
     @InjectMocks
     ExecuteOrderService subject;
 
@@ -103,9 +107,11 @@ class ExecuteOrderServiceTest {
         assertThat(result.getExecutionDetails().dealingReference()).isEqualTo(DEAL_REF);
         assertThat(result.getExecutionDetails().generatedContractNumber()).isEqualTo(CONTRACT_REF);
         assertThat(result.getExecutionDetails().executionTime()).isEqualTo(FIXED_NOW);
+        assertThat(result.getHandoffStatus()).isEqualTo(com.mmx.order.domain.model.HandoffStatus.PENDING);
 
         verify(referenceGenerator).generateDealingReference();
         verify(referenceGenerator).generateContractNumber();
+        verify(executionHandoffOutbox).schedule(any(MoneyMarketOrder.class));
         verify(auditLogger)
                 .log(
                         eq(assigned.getId()),
@@ -124,6 +130,7 @@ class ExecuteOrderServiceTest {
         verifyNoInteractions(referenceGenerator);
         verify(orderRepository, never()).findById(any());
         verify(auditLogger, never()).log(any(), any(), any(), any());
+        verify(executionHandoffOutbox, never()).schedule(any());
     }
 
     @Test
@@ -137,6 +144,7 @@ class ExecuteOrderServiceTest {
         verifyNoInteractions(referenceGenerator);
         verify(orderRepository, never()).findById(any());
         verify(auditLogger, never()).log(any(), any(), any(), any());
+        verify(executionHandoffOutbox, never()).schedule(any());
     }
 
     @Test
@@ -157,6 +165,7 @@ class ExecuteOrderServiceTest {
         verify(referenceGenerator).generateContractNumber();
         verify(orderRepository, never()).save(any());
         verify(auditLogger, never()).log(any(), any(), any(), any());
+        verify(executionHandoffOutbox, never()).schedule(any());
     }
 
     @Test
@@ -176,6 +185,7 @@ class ExecuteOrderServiceTest {
         verify(referenceGenerator).generateContractNumber();
         verify(orderRepository, never()).save(any());
         verify(auditLogger, never()).log(any(), any(), any(), any());
+        verify(executionHandoffOutbox, never()).schedule(any());
     }
 
     @Test
@@ -187,6 +197,8 @@ class ExecuteOrderServiceTest {
                 new ExecuteOrderCommand(id, TRADER_A, new BigDecimal("3.55"), "BankCo International");
 
         assertThatThrownBy(() -> subject.execute(command)).isInstanceOf(OrderNotFoundException.class);
+
+        verify(executionHandoffOutbox, never()).schedule(any());
     }
 
     @Test
@@ -208,6 +220,7 @@ class ExecuteOrderServiceTest {
 
         verify(orderRepository, never()).save(any());
         verify(auditLogger, never()).log(any(), any(), any(), any());
+        verify(executionHandoffOutbox, never()).schedule(any());
     }
 
     @Test
@@ -232,6 +245,7 @@ class ExecuteOrderServiceTest {
 
         verify(referenceGenerator).generateDealingReference();
         verify(referenceGenerator, never()).generateContractNumber();
+        verify(executionHandoffOutbox).schedule(any(MoneyMarketOrder.class));
     }
 
     @Test
@@ -256,6 +270,7 @@ class ExecuteOrderServiceTest {
                         new Assignment(TRADER_A, FIXED_NOW),
                         null,
                         null,
+                        null,
                         FIXED_NOW,
                         FIXED_NOW);
 
@@ -271,6 +286,7 @@ class ExecuteOrderServiceTest {
         verify(referenceGenerator, never()).generateContractNumber();
         verify(orderRepository, never()).save(any());
         verify(auditLogger, never()).log(any(), any(), any(), any());
+        verify(executionHandoffOutbox, never()).schedule(any());
     }
 
     @Test
@@ -292,6 +308,7 @@ class ExecuteOrderServiceTest {
         MoneyMarketOrder result = subject.execute(command);
 
         assertThat(result.getStatus().name()).isEqualTo("EXECUTED");
+        verify(executionHandoffOutbox).schedule(any(MoneyMarketOrder.class));
     }
 
     private static MoneyMarketOrder receivedOrder() {

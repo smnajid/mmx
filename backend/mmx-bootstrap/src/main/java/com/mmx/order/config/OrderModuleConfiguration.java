@@ -1,6 +1,5 @@
 package com.mmx.order.config;
 
-import com.mmx.order.adapter.out.integration.NoOpBackOfficeGateway;
 import com.mmx.order.adapter.out.integration.SystemClock;
 import com.mmx.order.adapter.out.integration.UuidReferenceGenerator;
 import com.mmx.order.adapter.out.persistence.JpaAuditLogger;
@@ -9,7 +8,6 @@ import com.mmx.order.adapter.out.persistence.mapper.OrderPersistenceMapper;
 import com.mmx.order.adapter.out.persistence.repository.SpringDataAuditLogRepository;
 import com.mmx.order.adapter.out.persistence.repository.SpringDataOrderRepository;
 import com.mmx.order.application.port.in.CancelOrderUseCase;
-import com.mmx.order.application.port.in.ExecuteOrderUseCase;
 import com.mmx.order.application.port.in.MarkOrderAccountedUseCase;
 import com.mmx.order.application.port.in.ReceiveOrderUseCase;
 import com.mmx.order.application.port.in.RejectOrderUseCase;
@@ -45,9 +43,19 @@ public class OrderModuleConfiguration {
     }
 
     @Bean
-    public BackOfficeGateway backOfficeGateway() {
-        return new NoOpBackOfficeGateway();
+    public ExecuteOrderService executeOrderService(
+            OrderRepository orderRepository,
+            ReferenceGenerator referenceGenerator,
+            AuditLogger auditLogger,
+            Clock clock,
+            ExecutionHandoffOutbox executionHandoffOutbox) {
+        return new ExecuteOrderService(
+                orderRepository, referenceGenerator, auditLogger, clock, executionHandoffOutbox);
     }
+
+    /**
+     * Application entry uses {@link TransactionalExecuteOrderUseCase} (component-scanned) so execute + outbox share one transaction.
+     */
 
     @Bean
     public MarkOrderAccountedUseCase markOrderAccountedUseCase(
@@ -73,15 +81,6 @@ public class OrderModuleConfiguration {
     @Bean
     public AssignmentService assignmentService(OrderRepository orderRepository, AuditLogger auditLogger, Clock clock) {
         return new AssignmentService(orderRepository, auditLogger, clock);
-    }
-
-    @Bean
-    public ExecuteOrderUseCase executeOrderUseCase(
-            OrderRepository orderRepository,
-            ReferenceGenerator referenceGenerator,
-            AuditLogger auditLogger,
-            Clock clock) {
-        return new ExecuteOrderService(orderRepository, referenceGenerator, auditLogger, clock);
     }
 
     @Bean

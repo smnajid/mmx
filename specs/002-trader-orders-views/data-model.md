@@ -1,6 +1,6 @@
 # Data model: Trader order views (002)
 
-**Normative domain model** remains the **Money Market Order** aggregate and related types from **001** ([specs/001-mm-order-processing/data-model.md](../001-mm-order-processing/data-model.md)). This feature **does not** introduce new persisted tables for US1.
+**Normative domain model** remains the **Money Market Order** aggregate and related types from **001** ([specs/001-mm-order-processing/data-model.md](../001-mm-order-processing/data-model.md)). **Persisted extensions for async handoff**: column **`handoff_status`** on `money_market_order` (`PENDING` \| `PUBLISHED` \| `FAILED`, nullable — meaningful when `status = EXECUTED`), and table **`back_office_outbox`** (transactional outbox payload + relay state keyed by `order_id`). Wire formats: REST summaries use OpenAPI `handoffStatus`; Kafka uses [contracts/asyncapi.yaml](contracts/asyncapi.yaml) `OrderExecutedV1`.
 
 ## Discriminator: workspace vs `OrderType`
 
@@ -26,7 +26,11 @@ Every list row is still a `MoneyMarketOrder`; workspace routing selects which **
 | Active workspace (Term vs OnCall) | **UI routing state only** — default **OnCall** for new sessions ([spec.md](spec.md) FR-001, Clarifications) |
 | Workspace preference across logins | **None** |
 
-## Future concepts (not US1)
+## Handoff / transmit state (EXECUTED rows)
 
-- **Accounted** vs execution-only — User Stories 4–5; may justify new fields or projections when introduced.
-- **Handoff / transmit state** — US4; optional read models or flags beyond raw `OrderStatus`.
+| Persisted / API | Role |
+|-----------------|------|
+| `money_market_order.handoff_status` | Trader-visible integration state on **`EXECUTED`** orders; distinct from lifecycle `OrderStatus`. |
+| `back_office_outbox` | Same-transaction intent + frozen JSON payload for Kafka relay. |
+
+OpenAPI `OrderSummaryResponse.handoffStatus` mirrors `handoff_status` on executed-list endpoints only (omit-null when not applicable).

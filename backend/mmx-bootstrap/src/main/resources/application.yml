@@ -19,6 +19,10 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+  kafka:
+    bootstrap-servers: localhost:19092
+    producer:
+      acks: all
 
 server:
   port: 8080
@@ -33,9 +37,18 @@ management:
       show-details: always
 
 springdoc:
-  # Serve only the canonical contract (same file as OpenAPI Generator input); avoids runtime scan drift vs specs/001-mm-order-processing/contracts/openapi.yaml
+  # Serve only the canonical contract (same file as OpenAPI Generator input); avoids runtime scan drift vs specs/002-trader-orders-views/contracts/openapi.yaml
   api-docs:
     enabled: false
   swagger-ui:
     path: /swagger-ui.html
     url: /openapi.yaml
+
+mmx:
+  backoffice:
+    kafka:
+      topic: mmx.order.executed
+    outbox:
+      relay-enabled: true
+      max-publish-attempts: 5
+      poll-interval-ms: 1000

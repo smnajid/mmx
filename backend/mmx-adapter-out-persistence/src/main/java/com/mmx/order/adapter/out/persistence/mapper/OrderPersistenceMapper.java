@@ -8,6 +8,7 @@ import com.mmx.order.domain.model.ContractNumber;
 import com.mmx.order.domain.model.DealingReference;
 import com.mmx.order.domain.model.ExecutionDetails;
 import com.mmx.order.domain.model.ExternalOrderReference;
+import com.mmx.order.domain.model.HandoffStatus;
 import com.mmx.order.domain.model.MoneyMarketOrder;
 import com.mmx.order.domain.model.NoticePeriod;
 import com.mmx.order.domain.model.OrderOperation;
@@ -40,6 +41,7 @@ public class OrderPersistenceMapper {
         e.setCreatedAt(order.getCreatedAt());
         e.setUpdatedAt(order.getUpdatedAt());
         e.setRejectionReason(order.getRejectionReason());
+        e.setHandoffStatus(order.getHandoffStatus() != null ? order.getHandoffStatus().name() : null);
 
         if (order.getAssignment() != null) {
             e.setAssignedTraderId(order.getAssignment().traderId().value());
@@ -64,6 +66,9 @@ public class OrderPersistenceMapper {
         ContractNumber sourceContract = e.getSourceContractNumber() != null
                 ? new ContractNumber(e.getSourceContractNumber()) : null;
 
+        HandoffStatus handoff =
+                e.getHandoffStatus() != null ? HandoffStatus.valueOf(e.getHandoffStatus()) : null;
+
         MoneyMarketOrder order = MoneyMarketOrder.reconstitute(
                 e.getId(),
                 new ExternalOrderReference(e.getExternalOrderReference()),
@@ -82,6 +87,7 @@ public class OrderPersistenceMapper {
                 buildAssignment(e),
                 buildExecutionDetails(e),
                 e.getRejectionReason(),
+                handoff,
                 e.getCreatedAt(),
                 e.getUpdatedAt()
         );

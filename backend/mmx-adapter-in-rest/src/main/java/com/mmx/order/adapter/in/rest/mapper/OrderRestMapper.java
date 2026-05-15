@@ -1,6 +1,7 @@
 package com.mmx.order.adapter.in.rest.mapper;
 
 import com.mmx.order.adapter.in.rest.generated.model.ExecuteOrderRequest;
+import com.mmx.order.adapter.in.rest.generated.model.HandoffStatus;
 import com.mmx.order.adapter.in.rest.generated.model.RejectOrderRequest;
 import com.mmx.order.adapter.in.rest.generated.model.ReceiveOrderRequest;
 import com.mmx.order.adapter.in.rest.generated.model.UpdateOrderRequest;
@@ -63,6 +64,10 @@ public class OrderRestMapper {
         ExecutionDetails summaryEx = order.getExecutionDetails();
         if (summaryEx != null) {
             summary.setCounterparty(summaryEx.counterparty());
+        }
+        if (order.getStatus() == com.mmx.order.domain.model.OrderStatus.EXECUTED
+                && order.getHandoffStatus() != null) {
+            summary.setHandoffStatus(HandoffStatus.fromValue(order.getHandoffStatus().name()));
         }
         return summary;
     }

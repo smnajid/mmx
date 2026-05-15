@@ -24,6 +24,7 @@
         <module>mmx-adapter-in-rest</module>
         <module>mmx-adapter-out-persistence</module>
         <module>mmx-adapter-out-integration</module>
+        <module>mmx-adapter-out-messaging</module>
         <module>mmx-bootstrap</module>
     </modules>
 

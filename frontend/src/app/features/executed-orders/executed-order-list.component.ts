@@ -26,8 +26,8 @@ export type WorkspaceKind = 'term' | 'oncall';
           <button type="button" class="refresh" (click)="refresh()">Refresh</button>
         </div>
         <p class="lede">
-          Executed orders that are not yet accounted at portfolio level. Execution counterparty is shown below; accounting
-          confirmation removes rows via the back-office path.
+          Executed orders that are not yet accounted at portfolio level. Execution counterparty and backend handoff state
+          (Queuing / Sent / Send failed) are shown below; accounting confirmation removes rows via the back-office path.
         </p>
       </header>
       <mmx-order-table
@@ -37,6 +37,7 @@ export type WorkspaceKind = 'term' | 'oncall';
         [showTenorColumn]="workspace() === 'term'"
         [showNoticePeriodColumn]="workspace() === 'oncall'"
         [showCounterpartyColumn]="true"
+        [showHandoffColumn]="true"
         [listWorkspace]="workspace()"
         listQueue="executed"
       />

@@ -8,7 +8,7 @@ info:
     list response. Workspace **Assigned** lists are **desk-wide** (all assignees) per User Story 2.
     Human-readable mirror: [api-v1.md](./api-v1.md). Trader-facing operations require header
     `X-Trader-Id` (actor identity; Assigned workspace lists are not filtered by assignee).
-  version: 1.4.0
+  version: 1.5.0
 
 servers:
   - url: /
@@ -703,6 +703,19 @@ components:
             Execution counterparty; present once the order has been executed.
             Omit from JSON when null (omit-null serialization).
           x-field-extra-annotation: "@com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)"
+        handoffStatus:
+          $ref: "#/components/schemas/HandoffStatus"
+          nullable: true
+          description: |
+            Back-office Kafka handoff delivery state for EXECUTED orders (`PENDING` = outbox not yet acked,
+            `PUBLISHED` = producer ack received, `FAILED` = publish retries exhausted).
+            Omitted when null or when status is not EXECUTED (omit-null serialization).
+          x-field-extra-annotation: "@com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)"
+
+    HandoffStatus:
+      type: string
+      enum: [PENDING, PUBLISHED, FAILED]
+      description: Integration handoff state for executed-not-accounted rows (distinct from lifecycle OrderStatus).
 
     MarkOrderAccountedRequest:
       type: object

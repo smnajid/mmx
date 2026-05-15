@@ -11,3 +11,16 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+  kafka:
+    bootstrap-servers: 127.0.0.1:9092
+    producer:
+      acks: all
+
+mmx:
+  backoffice:
+    kafka:
+      topic: mmx.order.executed
+    outbox:
+      relay-enabled: false
+      max-publish-attempts: 5
+      poll-interval-ms: 1000

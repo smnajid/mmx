@@ -40,6 +40,8 @@ public class MoneyMarketOrder {
     private Assignment assignment;
     private ExecutionDetails executionDetails;
     private String rejectionReason;
+    /** Integration handoff toward back-office; meaningful when {@link #status} is {@link OrderStatus#EXECUTED}. */
+    private HandoffStatus handoffStatus;
     private final Instant createdAt;
     private Instant updatedAt;
 
@@ -58,6 +60,7 @@ public class MoneyMarketOrder {
             ContractNumber sourceContractNumber,
             String desiredCounterpartyComment,
             OrderStatus status,
+            HandoffStatus handoffStatus,
             Instant createdAt
     ) {
         this.id = id;
@@ -74,6 +77,7 @@ public class MoneyMarketOrder {
         this.sourceContractNumber = sourceContractNumber;
         this.desiredCounterpartyComment = desiredCounterpartyComment;
         this.status = status;
+        this.handoffStatus = handoffStatus;
         this.createdAt = createdAt;
         this.updatedAt = createdAt;
     }
@@ -122,6 +126,7 @@ public class MoneyMarketOrder {
                 sourceContractNumber,
                 desiredCounterpartyComment,
                 OrderStatus.RECEIVED,
+                null,
                 now
         );
     }
@@ -146,6 +151,7 @@ public class MoneyMarketOrder {
             Assignment assignment,
             ExecutionDetails executionDetails,
             String rejectionReason,
+            HandoffStatus handoffStatus,
             Instant createdAt,
             Instant updatedAt
     ) {
@@ -153,7 +159,7 @@ public class MoneyMarketOrder {
                 id, externalOrderReference, orderType, orderOperation,
                 portfolioNumber, currency, amount, valueDate, minimumRate,
                 tenor, noticePeriod, sourceContractNumber, desiredCounterpartyComment,
-                status, createdAt
+                status, handoffStatus, createdAt
         );
         order.assignment = assignment;
         order.executionDetails = executionDetails;
@@ -236,6 +242,30 @@ public class MoneyMarketOrder {
                 executedRate, counterparty, now, dealingReference, generatedContractNumber
         );
         this.updatedAt = now;
+    }
+
+    /**
+     * Marks durable handoff as pending immediately after execute, before outbox relay publishes to Kafka.
+     */
+    public void markHandoffPending() {
+        if (this.status != OrderStatus.EXECUTED) {
+            throw new InvalidOrderException("handoff can only be pending for EXECUTED orders");
+        }
+        this.handoffStatus = HandoffStatus.PENDING;
+    }
+
+    public void transitionHandoffToPublished() {
+        if (this.status != OrderStatus.EXECUTED || this.handoffStatus != HandoffStatus.PENDING) {
+            throw new InvalidOrderException("handoff must be PENDING on an EXECUTED order to publish");
+        }
+        this.handoffStatus = HandoffStatus.PUBLISHED;
+    }
+
+    public void transitionHandoffToFailed() {
+        if (this.status != OrderStatus.EXECUTED || this.handoffStatus != HandoffStatus.PENDING) {
+            throw new InvalidOrderException("handoff must be PENDING on an EXECUTED order to fail");
+        }
+        this.handoffStatus = HandoffStatus.FAILED;
     }
 
     /**
@@ -354,6 +384,7 @@ public class MoneyMarketOrder {
     public Assignment getAssignment() { return assignment; }
     public ExecutionDetails getExecutionDetails() { return executionDetails; }
     public String getRejectionReason() { return rejectionReason; }
+    public HandoffStatus getHandoffStatus() { return handoffStatus; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
 }

@@ -9,6 +9,7 @@ import {
 import { RouterLink } from '@angular/router';
 import { OrderSummary } from '../../core/models/order.model';
 import { OrderStatus } from '../../core/models/order-status.enum';
+import { HandoffStatus } from '../../core/models/handoff-status.enum';
 import { StatusBadgeComponent } from './status-badge.component';
 
 @Component({
@@ -40,6 +41,9 @@ import { StatusBadgeComponent } from './status-badge.component';
               }
               @if (showCounterpartyColumn) {
                 <th>Counterparty</th>
+              }
+              @if (showHandoffColumn) {
+                <th>Handoff</th>
               }
               <th class="num">Min rate</th>
               <th>Operation</th>
@@ -77,6 +81,15 @@ import { StatusBadgeComponent } from './status-badge.component';
                   <td class="mono">
                     @if (row.counterparty) {
                       {{ row.counterparty }}
+                    } @else {
+                      —
+                    }
+                  </td>
+                }
+                @if (showHandoffColumn) {
+                  <td class="mono handoff-cell">
+                    @if (row.handoffStatus) {
+                      <span [class]="handoffClass(row.handoffStatus)">{{ handoffLabel(row.handoffStatus) }}</span>
                     } @else {
                       —
                     }
@@ -254,6 +267,23 @@ import { StatusBadgeComponent } from './status-badge.component';
       color: var(--mmx-text);
     }
 
+    .handoff {
+      font-weight: 600;
+      letter-spacing: 0.03em;
+    }
+
+    .handoff-pending {
+      color: #fcd34d;
+    }
+
+    .handoff-published {
+      color: #86efac;
+    }
+
+    .handoff-failed {
+      color: #fda4af;
+    }
+
     .state {
       margin: 0;
       padding: 1.25rem;
@@ -285,6 +315,8 @@ export class OrderTableComponent {
   @Input() showNoticePeriodColumn = false;
   /** Executed-not-accounted lists: execution counterparty. */
   @Input() showCounterpartyColumn = false;
+  /** Executed workspace: integration handoff state toward back-office. */
+  @Input() showHandoffColumn = false;
   /** Received queues: show Assign for RECEIVED rows. */
   @Input() enableAssign = false;
   /** Assigned queue: show Unassign for ASSIGNED rows. */
@@ -297,6 +329,32 @@ export class OrderTableComponent {
 
   @Output() readonly assignClick = new EventEmitter<OrderSummary>();
   @Output() readonly unassignClick = new EventEmitter<OrderSummary>();
+
+  protected handoffLabel(h: HandoffStatus): string {
+    switch (h) {
+      case HandoffStatus.PENDING:
+        return 'Queuing';
+      case HandoffStatus.PUBLISHED:
+        return 'Sent';
+      case HandoffStatus.FAILED:
+        return 'Send failed';
+      default:
+        return String(h);
+    }
+  }
+
+  protected handoffClass(h: HandoffStatus): string {
+    switch (h) {
+      case HandoffStatus.PENDING:
+        return 'handoff handoff-pending';
+      case HandoffStatus.PUBLISHED:
+        return 'handoff handoff-published';
+      case HandoffStatus.FAILED:
+        return 'handoff handoff-failed';
+      default:
+        return 'handoff';
+    }
+  }
 
   protected viewQueryParams(): Record<string, string> | undefined {
     if (this.listWorkspace && this.listQueue) {

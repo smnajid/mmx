@@ -1,6 +1,7 @@
 import { OrderType } from './order-type.enum';
 import { OrderOperation } from './order-operation.enum';
 import { OrderStatus } from './order-status.enum';
+import { HandoffStatus } from './handoff-status.enum';
 
 export interface OrderSummary {
   orderId: string;
@@ -19,6 +20,8 @@ export interface OrderSummary {
   status: OrderStatus;
   /** Execution counterparty; present on executed summaries when omit-null exposes it from the API. */
   counterparty?: string | null;
+  /** EXECUTED workspace executed-list rows only; back-office Kafka handoff delivery state. */
+  handoffStatus?: HandoffStatus | null;
   assignedTraderId: string | null;
   createdAt: string;
 }

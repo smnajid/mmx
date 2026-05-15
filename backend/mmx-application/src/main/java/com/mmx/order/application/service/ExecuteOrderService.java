@@ -4,6 +4,7 @@ import com.mmx.order.application.command.ExecuteOrderCommand;
 import com.mmx.order.application.port.in.ExecuteOrderUseCase;
 import com.mmx.order.application.port.out.AuditLogger;
 import com.mmx.order.application.port.out.Clock;
+import com.mmx.order.application.port.out.ExecutionHandoffOutbox;
 import com.mmx.order.application.port.out.OrderRepository;
 import com.mmx.order.application.port.out.ReferenceGenerator;
 import com.mmx.order.domain.exception.InvalidOrderException;
@@ -20,16 +21,19 @@ public final class ExecuteOrderService implements ExecuteOrderUseCase {
     private final ReferenceGenerator referenceGenerator;
     private final AuditLogger auditLogger;
     private final Clock clock;
+    private final ExecutionHandoffOutbox executionHandoffOutbox;
 
     public ExecuteOrderService(
             OrderRepository orderRepository,
             ReferenceGenerator referenceGenerator,
             AuditLogger auditLogger,
-            Clock clock) {
+            Clock clock,
+            ExecutionHandoffOutbox executionHandoffOutbox) {
         this.orderRepository = orderRepository;
         this.referenceGenerator = referenceGenerator;
         this.auditLogger = auditLogger;
         this.clock = clock;
+        this.executionHandoffOutbox = executionHandoffOutbox;
     }
 
     @Override
@@ -50,7 +54,9 @@ public final class ExecuteOrderService implements ExecuteOrderUseCase {
                 command.traderId(),
                 now);
 
+        order.markHandoffPending();
         MoneyMarketOrder saved = orderRepository.save(order);
+        executionHandoffOutbox.schedule(saved);
         auditLogger.log(saved.getId(), EVENT_ORDER_EXECUTED, command.traderId().value(), now);
         return saved;
     }

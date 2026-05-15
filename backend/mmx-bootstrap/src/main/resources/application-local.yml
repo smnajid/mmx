@@ -9,6 +9,10 @@ spring:
     username: sa
     password: ""
     driver-class-name: org.h2.Driver
+  kafka:
+    bootstrap-servers: 127.0.0.1:19092
+    producer:
+      acks: all
   jpa:
     hibernate:
       ddl-auto: none
@@ -17,3 +21,10 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
+
+mmx:
+  backoffice:
+    kafka:
+      topic: mmx.order.executed
+    outbox:
+      relay-enabled: false

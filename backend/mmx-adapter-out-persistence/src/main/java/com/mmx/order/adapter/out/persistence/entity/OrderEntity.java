@@ -77,6 +77,9 @@ public class OrderEntity {
     @Column(name = "rejection_reason", columnDefinition = "TEXT")
     private String rejectionReason;
 
+    @Column(name = "handoff_status", length = 20)
+    private String handoffStatus;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -152,6 +155,9 @@ public class OrderEntity {
 
     public String getRejectionReason() { return rejectionReason; }
     public void setRejectionReason(String v) { this.rejectionReason = v; }
+
+    public String getHandoffStatus() { return handoffStatus; }
+    public void setHandoffStatus(String handoffStatus) { this.handoffStatus = handoffStatus; }
 
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant v) { this.createdAt = v; }

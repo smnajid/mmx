@@ -1,6 +1,6 @@
 # REST API Contract: Money Market Order Processing (baseline + trader workspaces)
 
-**Canonical OpenAPI 3 spec (contract-first, codegen)**: [openapi.yaml](./openapi.yaml) — **v1.4.0** adds `ACCOUNTED` lifecycle, executed-list **counterparty** on summaries, workspace executed endpoints, and the back-office accounted callback (**executed-orders-accounting**).
+**Canonical OpenAPI 3 spec (contract-first, codegen)**: [openapi.yaml](./openapi.yaml) — **v1.5.0** adds **`handoffStatus`** on executed-list summaries (`PENDING` / `PUBLISHED` / `FAILED`) for back-office Kafka delivery visibility ([FR-013](spec.md)); Async companion for outbound Kafka remains [**asyncapi.yaml**](./asyncapi.yaml).
 
 **Base URL**: `/api/v1`
 **Content-Type**: `application/json`
@@ -39,12 +39,15 @@ Error codes: `VALIDATION_ERROR`, `ORDER_NOT_FOUND`, `INVALID_STATUS_TRANSITION`,
   "noticePeriod": "24H | 48H | null",
   "status": "RECEIVED | ASSIGNED | EXECUTED | ACCOUNTED | CANCELLED | REJECTED",
   "counterparty": "string | null",
+  "handoffStatus": "PENDING | PUBLISHED | FAILED | omitted",
   "assignedTraderId": "string | null",
   "createdAt": "2026-04-28T21:30:00Z"
 }
 ```
 
 `counterparty` is populated from execution details once the order is **EXECUTED** (or thereafter). When there is no counterparty yet, the field is **omitted** from JSON responses (omit-null), not serialized as `"counterparty": null`.
+
+`handoffStatus` applies to **EXECUTED** rows on workspace executed-list endpoints (`GET .../term/executed`, `GET .../oncall/executed`). It reflects durable outbound **Kafka handoff** state (transactional outbox + relay), **not** `OrderStatus`: **`PENDING`** — outbox written, producer not yet acked; **`PUBLISHED`** — handoff message acked toward back-office, awaiting accounting; **`FAILED`** — retries exhausted (integration problem). The field is **omitted** when null or for non-EXECUTED summaries (omit-null).
 
 `minimumRate` is `null` (or omitted in responses that omit-null) when Portfolio Management did not supply an execution-floor indication at intake. It is not mutable after reception.
 
