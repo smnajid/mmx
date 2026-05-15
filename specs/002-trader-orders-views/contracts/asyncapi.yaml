@@ -1,0 +1,110 @@
+asyncapi: 3.0.0
+info:
+  title: mmx Back-office Integration (async)
+  version: 1.0.0
+  description: |
+    Contract-first async surface for mmx → back-office execution handoff.
+    Kafka message key MUST be the mmx orderId (UUID string).
+    Prose mirror: asyncapi-v1.md
+
+defaultContentType: application/json
+
+channels:
+  orderExecuted:
+    address: mmx.order.executed
+    description: Published when an order transitions to EXECUTED (one message per orderId).
+    messages:
+      orderExecutedV1:
+        $ref: '#/components/messages/OrderExecutedV1'
+
+operations:
+  publishOrderExecuted:
+    action: send
+    channel:
+      $ref: '#/channels/orderExecuted'
+    summary: mmx publishes execution handoff after transactional outbox relay
+    messages:
+      - $ref: '#/channels/orderExecuted/messages/orderExecutedV1'
+
+components:
+  messages:
+    OrderExecutedV1:
+      name: OrderExecutedV1
+      title: Order executed handoff (v1)
+      summary: Thin handoff DTO frozen at schedule time; idempotent on orderId
+      contentType: application/json
+      bindings:
+        kafka:
+          key:
+            type: string
+            description: Kafka record key = orderId (UUID)
+      payload:
+        $ref: '#/components/schemas/OrderExecutedV1'
+
+  schemas:
+    OrderExecutedV1:
+      type: object
+      additionalProperties: false
+      required:
+        - eventType
+        - orderId
+        - executedAt
+        - orderType
+        - orderOperation
+        - portfolioNumber
+        - currency
+        - amount
+        - valueDate
+        - executedRate
+        - counterparty
+        - dealingReference
+        - contractNumber
+        - externalOrderReference
+      properties:
+        eventType:
+          type: string
+          const: OrderExecutedV1
+        orderId:
+          type: string
+          format: uuid
+        executedAt:
+          type: string
+          format: date-time
+        orderType:
+          type: string
+          enum: [TERM, ON_CALL]
+        orderOperation:
+          type: string
+          enum: [SUBSCRIPTION, INCREASE, DECREASE, REDEMPTION]
+        portfolioNumber:
+          type: string
+        currency:
+          type: string
+          minLength: 1
+        amount:
+          type: number
+        valueDate:
+          type: string
+          format: date
+        executedRate:
+          type: number
+        counterparty:
+          type: string
+          minLength: 1
+        dealingReference:
+          type: string
+          minLength: 1
+        contractNumber:
+          type: string
+          minLength: 1
+        externalOrderReference:
+          type: string
+          minLength: 1
+        tenor:
+          type: string
+          nullable: true
+          description: Term orders only; null for OnCall when not applicable.
+        noticePeriod:
+          type: string
+          nullable: true
+          description: OnCall orders only; null for Term when not applicable.
