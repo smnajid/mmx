@@ -38,16 +38,16 @@
 ## 7. Integration and contract verification
 
 - [x] 7.1 Integration test (Testcontainers PostgreSQL + Kafka): execute order → assert outbox row + payload validates against AsyncAPI schema → relay runs → consume topic and assert key + body.
-- [ ] 7.2 Add or extend automated checks so OpenAPI and AsyncAPI specimens stay in sync with golden fixtures or codegen (project’s existing contract-test pattern).
+- [x] 7.2 Add or extend automated checks so OpenAPI and AsyncAPI specimens stay in sync with golden fixtures or codegen (project’s existing contract-test pattern).
 - [x] 7.3 Run `mvn test` for backend modules touched; fix regressions in accounting callback and execute flows.
 
 ## 8. Frontend — trader executed lists
 
 - [x] 8.1 Regenerate or update Angular API client from OpenAPI if the project uses generated clients; otherwise extend services/models to include `handoffStatus`.
 - [x] 8.2 Display `handoffStatus` on Term and OnCall executed list rows (distinct styling or labels for `PENDING` / `PUBLISHED` / `FAILED` per FR-013).
-- [ ] 8.3 Add or extend Vitest/Cypress coverage for executed list showing the three states when fixtures allow.
+- [x] 8.3 Add or extend Vitest/Cypress coverage for executed list showing the three states when fixtures allow.
 
 ## 9. Ops and documentation
 
-- [ ] 9.1 Document Kafka topic creation, config keys (`mmx.backoffice.*`), and local/CI Testcontainers usage for developers (`plan.md` or feature quickstart if this repo expects it).
+- [x] 9.1 Document Kafka topic creation, config keys (`mmx.backoffice.*`), and local/CI Testcontainers usage for developers (`plan.md` or feature quickstart if this repo expects it).
 - [ ] 9.2 Resolve open questions from `design.md` (existing `EXECUTED` backfill choice; manual FAILED replay note) with concrete implementation defaults or follow-up tickets.
