@@ -26,6 +26,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -81,6 +82,66 @@ class BackOfficeOutboxRelayWorkerTest {
         assertThat(boxCaptor.getValue().getStatus()).isEqualTo(BackOfficeOutboxRowStatus.SENT);
 
         verify(mo).transitionHandoffToPublished();
+        verify(orderRepository).save(mo);
+    }
+
+    @Test
+    void publish_failure_below_max_attempts_increments_attempts_and_row_stays_pending() {
+        UUID orderId = UUID.randomUUID();
+        BackOfficeOutboxEntity row =
+                new BackOfficeOutboxEntity(
+                        UUID.randomUUID(),
+                        orderId,
+                        "{\"eventType\":\"OrderExecutedV1\"}",
+                        BackOfficeOutboxRowStatus.PENDING,
+                        Instant.now());
+        CompletableFuture<SendResult<String, String>> failedFut =
+                CompletableFuture.failedFuture(new RuntimeException("broker unavailable"));
+        when(kafkaTemplate.send(eq(TOPIC), eq(orderId.toString()), anyString())).thenReturn(failedFut);
+        when(outboxRepository.findByStatusOrderByCreatedAtAsc(
+                        eq(BackOfficeOutboxRowStatus.PENDING), any(Pageable.class)))
+                .thenReturn(List.of(row))
+                .thenReturn(List.of());
+
+        worker.drainPendingBatch(5);
+
+        ArgumentCaptor<BackOfficeOutboxEntity> boxCaptor = ArgumentCaptor.forClass(BackOfficeOutboxEntity.class);
+        verify(outboxRepository).save(boxCaptor.capture());
+        assertThat(boxCaptor.getValue().getStatus()).isEqualTo(BackOfficeOutboxRowStatus.PENDING);
+        assertThat(boxCaptor.getValue().getPublishAttempts()).isEqualTo(1);
+        verify(orderRepository, never()).findById(any());
+    }
+
+    @Test
+    void publish_failure_at_max_attempts_marks_row_failed_and_transitions_order_handoff() {
+        UUID orderId = UUID.randomUUID();
+        BackOfficeOutboxEntity row =
+                new BackOfficeOutboxEntity(
+                        UUID.randomUUID(),
+                        orderId,
+                        "{\"eventType\":\"OrderExecutedV1\"}",
+                        BackOfficeOutboxRowStatus.PENDING,
+                        Instant.now());
+        row.setPublishAttempts(4); // next failure reaches maxPublishAttempts=5
+
+        CompletableFuture<SendResult<String, String>> failedFut =
+                CompletableFuture.failedFuture(new RuntimeException("broker unavailable"));
+        when(kafkaTemplate.send(eq(TOPIC), eq(orderId.toString()), anyString())).thenReturn(failedFut);
+        when(outboxRepository.findByStatusOrderByCreatedAtAsc(
+                        eq(BackOfficeOutboxRowStatus.PENDING), any(Pageable.class)))
+                .thenReturn(List.of(row))
+                .thenReturn(List.of());
+
+        MoneyMarketOrder mo = org.mockito.Mockito.mock(MoneyMarketOrder.class);
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(mo));
+
+        worker.drainPendingBatch(5);
+
+        ArgumentCaptor<BackOfficeOutboxEntity> boxCaptor = ArgumentCaptor.forClass(BackOfficeOutboxEntity.class);
+        verify(outboxRepository).save(boxCaptor.capture());
+        assertThat(boxCaptor.getValue().getStatus()).isEqualTo(BackOfficeOutboxRowStatus.FAILED);
+        assertThat(boxCaptor.getValue().getPublishAttempts()).isEqualTo(5);
+        verify(mo).transitionHandoffToFailed();
         verify(orderRepository).save(mo);
     }
 }

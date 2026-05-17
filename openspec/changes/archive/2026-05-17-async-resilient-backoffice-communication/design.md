@@ -219,8 +219,22 @@ Red-green-refactor per project default; test tasks mirrored in `tasks.md` when g
 4. Deploy OpenAPI + frontend for `handoffStatus`.
 5. **Rollback**: revert app; outbox rows remain but are harmless; sync gateway path not restored without code rollback.
 
-## Open Questions
+## Open Questions — Resolved
 
-- **Backfill** for orders already `EXECUTED` before migration: treat as `PUBLISHED` (assume handoff done) vs `FAILED` (force visibility) — decide during implementation / ops input.
-- **Manual replay** of `FAILED` outbox rows: admin API deferred; document ops SQL or follow-up change.
-- **DLQ topic** for poison payloads: optional; not required if FAILED row + logs suffice for POC.
+- **Backfill** for orders already `EXECUTED` before migration: **resolved as `PUBLISHED`** (assume handoff done under prior sync gateway). Implemented in `V7__handoff_status_on_orders.sql`:
+  ```sql
+  UPDATE money_market_order SET handoff_status = 'PUBLISHED'
+  WHERE status = 'EXECUTED' AND handoff_status IS NULL;
+  ```
+  Rationale: all pre-migration `EXECUTED` orders were notified via the synchronous `BackOfficeGateway`; marking them `FAILED` would flood the Executed list with false alerts.
+
+- **Manual replay** of `FAILED` outbox rows: admin API deferred to a future change. Ops runbook until then — reset a stuck row via SQL:
+  ```sql
+  UPDATE back_office_outbox SET status = 'PENDING', publish_attempts = 0
+  WHERE order_id = '<uuid>' AND status = 'FAILED';
+  UPDATE money_market_order SET handoff_status = 'PENDING'
+  WHERE id = '<uuid>';
+  ```
+  The relay will pick it up on the next poll cycle.
+
+- **DLQ topic** for poison payloads: not required for POC — `FAILED` row + WARN log with `orderId` is sufficient for ops visibility. Revisit when volume warrants it.

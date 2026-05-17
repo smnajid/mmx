@@ -29,38 +29,22 @@ The order lifecycle SHALL allow exactly one transition out of `OrderStatus.EXECU
 
 ### Requirement: Outbound transmission of every newly executed order
 
-For every order that transitions to `EXECUTED`, the system SHALL invoke the back-office handoff exactly once with a representation of that order. The invocation SHALL occur **after** the order has been persisted as `EXECUTED`, so that the back-office can never observe an order before mmx has committed the new status.
+For every order that transitions to `EXECUTED`, the system SHALL schedule exactly one durable back-office handoff by writing a transactional **outbox** row whose payload conforms to **`OrderExecutedV1`** in `specs/002-trader-orders-views/contracts/asyncapi.yaml`. Scheduling SHALL occur in the **same database transaction** as persisting `EXECUTED` (via `ExecuteOrderService` orchestration). The back-office SHALL observe the handoff only after the outbox **relay** successfully publishes to Kafka (post-commit); mmx MUST NOT invoke a synchronous `notifyExecution` gateway call from the REST controller.
 
-#### Scenario: Each EXECUTED transition triggers exactly one transmission
+#### Scenario: Each EXECUTED transition schedules exactly one outbox row
 
 - **WHEN** the trader executes an assigned order
-- **THEN** the back-office handoff is invoked exactly once with that order
+- **THEN** exactly one outbox row exists for that `orderId` and `handoffStatus` is `PENDING` after commit
 
-#### Scenario: Transmission happens after the EXECUTED commit
+#### Scenario: Back-office cannot observe handoff before EXECUTED commit
 
-- **WHEN** the back-office handoff is invoked for a given order
-- **THEN** querying the order by `orderId` at that moment returns `status = EXECUTED`
+- **WHEN** the outbox row is created for a given order
+- **THEN** querying the order by `orderId` in the same database transaction returns `status = EXECUTED`
 
----
+#### Scenario: Trader execute succeeds regardless of Kafka availability
 
-### Requirement: Best-effort transmission tolerates back-office unavailability
-
-If the outbound back-office handoff fails (the gateway raises an error or is unavailable), the system SHALL NOT fail the executing Trader's HTTP request, SHALL leave the order in `EXECUTED`, and SHALL log the failure for operational visibility. No automatic retry is performed in this change (durable retry is deferred to a future change).
-
-#### Scenario: Trader's execute succeeds despite gateway failure
-
-- **WHEN** the back-office gateway throws during transmission
-- **THEN** the executing Trader's HTTP response is success and the order is persisted as `EXECUTED`
-
-#### Scenario: Order remains EXECUTED on transmission failure
-
-- **WHEN** the back-office gateway throws during transmission
-- **THEN** the order's `status` remains `EXECUTED` and is not retried automatically
-
-#### Scenario: Failure is logged for operational follow-up
-
-- **WHEN** the back-office gateway throws during transmission
-- **THEN** the system emits a warning log entry that includes the order's `orderId`
+- **WHEN** the trader executes an assigned order while Kafka is unavailable
+- **THEN** the HTTP response is success, the order is `EXECUTED`, and handoff remains `PENDING` or becomes `FAILED` per relay rules — not rolled back
 
 ---
 
@@ -119,3 +103,19 @@ The accounted callback endpoint SHALL accept requests without authentication for
 
 - **WHEN** a request to a Trader-facing endpoint (e.g. `/api/v1/orders/term/executed`) arrives without `X-Trader-Id`
 - **THEN** the system rejects it per the existing Trader authentication rules — the unauthenticated callback path does not weaken Trader endpoints
+
+---
+
+### Requirement: Inbound HTTP accounted callback remains contract-first OpenAPI
+
+The inbound `POST /api/v1/back-office/orders/{orderId}/accounted` surface SHALL remain defined in `specs/002-trader-orders-views/contracts/openapi.yaml` (contract-first sync). Idempotent `EXECUTED → ACCOUNTED` behaviour and POC unauthenticated callback posture from the baseline spec are unchanged.
+
+#### Scenario: Accounted callback documented in OpenAPI
+
+- **WHEN** the accounted callback contract is reviewed for this delivery
+- **THEN** the operation and response codes are declared in `openapi.yaml` and described in `api-v1.md`
+
+#### Scenario: Outbound async and inbound sync contracts are both canonical
+
+- **WHEN** integration behaviour for this feature is specified
+- **THEN** outbound Kafka uses `asyncapi.yaml` and inbound HTTP uses `openapi.yaml` — neither is prose-only or code-first
