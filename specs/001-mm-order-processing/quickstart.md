@@ -73,19 +73,11 @@ mvn clean install
 mvn spring-boot:run -pl mmx-bootstrap
 ```
 
-The backend starts on `http://localhost:8080`.
-
-**Without Docker Postgres (optional):** activate the `local` profile so the app uses the H2 definition in [`application-local.yml`](../../../backend/mmx-bootstrap/src/main/resources/application-local.yml):
-
-```bash
-mvn spring-boot:run -pl mmx-bootstrap -Dspring-boot.run.profiles=local
-```
-
-In the IDE, set VM options `-Dspring.profiles.active=local` (or program args `--spring.profiles.active=local`) on `MmxApplication`.
-
-Run these commands from the `backend` directory (the reactor POM lives there). With `local`, Hibernate uses `ddl-auto: none` so startup does not fail on H2: Flyway still creates the schema, but JSONB-mapped columns are stored as JSON in H2 and do not pass Hibernate’s `validate` check.
+The backend starts on `http://localhost:8080` and connects to PostgreSQL at `localhost:5432` (database `mmx`, user/password `mmx` per `docker-compose.yml`). Run these commands from the `backend` directory (the reactor POM lives there).
 
 Flyway migrations run automatically on startup, creating the `money_market_order` and `order_audit_log` tables.
+
+Alternatively, start the full stack (Docker + backend + frontend) from the repo root: `./mmx-start.sh`.
 
 ### Verify the Backend
 

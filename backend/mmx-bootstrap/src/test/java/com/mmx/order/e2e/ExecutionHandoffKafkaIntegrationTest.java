@@ -57,7 +57,7 @@ import static org.awaitility.Awaitility.await;
 class ExecutionHandoffKafkaIntegrationTest {
 
     private static final String TRADER = "trader-handoff-it-1";
-    private static final String SCHEMA_PATH = "/contracts/order-executed-v1-payload.schema.json";
+    private static final String SCHEMA_PATH = "/contracts/OrderExecutedV1.json";
 
     private static volatile JsonSchema orderExecutedPayloadSchema;
 

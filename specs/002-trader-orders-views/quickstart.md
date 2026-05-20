@@ -80,7 +80,7 @@ kafka-topics.sh --bootstrap-server <host>:9092 \
 | Key | Default | Description |
 |-----|---------|-------------|
 | `mmx.backoffice.kafka.topic` | `mmx.order.executed` | Topic the outbox relay publishes to |
-| `mmx.backoffice.outbox.relay-enabled` | `true` | Set `false` to disable the scheduler (e.g. `application-local.yml`) |
+| `mmx.backoffice.outbox.relay-enabled` | `true` | Set `false` to disable the scheduler (override in `application.yml` if needed) |
 | `mmx.backoffice.outbox.max-publish-attempts` | `5` | Attempts before a row transitions to `FAILED` |
 | `mmx.backoffice.outbox.poll-interval-ms` | `1000` | Outbox polling interval in ms |
 
@@ -98,7 +98,7 @@ Spring Kafka producer is configured with `spring.kafka.producer.acks=all` (stron
    ```
 3. Browse the Kafka topic at **http://localhost:8081** (Redpanda Console → Topics → `mmx.order.executed`).
 
-The application connects to Redpanda on `localhost:19092` (external listener). The `application-local.yml` profile disables the relay (`relay-enabled: false`) for offline development.
+The application connects to Redpanda on `localhost:19092` (external listener). With default config, the outbox relay is enabled so executed orders move from **Queuing** (`PENDING`) to **Sent** (`PUBLISHED`) within about a second.
 
 ### CI / Testcontainers
 
@@ -107,7 +107,7 @@ The application connects to Redpanda on `localhost:19092` (external listener). T
 - `@Testcontainers(disabledWithoutDocker = true)` — skips the test gracefully when Docker is unavailable (e.g. some restricted CI runners).
 - A `KafkaContainer` (Apache Kafka image via Testcontainers) and a `PostgreSQLContainer` are started once per test class.
 - `@DynamicPropertySource` injects `spring.kafka.bootstrap-servers` and `spring.datasource.url` so the application context picks up the ephemeral container addresses at test startup.
-- The test executes an order via HTTP, asserts the outbox row payload validates against the `order-executed-v1-payload.schema.json` golden fixture (AsyncAPI contract mirror), then awaits the relay publishing the message and validates record key = `orderId`.
+- The test executes an order via HTTP, asserts the outbox row payload validates against the canonical schema `contracts/schemas/OrderExecutedV1.json` (same file referenced by `asyncapi.yaml`), then awaits the relay publishing the message and validates record key = `orderId`.
 
 To run this test locally with Docker available:
 

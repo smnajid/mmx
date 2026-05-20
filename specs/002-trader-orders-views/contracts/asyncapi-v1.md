@@ -24,6 +24,8 @@ Runtime HTTP payloads and Kafka message bodies MUST conform to these contracts i
 
 ## Message: `OrderExecutedV1`
 
+**Payload schema (canonical file)**: [schemas/OrderExecutedV1.json](./schemas/OrderExecutedV1.json) — referenced by `asyncapi.yaml` via `$ref`; single source of truth for integration tests and Redpanda Schema Registry.
+
 Contains execution and booking fields frozen at handoff schedule time so the consumer can book without calling mmx for facts or relying on trader re-entry.
 
 Required fields: `eventType` (const `OrderExecutedV1`), `orderId`, `executedAt`, `orderType`, `orderOperation`, `portfolioNumber`, `currency`, `amount`, `valueDate`, `executedRate`, `counterparty`, `dealingReference`, `contractNumber`, `externalOrderReference`.

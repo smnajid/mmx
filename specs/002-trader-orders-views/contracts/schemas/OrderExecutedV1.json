@@ -1,6 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$comment": "Payload shape for Kafka OrderExecutedV1 — mirror specs/002-trader-orders-views/contracts/asyncapi.yaml components/schemas/OrderExecutedV1",
+  "$id": "https://mmx.local/schemas/OrderExecutedV1.json",
+  "title": "OrderExecutedV1",
+  "description": "Thin handoff DTO frozen at schedule time; idempotent on orderId. Canonical schema for AsyncAPI and Schema Registry.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -74,10 +76,12 @@
       "minLength": 1
     },
     "tenor": {
-      "type": ["string", "null"]
+      "type": ["string", "null"],
+      "description": "Term orders only; null for OnCall when not applicable."
     },
     "noticePeriod": {
-      "type": ["string", "null"]
+      "type": ["string", "null"],
+      "description": "OnCall orders only; null for Term when not applicable."
     }
   }
 }

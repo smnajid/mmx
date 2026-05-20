@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Post a handful of Money Market orders for local UI smoke testing.
 #
-# Prerequisites: backend running (e.g. mvn spring-boot:run -pl mmx-bootstrap -Dspring-boot.run.profiles=local)
+# Prerequisites: backend running (e.g. ./mmx-start.sh or mvn spring-boot:run -pl mmx-bootstrap with Postgres up)
 # Default URL: http://localhost:8080  (override with BASE_URL)
 #
 # Intake: valueDate must be ≥ today + 2 calendar days.

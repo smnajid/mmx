@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # mmx-start.sh — Start the full MMX development stack:
 #   1. Docker Compose (Postgres + Redpanda + Redpanda Console)
-#   2. Spring Boot backend  (mmx-bootstrap, profile=local)
+#   2. Spring Boot backend  (mmx-bootstrap → PostgreSQL + Redpanda via application.yml)
 #   3. Angular frontend     (ng serve)
 #
 # Usage: ./mmx-start.sh
@@ -46,11 +46,15 @@ until docker inspect --format='{{.State.Health.Status}}' mmx-redpanda 2>/dev/nul
 done
 log "Redpanda is healthy."
 
+# ── 1.5. Schema Registry Registration ──────────────────────────────────────────
+log "Registering schemas in Redpanda Schema Registry..."
+"$SCRIPT_DIR/scripts/register-schemas.sh"
+
 # ── 2. Spring Boot backend ─────────────────────────────────────────────────────
 log "Starting Spring Boot backend..."
 (
   cd "$BACKEND_DIR"
-  mvn spring-boot:run -pl mmx-bootstrap -Dspring-boot.run.profiles=local 2>&1 \
+  mvn spring-boot:run -pl mmx-bootstrap 2>&1 \
     | sed 's/^/[backend] /'
 ) &
 BACKEND_PID=$!

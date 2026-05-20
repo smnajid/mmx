@@ -92,11 +92,11 @@
             <version>1.5.9</version>
             <scope>test</scope>
         </dependency>
-        <!-- Runtime: optional in-memory DB for spring.profiles.active=local (no Docker/PostgreSQL). Tests use it too. -->
+        <!-- In-memory H2 for fast REST/unit tests only (application-rest-test.yml). Dev uses PostgreSQL. -->
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
-            <scope>runtime</scope>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 
@@ -114,6 +114,15 @@
                 <targetPath>static</targetPath>
             </resource>
         </resources>
+        <testResources>
+            <testResource>
+                <directory>src/test/resources</directory>
+            </testResource>
+            <testResource>
+                <directory>${project.basedir}/../../specs/002-trader-orders-views/contracts/schemas</directory>
+                <targetPath>contracts</targetPath>
+            </testResource>
+        </testResources>
         <plugins>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
