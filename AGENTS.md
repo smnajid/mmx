@@ -1,6 +1,8 @@
 ## Spec-Driven Development (SDD)
 
-Agents MUST keep **specifications and code aligned** for any material change (API, domain behavior, persistence, Trader-facing UX). Operational checklist: `.cursor/rules/spec-sdd-sync.mdc`. Governance: `.specify/memory/constitution.md` Principle VI (Spec–code parity), version **1.6.0+**. Treat missing spec updates as a **blocking** defect, not a follow-up.
+Agents MUST keep **specifications and code aligned** for any material change (API, domain behavior, persistence, Trader-facing UX). Operational checklist: `.cursor/rules/spec-sdd-sync.mdc` (Cursor) or `CLAUDE.md` (Claude Code). Governance: `.specify/memory/constitution.md` Principle VI (Spec–code parity), version **1.6.0+**. Treat missing spec updates as a **blocking** defect, not a follow-up.
+
+**Claude Code**: skills and OPSX commands live under `.claude/` — see `docs/agents/claude-code.md`.
 
 ## Test-driven development (TDD)
 
@@ -10,7 +12,7 @@ For **new behavior** and **bug fixes**, the default workflow is **strict TDD**: 
 
 **Waivers**: skipping red-first TDD is allowed only when the user explicitly agrees or when the change is purely mechanical (e.g. rename, comment-only). If TDD was skipped, note it briefly in the PR or commit message.
 
-Agents SHOULD read `.cursor/skills/tdd/SKILL.md` when the user asks for TDD, red-green-refactor, or test-first delivery.
+Agents SHOULD read the `tdd` skill (`.claude/skills/tdd/SKILL.md` on Claude Code, `.cursor/skills/tdd/SKILL.md` on Cursor) when the user asks for TDD, red-green-refactor, or test-first delivery.
 
 ## Spec Kit Git hook (`/speckit.specify`)
 
