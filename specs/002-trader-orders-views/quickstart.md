@@ -42,10 +42,12 @@ After assigning an order as `alice`, the same row MUST appear on `GET .../term/a
 
 ## 3. Angular checks
 
-1. Open the app root — **without** manually choosing Term, the first screen MUST land in the **OnCall** workspace (default route).
-2. Switch to **Term** — Received (and Assigned / Executed when wired) MUST show **only** Term rows.
-3. Switch back to **OnCall** — lists MUST show **only** OnCall rows; Term rows MUST NOT linger from the prior view (same session).
-4. Full page reload — default entry MUST be **OnCall** again (no persisted last workspace).
+1. Open the app root — **without** manually choosing **Term**, the first screen MUST land on the **ON-CALL** primary tab and **Received** sub-tab (default route).
+2. Use desk tabs in the main content area: primary **ON-CALL** / **Term**, sub-tabs **Received** / **Assigned** / **Executed** (no “Workspace” in tab labels).
+3. Switch to **Term** — Received (and Assigned / Executed) MUST show **only** Term rows.
+4. Switch back to **ON-CALL** — lists MUST show **only** OnCall rows; Term rows MUST NOT linger from the prior view (same session).
+5. Full page reload — default entry MUST be **ON-CALL** > **Received** again (no persisted last primary tab).
+6. Narrow viewport (~320px): both tab rows remain visible; horizontal scroll reaches **Executed** on **ON-CALL**.
 
 ## 4. Regression
 

@@ -23,8 +23,8 @@ import { OrderTableComponent } from '../../shared/components/order-table.compone
           <button type="button" class="refresh" (click)="refresh()">Refresh</button>
         </div>
         <p class="lede">
-          All assigned orders on this desk for the current workspace. You can unassign only orders
-          assigned to you.
+          All assigned orders on this desk for the active product mode (ON-CALL or Term). You can
+          unassign only orders assigned to you.
         </p>
       </header>
       <mmx-order-table

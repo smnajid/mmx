@@ -45,7 +45,7 @@ describe('OnCallOrderListComponent', () => {
     expect(req.request.headers.get('X-Trader-Id')).toBe('oncall-test');
     req.flush({ content: [], totalElements: 0, page: 0, size: 100 });
     fixture.detectChanges();
-    expect(fixture.nativeElement.textContent).toContain('Received — On call');
+    expect(fixture.nativeElement.textContent).toContain('Received — ON-CALL');
   });
 
   it('renders order reference from paged response', () => {

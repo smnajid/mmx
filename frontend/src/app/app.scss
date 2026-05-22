@@ -54,50 +54,6 @@
   color: var(--mmx-text-muted);
 }
 
-.nav-cluster {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  flex: 1;
-  align-items: center;
-  justify-content: center;
-}
-
-.nav {
-  display: flex;
-  gap: 0.35rem;
-  flex-wrap: wrap;
-  justify-content: center;
-}
-
-.nav a {
-  font-family: var(--font-mono);
-  font-size: 0.78rem;
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  text-decoration: none;
-  color: var(--mmx-text-muted);
-  padding: 0.45rem 0.85rem;
-  border-radius: 4px;
-  border: 1px solid transparent;
-  transition:
-    color 0.2s ease,
-    border-color 0.2s ease,
-    background 0.2s ease;
-}
-
-.nav a:hover {
-  color: var(--mmx-text);
-  background: rgba(255, 255, 255, 0.04);
-}
-
-.nav a.active {
-  color: var(--mmx-accent);
-  border-color: var(--mmx-border);
-  background: var(--mmx-accent-dim);
-}
-
 .trader {
   display: flex;
   flex-direction: column;
@@ -132,17 +88,99 @@
 
 .main {
   flex: 1;
-  padding: 1.75rem 1.25rem 2.5rem;
+  display: flex;
+  flex-direction: column;
+  padding: 0 0 2.5rem;
+}
+
+.desk-nav {
+  padding: 1rem 1.25rem 0;
+  border-bottom: 1px solid var(--mmx-border);
+  background: rgba(15, 20, 27, 0.35);
+}
+
+.desk-tabs-scroll {
+  position: relative;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 0.75rem,
+    #000 calc(100% - 0.75rem),
+    transparent 100%
+  );
+}
+
+.desk-tabs-scroll--sub {
+  margin-top: 0.35rem;
+}
+
+.desk-tabs {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.15rem;
+  min-width: min-content;
+}
+
+.desk-tabs a {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: var(--mmx-text-muted);
+  padding: 0.55rem 1rem;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 4px 4px 0 0;
+  border: 1px solid transparent;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+  transition:
+    color 0.2s ease,
+    border-color 0.2s ease,
+    background 0.2s ease;
+}
+
+.desk-tabs a:hover {
+  color: var(--mmx-text);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.desk-primary-tabs a.active {
+  color: var(--mmx-accent);
+  border-color: var(--mmx-border);
+  border-bottom-color: var(--mmx-accent);
+  background: var(--mmx-accent-dim);
+}
+
+.desk-sub-tabs a.active {
+  color: var(--mmx-text);
+  border-bottom-color: var(--mmx-accent);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.desk-content {
+  flex: 1;
+  padding: 1.75rem 1.25rem 0;
 }
 
 @media (max-width: 720px) {
-  .nav {
-    order: 3;
-    width: 100%;
-    justify-content: flex-start;
-  }
-
   .trader {
     margin-left: 0;
+  }
+
+  .desk-nav {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  .desk-content {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
   }
 }

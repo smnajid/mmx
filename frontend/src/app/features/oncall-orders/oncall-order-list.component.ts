@@ -19,7 +19,7 @@ import { OrderTableComponent } from '../../shared/components/order-table.compone
     <section class="feature">
       <header class="feature-head">
         <div class="feature-head-row">
-          <h1>Received — On call</h1>
+          <h1>Received — ON-CALL</h1>
           <div class="toolbar-actions">
             <label class="show-all">
               <input
@@ -193,6 +193,6 @@ export class OnCallOrderListComponent implements OnInit {
         return body.message;
       }
     }
-    return 'Could not load On-call orders. Is the API running (proxy /api → backend)?';
+    return 'Could not load ON-CALL orders. Is the API running (proxy /api → backend)?';
   }
 }

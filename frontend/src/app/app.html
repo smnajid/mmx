@@ -8,23 +8,6 @@
       </div>
     </div>
 
-    <div class="nav-cluster">
-      <nav class="nav workspace-nav" aria-label="Workspace">
-        <a routerLink="/oncall/received" [class.active]="workspaceActive('oncall')">
-          On-call workspace
-        </a>
-        <a routerLink="/term/received" [class.active]="workspaceActive('term')">
-          Term workspace
-        </a>
-      </nav>
-
-      <nav class="nav sub-nav" aria-label="Queues">
-        <a [routerLink]="queuePrefix() + '/received'" [class.active]="queueActive('received')">Received</a>
-        <a [routerLink]="queuePrefix() + '/assigned'" [class.active]="queueActive('assigned')">Assigned</a>
-        <a [routerLink]="queuePrefix() + '/executed'" [class.active]="queueActive('executed')">Executed</a>
-      </nav>
-    </div>
-
     <label class="trader">
       <span class="trader-label">Trader</span>
       <input
@@ -40,6 +23,60 @@
   </header>
 
   <main class="main">
-    <router-outlet />
+    <div class="desk-nav" aria-label="Desk">
+      <div class="desk-tabs-scroll desk-tabs-scroll--primary">
+        <nav class="desk-tabs desk-primary-tabs" role="tablist" aria-label="Product mode">
+          <a
+            routerLink="/oncall/received"
+            role="tab"
+            [class.active]="workspaceActive('oncall')"
+            [attr.aria-selected]="workspaceActive('oncall')"
+          >
+            ON-CALL
+          </a>
+          <a
+            routerLink="/term/received"
+            role="tab"
+            [class.active]="workspaceActive('term')"
+            [attr.aria-selected]="workspaceActive('term')"
+          >
+            Term
+          </a>
+        </nav>
+      </div>
+
+      <div class="desk-tabs-scroll desk-tabs-scroll--sub">
+        <nav class="desk-tabs desk-sub-tabs" role="tablist" aria-label="Order queues">
+          <a
+            [routerLink]="queuePrefix() + '/received'"
+            role="tab"
+            [class.active]="queueActive('received')"
+            [attr.aria-selected]="queueActive('received')"
+          >
+            Received
+          </a>
+          <a
+            [routerLink]="queuePrefix() + '/assigned'"
+            role="tab"
+            [class.active]="queueActive('assigned')"
+            [attr.aria-selected]="queueActive('assigned')"
+          >
+            Assigned
+          </a>
+          <a
+            [routerLink]="queuePrefix() + '/executed'"
+            role="tab"
+            [class.active]="queueActive('executed')"
+            [attr.aria-selected]="queueActive('executed')"
+          >
+            Executed
+          </a>
+        </nav>
+      </div>
+    </div>
+
+    <div class="desk-content">
+      <router-outlet />
+    </div>
   </main>
 </div>
