@@ -5,16 +5,18 @@ import com.mmx.order.application.port.out.Clock;
 import com.mmx.order.application.port.out.OrderRepository;
 import com.mmx.order.domain.model.ExternalOrderReference;
 import com.mmx.order.domain.model.MoneyMarketOrder;
+import com.mmx.order.domain.model.NoticePeriod;
 import com.mmx.order.domain.model.OrderOperation;
 import com.mmx.order.domain.model.OrderStatus;
 import com.mmx.order.domain.model.OrderType;
-import com.mmx.order.domain.model.NoticePeriod;
 import com.mmx.order.domain.model.PortfolioNumber;
 import com.mmx.order.domain.model.ReceivedListView;
 import com.mmx.order.domain.model.Tenor;
+import com.mmx.order.domain.model.TraderId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -32,14 +34,17 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class OrderQueryServiceTest {
+class DeskOrderQueryServiceTest {
 
     private static final LocalDate TODAY = LocalDate.of(2026, 5, 1);
     /** Inclusive window end when "today" is 2026-05-01 in Europe/Paris (today + 2 calendar days). */
     private static final LocalDate NEAR_TERM_END = LocalDate.of(2026, 5, 3);
+    private static final TraderId TRADER_A = new TraderId("trader-a");
+    private static final TraderId TRADER_B = new TraderId("trader-b");
 
     @Mock
     OrderRepository orderRepository;
@@ -48,12 +53,12 @@ class OrderQueryServiceTest {
     Clock clock;
 
     @InjectMocks
-    OrderQueryService subject;
+    DeskOrderQueryService subject;
 
     @BeforeEach
     void freezeBusinessToday() {
         Instant noonParis =
-                ZonedDateTime.of(2026, 5, 1, 12, 0, 0, 0, OrderQueryService.BUSINESS_CALENDAR_ZONE)
+                ZonedDateTime.of(2026, 5, 1, 12, 0, 0, 0, DeskOrderQueryService.BUSINESS_CALENDAR_ZONE)
                         .toInstant();
         lenient().when(clock.now()).thenReturn(noonParis);
     }
@@ -174,6 +179,53 @@ class OrderQueryServiceTest {
 
         assertThat(page.content()).containsExactly(o);
         verify(orderRepository).findByStatusAndOrderType(OrderStatus.EXECUTED, OrderType.ON_CALL);
+    }
+
+    @Test
+    void listAssignedOrders_returns_only_matching_trader() {
+        MoneyMarketOrder forA = newTermReceived("A-1");
+        forA.assign(TRADER_A, Instant.parse("2026-05-01T12:00:00Z"));
+
+        when(orderRepository.findByAssignedTraderIdAndStatus(TRADER_A, OrderStatus.ASSIGNED))
+                .thenReturn(List.of(forA));
+
+        OrderPage page = subject.listAssignedOrders(TRADER_A, 0, 20);
+
+        assertThat(page.content()).containsExactly(forA);
+        assertThat(page.totalElements()).isEqualTo(1);
+
+        ArgumentCaptor<TraderId> traderCaptor = ArgumentCaptor.forClass(TraderId.class);
+        verify(orderRepository).findByAssignedTraderIdAndStatus(traderCaptor.capture(), eq(OrderStatus.ASSIGNED));
+        assertThat(traderCaptor.getValue()).isEqualTo(TRADER_A);
+    }
+
+    @Test
+    void listAssignedTermOrders_deskWide_usesStatusAndOrderType() {
+        MoneyMarketOrder termAssignedToA = newTermReceived("T-A");
+        termAssignedToA.assign(TRADER_A, Instant.parse("2026-05-01T12:00:00Z"));
+        MoneyMarketOrder termAssignedToB = newTermReceived("T-B");
+        termAssignedToB.assign(TRADER_B, Instant.parse("2026-05-01T12:00:00Z"));
+        when(orderRepository.findByStatusAndOrderType(OrderStatus.ASSIGNED, OrderType.TERM))
+                .thenReturn(List.of(termAssignedToA, termAssignedToB));
+
+        OrderPage page = subject.listAssignedTermOrders(0, 20);
+
+        assertThat(page.content()).containsExactly(termAssignedToA, termAssignedToB);
+        verify(orderRepository).findByStatusAndOrderType(OrderStatus.ASSIGNED, OrderType.TERM);
+        verifyNoMoreInteractions(orderRepository);
+    }
+
+    @Test
+    void listAssignedOnCallOrders_deskWide_usesStatusAndOrderType() {
+        MoneyMarketOrder onCall = newOnCallReceived("O-1");
+        onCall.assign(TRADER_A, Instant.parse("2026-05-01T12:00:00Z"));
+        when(orderRepository.findByStatusAndOrderType(OrderStatus.ASSIGNED, OrderType.ON_CALL))
+                .thenReturn(List.of(onCall));
+
+        OrderPage page = subject.listAssignedOnCallOrders(0, 20);
+
+        assertThat(page.content()).containsExactly(onCall);
+        verify(orderRepository).findByStatusAndOrderType(OrderStatus.ASSIGNED, OrderType.ON_CALL);
     }
 
     private static MoneyMarketOrder newTermReceived(String extRef) {

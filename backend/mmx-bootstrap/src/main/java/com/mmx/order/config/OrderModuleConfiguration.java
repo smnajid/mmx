@@ -8,6 +8,7 @@ import com.mmx.order.adapter.out.persistence.mapper.OrderPersistenceMapper;
 import com.mmx.order.adapter.out.persistence.repository.SpringDataAuditLogRepository;
 import com.mmx.order.adapter.out.persistence.repository.SpringDataOrderRepository;
 import com.mmx.order.application.port.in.CancelOrderUseCase;
+import com.mmx.order.application.port.in.DeskOrderQueries;
 import com.mmx.order.application.port.in.MarkOrderAccountedUseCase;
 import com.mmx.order.application.port.in.ReceiveOrderUseCase;
 import com.mmx.order.application.port.in.RejectOrderUseCase;
@@ -17,7 +18,7 @@ import com.mmx.order.application.service.AssignmentService;
 import com.mmx.order.application.service.ExecuteOrderService;
 import com.mmx.order.application.service.MarkOrderAccountedService;
 import com.mmx.order.application.service.OrderLifecycleService;
-import com.mmx.order.application.service.OrderQueryService;
+import com.mmx.order.application.service.DeskOrderQueryService;
 import com.mmx.order.application.service.ReceiveOrderService;
 import com.mmx.order.application.service.UpdateOrderService;
 import org.springframework.context.annotation.Bean;
@@ -74,8 +75,8 @@ public class OrderModuleConfiguration {
     }
 
     @Bean
-    public OrderQueryService orderQueryService(OrderRepository orderRepository, Clock clock) {
-        return new OrderQueryService(orderRepository, clock);
+    public DeskOrderQueries deskOrderQueries(OrderRepository orderRepository, Clock clock) {
+        return new DeskOrderQueryService(orderRepository, clock);
     }
 
     @Bean

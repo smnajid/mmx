@@ -2,7 +2,6 @@ package com.mmx.order.application.service;
 
 import com.mmx.order.application.command.AssignOrderCommand;
 import com.mmx.order.application.command.UnassignOrderCommand;
-import com.mmx.order.application.port.in.OrderPage;
 import com.mmx.order.application.port.out.AuditLogger;
 import com.mmx.order.application.port.out.Clock;
 import com.mmx.order.application.port.out.OrderRepository;
@@ -15,13 +14,11 @@ import com.mmx.order.domain.model.OrderOperation;
 import com.mmx.order.domain.model.OrderStatus;
 import com.mmx.order.domain.model.OrderType;
 import com.mmx.order.domain.model.PortfolioNumber;
-import com.mmx.order.domain.model.NoticePeriod;
 import com.mmx.order.domain.model.Tenor;
 import com.mmx.order.domain.model.TraderId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -31,7 +28,6 @@ import org.mockito.quality.Strictness;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -41,7 +37,6 @@ import static org.mockito.AdditionalAnswers.returnsFirstArg;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -132,53 +127,6 @@ class AssignmentServiceTest {
                 .isInstanceOf(UnauthorizedTraderException.class);
     }
 
-    @Test
-    void listAssignedOrders_returns_only_matching_trader() {
-        MoneyMarketOrder forA = newReceivedOrder();
-        forA.assign(TRADER_A, FIXED_NOW);
-
-        when(orderRepository.findByAssignedTraderIdAndStatus(TRADER_A, OrderStatus.ASSIGNED))
-                .thenReturn(List.of(forA));
-
-        OrderPage page = subject.listAssignedOrders(TRADER_A, 0, 20);
-
-        assertThat(page.content()).containsExactly(forA);
-        assertThat(page.totalElements()).isEqualTo(1);
-
-        ArgumentCaptor<TraderId> traderCaptor = ArgumentCaptor.forClass(TraderId.class);
-        verify(orderRepository).findByAssignedTraderIdAndStatus(traderCaptor.capture(), eq(OrderStatus.ASSIGNED));
-        assertThat(traderCaptor.getValue()).isEqualTo(TRADER_A);
-    }
-
-    @Test
-    void listAssignedTermOrders_deskWide_usesStatusAndOrderType() {
-        MoneyMarketOrder termAssignedToA = newReceivedOrder();
-        termAssignedToA.assign(TRADER_A, FIXED_NOW);
-        MoneyMarketOrder termAssignedToB = newReceivedOrder();
-        termAssignedToB.assign(TRADER_B, FIXED_NOW);
-        when(orderRepository.findByStatusAndOrderType(OrderStatus.ASSIGNED, OrderType.TERM))
-                .thenReturn(List.of(termAssignedToA, termAssignedToB));
-
-        OrderPage page = subject.listAssignedTermOrders(0, 20);
-
-        assertThat(page.content()).containsExactly(termAssignedToA, termAssignedToB);
-        verify(orderRepository).findByStatusAndOrderType(OrderStatus.ASSIGNED, OrderType.TERM);
-        verifyNoMoreInteractions(orderRepository);
-    }
-
-    @Test
-    void listAssignedOnCallOrders_deskWide_usesStatusAndOrderType() {
-        MoneyMarketOrder onCall = newOnCallReceivedOrder();
-        onCall.assign(TRADER_A, FIXED_NOW);
-        when(orderRepository.findByStatusAndOrderType(OrderStatus.ASSIGNED, OrderType.ON_CALL))
-                .thenReturn(List.of(onCall));
-
-        OrderPage page = subject.listAssignedOnCallOrders(0, 20);
-
-        assertThat(page.content()).containsExactly(onCall);
-        verify(orderRepository).findByStatusAndOrderType(OrderStatus.ASSIGNED, OrderType.ON_CALL);
-    }
-
     private static MoneyMarketOrder newReceivedOrder() {
         return MoneyMarketOrder.create(
                 new ExternalOrderReference("PM-ASGN-" + UUID.randomUUID()),
@@ -196,20 +144,4 @@ class AssignmentServiceTest {
                 TODAY);
     }
 
-    private static MoneyMarketOrder newOnCallReceivedOrder() {
-        return MoneyMarketOrder.create(
-                new ExternalOrderReference("PM-OC-" + UUID.randomUUID()),
-                OrderType.ON_CALL,
-                OrderOperation.SUBSCRIPTION,
-                new PortfolioNumber("PF-001"),
-                "EUR",
-                new BigDecimal("500000.00"),
-                TODAY.plusDays(3),
-                new BigDecimal("2.50000000"),
-                null,
-                NoticePeriod._24H,
-                null,
-                null,
-                TODAY);
-    }
 }

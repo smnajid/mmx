@@ -125,12 +125,9 @@ backend/
 │       ├── port/
 │       │   ├── in/
 │       │   │   ├── ReceiveOrderUseCase.java
-│       │   │   ├── ListReceivedTermOrdersUseCase.java
-│       │   │   ├── ListReceivedOnCallOrdersUseCase.java
+│       │   │   ├── DeskOrderQueries.java          ← desk queue reads + order detail (replaces per-list ports)
 │       │   │   ├── AssignOrderUseCase.java
 │       │   │   ├── UnassignOrderUseCase.java
-│       │   │   ├── ListAssignedOrdersUseCase.java
-│       │   │   ├── GetOrderDetailsUseCase.java
 │       │   │   ├── UpdateAssignedOrderUseCase.java
 │       │   │   ├── ExecuteOrderUseCase.java
 │       │   │   ├── CancelOrderUseCase.java
@@ -143,8 +140,8 @@ backend/
 │       │       └── Clock.java                     ← time abstraction for testability
 │       ├── service/
 │       │   ├── ReceiveOrderService.java           ← implements ReceiveOrderUseCase
-│       │   ├── OrderQueryService.java             ← implements List* and GetOrderDetails
-│       │   ├── AssignmentService.java             ← implements Assign/Unassign
+│       │   ├── DeskOrderQueryService.java         ← implements DeskOrderQueries
+│       │   ├── AssignmentService.java             ← implements Assign/Unassign only
 │       │   ├── UpdateOrderService.java            ← implements UpdateAssignedOrder
 │       │   ├── ExecuteOrderService.java           ← implements ExecuteOrder
 │       │   └── OrderLifecycleService.java         ← implements Cancel/Reject
@@ -786,7 +783,7 @@ The REST layer validates **syntactic correctness** (is the JSON well-formed? are
 - **Mocks**: All outbound ports (OrderRepository, ReferenceGenerator, AuditLogger, Clock)
 - **Coverage targets**:
   - ReceiveOrderService: new order creation, idempotent duplicate handling
-  - OrderQueryService: delegation to repository with correct filters
+  - DeskOrderQueryService: delegation to repository with correct filters
   - AssignmentService: assign success, unassign success, wrong Trader rejection
   - UpdateOrderService: valid update, unauthorized Trader, invalid status
   - ExecuteOrderService: full execution flow with generated references, missing data rejection, reject execution when executedRate is below MinimumRate and a PM floor exists
@@ -862,7 +859,7 @@ This project serves as an introductory Spec-Driven Development exercise. The sco
 
 ### How the Design Avoids Overengineering
 
-1. **No generic repository abstraction**: `OrderRepository` is a single, specific port—not a generic `Repository<T>`.
+1. **No generic repository abstraction**: `OrderRepository` is a single, specific port—not a generic `Repository<T>`. Assigned listing uses `findByStatusAndOrderType` (desk-wide) or `findByAssignedTraderIdAndStatus` (legacy trader-scoped); the unused `findByAssignedTraderIdAndStatusAndOrderType` finder was removed (no callers).
 2. **No domain events bus**: Audit logging is a direct port call, not a pub/sub system.
 3. **No DTO base classes or generic mappers**: Each mapper is explicit and purpose-built.
 4. **No shared "common" or "utils" module**: Cross-cutting concerns live in the module that needs them.

@@ -8,8 +8,8 @@ import com.mmx.order.application.port.in.ExecuteOrderUseCase;
 import com.mmx.order.application.port.in.OrderPage;
 import com.mmx.order.application.port.in.RejectOrderUseCase;
 import com.mmx.order.application.port.in.UpdateAssignedOrderUseCase;
+import com.mmx.order.application.port.in.DeskOrderQueries;
 import com.mmx.order.application.service.AssignmentService;
-import com.mmx.order.application.service.OrderQueryService;
 import com.mmx.order.domain.exception.InvalidStatusTransitionException;
 import com.mmx.order.domain.exception.UnauthorizedTraderException;
 import com.mmx.order.domain.model.ExternalOrderReference;
@@ -50,7 +50,7 @@ class OrderAssignmentControllerTest {
     private static final Instant NOW = Instant.parse("2026-05-01T12:00:00Z");
 
     @Mock
-    OrderQueryService orderQueryService;
+    DeskOrderQueries deskOrderQueries;
 
     @Mock
     AssignmentService assignmentService;
@@ -75,7 +75,7 @@ class OrderAssignmentControllerTest {
         mockMvc =
                 standaloneSetup(
                                 new OrderManagementController(
-                                        orderQueryService,
+                                        deskOrderQueries,
                                         assignmentService,
                                         executeOrderUseCase,
                                         cancelOrderUseCase,
@@ -123,7 +123,7 @@ class OrderAssignmentControllerTest {
 
     @Test
     void getAssigned_passesTraderIdToUseCase() throws Exception {
-        when(assignmentService.listAssignedOrders(eq(new TraderId("alice")), eq(0), eq(20)))
+        when(deskOrderQueries.listAssignedOrders(eq(new TraderId("alice")), eq(0), eq(20)))
                 .thenReturn(new OrderPage(List.of(), 0, 0, 20));
 
         mockMvc.perform(get("/api/v1/orders/assigned").header("X-Trader-Id", "alice"))
@@ -132,31 +132,31 @@ class OrderAssignmentControllerTest {
                 .andExpect(jsonPath("$.content").isArray());
 
         ArgumentCaptor<TraderId> traderCaptor = ArgumentCaptor.forClass(TraderId.class);
-        verify(assignmentService).listAssignedOrders(traderCaptor.capture(), eq(0), eq(20));
+        verify(deskOrderQueries).listAssignedOrders(traderCaptor.capture(), eq(0), eq(20));
         assertThat(traderCaptor.getValue()).isEqualTo(new TraderId("alice"));
     }
 
     @Test
     void getTermAssigned_deskWide_doesNotPassTraderToListingUseCase() throws Exception {
-        when(assignmentService.listAssignedTermOrders(eq(0), eq(20)))
+        when(deskOrderQueries.listAssignedTermOrders(eq(0), eq(20)))
                 .thenReturn(new OrderPage(List.of(), 0, 0, 20));
 
         mockMvc.perform(get("/api/v1/orders/term/assigned").header("X-Trader-Id", "alice"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(0));
 
-        verify(assignmentService).listAssignedTermOrders(eq(0), eq(20));
+        verify(deskOrderQueries).listAssignedTermOrders(eq(0), eq(20));
     }
 
     @Test
     void getOnCallAssigned_deskWide_doesNotPassTraderToListingUseCase() throws Exception {
-        when(assignmentService.listAssignedOnCallOrders(eq(0), eq(20)))
+        when(deskOrderQueries.listAssignedOnCallOrders(eq(0), eq(20)))
                 .thenReturn(new OrderPage(List.of(), 0, 0, 20));
 
         mockMvc.perform(get("/api/v1/orders/oncall/assigned").header("X-Trader-Id", "bob"))
                 .andExpect(status().isOk());
 
-        verify(assignmentService).listAssignedOnCallOrders(eq(0), eq(20));
+        verify(deskOrderQueries).listAssignedOnCallOrders(eq(0), eq(20));
     }
 
     private static MoneyMarketOrder receivedOrder() {

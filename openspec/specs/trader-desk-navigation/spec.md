@@ -8,7 +8,7 @@ Trader-facing desk navigation: two-tier tabs (**ON-CALL** / **Term** primary, **
 
 ### Requirement: Two-tier desk tabs in main content
 
-The trader application SHALL expose desk navigation as two visible tab tiers placed in the **main content area** below the application header (not in the header): (**1**) primary tabs **ON-CALL** and **Term**, and (**2**) sub-tabs **Received**, **Assigned**, and **Executed** scoped to the active primary tab. Primary tab labels SHALL NOT include the word “Workspace”. Routing SHALL continue to use paths `/oncall/{queue}` and `/term/{queue}` with `queue` ∈ {`received`, `assigned`, `executed`}.
+The trader application SHALL expose desk navigation as two visible tab tiers placed in the **main content area** below the application header (not in the header): (**1**) primary tabs **ON-CALL** and **Term**, and (**2**) sub-tabs **Received**, **Assigned**, and **Executed** scoped to the active primary tab. Primary tab labels SHALL NOT include the word “Workspace”. Routing SHALL continue to use paths `/oncall/{queue}` and `/term/{queue}` with `queue` ∈ {`received`, `assigned`, `executed`}. **Received** routes SHALL load the shared Received list shell (same structural pattern as Executed thin wrappers).
 
 #### Scenario: Primary tabs use ON-CALL and Term labels
 
@@ -24,6 +24,11 @@ The trader application SHALL expose desk navigation as two visible tab tiers pla
 
 - **WHEN** the trader loads the application shell
 - **THEN** the top header contains brand and trader identity only, and both tab tiers appear at the top of the main content region above the queue list
+
+#### Scenario: Received routes use shared list shell
+
+- **WHEN** the trader selects **Term** then **Received**
+- **THEN** routing resolves to `/term/received` using the shared Received list component for the Term workspace (not a standalone duplicate Term-only list implementation)
 
 ---
 

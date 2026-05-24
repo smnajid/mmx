@@ -7,8 +7,8 @@ import com.mmx.order.application.port.in.OrderPage;
 import com.mmx.order.application.port.in.ExecuteOrderUseCase;
 import com.mmx.order.application.port.in.RejectOrderUseCase;
 import com.mmx.order.application.port.in.UpdateAssignedOrderUseCase;
+import com.mmx.order.application.port.in.DeskOrderQueries;
 import com.mmx.order.application.service.AssignmentService;
-import com.mmx.order.application.service.OrderQueryService;
 import com.mmx.order.domain.exception.InvalidStatusTransitionException;
 import com.mmx.order.domain.exception.UnauthorizedTraderException;
 import com.mmx.order.domain.model.ContractNumber;
@@ -53,7 +53,7 @@ class OrderExecutionControllerTest {
     private static final Instant NOW = Instant.parse("2026-05-01T12:00:00Z");
 
     @Mock
-    OrderQueryService orderQueryService;
+    DeskOrderQueries deskOrderQueries;
 
     @Mock
     AssignmentService assignmentService;
@@ -78,7 +78,7 @@ class OrderExecutionControllerTest {
         mockMvc =
                 standaloneSetup(
                                 new OrderManagementController(
-                                        orderQueryService,
+                                        deskOrderQueries,
                                         assignmentService,
                                         executeOrderUseCase,
                                         cancelOrderUseCase,
@@ -153,21 +153,21 @@ class OrderExecutionControllerTest {
     }
 
     @Test
-    void getExecutedTerm_delegatesToOrderQueryService() throws Exception {
-        when(orderQueryService.listExecutedTermOrders(eq(0), eq(20)))
+    void getExecutedTerm_delegatesToDeskOrderQueries() throws Exception {
+        when(deskOrderQueries.listExecutedTermOrders(eq(0), eq(20)))
                 .thenReturn(new OrderPage(List.of(), 0, 0, 20));
 
         mockMvc.perform(get("/api/v1/orders/term/executed").header("X-Trader-Id", "alice"))
                 .andExpect(status().isOk());
 
-        verify(orderQueryService).listExecutedTermOrders(0, 20);
+        verify(deskOrderQueries).listExecutedTermOrders(0, 20);
     }
 
     @Test
     void getExecutedTerm_includesHandoffStatusOnSummaries() throws Exception {
         MoneyMarketOrder order = assignedOrderExecuted();
         assertThat(order.getHandoffStatus()).isEqualTo(HandoffStatus.PENDING);
-        when(orderQueryService.listExecutedTermOrders(eq(0), eq(20)))
+        when(deskOrderQueries.listExecutedTermOrders(eq(0), eq(20)))
                 .thenReturn(new OrderPage(List.of(order), 1, 0, 20));
 
         mockMvc.perform(get("/api/v1/orders/term/executed").header("X-Trader-Id", "alice"))
@@ -176,8 +176,8 @@ class OrderExecutionControllerTest {
     }
 
     @Test
-    void getExecutedOnCall_delegatesToOrderQueryService() throws Exception {
-        when(orderQueryService.listExecutedOnCallOrders(eq(0), eq(25)))
+    void getExecutedOnCall_delegatesToDeskOrderQueries() throws Exception {
+        when(deskOrderQueries.listExecutedOnCallOrders(eq(0), eq(25)))
                 .thenReturn(new OrderPage(List.of(), 0, 0, 25));
 
         mockMvc.perform(
@@ -187,7 +187,7 @@ class OrderExecutionControllerTest {
                                 .queryParam("size", "25"))
                 .andExpect(status().isOk());
 
-        verify(orderQueryService).listExecutedOnCallOrders(0, 25);
+        verify(deskOrderQueries).listExecutedOnCallOrders(0, 25);
     }
 
     private static MoneyMarketOrder assignedOrderExecuted() {

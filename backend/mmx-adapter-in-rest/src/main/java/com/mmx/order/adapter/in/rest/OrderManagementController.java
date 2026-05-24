@@ -10,11 +10,11 @@ import com.mmx.order.adapter.in.rest.mapper.OrderRestMapper;
 import com.mmx.order.application.command.AssignOrderCommand;
 import com.mmx.order.application.command.UnassignOrderCommand;
 import com.mmx.order.application.port.in.CancelOrderUseCase;
+import com.mmx.order.application.port.in.DeskOrderQueries;
 import com.mmx.order.application.port.in.ExecuteOrderUseCase;
 import com.mmx.order.application.port.in.RejectOrderUseCase;
 import com.mmx.order.application.port.in.UpdateAssignedOrderUseCase;
 import com.mmx.order.application.service.AssignmentService;
-import com.mmx.order.application.service.OrderQueryService;
 import com.mmx.order.domain.exception.OrderNotFoundException;
 import com.mmx.order.domain.model.ReceivedListView;
 import com.mmx.order.domain.model.TraderId;
@@ -39,7 +39,7 @@ import java.util.UUID;
 @RestController
 public class OrderManagementController implements OrdersApi {
 
-    private final OrderQueryService orderQueryService;
+    private final DeskOrderQueries deskOrderQueries;
     private final AssignmentService assignmentService;
     private final ExecuteOrderUseCase executeOrderUseCase;
     private final CancelOrderUseCase cancelOrderUseCase;
@@ -48,14 +48,14 @@ public class OrderManagementController implements OrdersApi {
     private final OrderRestMapper orderRestMapper;
 
     public OrderManagementController(
-            OrderQueryService orderQueryService,
+            DeskOrderQueries deskOrderQueries,
             AssignmentService assignmentService,
             ExecuteOrderUseCase executeOrderUseCase,
             CancelOrderUseCase cancelOrderUseCase,
             RejectOrderUseCase rejectOrderUseCase,
             UpdateAssignedOrderUseCase updateAssignedOrderUseCase,
             OrderRestMapper orderRestMapper) {
-        this.orderQueryService = orderQueryService;
+        this.deskOrderQueries = deskOrderQueries;
         this.assignmentService = assignmentService;
         this.executeOrderUseCase = executeOrderUseCase;
         this.cancelOrderUseCase = cancelOrderUseCase;
@@ -73,7 +73,7 @@ public class OrderManagementController implements OrdersApi {
             @RequestParam(value = "receivedView", required = false, defaultValue = "NEAR_TERM")
                     com.mmx.order.adapter.in.rest.generated.model.ReceivedListView receivedView) {
         ReceivedListView view = mapReceivedView(receivedView);
-        var result = orderQueryService.listReceivedTermOrders(page, size, view);
+        var result = deskOrderQueries.listReceivedTermOrders(page, size, view);
         return ResponseEntity.ok(orderRestMapper.toSummaryPage(result));
     }
 
@@ -86,7 +86,7 @@ public class OrderManagementController implements OrdersApi {
             @RequestParam(value = "receivedView", required = false, defaultValue = "NEAR_TERM")
                     com.mmx.order.adapter.in.rest.generated.model.ReceivedListView receivedView) {
         ReceivedListView view = mapReceivedView(receivedView);
-        var result = orderQueryService.listReceivedOnCallOrders(page, size, view);
+        var result = deskOrderQueries.listReceivedOnCallOrders(page, size, view);
         return ResponseEntity.ok(orderRestMapper.toSummaryPage(result));
     }
 
@@ -103,7 +103,7 @@ public class OrderManagementController implements OrdersApi {
     public ResponseEntity<OrderDetailsResponse> getOrderDetails(
             @RequestHeader(value = "X-Trader-Id", required = true) String xTraderId,
             @PathVariable("orderId") UUID orderId) {
-        return orderQueryService
+        return deskOrderQueries
                 .getOrderDetails(orderId)
                 .map(orderRestMapper::toDetails)
                 .map(ResponseEntity::ok)
@@ -117,7 +117,7 @@ public class OrderManagementController implements OrdersApi {
             @RequestHeader(value = "X-Trader-Id", required = true) String xTraderId,
             @RequestParam(value = "page", required = false, defaultValue = "0") Integer page,
             @RequestParam(value = "size", required = false, defaultValue = "20") Integer size) {
-        var result = assignmentService.listAssignedOrders(new TraderId(xTraderId), page, size);
+        var result = deskOrderQueries.listAssignedOrders(new TraderId(xTraderId), page, size);
         return ResponseEntity.ok(orderRestMapper.toSummaryPage(result));
     }
 
@@ -128,7 +128,7 @@ public class OrderManagementController implements OrdersApi {
             @RequestParam(value = "page", required = false, defaultValue = "0") Integer page,
             @RequestParam(value = "size", required = false, defaultValue = "20") Integer size) {
         Objects.requireNonNull(xTraderId, "X-Trader-Id");
-        var result = assignmentService.listAssignedTermOrders(page, size);
+        var result = deskOrderQueries.listAssignedTermOrders(page, size);
         return ResponseEntity.ok(orderRestMapper.toSummaryPage(result));
     }
 
@@ -139,7 +139,7 @@ public class OrderManagementController implements OrdersApi {
             @RequestParam(value = "page", required = false, defaultValue = "0") Integer page,
             @RequestParam(value = "size", required = false, defaultValue = "20") Integer size) {
         Objects.requireNonNull(xTraderId, "X-Trader-Id");
-        var result = assignmentService.listAssignedOnCallOrders(page, size);
+        var result = deskOrderQueries.listAssignedOnCallOrders(page, size);
         return ResponseEntity.ok(orderRestMapper.toSummaryPage(result));
     }
 
@@ -149,7 +149,7 @@ public class OrderManagementController implements OrdersApi {
             @RequestHeader(value = "X-Trader-Id", required = true) String xTraderId,
             @RequestParam(value = "page", required = false, defaultValue = "0") Integer page,
             @RequestParam(value = "size", required = false, defaultValue = "20") Integer size) {
-        var result = orderQueryService.listExecutedTermOrders(page, size);
+        var result = deskOrderQueries.listExecutedTermOrders(page, size);
         return ResponseEntity.ok(orderRestMapper.toSummaryPage(result));
     }
 
@@ -159,7 +159,7 @@ public class OrderManagementController implements OrdersApi {
             @RequestHeader(value = "X-Trader-Id", required = true) String xTraderId,
             @RequestParam(value = "page", required = false, defaultValue = "0") Integer page,
             @RequestParam(value = "size", required = false, defaultValue = "20") Integer size) {
-        var result = orderQueryService.listExecutedOnCallOrders(page, size);
+        var result = deskOrderQueries.listExecutedOnCallOrders(page, size);
         return ResponseEntity.ok(orderRestMapper.toSummaryPage(result));
     }
 

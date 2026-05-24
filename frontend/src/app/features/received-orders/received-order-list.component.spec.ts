@@ -8,24 +8,25 @@ import { OrderStatus } from '../../core/models/order-status.enum';
 import { OrderType } from '../../core/models/order-type.enum';
 import type { OrderSummary } from '../../core/models/order.model';
 import { TraderContextService } from '../../core/trader/trader-context.service';
-import { OnCallOrderListComponent } from './oncall-order-list.component';
+import { ReceivedOrderListComponent } from './received-order-list.component';
 
-describe('OnCallOrderListComponent', () => {
-  let fixture: ComponentFixture<OnCallOrderListComponent>;
+describe('ReceivedOrderListComponent', () => {
+  let fixture: ComponentFixture<ReceivedOrderListComponent>;
   let httpMock: HttpTestingController;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [OnCallOrderListComponent],
+      imports: [ReceivedOrderListComponent],
       providers: [
         provideRouter([]),
         provideHttpClient(),
         provideHttpClientTesting(),
-        { provide: TraderContextService, useValue: { traderId: signal('oncall-test') } },
+        { provide: TraderContextService, useValue: { traderId: signal('trader-unit') } },
       ],
     }).compileComponents();
 
-    fixture = TestBed.createComponent(OnCallOrderListComponent);
+    fixture = TestBed.createComponent(ReceivedOrderListComponent);
+    fixture.componentRef.setInput('fixedWorkspace', 'term');
     httpMock = TestBed.inject(HttpTestingController);
   });
 
@@ -33,49 +34,44 @@ describe('OnCallOrderListComponent', () => {
     httpMock.verify();
   });
 
-  it('requests received OnCall queue with trader header on init', () => {
+  it('requests received Term queue with trader header on init', () => {
     fixture.detectChanges();
     const req = httpMock.expectOne(
       (r) =>
         r.method === 'GET' &&
-        r.url.startsWith('/api/v1/orders/oncall/received') &&
+        r.url.startsWith('/api/v1/orders/term/received') &&
         r.params.get('page') === '0' &&
         r.params.get('size') === '100'
     );
-    expect(req.request.headers.get('X-Trader-Id')).toBe('oncall-test');
+    expect(req.request.headers.get('X-Trader-Id')).toBe('trader-unit');
     req.flush({ content: [], totalElements: 0, page: 0, size: 100 });
     fixture.detectChanges();
-    expect(fixture.nativeElement.textContent).toContain('Received — ON-CALL');
+    expect(fixture.nativeElement.textContent).toContain('No orders in this queue.');
   });
 
-  it('renders order reference from paged response', () => {
+  it('renders rows when API returns content', () => {
     fixture.detectChanges();
-    const incoming = httpMock.expectOne((req) =>
-      req.url.startsWith('/api/v1/orders/oncall/received')
-    );
+    const incoming = httpMock.expectOne((req) => req.url.startsWith('/api/v1/orders/term/received'));
     const row: OrderSummary = {
-      orderId: 'oc-1',
-      externalOrderReference: 'OC-777',
-      orderType: OrderType.ON_CALL,
-      orderOperation: OrderOperation.REDEMPTION,
-      portfolioNumber: 'PF-O',
-      currency: 'USD',
-      amount: 250_000,
-      valueDate: '2026-05-12',
-      minimumRate: 2.5,
-      tenor: null,
-      noticePeriod: '24H',
+      orderId: 'o1',
+      externalOrderReference: 'EXT-T1',
+      orderType: OrderType.TERM,
+      orderOperation: OrderOperation.SUBSCRIPTION,
+      portfolioNumber: 'PF-1',
+      currency: 'EUR',
+      amount: 5_000_000,
+      valueDate: '2026-06-15',
+      minimumRate: null,
+      tenor: '3M',
+      noticePeriod: null,
       status: OrderStatus.RECEIVED,
       assignedTraderId: null,
-      createdAt: '2026-05-03T11:00:00Z',
+      createdAt: '2026-05-03T09:00:00Z',
     };
     incoming.flush({ content: [row], totalElements: 1, page: 0, size: 100 });
     fixture.detectChanges();
 
-    const html = fixture.nativeElement.textContent as string;
-    expect(html).toContain('OC-777');
-    expect(html).toMatch(/2\.5/);
-    expect(html).toContain('Notice period');
-    expect(html).toContain('24H');
+    expect(fixture.nativeElement.textContent).toContain('EXT-T1');
+    expect(fixture.nativeElement.querySelector('.btn-action')?.textContent?.trim()).toBe('Assign');
   });
 });

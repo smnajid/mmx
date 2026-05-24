@@ -1,6 +1,6 @@
 import { Routes } from '@angular/router';
-import { OnCallOrderListComponent } from './oncall-order-list.component';
+import { OnCallReceivedOrderListComponent } from './oncall-received-order-list.component';
 
 export const ONCALL_ORDERS_ROUTES: Routes = [
-  { path: '', component: OnCallOrderListComponent },
+  { path: '', component: OnCallReceivedOrderListComponent },
 ];

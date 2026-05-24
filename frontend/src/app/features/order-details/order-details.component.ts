@@ -10,6 +10,7 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, ParamMap, RouterLink } from '@angular/router';
 import { OrderApiService } from '../../core/api/order-api.service';
+import { formatHttpError } from '../../core/http/format-http-error';
 import type {
   ExecuteOrderRequest,
   OrderDetails,
@@ -22,6 +23,7 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog.c
 import { StatusBadgeComponent } from '../../shared/components/status-badge.component';
 import { OrderExecutionFormComponent } from './order-execution-form.component';
 import { OrderUpdateFormComponent } from './order-update-form.component';
+import { canShowAction, type OrderDetailAction } from './order-detail-actions';
 
 @Component({
   selector: 'mmx-order-details',
@@ -100,25 +102,33 @@ import { OrderUpdateFormComponent } from './order-update-form.component';
           }
         </dl>
 
-        @if (o.status === received) {
+        @if (showAction(o, 'assign') || showAction(o, 'cancel') || showAction(o, 'reject')) {
           <div class="actions">
-            <button type="button" class="btn primary" [disabled]="acting()" (click)="assign()">
-              Assign to me
-            </button>
-            <button type="button" class="btn secondary" [disabled]="acting()" (click)="openCancelDialog()">
-              Cancel order
-            </button>
-            <button type="button" class="btn danger-outline" [disabled]="acting()" (click)="openRejectDialog()">
-              Reject
-            </button>
+            @if (showAction(o, 'assign')) {
+              <button type="button" class="btn primary" [disabled]="acting()" (click)="assign()">
+                Assign to me
+              </button>
+            }
+            @if (showAction(o, 'cancel')) {
+              <button type="button" class="btn secondary" [disabled]="acting()" (click)="openCancelDialog()">
+                Cancel order
+              </button>
+            }
+            @if (showAction(o, 'reject')) {
+              <button type="button" class="btn danger-outline" [disabled]="acting()" (click)="openRejectDialog()">
+                Reject
+              </button>
+            }
           </div>
         }
-        @if (o.status === assigned) {
+        @if (showAction(o, 'unassign') || showAction(o, 'reject')) {
           <div class="actions">
-            <button type="button" class="btn secondary" [disabled]="acting()" (click)="unassign()">
-              Unassign
-            </button>
-            @if (o.assignedTraderId === trader.traderId()) {
+            @if (showAction(o, 'unassign')) {
+              <button type="button" class="btn secondary" [disabled]="acting()" (click)="unassign()">
+                Unassign
+              </button>
+            }
+            @if (showAction(o, 'reject')) {
               <button
                 type="button"
                 class="btn danger-outline"
@@ -129,13 +139,15 @@ import { OrderUpdateFormComponent } from './order-update-form.component';
               </button>
             }
           </div>
-          @if (o.assignedTraderId === trader.traderId()) {
-            <mmx-order-update-form
-              [order]="o"
-              [submitting]="acting()"
-              (submitUpdate)="updateOrder($event)"
-            />
-          }
+        }
+        @if (showAction(o, 'update')) {
+          <mmx-order-update-form
+            [order]="o"
+            [submitting]="acting()"
+            (submitUpdate)="updateOrder($event)"
+          />
+        }
+        @if (showAction(o, 'execute')) {
           <mmx-order-execution-form
             [submitting]="acting()"
             (submitExecute)="execute($event)"
@@ -427,8 +439,6 @@ export class OrderDetailsComponent implements OnInit {
   private readonly api = inject(OrderApiService);
   readonly trader = inject(TraderContextService);
 
-  readonly received = OrderStatus.RECEIVED;
-  readonly assigned = OrderStatus.ASSIGNED;
   readonly executed = OrderStatus.EXECUTED;
   readonly accounted = OrderStatus.ACCOUNTED;
   readonly rejected = OrderStatus.REJECTED;
@@ -624,6 +634,10 @@ export class OrderDetailsComponent implements OnInit {
     });
   }
 
+  showAction(o: OrderDetails, action: OrderDetailAction): boolean {
+    return canShowAction(o, this.trader.traderId(), action);
+  }
+
   private fetch(orderId: string): void {
     this.loading.set(true);
     this.error.set(null);
@@ -640,12 +654,6 @@ export class OrderDetailsComponent implements OnInit {
   }
 
   private formatHttpError(err: unknown): string {
-    if (err && typeof err === 'object' && 'error' in err) {
-      const body = (err as { error?: { message?: string } }).error;
-      if (body?.message) {
-        return body.message;
-      }
-    }
-    return 'Request failed. Check trader id and API availability.';
+    return formatHttpError(err, 'Request failed. Check trader id and API availability.');
   }
 }

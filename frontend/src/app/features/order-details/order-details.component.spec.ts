@@ -149,7 +149,8 @@ describe('OrderDetailsComponent', () => {
 
     expect(fixture.nativeElement.textContent).toContain('Unassign');
     expect(fixture.nativeElement.querySelector('.actions .btn.danger-outline')).toBeNull();
-    expect(fixture.nativeElement.textContent).toContain('Record execution');
+    expect(fixture.nativeElement.textContent).not.toContain('Record execution');
+    expect(fixture.nativeElement.textContent).not.toContain('Execute order');
   });
 
   it('hides receive and assignment actions for EXECUTED', async () => {

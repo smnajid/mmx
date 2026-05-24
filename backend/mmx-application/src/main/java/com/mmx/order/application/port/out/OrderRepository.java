@@ -32,7 +32,4 @@ public interface OrderRepository {
             OrderType orderType, Optional<LocalDate> valueDateFrom, Optional<LocalDate> valueDateTo, int page, int size);
 
     List<MoneyMarketOrder> findByAssignedTraderIdAndStatus(TraderId traderId, OrderStatus status);
-
-    List<MoneyMarketOrder> findByAssignedTraderIdAndStatusAndOrderType(
-            TraderId traderId, OrderStatus status, OrderType orderType);
 }

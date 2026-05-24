@@ -95,14 +95,4 @@ public class JpaOrderRepository implements OrderRepository {
                 .toList();
     }
 
-    @Override
-    public List<MoneyMarketOrder> findByAssignedTraderIdAndStatusAndOrderType(
-            TraderId traderId, OrderStatus status, OrderType orderType) {
-        return springDataRepository
-                .findByAssignedTraderIdAndStatusAndOrderType(
-                        traderId.value(), status.name(), orderType.name())
-                .stream()
-                .map(mapper::toDomain)
-                .toList();
-    }
 }

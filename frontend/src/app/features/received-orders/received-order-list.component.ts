@@ -2,24 +2,29 @@ import {
   ChangeDetectionStrategy,
   Component,
   inject,
+  Input,
   OnInit,
   signal,
 } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
 import { OrderApiService } from '../../core/api/order-api.service';
+import { formatHttpError } from '../../core/http/format-http-error';
 import { OrderSummary } from '../../core/models/order.model';
 import { ReceivedViewModeService } from '../../core/trader/received-view-mode.service';
 import { TraderContextService } from '../../core/trader/trader-context.service';
 import { OrderTableComponent } from '../../shared/components/order-table.component';
 
+export type WorkspaceKind = 'term' | 'oncall';
+
 @Component({
-  selector: 'mmx-term-order-list',
+  selector: 'mmx-received-order-list',
   standalone: true,
   imports: [OrderTableComponent],
   template: `
     <section class="feature">
       <header class="feature-head">
         <div class="feature-head-row">
-          <h1>Received — Term</h1>
+          <h1>Received — {{ workspaceLabel() }}</h1>
           <div class="toolbar-actions">
             <label class="show-all">
               <input
@@ -32,17 +37,16 @@ import { OrderTableComponent } from '../../shared/components/order-table.compone
             <button type="button" class="refresh" (click)="refresh()">Refresh</button>
           </div>
         </div>
-        <p class="lede">
-          Subscription and placement orders with an explicit tenor. Queue for traders before assignment.
-        </p>
+        <p class="lede">{{ lede() }}</p>
       </header>
       <mmx-order-table
         [orders]="orders()"
         [loading]="loading()"
         [errorMessage]="error()"
-        [showTenorColumn]="true"
+        [showTenorColumn]="workspace() === 'term'"
+        [showNoticePeriodColumn]="workspace() === 'oncall'"
         [enableAssign]="true"
-        listWorkspace="term"
+        [listWorkspace]="workspace()"
         listQueue="received"
         (assignClick)="onAssign($event)"
       />
@@ -130,16 +134,32 @@ import { OrderTableComponent } from '../../shared/components/order-table.compone
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class TermOrderListComponent implements OnInit {
+export class ReceivedOrderListComponent implements OnInit {
   private readonly api = inject(OrderApiService);
   private readonly trader = inject(TraderContextService);
+  private readonly route = inject(ActivatedRoute);
   readonly receivedMode = inject(ReceivedViewModeService);
+
+  @Input() fixedWorkspace: WorkspaceKind | null = null;
 
   readonly orders = signal<OrderSummary[]>([]);
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
+  readonly workspace = signal<WorkspaceKind>('oncall');
+  readonly workspaceLabel = signal<string>('ON-CALL');
+  readonly lede = signal<string>('');
 
   ngOnInit(): void {
+    const fromInput = this.fixedWorkspace;
+    const fromRoute = this.route.snapshot.data['workspace'] as WorkspaceKind | undefined;
+    const ws = fromInput ?? (fromRoute === 'term' || fromRoute === 'oncall' ? fromRoute : 'oncall');
+    this.workspace.set(ws);
+    this.workspaceLabel.set(ws === 'term' ? 'Term' : 'ON-CALL');
+    this.lede.set(
+      ws === 'term'
+        ? 'Subscription and placement orders with an explicit tenor. Queue for traders before assignment.'
+        : 'Notice-based liquidity; separate queue from Term so traders never mix workflows.'
+    );
     this.load();
   }
 
@@ -160,7 +180,9 @@ export class TermOrderListComponent implements OnInit {
       next: () => this.load(),
       error: (err) => {
         this.loading.set(false);
-        this.error.set(this.formatHttpError(err));
+        this.error.set(
+          formatHttpError(err, 'Could not assign order. Is the API running (proxy /api → backend)?')
+        );
       },
     });
   }
@@ -168,31 +190,34 @@ export class TermOrderListComponent implements OnInit {
   private load(): void {
     this.loading.set(true);
     this.error.set(null);
-    this.api
-      .listReceivedTermOrders(this.trader.traderId(), {
-        page: 0,
-        size: 100,
-        receivedView: this.receivedMode.mode(),
-      })
-      .subscribe({
-        next: (page) => {
-          this.orders.set(page.content ?? []);
-          this.loading.set(false);
-        },
-        error: (err) => {
-          this.loading.set(false);
-          this.error.set(this.formatHttpError(err));
-        },
-      });
-  }
+    const traderId = this.trader.traderId();
+    const req =
+      this.workspace() === 'term'
+        ? this.api.listReceivedTermOrders(traderId, {
+            page: 0,
+            size: 100,
+            receivedView: this.receivedMode.mode(),
+          })
+        : this.api.listReceivedOnCallOrders(traderId, {
+            page: 0,
+            size: 100,
+            receivedView: this.receivedMode.mode(),
+          });
 
-  private formatHttpError(err: unknown): string {
-    if (err && typeof err === 'object' && 'error' in err) {
-      const body = (err as { error?: { message?: string } }).error;
-      if (body?.message) {
-        return body.message;
-      }
-    }
-    return 'Could not load Term orders. Is the API running (proxy /api → backend)?';
+    req.subscribe({
+      next: (page) => {
+        this.orders.set(page.content ?? []);
+        this.loading.set(false);
+      },
+      error: (err) => {
+        this.loading.set(false);
+        this.error.set(
+          formatHttpError(
+            err,
+            `Could not load ${this.workspace() === 'term' ? 'Term' : 'ON-CALL'} received orders. Is the API running (proxy /api → backend)?`
+          )
+        );
+      },
+    });
   }
 }
