@@ -1,0 +1,264 @@
+openapi: 3.0.3
+info:
+  title: MMX Managed Currency Settings API
+  description: |
+    Trader-facing reference data for per-currency desk rules. Mirror: [api-v1.md](./api-v1.md).
+  version: 1.0.0
+
+servers:
+  - url: /
+    description: Relative to deployment base
+
+tags:
+  - name: CurrencySettings
+    description: Managed currency catalog and rules
+
+paths:
+  /api/v1/settings/currencies:
+    get:
+      tags: [CurrencySettings]
+      summary: List managed currencies
+      operationId: listManagedCurrencies
+      parameters:
+        - $ref: "#/components/parameters/TraderIdHeader"
+      responses:
+        "200":
+          description: Catalog entries (may be empty)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ManagedCurrencyResponse"
+    post:
+      tags: [CurrencySettings]
+      summary: Onboard a currency
+      operationId: onboardManagedCurrency
+      parameters:
+        - $ref: "#/components/parameters/TraderIdHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OnboardCurrencyRequest"
+      responses:
+        "201":
+          description: Currency created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ManagedCurrencyResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "409":
+          $ref: "#/components/responses/ConflictError"
+
+  /api/v1/settings/currencies/{code}:
+    get:
+      tags: [CurrencySettings]
+      summary: Get managed currency by code
+      operationId: getManagedCurrency
+      parameters:
+        - $ref: "#/components/parameters/TraderIdHeader"
+        - $ref: "#/components/parameters/CurrencyCode"
+      responses:
+        "200":
+          description: Currency configuration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ManagedCurrencyResponse"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+    patch:
+      tags: [CurrencySettings]
+      summary: Update currency rules
+      operationId: updateManagedCurrencyRules
+      parameters:
+        - $ref: "#/components/parameters/TraderIdHeader"
+        - $ref: "#/components/parameters/CurrencyCode"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCurrencyRulesRequest"
+      responses:
+        "200":
+          description: Updated configuration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ManagedCurrencyResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+
+  /api/v1/settings/currencies/{code}/disable:
+    post:
+      tags: [CurrencySettings]
+      summary: Deactivate a managed currency
+      operationId: disableManagedCurrency
+      parameters:
+        - $ref: "#/components/parameters/TraderIdHeader"
+        - $ref: "#/components/parameters/CurrencyCode"
+      responses:
+        "200":
+          description: Currency deactivated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ManagedCurrencyResponse"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+
+components:
+  parameters:
+    TraderIdHeader:
+      name: X-Trader-Id
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 100
+    CurrencyCode:
+      name: code
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: "^[A-Z]{3}$"
+
+  responses:
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/SettingsErrorResponse"
+    ConflictError:
+      description: Conflict (e.g. duplicate currency)
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/SettingsErrorResponse"
+    NotFoundError:
+      description: Currency not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/SettingsErrorResponse"
+
+  schemas:
+    TenorCode:
+      type: string
+      enum: [1W, 2W, 1M, 3M, 6M, 1Y]
+    NoticePeriodCode:
+      type: string
+      enum: [24H, 48H]
+
+    ManagedCurrencyResponse:
+      type: object
+      required:
+        - code
+        - active
+        - minSubscriptionAmount
+        - minIncreaseDecreaseAmount
+        - enabledTenors
+        - enabledNoticePeriods
+      properties:
+        code:
+          type: string
+          pattern: "^[A-Z]{3}$"
+        active:
+          type: boolean
+        minSubscriptionAmount:
+          type: number
+          format: decimal
+          minimum: 0.01
+        minIncreaseDecreaseAmount:
+          type: number
+          format: decimal
+          minimum: 0.01
+        enabledTenors:
+          type: array
+          items:
+            $ref: "#/components/schemas/TenorCode"
+          minItems: 1
+        enabledNoticePeriods:
+          type: array
+          items:
+            $ref: "#/components/schemas/NoticePeriodCode"
+          minItems: 1
+
+    OnboardCurrencyRequest:
+      type: object
+      required:
+        - code
+        - minSubscriptionAmount
+        - minIncreaseDecreaseAmount
+        - enabledTenors
+        - enabledNoticePeriods
+      properties:
+        code:
+          type: string
+          pattern: "^[A-Z]{3}$"
+        minSubscriptionAmount:
+          type: number
+          format: decimal
+          minimum: 0.01
+        minIncreaseDecreaseAmount:
+          type: number
+          format: decimal
+          minimum: 0.01
+        enabledTenors:
+          type: array
+          items:
+            $ref: "#/components/schemas/TenorCode"
+          minItems: 1
+        enabledNoticePeriods:
+          type: array
+          items:
+            $ref: "#/components/schemas/NoticePeriodCode"
+          minItems: 1
+
+    UpdateCurrencyRulesRequest:
+      type: object
+      properties:
+        minSubscriptionAmount:
+          type: number
+          format: decimal
+          minimum: 0.01
+        minIncreaseDecreaseAmount:
+          type: number
+          format: decimal
+          minimum: 0.01
+        enabledTenors:
+          type: array
+          items:
+            $ref: "#/components/schemas/TenorCode"
+          minItems: 1
+        enabledNoticePeriods:
+          type: array
+          items:
+            $ref: "#/components/schemas/NoticePeriodCode"
+          minItems: 1
+
+    SettingsErrorCode:
+      type: string
+      enum:
+        - VALIDATION_ERROR
+        - CURRENCY_NOT_FOUND
+        - DUPLICATE_CURRENCY
+
+    SettingsErrorResponse:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          $ref: "#/components/schemas/SettingsErrorCode"
+        message:
+          type: string

@@ -34,6 +34,38 @@ post_order() {
   echo "OK   ${label} (${code})"
 }
 
+onboard_currency() {
+  local iso="$1"
+  local code
+  code="$(curl -sS -o /dev/null -w "%{http_code}" \
+    -X POST "${BASE_URL}/api/v1/settings/currencies" \
+    -H "Content-Type: application/json" \
+    -H "X-Trader-Id: demo-trader" \
+    -d "$(cat <<EOF
+{
+  "code": "${iso}",
+  "minSubscriptionAmount": 1.00,
+  "minIncreaseDecreaseAmount": 1.00,
+  "enabledTenors": ["1W","2W","1M","3M","6M","1Y"],
+  "enabledNoticePeriods": ["24H","48H"]
+}
+EOF
+)")"
+  if [[ "${code}" == "201" ]]; then
+    echo "OK   onboard currency ${iso}"
+  elif [[ "${code}" == "409" ]]; then
+    echo "SKIP currency ${iso} (already onboarded)"
+  else
+    echo "FAIL onboard ${iso} -> HTTP ${code}" >&2
+    exit 1
+  fi
+}
+
+echo "Seeding managed currencies -> ${BASE_URL}"
+onboard_currency "EUR"
+onboard_currency "USD"
+echo
+
 echo "Seeding demo orders -> ${BASE_URL}"
 echo "  near-term valueDate=${VALUE_DATE_NEAR}"
 echo "  far valueDate=${VALUE_DATE_FAR} (Received: enable \"Show all value dates\")  run=${RUN_ID}"

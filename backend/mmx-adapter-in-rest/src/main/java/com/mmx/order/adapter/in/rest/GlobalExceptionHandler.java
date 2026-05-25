@@ -3,6 +3,11 @@ package com.mmx.order.adapter.in.rest;
 import com.mmx.order.adapter.in.rest.generated.model.ErrorCode;
 import com.mmx.order.adapter.in.rest.generated.model.ErrorResponse;
 import com.mmx.order.adapter.in.rest.generated.model.FieldError;
+import com.mmx.order.adapter.in.rest.generated.settings.model.SettingsErrorCode;
+import com.mmx.order.adapter.in.rest.generated.settings.model.SettingsErrorResponse;
+import com.mmx.order.application.service.ManageCurrencySettingsService;
+import com.mmx.order.domain.exception.DuplicateManagedCurrencyException;
+import com.mmx.order.domain.exception.InvalidManagedCurrencyException;
 import com.mmx.order.domain.exception.InvalidOrderException;
 import com.mmx.order.domain.exception.InvalidStatusTransitionException;
 import com.mmx.order.domain.exception.OrderNotFoundException;
@@ -26,6 +31,34 @@ public class GlobalExceptionHandler {
                 .body(
                         new ErrorResponse()
                                 .error(ErrorCode.VALIDATION_ERROR)
+                                .message(ex.getMessage()));
+    }
+
+    @ExceptionHandler(DuplicateManagedCurrencyException.class)
+    public ResponseEntity<SettingsErrorResponse> handleDuplicateManagedCurrency(DuplicateManagedCurrencyException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(
+                        new SettingsErrorResponse()
+                                .error(SettingsErrorCode.DUPLICATE_CURRENCY)
+                                .message(ex.getMessage()));
+    }
+
+    @ExceptionHandler(InvalidManagedCurrencyException.class)
+    public ResponseEntity<SettingsErrorResponse> handleInvalidManagedCurrency(InvalidManagedCurrencyException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(
+                        new SettingsErrorResponse()
+                                .error(SettingsErrorCode.VALIDATION_ERROR)
+                                .message(ex.getMessage()));
+    }
+
+    @ExceptionHandler(ManageCurrencySettingsService.CurrencyNotFoundException.class)
+    public ResponseEntity<SettingsErrorResponse> handleCurrencyNotFound(
+            ManageCurrencySettingsService.CurrencyNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(
+                        new SettingsErrorResponse()
+                                .error(SettingsErrorCode.CURRENCY_NOT_FOUND)
                                 .message(ex.getMessage()));
     }
 

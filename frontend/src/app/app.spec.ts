@@ -32,6 +32,24 @@ describe('App', () => {
     expect(compiled.querySelector('.name')?.textContent).toContain('MMx');
   });
 
+  it('shows Currencies link in header', async () => {
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const link = fixture.nativeElement.querySelector('.header-link') as HTMLAnchorElement;
+    expect(link?.textContent?.trim()).toBe('Currencies');
+    expect(link?.getAttribute('href')).toContain('/settings/currencies');
+  });
+
+  it('hides desk nav on settings route', async () => {
+    const fixture = TestBed.createComponent(App);
+    const router = TestBed.inject(Router);
+    await router.navigateByUrl('/settings/currencies');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(fixture.nativeElement.querySelector('.desk-nav')).toBeNull();
+  });
+
   it('shows ON-CALL and Term primary tabs in main content', async () => {
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();

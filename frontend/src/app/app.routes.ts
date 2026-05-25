@@ -55,6 +55,13 @@ export const routes: Routes = [
     ],
   },
   {
+    path: 'settings/currencies',
+    loadChildren: () =>
+      import('./features/currency-settings/currency-settings.routes').then(
+        (m) => m.CURRENCY_SETTINGS_ROUTES
+      ),
+  },
+  {
     path: 'orders/:id',
     loadComponent: () =>
       import('./features/order-details/order-details.component').then((m) => m.OrderDetailsComponent),

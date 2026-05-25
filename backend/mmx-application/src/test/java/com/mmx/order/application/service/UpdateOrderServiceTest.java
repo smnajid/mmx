@@ -3,7 +3,11 @@ package com.mmx.order.application.service;
 import com.mmx.order.application.command.UpdateOrderCommand;
 import com.mmx.order.application.port.out.AuditLogger;
 import com.mmx.order.application.port.out.Clock;
+import com.mmx.order.application.port.out.ManagedCurrencyRepository;
+import com.mmx.order.application.port.out.OpenPositionPort;
 import com.mmx.order.application.port.out.OrderRepository;
+import com.mmx.order.domain.model.ManagedCurrency;
+import com.mmx.order.domain.model.NoticePeriod;
 import com.mmx.order.domain.exception.InvalidOrderException;
 import com.mmx.order.domain.exception.InvalidStatusTransitionException;
 import com.mmx.order.domain.exception.OrderNotFoundException;
@@ -18,7 +22,6 @@ import com.mmx.order.domain.model.TraderId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -27,6 +30,7 @@ import org.mockito.quality.Strictness;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.EnumSet;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -57,13 +61,32 @@ class UpdateOrderServiceTest {
     @Mock
     Clock clock;
 
-    @InjectMocks
+    @Mock
+    ManagedCurrencyRepository managedCurrencyRepository;
+
+    @Mock
+    OpenPositionPort openPositionPort;
+
     UpdateOrderService subject;
 
     @BeforeEach
     void freezeClock() {
         when(clock.now()).thenReturn(FIXED_NOW);
         when(clock.today()).thenReturn(TODAY);
+        subject =
+                new UpdateOrderService(
+                        orderRepository, managedCurrencyRepository, openPositionPort, auditLogger, clock);
+        when(managedCurrencyRepository.findByCode("EUR")).thenReturn(Optional.of(permissiveEur()));
+    }
+
+    private static ManagedCurrency permissiveEur() {
+        return new ManagedCurrency(
+                "EUR",
+                true,
+                new BigDecimal("1.00"),
+                new BigDecimal("1.00"),
+                EnumSet.allOf(Tenor.class),
+                EnumSet.allOf(NoticePeriod.class));
     }
 
     @Test

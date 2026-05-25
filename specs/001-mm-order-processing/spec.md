@@ -157,8 +157,11 @@ The assigned Trader can modify **Amount** and **ValueDate** before execution to 
 - **FR-002**: The system MUST validate that the OrderOperation is allowed for the given OrderType. Term orders allow only Subscription. OnCall orders allow Subscription, Increase, Decrease, and Redemption.
 - **FR-003**: The system MUST validate that Subscription orders contain: PortfolioNumber, ExternalOrderReference, OrderType, Currency, Amount, ValueDate, and either Tenor (for Term) or NoticePeriod (for OnCall). MinimumRate MAY be omitted by Portfolio Management; when present it MUST satisfy FR-008.
 - **FR-004**: The system MUST validate that Increase, Decrease, and Redemption orders reference an existing ContractNumber.
-- **FR-005**: The system MUST validate that Tenor values are within the allowed set: 1W, 2W, 1M, 3M, 6M, 1Y.
-- **FR-006**: The system MUST validate that NoticePeriod values are within the allowed set: 24H, 48H.
+- **FR-005**: The system MUST validate that Tenor values are within the global allowed set: 1W, 2W, 1M, 3M, 6M, 1Y, and that the tenor is **enabled** for the order currency in the managed currency catalog.
+- **FR-006**: The system MUST validate that NoticePeriod values are within the global allowed set: 24H, 48H, and that the notice period is **enabled** for the order currency in the managed currency catalog.
+- **FR-005a**: Order intake and trader amount updates MUST reject orders when the currency is **not** in the managed catalog or the catalog entry is **inactive**.
+- **FR-005b**: Amount MUST meet the per-currency minimum for the operation: Subscription uses `minSubscriptionAmount`; Increase, Decrease, and Redemption use `minIncreaseDecreaseAmount`.
+- **FR-005c**: On **Decrease** intake, the system MUST load open contract balance from PositionApi by `sourceContractNumber` and reject when `balance - decreaseAmount < minSubscriptionAmount` for that currency. PositionApi errors MUST fail closed (reject intake).
 - **FR-007**: The system MUST validate that ValueDate is at least two calendar days in the future. Orders violating this rule MUST be rejected.
 - **FR-008**: The system MUST validate that Amount is greater than zero. When MinimumRate is supplied at intake, it MUST be greater than or equal to zero.
 - **FR-009**: The system MUST use exact decimal handling for all monetary and rate values. Floating-point approximation is forbidden.

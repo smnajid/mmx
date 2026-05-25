@@ -8,6 +8,10 @@
       </div>
     </div>
 
+    <nav class="header-nav" aria-label="Application">
+      <a routerLink="/settings/currencies" class="header-link">Currencies</a>
+    </nav>
+
     <label class="trader">
       <span class="trader-label">Trader</span>
       <input
@@ -23,6 +27,7 @@
   </header>
 
   <main class="main">
+    @if (showDeskNav()) {
     <div class="desk-nav" aria-label="Desk">
       <div class="desk-tabs-scroll desk-tabs-scroll--primary">
         <nav class="desk-tabs desk-primary-tabs" role="tablist" aria-label="Product mode">
@@ -74,8 +79,9 @@
         </nav>
       </div>
     </div>
+    }
 
-    <div class="desk-content">
+    <div class="desk-content" [class.desk-content--settings]="!showDeskNav()">
       <router-outlet />
     </div>
   </main>

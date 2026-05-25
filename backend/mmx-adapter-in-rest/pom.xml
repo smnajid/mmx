@@ -128,6 +128,59 @@
                             </configOptions>
                         </configuration>
                     </execution>
+                    <execution>
+                        <id>generate-currency-settings-api-models</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>generate</goal>
+                        </goals>
+                        <configuration>
+                            <inputSpec>${project.basedir}/../../specs/003-managed-currency-settings/contracts/openapi.yaml</inputSpec>
+                            <generatorName>java</generatorName>
+                            <output>${project.build.directory}/generated-sources/openapi-settings</output>
+                            <library>native</library>
+                            <generateApis>false</generateApis>
+                            <generateApiTests>false</generateApiTests>
+                            <generateModelTests>false</generateModelTests>
+                            <generateSupportingFiles>true</generateSupportingFiles>
+                            <modelPackage>com.mmx.order.adapter.in.rest.generated.settings.model</modelPackage>
+                            <invokerPackage>com.mmx.order.adapter.in.rest.generated.settings</invokerPackage>
+                            <configOptions>
+                                <serializationLibrary>jackson</serializationLibrary>
+                                <dateLibrary>java8</dateLibrary>
+                                <useJakartaEe>true</useJakartaEe>
+                                <openApiNullable>false</openApiNullable>
+                                <useBeanValidation>true</useBeanValidation>
+                                <performBeanValidation>true</performBeanValidation>
+                            </configOptions>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>generate-currency-settings-spring-api</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>generate</goal>
+                        </goals>
+                        <configuration>
+                            <inputSpec>${project.basedir}/../../specs/003-managed-currency-settings/contracts/openapi.yaml</inputSpec>
+                            <generatorName>spring</generatorName>
+                            <output>${project.build.directory}/generated-sources/openapi-settings-spring</output>
+                            <generateApis>true</generateApis>
+                            <generateModels>false</generateModels>
+                            <generateSupportingFiles>false</generateSupportingFiles>
+                            <apiPackage>com.mmx.order.adapter.in.rest.generated.settings.api</apiPackage>
+                            <modelPackage>com.mmx.order.adapter.in.rest.generated.settings.model</modelPackage>
+                            <configOptions>
+                                <interfaceOnly>true</interfaceOnly>
+                                <useTags>true</useTags>
+                                <useJakartaEe>true</useJakartaEe>
+                                <useSpringBoot3>true</useSpringBoot3>
+                                <useBeanValidation>true</useBeanValidation>
+                                <documentationProvider>springdoc</documentationProvider>
+                                <skipDefaultInterface>true</skipDefaultInterface>
+                            </configOptions>
+                        </configuration>
+                    </execution>
                 </executions>
             </plugin>
             <plugin>
@@ -144,6 +197,8 @@
                             <sources>
                                 <source>${project.build.directory}/generated-sources/openapi/src/main/java</source>
                                 <source>${project.build.directory}/generated-sources/openapi-spring/src/main/java</source>
+                                <source>${project.build.directory}/generated-sources/openapi-settings/src/main/java</source>
+                                <source>${project.build.directory}/generated-sources/openapi-settings-spring/src/main/java</source>
                             </sources>
                         </configuration>
                     </execution>

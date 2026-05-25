@@ -48,6 +48,10 @@ export class App {
     return ctx.queue === segment;
   }
 
+  protected showDeskNav(): boolean {
+    return !this.router.url.startsWith('/settings');
+  }
+
   protected onTraderBlur(event: Event): void {
     const value = (event.target as HTMLInputElement).value;
     this.trader.setTraderId(value);

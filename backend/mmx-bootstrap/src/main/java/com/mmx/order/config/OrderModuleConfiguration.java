@@ -70,8 +70,14 @@ public class OrderModuleConfiguration {
     }
 
     @Bean
-    public ReceiveOrderUseCase receiveOrderUseCase(OrderRepository orderRepository, AuditLogger auditLogger, Clock clock) {
-        return new ReceiveOrderService(orderRepository, auditLogger, clock);
+    public ReceiveOrderUseCase receiveOrderUseCase(
+            OrderRepository orderRepository,
+            ManagedCurrencyRepository managedCurrencyRepository,
+            OpenPositionPort openPositionPort,
+            AuditLogger auditLogger,
+            Clock clock) {
+        return new ReceiveOrderService(
+                orderRepository, managedCurrencyRepository, openPositionPort, auditLogger, clock);
     }
 
     @Bean
@@ -86,8 +92,13 @@ public class OrderModuleConfiguration {
 
     @Bean
     public UpdateAssignedOrderUseCase updateAssignedOrderUseCase(
-            OrderRepository orderRepository, AuditLogger auditLogger, Clock clock) {
-        return new UpdateOrderService(orderRepository, auditLogger, clock);
+            OrderRepository orderRepository,
+            ManagedCurrencyRepository managedCurrencyRepository,
+            OpenPositionPort openPositionPort,
+            AuditLogger auditLogger,
+            Clock clock) {
+        return new UpdateOrderService(
+                orderRepository, managedCurrencyRepository, openPositionPort, auditLogger, clock);
     }
 
     @Bean

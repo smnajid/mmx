@@ -4,10 +4,16 @@ import com.mmx.order.application.command.ReceiveOrderCommand;
 import com.mmx.order.application.port.in.ReceiveOrderUseCase;
 import com.mmx.order.application.port.out.AuditLogger;
 import com.mmx.order.application.port.out.Clock;
+import com.mmx.order.application.port.out.ManagedCurrencyRepository;
+import com.mmx.order.application.port.out.OpenPositionPort;
 import com.mmx.order.application.port.out.OrderRepository;
 import com.mmx.order.domain.model.ContractNumber;
 import com.mmx.order.domain.model.MoneyMarketOrder;
+import com.mmx.order.domain.model.OpenContractPosition;
 import com.mmx.order.domain.model.OrderOperation;
+import com.mmx.order.domain.policy.OrderAgainstCurrencyPolicy;
+
+import java.util.Optional;
 
 public final class ReceiveOrderService implements ReceiveOrderUseCase {
 
@@ -16,11 +22,22 @@ public final class ReceiveOrderService implements ReceiveOrderUseCase {
     static final String EVENT_DUPLICATE_RECEIVE_IGNORED = "DUPLICATE_RECEIVE_IGNORED";
 
     private final OrderRepository orderRepository;
+    private final ManagedCurrencyRepository managedCurrencyRepository;
+    private final OpenPositionPort openPositionPort;
+    private final OrderAgainstCurrencyPolicy currencyPolicy;
     private final AuditLogger auditLogger;
     private final Clock clock;
 
-    public ReceiveOrderService(OrderRepository orderRepository, AuditLogger auditLogger, Clock clock) {
+    public ReceiveOrderService(
+            OrderRepository orderRepository,
+            ManagedCurrencyRepository managedCurrencyRepository,
+            OpenPositionPort openPositionPort,
+            AuditLogger auditLogger,
+            Clock clock) {
         this.orderRepository = orderRepository;
+        this.managedCurrencyRepository = managedCurrencyRepository;
+        this.openPositionPort = openPositionPort;
+        this.currencyPolicy = new OrderAgainstCurrencyPolicy();
         this.auditLogger = auditLogger;
         this.clock = clock;
     }
@@ -33,6 +50,22 @@ public final class ReceiveOrderService implements ReceiveOrderUseCase {
             auditLogger.log(existing.getId(), EVENT_DUPLICATE_RECEIVE_IGNORED, AUDIT_ACTOR_SYSTEM, clock.now());
             return new Result(existing.getId(), existing.getStatus(), false);
         }
+
+        var currencyOpt = managedCurrencyRepository.findByCode(command.currency());
+        Optional<OpenContractPosition> openPosition =
+                command.orderOperation() == OrderOperation.DECREASE && command.sourceContractNumber() != null
+                        ? openPositionPort.findOpenByContractNumber(command.sourceContractNumber())
+                        : Optional.empty();
+
+        currencyPolicy.validateReceive(
+                currencyOpt,
+                command.currency(),
+                command.orderType(),
+                command.orderOperation(),
+                command.amount(),
+                command.tenor(),
+                command.noticePeriod(),
+                openPosition);
 
         MoneyMarketOrder created =
                 MoneyMarketOrder.create(

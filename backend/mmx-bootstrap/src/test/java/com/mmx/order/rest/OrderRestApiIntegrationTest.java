@@ -3,11 +3,16 @@ package com.mmx.order.rest;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mmx.order.MmxApplication;
+import com.mmx.order.adapter.out.integration.InMemoryOpenPositionPort;
+import com.mmx.order.domain.model.ContractNumber;
+import com.mmx.order.domain.model.OpenContractPosition;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.test.context.ActiveProfiles;
 
+import java.math.BigDecimal;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -36,6 +41,9 @@ class OrderRestApiIntegrationTest {
     @LocalServerPort
     private int port;
 
+    @Autowired
+    InMemoryOpenPositionPort openPositionPort;
+
     @Test
     void postReceive_returns201_forNewOrder() throws Exception {
         String ref = "IT-NEW-" + System.nanoTime();
@@ -60,6 +68,112 @@ class OrderRestApiIntegrationTest {
     void postReceive_returns400_forInvalidPayload() throws Exception {
         HttpResponse<String> res = postJson("/api/v1/orders", "{ \"orderType\": \"TERM\" }");
         assertThat(res.statusCode()).isEqualTo(400);
+    }
+
+    @Test
+    void postReceive_returns400_forUnmanagedCurrency() throws Exception {
+        String ref = "IT-JPY-" + System.nanoTime();
+        LocalDate valueDate = LocalDate.now().plusDays(10);
+        String json =
+                """
+                {
+                  "externalOrderReference": "%s",
+                  "orderType": "TERM",
+                  "orderOperation": "SUBSCRIPTION",
+                  "portfolioNumber": "PF-IT",
+                  "currency": "JPY",
+                  "amount": 1000000.00,
+                  "valueDate": "%s",
+                  "tenor": "3M"
+                }
+                """
+                        .formatted(ref, valueDate);
+        HttpResponse<String> res = postJson("/api/v1/orders", json);
+        assertThat(res.statusCode()).isEqualTo(400);
+    }
+
+    @Test
+    void postReceive_returns400_whenAmountBelowMinimum() throws Exception {
+        String ref = "IT-BELOW-MIN-" + System.nanoTime();
+        LocalDate valueDate = LocalDate.now().plusDays(10);
+        String json =
+                """
+                {
+                  "externalOrderReference": "%s",
+                  "orderType": "TERM",
+                  "orderOperation": "SUBSCRIPTION",
+                  "portfolioNumber": "PF-IT",
+                  "currency": "EUR",
+                  "amount": 0.50,
+                  "valueDate": "%s",
+                  "tenor": "3M"
+                }
+                """
+                        .formatted(ref, valueDate);
+        assertThat(postJson("/api/v1/orders", json).statusCode()).isEqualTo(400);
+    }
+
+    @Test
+    void postReceive_returns400_forDisabledTenor() throws Exception {
+        HttpResponse<String> onboard =
+                postJson("/api/v1/settings/currencies", onboardSekOnly1mJson(), TRADER);
+        assertThat(onboard.statusCode()).isIn(201, 409);
+        if (onboard.statusCode() == 409) {
+            HttpResponse<String> patch =
+                    patchJson(
+                            "/api/v1/settings/currencies/SEK",
+                            """
+                            {
+                              "enabledTenors": ["1M"],
+                              "enabledNoticePeriods": ["24H"]
+                            }
+                            """,
+                            TRADER);
+            assertThat(patch.statusCode()).isEqualTo(200);
+        }
+
+        String ref = "IT-DIS-TENOR-" + System.nanoTime();
+        LocalDate valueDate = LocalDate.now().plusDays(10);
+        String json =
+                """
+                {
+                  "externalOrderReference": "%s",
+                  "orderType": "TERM",
+                  "orderOperation": "SUBSCRIPTION",
+                  "portfolioNumber": "PF-IT",
+                  "currency": "SEK",
+                  "amount": 1000000.00,
+                  "valueDate": "%s",
+                  "tenor": "3M"
+                }
+                """
+                        .formatted(ref, valueDate);
+        assertThat(postJson("/api/v1/orders", json).statusCode()).isEqualTo(400);
+    }
+
+    @Test
+    void postReceive_returns400_forDecreaseBelowSubscriptionFloor() throws Exception {
+        ensureGbpOnboarded();
+        openPositionPort.register(
+                new OpenContractPosition(new ContractNumber("CNT-IT-FLOOR"), "GBP", new BigDecimal("150.00")));
+        String ref = "IT-DEC-FLOOR-" + System.nanoTime();
+        LocalDate valueDate = LocalDate.now().plusDays(10);
+        String json =
+                """
+                {
+                  "externalOrderReference": "%s",
+                  "orderType": "ON_CALL",
+                  "orderOperation": "DECREASE",
+                  "portfolioNumber": "PF-IT",
+                  "currency": "GBP",
+                  "amount": 60.00,
+                  "valueDate": "%s",
+                  "sourceContractNumber": "CNT-IT-FLOOR",
+                  "noticePeriod": "24H"
+                }
+                """
+                        .formatted(ref, valueDate);
+        assertThat(postJson("/api/v1/orders", json).statusCode()).isEqualTo(400);
     }
 
     @Test
@@ -362,6 +476,46 @@ class OrderRestApiIntegrationTest {
                         .timeout(Duration.ofSeconds(30))
                         .header("Content-Type", "application/json")
                         .POST(HttpRequest.BodyPublishers.ofString(json, StandardCharsets.UTF_8))
+                        .build();
+        return httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+    }
+
+    private void ensureGbpOnboarded() throws Exception {
+        HttpResponse<String> onboard = postJson("/api/v1/settings/currencies", onboardGbpJson(), TRADER);
+        assertThat(onboard.statusCode()).isIn(201, 409);
+    }
+
+    private static String onboardGbpJson() {
+        return """
+                {
+                  "code": "GBP",
+                  "minSubscriptionAmount": 100.00,
+                  "minIncreaseDecreaseAmount": 1.00,
+                  "enabledTenors": ["1M", "3M"],
+                  "enabledNoticePeriods": ["24H"]
+                }
+                """;
+    }
+
+    private static String onboardSekOnly1mJson() {
+        return """
+                {
+                  "code": "SEK",
+                  "minSubscriptionAmount": 1.00,
+                  "minIncreaseDecreaseAmount": 1.00,
+                  "enabledTenors": ["1M"],
+                  "enabledNoticePeriods": ["24H"]
+                }
+                """;
+    }
+
+    private HttpResponse<String> patchJson(String path, String json, String traderId) throws Exception {
+        HttpRequest request =
+                HttpRequest.newBuilder(baseUri(path))
+                        .timeout(Duration.ofSeconds(30))
+                        .header("Content-Type", "application/json")
+                        .header("X-Trader-Id", traderId)
+                        .method("PATCH", HttpRequest.BodyPublishers.ofString(json, StandardCharsets.UTF_8))
                         .build();
         return httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
     }

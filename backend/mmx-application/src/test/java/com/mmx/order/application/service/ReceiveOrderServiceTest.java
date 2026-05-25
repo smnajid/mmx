@@ -4,7 +4,11 @@ import com.mmx.order.application.command.ReceiveOrderCommand;
 import com.mmx.order.application.port.in.ReceiveOrderUseCase;
 import com.mmx.order.application.port.out.AuditLogger;
 import com.mmx.order.application.port.out.Clock;
+import com.mmx.order.application.port.out.ManagedCurrencyRepository;
+import com.mmx.order.application.port.out.OpenPositionPort;
 import com.mmx.order.application.port.out.OrderRepository;
+import com.mmx.order.domain.model.ManagedCurrency;
+import com.mmx.order.domain.model.NoticePeriod;
 import com.mmx.order.domain.exception.InvalidOrderException;
 import com.mmx.order.domain.model.ContractNumber;
 import com.mmx.order.domain.model.ExternalOrderReference;
@@ -18,7 +22,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -27,6 +30,7 @@ import org.mockito.quality.Strictness;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.EnumSet;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -55,13 +59,32 @@ class ReceiveOrderServiceTest {
     @Mock
     Clock clock;
 
-    @InjectMocks
+    @Mock
+    ManagedCurrencyRepository managedCurrencyRepository;
+
+    @Mock
+    OpenPositionPort openPositionPort;
+
     ReceiveOrderService subject;
 
     @BeforeEach
     void freezeClock() {
         when(clock.now()).thenReturn(FIXED_NOW);
         when(clock.today()).thenReturn(TODAY);
+        subject =
+                new ReceiveOrderService(
+                        orderRepository, managedCurrencyRepository, openPositionPort, auditLogger, clock);
+        when(managedCurrencyRepository.findByCode("EUR")).thenReturn(Optional.of(permissiveEur()));
+    }
+
+    private static ManagedCurrency permissiveEur() {
+        return new ManagedCurrency(
+                "EUR",
+                true,
+                new BigDecimal("1.00"),
+                new BigDecimal("1.00"),
+                EnumSet.allOf(Tenor.class),
+                EnumSet.allOf(NoticePeriod.class));
     }
 
     @Test
@@ -174,6 +197,8 @@ class ReceiveOrderServiceTest {
         assertThat(existing.getAmount()).isEqualByComparingTo(new BigDecimal("5000000.00"));
 
         verify(orderRepository, never()).save(any());
+        verify(managedCurrencyRepository, never()).findByCode(any());
+        verify(openPositionPort, never()).findOpenByContractNumber(any());
         verify(auditLogger).log(
                 eq(existing.getId()),
                 eq(ReceiveOrderService.EVENT_DUPLICATE_RECEIVE_IGNORED),
