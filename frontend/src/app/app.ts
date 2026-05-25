@@ -1,5 +1,6 @@
 import { Component, inject } from '@angular/core';
 import { Router, RouterLink, RouterOutlet } from '@angular/router';
+import { DeskReturnService } from './core/trader/desk-return.service';
 import { TraderContextService } from './core/trader/trader-context.service';
 
 type DeskWorkspace = 'term' | 'oncall';
@@ -18,6 +19,7 @@ interface DeskNavContext {
 })
 export class App {
   protected readonly trader = inject(TraderContextService);
+  protected readonly deskReturn = inject(DeskReturnService);
   readonly router = inject(Router);
 
   /**
@@ -50,6 +52,18 @@ export class App {
 
   protected showDeskNav(): boolean {
     return !this.router.url.startsWith('/settings');
+  }
+
+  protected deskReturnUrl(): string {
+    return this.deskReturn.getReturnUrl();
+  }
+
+  protected deskLinkActive(): boolean {
+    return this.deskReturn.isDeskPath(this.router.url);
+  }
+
+  protected currenciesLinkActive(): boolean {
+    return this.deskReturn.isSettingsPath(this.router.url);
   }
 
   protected onTraderBlur(event: Event): void {

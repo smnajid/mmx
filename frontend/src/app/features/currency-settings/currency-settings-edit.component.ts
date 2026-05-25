@@ -1,4 +1,3 @@
-import { DecimalPipe } from '@angular/common';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -15,17 +14,17 @@ const ALL_NOTICES: NoticePeriodCode[] = ['24H', '48H'];
 @Component({
   selector: 'app-currency-settings-edit',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink, DecimalPipe],
+  imports: [ReactiveFormsModule, RouterLink],
   template: `
     <section class="settings-panel">
-      <a routerLink="/settings/currencies">← Back to list</a>
+      <a routerLink="/settings/currencies" class="settings-back">← Back to list</a>
       <h1>{{ isNew() ? 'Onboard currency' : 'Edit ' + code() }}</h1>
 
       @if (error()) {
-        <p class="error" role="alert">{{ error() }}</p>
+        <p class="settings-error" role="alert">{{ error() }}</p>
       }
 
-      <form [formGroup]="form" (ngSubmit)="save()">
+      <form class="settings-form" [formGroup]="form" (ngSubmit)="save()">
         @if (isNew()) {
           <label>
             ISO code
@@ -77,55 +76,13 @@ const ALL_NOTICES: NoticePeriodCode[] = ['24H', '48H'];
           @if (!isNew() && active()) {
             <button type="button" class="warn" (click)="disable()" [disabled]="saving()">Deactivate</button>
           }
+          @if (!isNew() && !active()) {
+            <button type="button" class="activate" (click)="enable()" [disabled]="saving()">Reactivate</button>
+          }
         </div>
       </form>
     </section>
   `,
-  styles: [
-    `
-      .settings-panel {
-        padding: 1.5rem;
-        max-width: 32rem;
-      }
-      form {
-        display: flex;
-        flex-direction: column;
-        gap: 0.75rem;
-        margin-top: 1rem;
-      }
-      label {
-        display: flex;
-        flex-direction: column;
-        gap: 0.25rem;
-      }
-      fieldset {
-        border: 1px solid #e2e8f0;
-        padding: 0.75rem;
-      }
-      .chk {
-        flex-direction: row;
-        align-items: center;
-        gap: 0.5rem;
-        margin-right: 1rem;
-        display: inline-flex;
-      }
-      .actions {
-        display: flex;
-        gap: 0.75rem;
-        margin-top: 0.5rem;
-      }
-      .warn {
-        background: #b45309;
-        color: #fff;
-        border: none;
-        padding: 0.4rem 0.9rem;
-        border-radius: 6px;
-      }
-      .error {
-        color: #b91c1c;
-      }
-    `,
-  ],
 })
 export class CurrencySettingsEditComponent implements OnInit {
   protected readonly ALL_TENORS = ALL_TENORS;
@@ -184,11 +141,17 @@ export class CurrencySettingsEditComponent implements OnInit {
   }
 
   tenorDisableBlocked(t: TenorCode): boolean {
-    return this.selectedTenors().size === 1 && this.selectedTenors().has(t);
+    if (this.selectedTenors().size !== 1 || !this.selectedTenors().has(t)) {
+      return false;
+    }
+    return this.selectedNotices().size === 0;
   }
 
   noticeDisableBlocked(n: NoticePeriodCode): boolean {
-    return this.selectedNotices().size === 1 && this.selectedNotices().has(n);
+    if (this.selectedNotices().size !== 1 || !this.selectedNotices().has(n)) {
+      return false;
+    }
+    return this.selectedTenors().size === 0;
   }
 
   toggleTenor(t: TenorCode, event: Event): void {
@@ -208,8 +171,8 @@ export class CurrencySettingsEditComponent implements OnInit {
   }
 
   save(): void {
-    if (this.selectedTenors().size === 0 || this.selectedNotices().size === 0) {
-      this.error.set('At least one tenor and one notice period must remain enabled');
+    if (this.selectedTenors().size === 0 && this.selectedNotices().size === 0) {
+      this.error.set('Enable at least one workspace: Term tenors or OnCall notice periods');
       return;
     }
     this.saving.set(true);
@@ -251,6 +214,21 @@ export class CurrencySettingsEditComponent implements OnInit {
       error: () => {
         this.saving.set(false);
         this.error.set('Deactivate failed');
+      },
+    });
+  }
+
+  enable(): void {
+    this.saving.set(true);
+    this.error.set(null);
+    this.api.enable(this.trader.traderId(), this.code()).subscribe({
+      next: (c) => {
+        this.active.set(c.active);
+        this.saving.set(false);
+      },
+      error: () => {
+        this.saving.set(false);
+        this.error.set('Reactivate failed');
       },
     });
   }

@@ -19,6 +19,8 @@ public interface ManageCurrencySettingsUseCase {
 
     com.mmx.order.domain.model.ManagedCurrency disable(String code);
 
+    com.mmx.order.domain.model.ManagedCurrency enable(String code);
+
     record OnboardCommand(
             String code,
             BigDecimal minSubscriptionAmount,

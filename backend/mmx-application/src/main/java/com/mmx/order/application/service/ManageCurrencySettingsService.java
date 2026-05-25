@@ -63,6 +63,12 @@ public final class ManageCurrencySettingsService implements ManageCurrencySettin
         return repository.save(existing.withActive(false));
     }
 
+    @Override
+    public ManagedCurrency enable(String code) {
+        ManagedCurrency existing = getByCode(code);
+        return repository.save(existing.withActive(true));
+    }
+
     public static final class CurrencyNotFoundException extends RuntimeException {
         public CurrencyNotFoundException(String code) {
             super("Managed currency not found: " + code);

@@ -70,7 +70,30 @@ class ManageCurrencySettingsServiceTest {
     }
 
     @Test
-    void update_rejectsLastTenorRemoval() {
+    void update_allowsTermOnlyClearingNotices() {
+        ManagedCurrency existing =
+                new ManagedCurrency(
+                        "EUR",
+                        true,
+                        new BigDecimal("1000000.00"),
+                        new BigDecimal("250000.00"),
+                        EnumSet.of(Tenor._3M),
+                        EnumSet.allOf(NoticePeriod.class));
+        when(repository.findByCode("EUR")).thenReturn(Optional.of(existing));
+        when(repository.save(any(ManagedCurrency.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        ManagedCurrency result =
+                subject.updateRules(
+                        "EUR",
+                        new ManageCurrencySettingsUseCase.UpdateRulesCommand(
+                                null, null, null, EnumSet.noneOf(NoticePeriod.class)));
+
+        assertThat(result.getEnabledTenors()).containsExactly(Tenor._3M);
+        assertThat(result.getEnabledNoticePeriods()).isEmpty();
+    }
+
+    @Test
+    void update_rejectsBothWorkspacesEmpty() {
         ManagedCurrency existing =
                 new ManagedCurrency(
                         "EUR",
@@ -89,7 +112,7 @@ class ManageCurrencySettingsServiceTest {
                                                 null,
                                                 null,
                                                 EnumSet.noneOf(Tenor.class),
-                                                null)))
+                                                EnumSet.noneOf(NoticePeriod.class))))
                 .isInstanceOf(InvalidManagedCurrencyException.class);
     }
 
@@ -108,6 +131,23 @@ class ManageCurrencySettingsServiceTest {
 
         ManagedCurrency result = subject.disable("EUR");
         assertThat(result.isActive()).isFalse();
+    }
+
+    @Test
+    void enable_marksActive() {
+        ManagedCurrency existing =
+                new ManagedCurrency(
+                        "EUR",
+                        false,
+                        new BigDecimal("1000000.00"),
+                        new BigDecimal("250000.00"),
+                        EnumSet.allOf(Tenor.class),
+                        EnumSet.allOf(NoticePeriod.class));
+        when(repository.findByCode("EUR")).thenReturn(Optional.of(existing));
+        when(repository.save(any(ManagedCurrency.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        ManagedCurrency result = subject.enable("EUR");
+        assertThat(result.isActive()).isTrue();
     }
 
     @Test

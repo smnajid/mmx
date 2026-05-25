@@ -9,7 +9,20 @@
     </div>
 
     <nav class="header-nav" aria-label="Application">
-      <a routerLink="/settings/currencies" class="header-link">Currencies</a>
+      <a
+        [routerLink]="deskReturnUrl()"
+        class="header-link"
+        [class.active]="deskLinkActive()"
+      >
+        Desk
+      </a>
+      <a
+        routerLink="/settings/currencies"
+        class="header-link"
+        [class.active]="currenciesLinkActive()"
+      >
+        Currencies
+      </a>
     </nav>
 
     <label class="trader">

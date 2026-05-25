@@ -29,7 +29,7 @@ describe('CurrencySettingsListComponent', () => {
     httpMock.verify();
   });
 
-  it('renders currencies from API', async () => {
+  it('renders currencies from API with status badge and rules summary', async () => {
     fixture.detectChanges();
     const req = httpMock.expectOne('/api/v1/settings/currencies');
     expect(req.request.headers.get('X-Trader-Id')).toBe('trader-a');
@@ -39,7 +39,7 @@ describe('CurrencySettingsListComponent', () => {
         active: true,
         minSubscriptionAmount: 1000000,
         minIncreaseDecreaseAmount: 250000,
-        enabledTenors: ['3M'],
+        enabledTenors: ['1M', '3M'],
         enabledNoticePeriods: ['24H'],
       },
     ]);
@@ -47,6 +47,32 @@ describe('CurrencySettingsListComponent', () => {
     fixture.detectChanges();
     const el = fixture.nativeElement as HTMLElement;
     expect(el.textContent).toContain('EUR');
+    expect(el.querySelector('.status-badge--active')).toBeTruthy();
     expect(el.textContent).toContain('Active');
+    expect(el.textContent).toContain('1M');
+    expect(el.textContent).toContain('3M');
+    expect(el.textContent).toContain('24H');
+    expect(el.textContent).toContain('Term:');
+    expect(el.textContent).toContain('OnCall:');
+  });
+
+  it('shows inactive badge for deactivated currency', async () => {
+    fixture.detectChanges();
+    const req = httpMock.expectOne('/api/v1/settings/currencies');
+    req.flush([
+      {
+        code: 'USD',
+        active: false,
+        minSubscriptionAmount: 500000,
+        minIncreaseDecreaseAmount: 100000,
+        enabledTenors: ['3M'],
+        enabledNoticePeriods: ['48H'],
+      },
+    ]);
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('.status-badge--inactive')).toBeTruthy();
+    expect(el.textContent).toContain('Inactive');
   });
 });

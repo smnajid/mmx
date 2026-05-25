@@ -96,9 +96,25 @@ The system SHALL allow a trader to deactivate a managed currency. Deactivation S
 
 ---
 
+### Requirement: Reactivate a managed currency
+
+The system SHALL allow a trader to reactivate a previously deactivated managed currency by setting `active` true. Reactivation SHALL restore intake eligibility for that currency according to its configured rules.
+
+#### Scenario: Reactivate inactive currency
+
+- **WHEN** the trader reactivates EUR while EUR is inactive
+- **THEN** the currency is marked active and HTTP success is returned
+
+#### Scenario: Reactivate is idempotent for active currency
+
+- **WHEN** the trader reactivates EUR while EUR is already active
+- **THEN** the currency remains active and HTTP success is returned
+
+---
+
 ### Requirement: Trader settings UI for currencies
 
-The Angular application SHALL provide a currency settings area reachable without using ON-CALL or Term desk queue tabs. The UI SHALL support listing currencies, onboarding a new currency, editing rules for an existing currency, and deactivating a currency. Forms SHALL mirror API validation including last-tenor and last-notice guards.
+The Angular application SHALL provide a currency settings area reachable without using ON-CALL or Term desk queue tabs. The UI SHALL support listing currencies, onboarding a new currency, editing rules for an existing currency, deactivating a currency, and reactivating an inactive currency. Forms SHALL mirror API validation including last-tenor and last-notice guards.
 
 #### Scenario: Navigate to currency list
 

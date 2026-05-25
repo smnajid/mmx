@@ -57,6 +57,12 @@ export class CurrencySettingsApiService {
     });
   }
 
+  enable(traderId: string, code: string): Observable<ManagedCurrency> {
+    return this.http.post<ManagedCurrency>(`${BASE}/${code}/enable`, null, {
+      headers: this.headers(traderId),
+    });
+  }
+
   private headers(traderId: string): HttpHeaders {
     return new HttpHeaders({ 'X-Trader-Id': traderId });
   }

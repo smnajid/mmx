@@ -166,4 +166,52 @@ class OrderAgainstCurrencyPolicyTest {
                 null,
                 Optional.empty());
     }
+
+    @Test
+    void termOnlyCurrency_acceptsTermIntake() {
+        ManagedCurrency termOnly =
+                new ManagedCurrency(
+                        "EUR",
+                        true,
+                        MIN_SUB,
+                        MIN_LIFE,
+                        EnumSet.of(Tenor._3M),
+                        EnumSet.noneOf(NoticePeriod.class));
+
+        policy.validateReceive(
+                Optional.of(termOnly),
+                "EUR",
+                OrderType.TERM,
+                OrderOperation.SUBSCRIPTION,
+                MIN_SUB,
+                Tenor._3M,
+                null,
+                Optional.empty());
+    }
+
+    @Test
+    void termOnlyCurrency_rejectsOnCallIntake() {
+        ManagedCurrency termOnly =
+                new ManagedCurrency(
+                        "EUR",
+                        true,
+                        MIN_SUB,
+                        MIN_LIFE,
+                        EnumSet.of(Tenor._3M),
+                        EnumSet.noneOf(NoticePeriod.class));
+
+        assertThatThrownBy(
+                        () ->
+                                policy.validateReceive(
+                                        Optional.of(termOnly),
+                                        "EUR",
+                                        OrderType.ON_CALL,
+                                        OrderOperation.SUBSCRIPTION,
+                                        MIN_SUB,
+                                        null,
+                                        NoticePeriod._24H,
+                                        Optional.empty()))
+                .isInstanceOf(InvalidOrderException.class)
+                .hasMessageContaining("Notice period");
+    }
 }

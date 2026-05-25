@@ -57,4 +57,9 @@ public class CurrencySettingsController implements CurrencySettingsApi {
     public ResponseEntity<ManagedCurrencyResponse> disableManagedCurrency(String xTraderId, String code) {
         return ResponseEntity.ok(mapper.toResponse(manageCurrencySettingsUseCase.disable(code)));
     }
+
+    @Override
+    public ResponseEntity<ManagedCurrencyResponse> enableManagedCurrency(String xTraderId, String code) {
+        return ResponseEntity.ok(mapper.toResponse(manageCurrencySettingsUseCase.enable(code)));
+    }
 }

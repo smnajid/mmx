@@ -54,6 +54,41 @@
   color: var(--mmx-text-muted);
 }
 
+.header-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.header-link {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: var(--mmx-text-muted);
+  padding: 0.45rem 0.75rem;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  transition:
+    color 0.2s ease,
+    border-color 0.2s ease,
+    background 0.2s ease;
+}
+
+.header-link:hover {
+  color: var(--mmx-text);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.header-link.active {
+  color: var(--mmx-accent);
+  border-color: var(--mmx-border);
+  background: var(--mmx-accent-dim);
+}
+
 .trader {
   display: flex;
   flex-direction: column;
@@ -167,6 +202,10 @@
 .desk-content {
   flex: 1;
   padding: 1.75rem 1.25rem 0;
+}
+
+.desk-content--settings {
+  padding-top: 1.25rem;
 }
 
 @media (max-width: 720px) {

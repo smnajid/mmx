@@ -17,6 +17,7 @@ import java.util.EnumSet;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
@@ -100,7 +101,11 @@ class CurrencySettingsControllerTest {
     }
 
     @Test
-    void update_emptyTenors_returns400() throws Exception {
+    void update_clearTenorsWithNotices_returns200() throws Exception {
+        ManagedCurrency onCallOnly =
+                sampleEur().withRules(null, null, EnumSet.noneOf(Tenor.class), EnumSet.of(NoticePeriod._24H));
+        when(manageCurrencySettingsUseCase.updateRules(eq("EUR"), any())).thenReturn(onCallOnly);
+
         mockMvc.perform(
                         patch("/api/v1/settings/currencies/EUR")
                                 .header("X-Trader-Id", "trader-a")
@@ -108,7 +113,31 @@ class CurrencySettingsControllerTest {
                                 .content(
                                         """
                                         {
-                                          "enabledTenors": []
+                                          "enabledTenors": [],
+                                          "enabledNoticePeriods": ["24H"]
+                                        }
+                                        """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.enabledTenors").isEmpty())
+                .andExpect(jsonPath("$.enabledNoticePeriods[0]").value("24H"));
+    }
+
+    @Test
+    void update_bothWorkspacesEmpty_returns400() throws Exception {
+        when(manageCurrencySettingsUseCase.updateRules(eq("EUR"), any()))
+                .thenThrow(
+                        new com.mmx.order.domain.exception.InvalidManagedCurrencyException(
+                                "At least one workspace must be enabled"));
+
+        mockMvc.perform(
+                        patch("/api/v1/settings/currencies/EUR")
+                                .header("X-Trader-Id", "trader-a")
+                                .contentType(APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {
+                                          "enabledTenors": [],
+                                          "enabledNoticePeriods": []
                                         }
                                         """))
                 .andExpect(status().isBadRequest());
@@ -124,6 +153,18 @@ class CurrencySettingsControllerTest {
                 .andExpect(jsonPath("$.active").value(false));
 
         verify(manageCurrencySettingsUseCase).disable("EUR");
+    }
+
+    @Test
+    void enableManagedCurrency_returns200() throws Exception {
+        when(manageCurrencySettingsUseCase.enable("EUR")).thenReturn(sampleEur().withActive(true));
+
+        mockMvc.perform(
+                        post("/api/v1/settings/currencies/EUR/enable").header("X-Trader-Id", "trader-a"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.active").value(true));
+
+        verify(manageCurrencySettingsUseCase).enable("EUR");
     }
 
     private static ManagedCurrency sampleEur() {

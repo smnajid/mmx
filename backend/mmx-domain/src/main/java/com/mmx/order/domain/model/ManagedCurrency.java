@@ -27,8 +27,9 @@ public final class ManagedCurrency {
         this.active = active;
         this.minSubscriptionAmount = validatePositive(minSubscriptionAmount, "minSubscriptionAmount");
         this.minIncreaseDecreaseAmount = validatePositive(minIncreaseDecreaseAmount, "minIncreaseDecreaseAmount");
-        this.enabledTenors = validateTenors(enabledTenors);
-        this.enabledNoticePeriods = validateNoticePeriods(enabledNoticePeriods);
+        this.enabledTenors = normalizeTenors(enabledTenors);
+        this.enabledNoticePeriods = normalizeNoticePeriods(enabledNoticePeriods);
+        validateAtLeastOneWorkspace(this.enabledTenors, this.enabledNoticePeriods);
     }
 
     public static String validateCode(String code) {
@@ -45,18 +46,27 @@ public final class ManagedCurrency {
         return amount;
     }
 
-    private static Set<Tenor> validateTenors(Set<Tenor> tenors) {
-        if (tenors == null || tenors.isEmpty()) {
-            throw new InvalidManagedCurrencyException("At least one tenor must be enabled");
+    private static Set<Tenor> normalizeTenors(Set<Tenor> tenors) {
+        if (tenors == null) {
+            throw new InvalidManagedCurrencyException("enabledTenors must not be null");
         }
-        return EnumSet.copyOf(tenors);
+        return tenors.isEmpty() ? EnumSet.noneOf(Tenor.class) : EnumSet.copyOf(tenors);
     }
 
-    private static Set<NoticePeriod> validateNoticePeriods(Set<NoticePeriod> noticePeriods) {
-        if (noticePeriods == null || noticePeriods.isEmpty()) {
-            throw new InvalidManagedCurrencyException("At least one notice period must be enabled");
+    private static Set<NoticePeriod> normalizeNoticePeriods(Set<NoticePeriod> noticePeriods) {
+        if (noticePeriods == null) {
+            throw new InvalidManagedCurrencyException("enabledNoticePeriods must not be null");
         }
-        return EnumSet.copyOf(noticePeriods);
+        return noticePeriods.isEmpty()
+                ? EnumSet.noneOf(NoticePeriod.class)
+                : EnumSet.copyOf(noticePeriods);
+    }
+
+    private static void validateAtLeastOneWorkspace(Set<Tenor> tenors, Set<NoticePeriod> noticePeriods) {
+        if (tenors.isEmpty() && noticePeriods.isEmpty()) {
+            throw new InvalidManagedCurrencyException(
+                    "At least one workspace must be enabled: Term tenors or OnCall notice periods");
+        }
     }
 
     public String getCode() {

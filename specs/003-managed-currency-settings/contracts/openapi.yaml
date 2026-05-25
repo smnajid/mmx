@@ -114,6 +114,24 @@ paths:
         "404":
           $ref: "#/components/responses/NotFoundError"
 
+  /api/v1/settings/currencies/{code}/enable:
+    post:
+      tags: [CurrencySettings]
+      summary: Reactivate a managed currency
+      operationId: enableManagedCurrency
+      parameters:
+        - $ref: "#/components/parameters/TraderIdHeader"
+        - $ref: "#/components/parameters/CurrencyCode"
+      responses:
+        "200":
+          description: Currency reactivated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ManagedCurrencyResponse"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+
 components:
   parameters:
     TraderIdHeader:
@@ -185,14 +203,16 @@ components:
           minimum: 0.01
         enabledTenors:
           type: array
+          description: Enabled Term tenors; may be empty when OnCall notice periods are non-empty.
           items:
             $ref: "#/components/schemas/TenorCode"
-          minItems: 1
+          minItems: 0
         enabledNoticePeriods:
           type: array
+          description: Enabled OnCall notice periods; may be empty when Term tenors are non-empty.
           items:
             $ref: "#/components/schemas/NoticePeriodCode"
-          minItems: 1
+          minItems: 0
 
     OnboardCurrencyRequest:
       type: object
@@ -216,14 +236,16 @@ components:
           minimum: 0.01
         enabledTenors:
           type: array
+          description: Enabled Term tenors; at least one workspace (tenors or notices) required on onboard.
           items:
             $ref: "#/components/schemas/TenorCode"
-          minItems: 1
+          minItems: 0
         enabledNoticePeriods:
           type: array
+          description: Enabled OnCall notice periods; at least one workspace (tenors or notices) required on onboard.
           items:
             $ref: "#/components/schemas/NoticePeriodCode"
-          minItems: 1
+          minItems: 0
 
     UpdateCurrencyRulesRequest:
       type: object
@@ -238,14 +260,16 @@ components:
           minimum: 0.01
         enabledTenors:
           type: array
+          description: Replaces enabled Term tenors when present; use [] to clear Term workspace.
           items:
             $ref: "#/components/schemas/TenorCode"
-          minItems: 1
+          minItems: 0
         enabledNoticePeriods:
           type: array
+          description: Replaces enabled OnCall notices when present; use [] to clear OnCall workspace.
           items:
             $ref: "#/components/schemas/NoticePeriodCode"
-          minItems: 1
+          minItems: 0
 
     SettingsErrorCode:
       type: string

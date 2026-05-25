@@ -48,17 +48,23 @@ public class CurrencySettingsRestMapper {
                 optionalNoticeSet(request.getEnabledNoticePeriods()));
     }
 
-    /** PATCH: absent or empty list means leave existing rules unchanged. */
+    /** PATCH: absent field leaves rules unchanged; empty list clears that workspace. */
     private Set<Tenor> optionalTenorSet(java.util.List<TenorCode> codes) {
-        if (codes == null || codes.isEmpty()) {
+        if (codes == null) {
             return null;
+        }
+        if (codes.isEmpty()) {
+            return EnumSet.noneOf(Tenor.class);
         }
         return toTenorSet(codes);
     }
 
     private Set<NoticePeriod> optionalNoticeSet(java.util.List<NoticePeriodCode> codes) {
-        if (codes == null || codes.isEmpty()) {
+        if (codes == null) {
             return null;
+        }
+        if (codes.isEmpty()) {
+            return EnumSet.noneOf(NoticePeriod.class);
         }
         return toNoticeSet(codes);
     }

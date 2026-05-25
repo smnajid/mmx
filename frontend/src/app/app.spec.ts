@@ -7,6 +7,7 @@ import { TraderContextService } from './core/trader/trader-context.service';
 
 describe('App', () => {
   beforeEach(async () => {
+    sessionStorage.clear();
     await TestBed.configureTestingModule({
       imports: [App],
       providers: [
@@ -32,13 +33,65 @@ describe('App', () => {
     expect(compiled.querySelector('.name')?.textContent).toContain('MMx');
   });
 
-  it('shows Currencies link in header', async () => {
+  it('shows Desk and Currencies links in header', async () => {
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
     fixture.detectChanges();
-    const link = fixture.nativeElement.querySelector('.header-link') as HTMLAnchorElement;
-    expect(link?.textContent?.trim()).toBe('Currencies');
-    expect(link?.getAttribute('href')).toContain('/settings/currencies');
+    const links = fixture.nativeElement.querySelectorAll('.header-link') as NodeListOf<HTMLAnchorElement>;
+    expect(links.length).toBe(2);
+    expect(links[0].textContent?.trim()).toBe('Desk');
+    expect(links[1].textContent?.trim()).toBe('Currencies');
+    expect(links[1].getAttribute('href')).toContain('/settings/currencies');
+  });
+
+  it('shows Desk link on settings route', async () => {
+    const fixture = TestBed.createComponent(App);
+    const router = TestBed.inject(Router);
+    await router.navigateByUrl('/settings/currencies');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const deskLink = fixture.nativeElement.querySelector('.header-link') as HTMLAnchorElement;
+    expect(deskLink?.textContent?.trim()).toBe('Desk');
+  });
+
+  it('marks Currencies active on settings route', async () => {
+    const fixture = TestBed.createComponent(App);
+    const router = TestBed.inject(Router);
+    await router.navigateByUrl('/settings/currencies');
+    fixture.detectChanges();
+    const links = fixture.nativeElement.querySelectorAll('.header-link');
+    expect(links[0].classList.contains('active')).toBe(false);
+    expect(links[1].classList.contains('active')).toBe(true);
+  });
+
+  it('marks Desk active on desk queue route', async () => {
+    const fixture = TestBed.createComponent(App);
+    const router = TestBed.inject(Router);
+    await router.navigateByUrl('/term/received');
+    fixture.detectChanges();
+    const links = fixture.nativeElement.querySelectorAll('.header-link');
+    expect(links[0].classList.contains('active')).toBe(true);
+    expect(links[1].classList.contains('active')).toBe(false);
+  });
+
+  it('Desk link uses remembered return URL after desk then settings', async () => {
+    const fixture = TestBed.createComponent(App);
+    const router = TestBed.inject(Router);
+    await router.navigateByUrl('/term/assigned');
+    await fixture.whenStable();
+    await router.navigateByUrl('/settings/currencies');
+    fixture.detectChanges();
+    const deskLink = fixture.nativeElement.querySelector('.header-link') as HTMLAnchorElement;
+    expect(deskLink.getAttribute('href')).toContain('/term/assigned');
+  });
+
+  it('Desk link falls back to oncall received when no prior desk visit', async () => {
+    const fixture = TestBed.createComponent(App);
+    const router = TestBed.inject(Router);
+    await router.navigateByUrl('/settings/currencies');
+    fixture.detectChanges();
+    const deskLink = fixture.nativeElement.querySelector('.header-link') as HTMLAnchorElement;
+    expect(deskLink.getAttribute('href')).toContain('/oncall/received');
   });
 
   it('hides desk nav on settings route', async () => {
