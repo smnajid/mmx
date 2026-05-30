@@ -3,6 +3,7 @@ package com.mmx.order.e2e;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mmx.order.MmxApplication;
+import com.mmx.order.support.RestTestInstitutions;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
@@ -85,7 +86,7 @@ class TraderWorkflowE2ETest {
 
         HttpResponse<String> executed = postJson(
                 "/api/v1/orders/" + orderId + "/execute",
-                "{\"executedRate\":3.5,\"counterparty\":\"BankCo International\"}",
+                RestTestInstitutions.bankCoExecuteJson(3.5),
                 TRADER);
         assertThat(executed.statusCode()).isEqualTo(200);
         JsonNode executedBody = objectMapper.readTree(executed.body());

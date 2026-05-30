@@ -9,5 +9,5 @@ public record ExecuteOrderCommand(
         UUID orderId,
         TraderId traderId,
         BigDecimal executedRate,
-        String counterparty
+        String institutionCode
 ) {}

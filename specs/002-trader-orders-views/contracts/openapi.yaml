@@ -700,7 +700,15 @@ components:
           type: string
           nullable: true
           description: |
-            Execution counterparty; present once the order has been executed.
+            Execution counterparty (institution display name); present once the order has been executed.
+            Omit from JSON when null (omit-null serialization).
+          x-field-extra-annotation: "@com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)"
+        institutionCode:
+          type: string
+          nullable: true
+          maxLength: 32
+          description: |
+            Catalog institution code selected at execute; present once executed.
             Omit from JSON when null (omit-null serialization).
           x-field-extra-annotation: "@com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)"
         handoffStatus:
@@ -797,6 +805,12 @@ components:
         counterparty:
           type: string
           nullable: true
+          description: Institution display name after execute.
+        institutionCode:
+          type: string
+          nullable: true
+          maxLength: 32
+          description: Selected catalog institution code after execute.
         executionTime:
           type: string
           format: date-time
@@ -855,16 +869,17 @@ components:
 
     ExecuteOrderRequest:
       type: object
-      required: [executedRate, counterparty]
+      required: [executedRate, institutionCode]
       properties:
         executedRate:
           type: number
           format: double
           minimum: 0
-        counterparty:
+        institutionCode:
           type: string
           minLength: 1
-          maxLength: 200
+          maxLength: 32
+          description: Active onboarded institution from the settings catalog.
 
     RejectOrderRequest:
       type: object

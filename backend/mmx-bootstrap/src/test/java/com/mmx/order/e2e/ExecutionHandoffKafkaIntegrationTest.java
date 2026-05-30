@@ -112,7 +112,7 @@ class ExecutionHandoffKafkaIntegrationTest {
         HttpResponse<String> executed =
                 postJson(
                         "/api/v1/orders/" + orderId + "/execute",
-                        "{\"executedRate\":3.5,\"counterparty\":\"BankCo International\"}",
+                        com.mmx.order.support.RestTestInstitutions.bankCoExecuteJson(3.5),
                         TRADER);
         assertThat(executed.statusCode()).isEqualTo(200);
 

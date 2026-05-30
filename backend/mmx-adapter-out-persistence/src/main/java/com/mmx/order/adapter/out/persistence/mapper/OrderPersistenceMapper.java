@@ -52,6 +52,7 @@ public class OrderPersistenceMapper {
             ExecutionDetails ex = order.getExecutionDetails();
             e.setExecutedRate(ex.executedRate());
             e.setCounterparty(ex.counterparty());
+            e.setInstitutionCode(ex.institutionCode());
             e.setExecutionTime(ex.executionTime());
             e.setDealingReference(ex.dealingReference().value());
             e.setGeneratedContractNumber(ex.generatedContractNumber().value());
@@ -105,9 +106,9 @@ public class OrderPersistenceMapper {
                 ? new DealingReference(e.getDealingReference()) : null;
         ContractNumber contractNum = e.getGeneratedContractNumber() != null
                 ? new ContractNumber(e.getGeneratedContractNumber()) : null;
+        String institutionCode = e.getInstitutionCode() != null ? e.getInstitutionCode() : "LEGACY";
         return new ExecutionDetails(
-                e.getExecutedRate(), e.getCounterparty(),
-                e.getExecutionTime(), dealRef, contractNum
-        );
+                e.getExecutedRate(), e.getCounterparty(), institutionCode,
+                e.getExecutionTime(), dealRef, contractNum);
     }
 }

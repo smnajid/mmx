@@ -82,6 +82,7 @@ class MoneyMarketOrderTest {
         order.execute(
                 new BigDecimal("3.5"),
                 "BankCo",
+                "HSBC-01",
                 new DealingReference("DL-1"),
                 new ContractNumber("CN-1"),
                 new TraderId("t-a"),

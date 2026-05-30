@@ -98,7 +98,7 @@ class OrderExecutionControllerTest {
                         post("/api/v1/orders/" + order.getId() + "/execute")
                                 .header("X-Trader-Id", "trader-a")
                                 .contentType(APPLICATION_JSON)
-                                .content("{\"executedRate\":3.55,\"counterparty\":\"BankCo\"}"))
+                                .content("{\"executedRate\":3.55,\"institutionCode\":\"HSBC-01\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("EXECUTED"))
                 .andExpect(jsonPath("$.orderId").value(order.getId().toString()))
@@ -132,7 +132,7 @@ class OrderExecutionControllerTest {
                         post("/api/v1/orders/" + id + "/execute")
                                 .header("X-Trader-Id", "intruder")
                                 .contentType(APPLICATION_JSON)
-                                .content("{\"executedRate\":3.5,\"counterparty\":\"BankCo\"}"))
+                                .content("{\"executedRate\":3.5,\"institutionCode\":\"HSBC-01\"}"))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.error").value("UNAUTHORIZED_TRADER"));
     }
@@ -147,7 +147,7 @@ class OrderExecutionControllerTest {
                         post("/api/v1/orders/" + id + "/execute")
                                 .header("X-Trader-Id", "trader-a")
                                 .contentType(APPLICATION_JSON)
-                                .content("{\"executedRate\":3.5,\"counterparty\":\"BankCo\"}"))
+                                .content("{\"executedRate\":3.5,\"institutionCode\":\"HSBC-01\"}"))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.error").value("INVALID_STATUS_TRANSITION"));
     }
@@ -210,6 +210,7 @@ class OrderExecutionControllerTest {
         order.execute(
                 new BigDecimal("3.55000000"),
                 "BankCo International",
+                "HSBC-01",
                 new DealingReference("DL-exec-test"),
                 new ContractNumber("CN-exec-test"),
                 new TraderId("trader-a"),

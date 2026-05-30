@@ -56,6 +56,7 @@ class OrderPersistenceMapperTest {
         source.execute(
                 new BigDecimal("3.55000000"),
                 "BankCo",
+                "HSBC-01",
                 new DealingReference("DL-1"),
                 new ContractNumber("CN-1"),
                 new TraderId("trader-a"),

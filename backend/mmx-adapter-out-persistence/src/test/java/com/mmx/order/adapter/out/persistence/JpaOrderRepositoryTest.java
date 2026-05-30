@@ -109,6 +109,7 @@ class JpaOrderRepositoryTest {
             order.execute(
                     new BigDecimal("3.5"),
                     "BankCo",
+                    "HSBC-01",
                     new DealingReference("DL-acc-1"),
                     new ContractNumber("CN-acc-1"),
                     new TraderId("trader-a"),

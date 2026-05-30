@@ -66,6 +66,27 @@ onboard_currency "EUR"
 onboard_currency "USD"
 echo
 
+onboard_institution() {
+  local name="$1"
+  local code
+  code="$(curl -sS -o /dev/null -w "%{http_code}" \
+    -X POST "${BASE_URL}/api/v1/settings/institutions" \
+    -H "Content-Type: application/json" \
+    -H "X-Trader-Id: demo-trader" \
+    -d "{\"displayName\":\"${name}\"}")"
+  if [[ "${code}" == "201" ]]; then
+    echo "OK   onboard institution ${name}"
+  elif [[ "${code}" == "409" ]]; then
+    echo "SKIP institution ${name} (suffix overflow or conflict)"
+  else
+    echo "INFO institution ${name} -> HTTP ${code} (may already exist)"
+  fi
+}
+
+echo "Seeding institutions (required before execute) -> ${BASE_URL}"
+onboard_institution "BankCo International"
+echo
+
 echo "Seeding demo orders -> ${BASE_URL}"
 echo "  near-term valueDate=${VALUE_DATE_NEAR}"
 echo "  far valueDate=${VALUE_DATE_FAR} (Received: enable \"Show all value dates\")  run=${RUN_ID}"

@@ -21,6 +21,7 @@ import com.mmx.order.application.service.OrderLifecycleService;
 import com.mmx.order.application.service.DeskOrderQueryService;
 import com.mmx.order.application.service.ReceiveOrderService;
 import com.mmx.order.application.service.UpdateOrderService;
+import com.mmx.order.domain.policy.OrderAgainstInstitutionPolicy;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -46,12 +47,20 @@ public class OrderModuleConfiguration {
     @Bean
     public ExecuteOrderService executeOrderService(
             OrderRepository orderRepository,
+            InstitutionRepository institutionRepository,
+            OrderAgainstInstitutionPolicy orderAgainstInstitutionPolicy,
             ReferenceGenerator referenceGenerator,
             AuditLogger auditLogger,
             Clock clock,
             ExecutionHandoffOutbox executionHandoffOutbox) {
         return new ExecuteOrderService(
-                orderRepository, referenceGenerator, auditLogger, clock, executionHandoffOutbox);
+                orderRepository,
+                institutionRepository,
+                orderAgainstInstitutionPolicy,
+                referenceGenerator,
+                auditLogger,
+                clock,
+                executionHandoffOutbox);
     }
 
     /**

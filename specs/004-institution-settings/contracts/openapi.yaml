@@ -1,0 +1,193 @@
+openapi: 3.0.3
+info:
+  title: MMX Institution Settings API
+  description: |
+    Trader-facing institution catalog for desk settings and execution selection. Mirror: [api-v1.md](./api-v1.md).
+  version: 1.0.0
+
+servers:
+  - url: /
+    description: Relative to deployment base
+
+tags:
+  - name: InstitutionSettings
+    description: Onboarded institution catalog
+
+paths:
+  /api/v1/settings/institutions:
+    get:
+      tags: [InstitutionSettings]
+      summary: List institutions
+      operationId: listInstitutions
+      parameters:
+        - $ref: "#/components/parameters/TraderIdHeader"
+        - name: activeOnly
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: When true, return only active institutions (for execute autocomplete).
+      responses:
+        "200":
+          description: Catalog entries (may be empty)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/InstitutionResponse"
+    post:
+      tags: [InstitutionSettings]
+      summary: Onboard an institution
+      operationId: onboardInstitution
+      parameters:
+        - $ref: "#/components/parameters/TraderIdHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OnboardInstitutionRequest"
+      responses:
+        "201":
+          description: Institution created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InstitutionResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "409":
+          $ref: "#/components/responses/SuffixOverflowError"
+
+  /api/v1/settings/institutions/{institutionCode}:
+    get:
+      tags: [InstitutionSettings]
+      summary: Get institution by code
+      operationId: getInstitution
+      parameters:
+        - $ref: "#/components/parameters/TraderIdHeader"
+        - $ref: "#/components/parameters/InstitutionCode"
+      responses:
+        "200":
+          description: Institution entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InstitutionResponse"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+
+  /api/v1/settings/institutions/{institutionCode}/deactivate:
+    post:
+      tags: [InstitutionSettings]
+      summary: Deactivate an institution
+      operationId: deactivateInstitution
+      parameters:
+        - $ref: "#/components/parameters/TraderIdHeader"
+        - $ref: "#/components/parameters/InstitutionCode"
+      responses:
+        "200":
+          description: Institution deactivated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InstitutionResponse"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+
+  /api/v1/settings/institutions/{institutionCode}/activate:
+    post:
+      tags: [InstitutionSettings]
+      summary: Reactivate an institution
+      operationId: activateInstitution
+      parameters:
+        - $ref: "#/components/parameters/TraderIdHeader"
+        - $ref: "#/components/parameters/InstitutionCode"
+      responses:
+        "200":
+          description: Institution activated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InstitutionResponse"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+
+components:
+  parameters:
+    TraderIdHeader:
+      name: X-Trader-Id
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 100
+    InstitutionCode:
+      name: institutionCode
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 32
+
+  responses:
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/InstitutionSettingsErrorResponse"
+    SuffixOverflowError:
+      description: Cannot allocate another suffix for acronym base
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/InstitutionSettingsErrorResponse"
+    NotFoundError:
+      description: Institution not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/InstitutionSettingsErrorResponse"
+
+  schemas:
+    InstitutionResponse:
+      type: object
+      required: [institutionCode, displayName, active]
+      properties:
+        institutionCode:
+          type: string
+          maxLength: 32
+        displayName:
+          type: string
+          maxLength: 128
+        active:
+          type: boolean
+
+    OnboardInstitutionRequest:
+      type: object
+      required: [displayName]
+      properties:
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 128
+
+    InstitutionSettingsErrorCode:
+      type: string
+      enum:
+        - VALIDATION_ERROR
+        - INSTITUTION_NOT_FOUND
+        - INSTITUTION_SUFFIX_OVERFLOW
+
+    InstitutionSettingsErrorResponse:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          $ref: "#/components/schemas/InstitutionSettingsErrorCode"
+        message:
+          type: string

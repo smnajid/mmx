@@ -34,6 +34,14 @@ describe('Trader workflow', () => {
 
       const orderId = res.body.orderId as string;
 
+      cy.request({
+        method: 'POST',
+        url: `${apiUrl()}/api/v1/settings/institutions`,
+        headers: { 'Content-Type': 'application/json', 'X-Trader-Id': TRADER },
+        body: { displayName: 'BankCo International' },
+        failOnStatusCode: false,
+      });
+
       cy.visit('/term/received', {
         onBeforeLoad(win) {
           win.sessionStorage.setItem('mmx-trader-id', TRADER);
@@ -54,8 +62,8 @@ describe('Trader workflow', () => {
 
       cy.get('input[name="executedRate"]', { timeout: 15000 }).clear();
       cy.get('input[name="executedRate"]').type('3.5');
-      cy.get('input[name="counterparty"]').clear();
-      cy.get('input[name="counterparty"]').type('BankCo International');
+      cy.get('input[name="institutionPicker"]', { timeout: 15000 }).clear();
+      cy.get('input[name="institutionPicker"]').type('BankCo International');
 
       cy.contains('button', 'Execute order').click();
 

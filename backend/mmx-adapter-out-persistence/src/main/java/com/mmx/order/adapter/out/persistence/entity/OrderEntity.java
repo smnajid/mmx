@@ -65,6 +65,9 @@ public class OrderEntity {
     @Column(name = "counterparty", length = 200)
     private String counterparty;
 
+    @Column(name = "institution_code", length = 32)
+    private String institutionCode;
+
     @Column(name = "execution_time")
     private Instant executionTime;
 
@@ -143,6 +146,9 @@ public class OrderEntity {
 
     public String getCounterparty() { return counterparty; }
     public void setCounterparty(String v) { this.counterparty = v; }
+
+    public String getInstitutionCode() { return institutionCode; }
+    public void setInstitutionCode(String v) { this.institutionCode = v; }
 
     public Instant getExecutionTime() { return executionTime; }
     public void setExecutionTime(Instant v) { this.executionTime = v; }

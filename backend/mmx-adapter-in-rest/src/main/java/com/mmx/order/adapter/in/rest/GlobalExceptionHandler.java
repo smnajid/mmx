@@ -5,8 +5,13 @@ import com.mmx.order.adapter.in.rest.generated.model.ErrorResponse;
 import com.mmx.order.adapter.in.rest.generated.model.FieldError;
 import com.mmx.order.adapter.in.rest.generated.settings.model.SettingsErrorCode;
 import com.mmx.order.adapter.in.rest.generated.settings.model.SettingsErrorResponse;
+import com.mmx.order.adapter.in.rest.generated.institution.model.InstitutionSettingsErrorCode;
+import com.mmx.order.adapter.in.rest.generated.institution.model.InstitutionSettingsErrorResponse;
 import com.mmx.order.application.service.ManageCurrencySettingsService;
+import com.mmx.order.application.service.ManageInstitutionSettingsService;
 import com.mmx.order.domain.exception.DuplicateManagedCurrencyException;
+import com.mmx.order.domain.exception.InstitutionSuffixOverflowException;
+import com.mmx.order.domain.exception.InvalidInstitutionException;
 import com.mmx.order.domain.exception.InvalidManagedCurrencyException;
 import com.mmx.order.domain.exception.InvalidOrderException;
 import com.mmx.order.domain.exception.InvalidStatusTransitionException;
@@ -59,6 +64,35 @@ public class GlobalExceptionHandler {
                 .body(
                         new SettingsErrorResponse()
                                 .error(SettingsErrorCode.CURRENCY_NOT_FOUND)
+                                .message(ex.getMessage()));
+    }
+
+    @ExceptionHandler(InvalidInstitutionException.class)
+    public ResponseEntity<InstitutionSettingsErrorResponse> handleInvalidInstitution(InvalidInstitutionException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(
+                        new InstitutionSettingsErrorResponse()
+                                .error(InstitutionSettingsErrorCode.VALIDATION_ERROR)
+                                .message(ex.getMessage()));
+    }
+
+    @ExceptionHandler(InstitutionSuffixOverflowException.class)
+    public ResponseEntity<InstitutionSettingsErrorResponse> handleInstitutionSuffixOverflow(
+            InstitutionSuffixOverflowException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(
+                        new InstitutionSettingsErrorResponse()
+                                .error(InstitutionSettingsErrorCode.INSTITUTION_SUFFIX_OVERFLOW)
+                                .message(ex.getMessage()));
+    }
+
+    @ExceptionHandler(ManageInstitutionSettingsService.InstitutionNotFoundException.class)
+    public ResponseEntity<InstitutionSettingsErrorResponse> handleInstitutionNotFound(
+            ManageInstitutionSettingsService.InstitutionNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(
+                        new InstitutionSettingsErrorResponse()
+                                .error(InstitutionSettingsErrorCode.INSTITUTION_NOT_FOUND)
                                 .message(ex.getMessage()));
     }
 

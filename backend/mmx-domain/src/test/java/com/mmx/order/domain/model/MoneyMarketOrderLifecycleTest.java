@@ -62,7 +62,7 @@ class MoneyMarketOrderLifecycleTest {
         void assign_from_executed_throws() {
             receivedOrder.assign(TRADER_A, NOW);
             receivedOrder.execute(
-                    new BigDecimal("3.50000000"), "BankCo",
+                    new BigDecimal("3.50000000"), "BankCo", "HSBC-01",
                     new DealingReference("DL-abc"), new ContractNumber("CN-abc"),
                     TRADER_A, NOW
             );
@@ -115,7 +115,7 @@ class MoneyMarketOrderLifecycleTest {
             ContractNumber contractNum = new ContractNumber("CN-exec-001");
 
             receivedOrder.execute(
-                    new BigDecimal("3.50000000"), "BankCo International",
+                    new BigDecimal("3.50000000"), "BankCo International", "HSBC-01",
                     dealRef, contractNum, TRADER_A, NOW
             );
 
@@ -132,7 +132,7 @@ class MoneyMarketOrderLifecycleTest {
         @Test
         void execute_by_wrong_trader_throws() {
             assertThatThrownBy(() -> receivedOrder.execute(
-                    new BigDecimal("3.50000000"), "BankCo",
+                    new BigDecimal("3.50000000"), "BankCo", "HSBC-01",
                     new DealingReference("DL-x"), new ContractNumber("CN-x"),
                     TRADER_B, NOW
             )).isInstanceOf(UnauthorizedTraderException.class);
@@ -162,6 +162,7 @@ class MoneyMarketOrderLifecycleTest {
                                     increase.execute(
                                             new BigDecimal("3.50000000"),
                                             "BankCo International",
+                                        "HSBC-01",
                                             new DealingReference("DL-x"),
                                             null,
                                             TRADER_A,
@@ -173,7 +174,7 @@ class MoneyMarketOrderLifecycleTest {
         @Test
         void execute_below_minimum_rate_throws_when_floor_present() {
             assertThatThrownBy(() -> receivedOrder.execute(
-                    new BigDecimal("3.24000000"), "BankCo",
+                    new BigDecimal("3.24000000"), "BankCo", "HSBC-01",
                     new DealingReference("DL-low"), new ContractNumber("CN-low"),
                     TRADER_A, NOW
             )).isInstanceOf(InvalidOrderException.class)
@@ -199,7 +200,7 @@ class MoneyMarketOrderLifecycleTest {
             );
             openFloor.assign(TRADER_A, NOW);
             openFloor.execute(
-                    new BigDecimal("0.01000000"), "BankCo",
+                    new BigDecimal("0.01000000"), "BankCo", "HSBC-01",
                     new DealingReference("DL-any"), new ContractNumber("CN-any"),
                     TRADER_A, NOW
             );
@@ -228,6 +229,7 @@ class MoneyMarketOrderLifecycleTest {
                                     receivedOnly.execute(
                                             new BigDecimal("3.50000000"),
                                             "BankCo",
+                                    "HSBC-01",
                                             new DealingReference("DL-x"),
                                             new ContractNumber("CN-x"),
                                             TRADER_A,
@@ -298,7 +300,7 @@ class MoneyMarketOrderLifecycleTest {
         void reject_from_executed_throws() {
             receivedOrder.assign(TRADER_A, NOW);
             receivedOrder.execute(
-                    new BigDecimal("3.50000000"), "BankCo",
+                    new BigDecimal("3.50000000"), "BankCo", "HSBC-01",
                     new DealingReference("DL-z"), new ContractNumber("CN-z"),
                     TRADER_A, NOW
             );

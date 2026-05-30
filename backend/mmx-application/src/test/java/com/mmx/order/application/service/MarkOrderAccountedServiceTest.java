@@ -147,6 +147,7 @@ class MarkOrderAccountedServiceTest {
         order.execute(
                 new BigDecimal("3.5"),
                 "BankCo",
+                "HSBC-01",
                 new DealingReference("DL-x"),
                 new ContractNumber("CN-x"),
                 new TraderId("trader-x"),

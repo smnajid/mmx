@@ -68,6 +68,7 @@ class OrderExecutedV1PayloadMapperTest {
         order.execute(
                 new BigDecimal("3.55"),
                 "BankCo International",
+                "HSBC-01",
                 new DealingReference("DL-001"),
                 new ContractNumber("CN-NEW"),
                 new TraderId("alice"),

@@ -62,7 +62,7 @@ export class App {
     return this.deskReturn.isDeskPath(this.router.url);
   }
 
-  protected currenciesLinkActive(): boolean {
+  protected settingsLinkActive(): boolean {
     return this.deskReturn.isSettingsPath(this.router.url);
   }
 

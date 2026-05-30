@@ -305,7 +305,7 @@ class OrderRestApiIntegrationTest {
         HttpResponse<String> exec =
                 postJson(
                         "/api/v1/orders/" + orderId + "/execute",
-                        "{\"executedRate\":3.5,\"counterparty\":\"BankCo International\"}",
+                        com.mmx.order.support.RestTestInstitutions.bankCoExecuteJson(3.5),
                         TRADER);
         assertThat(exec.statusCode()).isEqualTo(200);
 
@@ -334,7 +334,7 @@ class OrderRestApiIntegrationTest {
         String onId = objectMapper.readTree(ocPost.body()).path("orderId").asText();
         assertThat(postEmpty("/api/v1/orders/" + termId + "/assign", TRADER).statusCode()).isEqualTo(200);
         assertThat(postEmpty("/api/v1/orders/" + onId + "/assign", TRADER).statusCode()).isEqualTo(200);
-        String execPayload = "{\"executedRate\":3.5,\"counterparty\":\"BankCo International\"}";
+        String execPayload = com.mmx.order.support.RestTestInstitutions.bankCoExecuteJson(3.5);
         assertThat(postJson("/api/v1/orders/" + termId + "/execute", execPayload, TRADER).statusCode()).isEqualTo(200);
         assertThat(postJson("/api/v1/orders/" + onId + "/execute", execPayload, TRADER).statusCode()).isEqualTo(200);
 
@@ -364,7 +364,8 @@ class OrderRestApiIntegrationTest {
         String onId = objectMapper.readTree(ocPost.body()).path("orderId").asText();
         postEmpty("/api/v1/orders/" + termId + "/assign", TRADER);
         postEmpty("/api/v1/orders/" + onId + "/assign", TRADER);
-        String execPayload = "{\"executedRate\":3.5,\"counterparty\":\"CP-OC\"}";
+        String execPayload =
+                com.mmx.order.support.RestTestInstitutions.executeJson(3.5, com.mmx.order.support.RestTestInstitutions.CP_OC_CODE);
         postJson("/api/v1/orders/" + termId + "/execute", execPayload, TRADER);
         postJson("/api/v1/orders/" + onId + "/execute", execPayload, TRADER);
 
@@ -392,7 +393,7 @@ class OrderRestApiIntegrationTest {
         assertThat(
                         postJson(
                                         "/api/v1/orders/" + orderId + "/execute",
-                                        "{\"executedRate\":3.5,\"counterparty\":\"BankCo\"}",
+                                        com.mmx.order.support.RestTestInstitutions.bankCoExecuteJson(3.5),
                                         TRADER)
                                 .statusCode())
                 .isEqualTo(200);
@@ -432,7 +433,10 @@ class OrderRestApiIntegrationTest {
         HttpResponse<String> termPost = postJson("/api/v1/orders", termSubscribeJson("IT-BOI-" + System.nanoTime()));
         String orderId = objectMapper.readTree(termPost.body()).path("orderId").asText();
         postEmpty("/api/v1/orders/" + orderId + "/assign", TRADER);
-        postJson("/api/v1/orders/" + orderId + "/execute", "{\"executedRate\":3.5,\"counterparty\":\"X\"}", TRADER);
+        postJson(
+                "/api/v1/orders/" + orderId + "/execute",
+                com.mmx.order.support.RestTestInstitutions.bankCoExecuteJson(3.5),
+                TRADER);
 
         assertThat(postJsonBackOffice("/api/v1/back-office/orders/" + orderId + "/accounted", "{}").statusCode())
                 .isEqualTo(200);
@@ -454,7 +458,10 @@ class OrderRestApiIntegrationTest {
         HttpResponse<String> termPost = postJson("/api/v1/orders", termSubscribeJson("IT-BONH-" + System.nanoTime()));
         String orderId = objectMapper.readTree(termPost.body()).path("orderId").asText();
         postEmpty("/api/v1/orders/" + orderId + "/assign", TRADER);
-        postJson("/api/v1/orders/" + orderId + "/execute", "{\"executedRate\":3.5,\"counterparty\":\"Y\"}", TRADER);
+        postJson(
+                "/api/v1/orders/" + orderId + "/execute",
+                com.mmx.order.support.RestTestInstitutions.bankCoExecuteJson(3.5),
+                TRADER);
 
         HttpResponse<String> bo = postJsonBackOffice("/api/v1/back-office/orders/" + orderId + "/accounted", "{}");
         assertThat(bo.statusCode()).isEqualTo(200);

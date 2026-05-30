@@ -90,7 +90,7 @@ class OrderRestMapperTest {
     void toExecuteCommand_mapsFields() {
         var request = new ExecuteOrderRequest();
         request.setExecutedRate(3.5);
-        request.setCounterparty("BankCo");
+        request.setInstitutionCode("HSBC-01");
         UUID id = UUID.randomUUID();
 
         var command = mapper.toExecuteCommand(request, id, "trader-a");
@@ -98,7 +98,7 @@ class OrderRestMapperTest {
         assertThat(command.orderId()).isEqualTo(id);
         assertThat(command.traderId()).isEqualTo(new TraderId("trader-a"));
         assertThat(command.executedRate()).isEqualByComparingTo(new BigDecimal("3.5"));
-        assertThat(command.counterparty()).isEqualTo("BankCo");
+        assertThat(command.institutionCode()).isEqualTo("HSBC-01");
     }
 
     private static MoneyMarketOrder receivedTerm() {
@@ -124,6 +124,7 @@ class OrderRestMapperTest {
         order.execute(
                 new BigDecimal("3.55000000"),
                 "BankCo",
+                "HSBC-01",
                 new DealingReference("DL-1"),
                 new ContractNumber("CN-1"),
                 new TraderId("trader-a"),

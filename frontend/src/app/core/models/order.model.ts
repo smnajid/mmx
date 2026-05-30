@@ -79,7 +79,7 @@ export interface UpdateOrderRequest {
 
 export interface ExecuteOrderRequest {
   executedRate: number;
-  counterparty: string;
+  institutionCode: string;
 }
 
 export interface RejectOrderRequest {

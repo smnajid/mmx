@@ -217,6 +217,7 @@ public class MoneyMarketOrder {
     public void execute(
             BigDecimal executedRate,
             String counterparty,
+            String institutionCode,
             DealingReference dealingReference,
             ContractNumber generatedContractNumber,
             TraderId requestingTraderId,
@@ -239,8 +240,7 @@ public class MoneyMarketOrder {
         }
         this.status = this.status.transitionTo(OrderStatus.EXECUTED);
         this.executionDetails = new ExecutionDetails(
-                executedRate, counterparty, now, dealingReference, generatedContractNumber
-        );
+                executedRate, counterparty, institutionCode, now, dealingReference, generatedContractNumber);
         this.updatedAt = now;
     }
 

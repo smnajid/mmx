@@ -365,14 +365,16 @@ All fields are optional; only provided fields are updated.
 ```json
 {
   "executedRate": 3.50000000,
-  "counterparty": "BankCo International"
+  "institutionCode": "HSBC-01"
 }
 ```
 
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
 | executedRate | decimal | Yes | Must be ≥ 0; when the order has a `minimumRate` from intake, must be ≥ `minimumRate` |
-| counterparty | string | Yes | Non-blank; max 200 chars |
+| institutionCode | string | Yes | Active onboarded institution from settings catalog; max 32 chars |
+
+**Breaking change (institution onboarding):** Free-text `counterparty` is no longer accepted on the execute request. The server sets response `counterparty` from the institution `displayName` and may expose `institutionCode` on executed order detail.
 
 #### Responses
 

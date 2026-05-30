@@ -33,15 +33,15 @@ describe('App', () => {
     expect(compiled.querySelector('.name')?.textContent).toContain('MMx');
   });
 
-  it('shows Desk and Currencies links in header', async () => {
+  it('shows Desk and Settings links in header', async () => {
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
     fixture.detectChanges();
     const links = fixture.nativeElement.querySelectorAll('.header-link') as NodeListOf<HTMLAnchorElement>;
     expect(links.length).toBe(2);
     expect(links[0].textContent?.trim()).toBe('Desk');
-    expect(links[1].textContent?.trim()).toBe('Currencies');
-    expect(links[1].getAttribute('href')).toContain('/settings/currencies');
+    expect(links[1].textContent?.trim()).toBe('Settings');
+    expect(links[1].getAttribute('href')).toContain('/settings');
   });
 
   it('shows Desk link on settings route', async () => {
@@ -54,7 +54,7 @@ describe('App', () => {
     expect(deskLink?.textContent?.trim()).toBe('Desk');
   });
 
-  it('marks Currencies active on settings route', async () => {
+  it('marks Settings active on settings route', async () => {
     const fixture = TestBed.createComponent(App);
     const router = TestBed.inject(Router);
     await router.navigateByUrl('/settings/currencies');
@@ -62,6 +62,19 @@ describe('App', () => {
     const links = fixture.nativeElement.querySelectorAll('.header-link');
     expect(links[0].classList.contains('active')).toBe(false);
     expect(links[1].classList.contains('active')).toBe(true);
+  });
+
+  it('shows settings sub-nav on institutions route', async () => {
+    const fixture = TestBed.createComponent(App);
+    const router = TestBed.inject(Router);
+    await router.navigateByUrl('/settings/institutions');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const hub = fixture.nativeElement.querySelector('.settings-hub-nav');
+    expect(hub).toBeTruthy();
+    const tabs = hub?.querySelectorAll('a') ?? [];
+    expect(tabs.length).toBe(2);
+    expect(tabs[1].classList.contains('active')).toBe(true);
   });
 
   it('marks Desk active on desk queue route', async () => {

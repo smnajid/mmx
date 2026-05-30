@@ -4,8 +4,11 @@ import com.mmx.order.application.command.ExecuteOrderCommand;
 import com.mmx.order.application.port.out.AuditLogger;
 import com.mmx.order.application.port.out.Clock;
 import com.mmx.order.application.port.out.ExecutionHandoffOutbox;
+import com.mmx.order.application.port.out.InstitutionRepository;
 import com.mmx.order.application.port.out.OrderRepository;
 import com.mmx.order.application.port.out.ReferenceGenerator;
+import com.mmx.order.domain.model.Institution;
+import com.mmx.order.domain.policy.OrderAgainstInstitutionPolicy;
 import com.mmx.order.domain.exception.InvalidOrderException;
 import com.mmx.order.domain.exception.InvalidStatusTransitionException;
 import com.mmx.order.domain.exception.OrderNotFoundException;
@@ -75,13 +78,32 @@ class ExecuteOrderServiceTest {
     @Mock
     ExecutionHandoffOutbox executionHandoffOutbox;
 
+    @Mock
+    InstitutionRepository institutionRepository;
+
+    private final OrderAgainstInstitutionPolicy institutionPolicy = new OrderAgainstInstitutionPolicy();
+
     @InjectMocks
     ExecuteOrderService subject;
+
+    private static final Institution HSBC =
+            new Institution("HSBC-01", "BankCo International", true);
 
     @BeforeEach
     void freezeClock() {
         when(clock.now()).thenReturn(FIXED_NOW);
         when(clock.today()).thenReturn(TODAY);
+        when(institutionRepository.existsAny()).thenReturn(true);
+        when(institutionRepository.findByInstitutionCode("HSBC-01")).thenReturn(Optional.of(HSBC));
+        subject =
+                new ExecuteOrderService(
+                        orderRepository,
+                        institutionRepository,
+                        institutionPolicy,
+                        referenceGenerator,
+                        auditLogger,
+                        clock,
+                        executionHandoffOutbox);
     }
 
     @Test
@@ -98,7 +120,7 @@ class ExecuteOrderServiceTest {
                         assigned.getId(),
                         TRADER_A,
                         new BigDecimal("3.55000000"),
-                        "BankCo International");
+                        "HSBC-01");
 
         MoneyMarketOrder result = subject.execute(command);
 
@@ -107,6 +129,7 @@ class ExecuteOrderServiceTest {
         assertThat(result.getExecutionDetails().dealingReference()).isEqualTo(DEAL_REF);
         assertThat(result.getExecutionDetails().generatedContractNumber()).isEqualTo(CONTRACT_REF);
         assertThat(result.getExecutionDetails().executionTime()).isEqualTo(FIXED_NOW);
+        assertThat(result.getExecutionDetails().counterparty()).isEqualTo("BankCo International");
         assertThat(result.getHandoffStatus()).isEqualTo(com.mmx.order.domain.model.HandoffStatus.PENDING);
 
         verify(referenceGenerator).generateDealingReference();
@@ -123,7 +146,7 @@ class ExecuteOrderServiceTest {
     @Test
     void execute_missing_executedRate_rejected() {
         UUID id = UUID.randomUUID();
-        ExecuteOrderCommand command = new ExecuteOrderCommand(id, TRADER_A, null, "BankCo");
+        ExecuteOrderCommand command = new ExecuteOrderCommand(id, TRADER_A, null, "HSBC-01");
 
         assertThatThrownBy(() -> subject.execute(command)).isInstanceOf(InvalidOrderException.class);
 
@@ -134,7 +157,7 @@ class ExecuteOrderServiceTest {
     }
 
     @Test
-    void execute_blank_counterparty_rejected() {
+    void execute_blank_institutionCode_rejected() {
         UUID id = UUID.randomUUID();
         ExecuteOrderCommand command =
                 new ExecuteOrderCommand(id, TRADER_A, new BigDecimal("3.55"), "   ");
@@ -148,6 +171,68 @@ class ExecuteOrderServiceTest {
     }
 
     @Test
+    void execute_empty_catalog_rejected() {
+        when(institutionRepository.existsAny()).thenReturn(false);
+        ExecuteOrderCommand command =
+                new ExecuteOrderCommand(UUID.randomUUID(), TRADER_A, new BigDecimal("3.55"), "HSBC-01");
+
+        assertThatThrownBy(() -> subject.execute(command))
+                .isInstanceOf(InvalidOrderException.class)
+                .hasMessageContaining("No institutions onboarded");
+
+        verify(orderRepository, never()).findById(any());
+    }
+
+    @Test
+    void execute_unknown_institution_rejected() {
+        when(institutionRepository.findByInstitutionCode("NOPE-01")).thenReturn(Optional.empty());
+        ExecuteOrderCommand command =
+                new ExecuteOrderCommand(UUID.randomUUID(), TRADER_A, new BigDecimal("3.55"), "NOPE-01");
+
+        assertThatThrownBy(() -> subject.execute(command))
+                .isInstanceOf(InvalidOrderException.class)
+                .hasMessageContaining("not found");
+    }
+
+    @Test
+    void execute_inactive_institution_rejected() {
+        when(institutionRepository.findByInstitutionCode("HSBC-01"))
+                .thenReturn(Optional.of(new Institution("HSBC-01", "BankCo International", false)));
+        MoneyMarketOrder assigned = receivedOrder();
+        assigned.assign(TRADER_A, FIXED_NOW);
+        when(orderRepository.findById(assigned.getId())).thenReturn(Optional.of(assigned));
+
+        ExecuteOrderCommand command =
+                new ExecuteOrderCommand(
+                        assigned.getId(), TRADER_A, new BigDecimal("3.55"), "HSBC-01");
+
+        assertThatThrownBy(() -> subject.execute(command))
+                .isInstanceOf(InvalidOrderException.class)
+                .hasMessageContaining("not active");
+    }
+
+    @Test
+    void execute_sets_counterparty_from_institution_display_name() {
+        MoneyMarketOrder assigned = receivedOrder();
+        assigned.assign(TRADER_A, FIXED_NOW);
+        when(orderRepository.findById(assigned.getId())).thenReturn(Optional.of(assigned));
+        when(orderRepository.save(any(MoneyMarketOrder.class))).then(returnsFirstArg());
+        when(referenceGenerator.generateDealingReference()).thenReturn(DEAL_REF);
+        when(referenceGenerator.generateContractNumber()).thenReturn(CONTRACT_REF);
+
+        MoneyMarketOrder result =
+                subject.execute(
+                        new ExecuteOrderCommand(
+                                assigned.getId(),
+                                TRADER_A,
+                                new BigDecimal("3.55"),
+                                "HSBC-01"));
+
+        assertThat(result.getExecutionDetails().counterparty()).isEqualTo("BankCo International");
+        assertThat(result.getExecutionDetails().institutionCode()).isEqualTo("HSBC-01");
+    }
+
+    @Test
     void execute_wrong_trader_throws_unauthorized() {
         MoneyMarketOrder assigned = receivedOrder();
         assigned.assign(TRADER_A, FIXED_NOW);
@@ -157,7 +242,7 @@ class ExecuteOrderServiceTest {
 
         ExecuteOrderCommand command =
                 new ExecuteOrderCommand(
-                        assigned.getId(), TRADER_B, new BigDecimal("3.55"), "BankCo International");
+                        assigned.getId(), TRADER_B, new BigDecimal("3.55"), "HSBC-01");
 
         assertThatThrownBy(() -> subject.execute(command)).isInstanceOf(UnauthorizedTraderException.class);
 
@@ -177,7 +262,7 @@ class ExecuteOrderServiceTest {
 
         ExecuteOrderCommand command =
                 new ExecuteOrderCommand(
-                        received.getId(), TRADER_A, new BigDecimal("3.55"), "BankCo International");
+                        received.getId(), TRADER_A, new BigDecimal("3.55"), "HSBC-01");
 
         assertThatThrownBy(() -> subject.execute(command)).isInstanceOf(InvalidStatusTransitionException.class);
 
@@ -194,7 +279,7 @@ class ExecuteOrderServiceTest {
         when(orderRepository.findById(id)).thenReturn(Optional.empty());
 
         ExecuteOrderCommand command =
-                new ExecuteOrderCommand(id, TRADER_A, new BigDecimal("3.55"), "BankCo International");
+                new ExecuteOrderCommand(id, TRADER_A, new BigDecimal("3.55"), "HSBC-01");
 
         assertThatThrownBy(() -> subject.execute(command)).isInstanceOf(OrderNotFoundException.class);
 
@@ -214,7 +299,7 @@ class ExecuteOrderServiceTest {
                         assigned.getId(),
                         TRADER_A,
                         new BigDecimal("3.24000000"),
-                        "BankCo International");
+                        "HSBC-01");
 
         assertThatThrownBy(() -> subject.execute(command)).isInstanceOf(InvalidOrderException.class);
 
@@ -235,7 +320,7 @@ class ExecuteOrderServiceTest {
                         assigned.getId(),
                         TRADER_A,
                         new BigDecimal("3.55000000"),
-                        "BankCo International");
+                        "HSBC-01");
 
         MoneyMarketOrder result = subject.execute(command);
 
@@ -278,7 +363,7 @@ class ExecuteOrderServiceTest {
 
         ExecuteOrderCommand command =
                 new ExecuteOrderCommand(
-                        id, TRADER_A, new BigDecimal("3.55"), "BankCo International");
+                        id, TRADER_A, new BigDecimal("3.55"), "HSBC-01");
 
         assertThatThrownBy(() -> subject.execute(command)).isInstanceOf(InvalidOrderException.class);
 
@@ -303,7 +388,7 @@ class ExecuteOrderServiceTest {
                         open.getId(),
                         TRADER_A,
                         new BigDecimal("0.50000000"),
-                        "BankCo International");
+                        "HSBC-01");
 
         MoneyMarketOrder result = subject.execute(command);
 

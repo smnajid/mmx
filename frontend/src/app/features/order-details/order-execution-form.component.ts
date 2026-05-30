@@ -1,59 +1,83 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  OnInit,
+  inject,
   input,
   output,
   signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
+import {
+  Institution,
+  InstitutionSettingsApiService,
+} from '../../core/api/institution-settings-api.service';
 import type { ExecuteOrderRequest } from '../../core/models/order.model';
+import { TraderContextService } from '../../core/trader/trader-context.service';
 
 @Component({
   selector: 'mmx-order-execution-form',
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, RouterLink],
   template: `
     <div class="panel">
       <h2 class="panel-title">Record execution</h2>
       <p class="hint">
-        Captures the dealt rate and counterparty; dealing reference and contract number are generated on submit.
+        Select an onboarded institution (counterparty). Dealing reference and contract number are generated on submit.
       </p>
-      <form class="form" (ngSubmit)="onSubmit()">
-        <label class="field">
-          <span class="label">Executed rate</span>
-          <input
-            type="number"
-            name="executedRate"
-            step="any"
-            min="0"
-            class="input mono"
-            [(ngModel)]="rateModel"
-            [disabled]="submitting()"
-            required
-            autocomplete="off"
-          />
-        </label>
-        <label class="field">
-          <span class="label">Counterparty</span>
-          <input
-            type="text"
-            name="counterparty"
-            class="input"
-            [(ngModel)]="counterpartyModel"
-            [disabled]="submitting()"
-            maxlength="200"
-            required
-            placeholder="e.g. BankCo International"
-            autocomplete="organization"
-          />
-        </label>
-        @if (localError()) {
-          <p class="field-error" role="alert">{{ localError() }}</p>
-        }
-        <button type="submit" class="submit" [disabled]="submitting()">
-          {{ submitting() ? 'Submitting…' : 'Execute order' }}
-        </button>
-      </form>
+
+      @if (catalogLoading()) {
+        <p class="hint">Loading institutions…</p>
+      } @else if (catalogEmpty()) {
+        <p class="empty-catalog" role="alert">
+          No institutions onboarded — execute is disabled.
+          <a routerLink="/settings/institutions">Onboard in Settings</a>
+        </p>
+      } @else {
+        <form class="form" (ngSubmit)="onSubmit()">
+          <label class="field">
+            <span class="label">Executed rate</span>
+            <input
+              type="number"
+              name="executedRate"
+              step="any"
+              min="0"
+              class="input mono"
+              [(ngModel)]="rateModel"
+              [disabled]="submitting()"
+              required
+              autocomplete="off"
+            />
+          </label>
+          <label class="field">
+            <span class="label">Counterparty</span>
+            <input
+              type="text"
+              name="institutionPicker"
+              class="input"
+              [(ngModel)]="pickerLabel"
+              [disabled]="submitting()"
+              list="institution-options"
+              required
+              placeholder="Start typing institution name"
+              autocomplete="off"
+              (input)="onPickerInput()"
+            />
+            <datalist id="institution-options">
+              @for (i of activeInstitutions(); track i.institutionCode) {
+                <option [value]="i.displayName"></option>
+              }
+            </datalist>
+          </label>
+          @if (localError()) {
+            <p class="field-error" role="alert">{{ localError() }}</p>
+          }
+          <button type="submit" class="submit" [disabled]="submitting() || !selectedCode()">
+            {{ submitting() ? 'Submitting…' : 'Execute order' }}
+          </button>
+        </form>
+      }
     </div>
   `,
   styles: `
@@ -79,6 +103,18 @@ import type { ExecuteOrderRequest } from '../../core/models/order.model';
       color: var(--mmx-text-muted);
       max-width: 52ch;
       line-height: 1.4;
+    }
+
+    .empty-catalog {
+      margin: 0;
+      font-size: 0.85rem;
+      color: #fda4af;
+      line-height: 1.5;
+    }
+
+    .empty-catalog a {
+      color: var(--mmx-accent);
+      margin-left: 0.35rem;
     }
 
     .form {
@@ -158,28 +194,58 @@ import type { ExecuteOrderRequest } from '../../core/models/order.model';
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class OrderExecutionFormComponent {
+export class OrderExecutionFormComponent implements OnInit {
   readonly submitting = input(false);
 
   readonly submitExecute = output<ExecuteOrderRequest>();
 
+  private readonly institutionApi = inject(InstitutionSettingsApiService);
+  private readonly trader = inject(TraderContextService);
+
   readonly localError = signal<string | null>(null);
+  readonly catalogLoading = signal(true);
+  readonly catalogEmpty = signal(false);
+  readonly activeInstitutions = signal<Institution[]>([]);
+  readonly selectedCode = signal<string | null>(null);
 
   rateModel = '';
-  counterpartyModel = '';
+  pickerLabel = '';
+
+  ngOnInit(): void {
+    this.institutionApi.list(this.trader.traderId(), true).subscribe({
+      next: (list) => {
+        this.activeInstitutions.set(list);
+        this.catalogEmpty.set(list.length === 0);
+        this.catalogLoading.set(false);
+      },
+      error: () => {
+        this.catalogEmpty.set(true);
+        this.catalogLoading.set(false);
+      },
+    });
+  }
+
+  onPickerInput(): void {
+    const label = this.pickerLabel.trim();
+    const match = this.activeInstitutions().find(
+      (i) => i.displayName.toLowerCase() === label.toLowerCase()
+    );
+    this.selectedCode.set(match?.institutionCode ?? null);
+  }
 
   onSubmit(): void {
     this.localError.set(null);
     const raw = this.rateModel === '' ? NaN : Number(this.rateModel);
-    const cp = this.counterpartyModel.trim();
     if (Number.isNaN(raw) || raw < 0) {
       this.localError.set('Enter a valid executed rate (≥ 0).');
       return;
     }
-    if (cp.length === 0) {
-      this.localError.set('Counterparty is required.');
+    this.onPickerInput();
+    const code = this.selectedCode();
+    if (!code) {
+      this.localError.set('Select an active institution from the list.');
       return;
     }
-    this.submitExecute.emit({ executedRate: raw, counterparty: cp });
+    this.submitExecute.emit({ executedRate: raw, institutionCode: code });
   }
 }

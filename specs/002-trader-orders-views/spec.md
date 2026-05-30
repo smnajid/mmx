@@ -7,6 +7,10 @@
 
 ## Clarifications
 
+### Session 2026-05-30 (institution onboarding — execute delta)
+
+- **Execute institution selection**: `POST …/orders/{orderId}/execute` requires **`institutionCode`** referencing an active onboarded institution (`specs/004-institution-settings`). Free-text **counterparty** is not accepted on the request; response/detail **`counterparty`** is derived from the institution **`displayName`**. Empty institution catalog rejects execute (strict cold start). See OpenSpec `institution-onboarding-rates` / `order-institution-constraints`.
+
 ### Session 2026-05-09
 
 - Q: How does the Term vs OnCall workspace choice behave across browser sessions / logins? → A: Fixed default **OnCall** each session; **no** cross-session persistence of last workspace (Option D).
@@ -131,6 +135,7 @@ Detailed user narratives remain in User Stories 4–5 and FR-008–FR-012 below.
 - **FR-001**: The trader application MUST present Money Market order work in **two top-level workspaces**: **Term** and **OnCall**. Each workspace MUST offer **Received**, **Assigned**, and **Executed** sub-views. Lists MUST NOT mix Term and OnCall orders on the same workspace surface. On **session start** (after authentication for that session), the **default active workspace MUST be OnCall** until the trader switches to Term; **last workspace MUST NOT be persisted** across sessions or logins — each new session MUST start on **OnCall** again. The **workspace selector** MUST reflect the active workspace on **all** desk queue screens (**Received**, **Assigned**, **Executed**). The **sub-view selector** MUST reflect the active sub-view on those same screens; navigation MUST NOT leave ambiguous state where Assigned or Executed appears active but the workspace appears inactive or vice versa (except where other screens omit the chrome by design — e.g. order detail may omit sub-view highlighting if clearly out-of-queue scope).
 - **FR-002**: On **Assigned**, all entitled traders MUST see **all** assigned orders for the active workspace type. Any trader MUST be able to open order details subject to existing visibility rules.
 - **FR-003**: Only the trader **currently assigned** to an order MUST be able to **execute** it from Assigned; others MUST receive a clear, safe failure (no silent success).
+- **FR-003a**: Execute MUST require **`institutionCode`** for an **active** onboarded institution; the server MUST set execution **`counterparty`** from that institution’s **`displayName`**. Execute MUST be rejected when the institution catalog is empty or the code is unknown/inactive (contract in [contracts/openapi.yaml](contracts/openapi.yaml)).
 - **FR-004**: On **Received** with **default** settings, the system MUST restrict rows to orders whose scheduling date satisfies the **default near-term window** (see Assumptions). The trader MUST have an explicit control to **show all** Received orders for that workspace type within the session.
 - **FR-005**: **Show all** on Received MUST be **session-scoped** only — not persisted as a lasting preference across logout or session boundary (see Assumptions).
 - **FR-006**: For **Term** rows on Received, Assigned, and Executed primary list/detail surfaces in scope, **Tenor** MUST be visible or reachable in one obvious step without leaving context.

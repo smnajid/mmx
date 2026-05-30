@@ -55,11 +55,11 @@ export const routes: Routes = [
     ],
   },
   {
-    path: 'settings/currencies',
+    path: 'settings',
+    loadComponent: () =>
+      import('./features/settings/settings-shell.component').then((m) => m.SettingsShellComponent),
     loadChildren: () =>
-      import('./features/currency-settings/currency-settings.routes').then(
-        (m) => m.CURRENCY_SETTINGS_ROUTES
-      ),
+      import('./features/settings/settings.routes').then((m) => m.SETTINGS_ROUTES),
   },
   {
     path: 'orders/:id',
