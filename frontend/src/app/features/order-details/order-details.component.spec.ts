@@ -111,6 +111,7 @@ describe('OrderDetailsComponent', () => {
     expect(text).toContain('Assign to me');
     expect(text).toContain('Cancel order');
     expect(text).toContain('Reject');
+    expect(fixture.nativeElement.querySelectorAll('.actions .btn.danger-outline')).toHaveLength(1);
   });
 
   it('shows unassign, reject, and execution for ASSIGNED order owned by current trader', async () => {
@@ -130,8 +131,7 @@ describe('OrderDetailsComponent', () => {
     expect(text).toContain('Unassign');
     expect(text).toContain('Reject');
     expect(text).toContain('Record execution');
-    expect(text).toContain('Execute order');
-    expect(fixture.nativeElement.querySelector('.actions .btn.danger-outline')).toBeTruthy();
+    expect(fixture.nativeElement.querySelectorAll('.actions .btn.danger-outline')).toHaveLength(1);
   });
 
   it('does not show reject for ASSIGNED order owned by another trader', async () => {

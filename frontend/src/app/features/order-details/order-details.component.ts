@@ -102,7 +102,12 @@ import { canShowAction, type OrderDetailAction } from './order-detail-actions';
           }
         </dl>
 
-        @if (showAction(o, 'assign') || showAction(o, 'cancel') || showAction(o, 'reject')) {
+        @if (
+          showAction(o, 'assign') ||
+          showAction(o, 'cancel') ||
+          showAction(o, 'unassign') ||
+          showAction(o, 'reject')
+        ) {
           <div class="actions">
             @if (showAction(o, 'assign')) {
               <button type="button" class="btn primary" [disabled]="acting()" (click)="assign()">
@@ -114,27 +119,13 @@ import { canShowAction, type OrderDetailAction } from './order-detail-actions';
                 Cancel order
               </button>
             }
-            @if (showAction(o, 'reject')) {
-              <button type="button" class="btn danger-outline" [disabled]="acting()" (click)="openRejectDialog()">
-                Reject
-              </button>
-            }
-          </div>
-        }
-        @if (showAction(o, 'unassign') || showAction(o, 'reject')) {
-          <div class="actions">
             @if (showAction(o, 'unassign')) {
               <button type="button" class="btn secondary" [disabled]="acting()" (click)="unassign()">
                 Unassign
               </button>
             }
             @if (showAction(o, 'reject')) {
-              <button
-                type="button"
-                class="btn danger-outline"
-                [disabled]="acting()"
-                (click)="openRejectDialog()"
-              >
+              <button type="button" class="btn danger-outline" [disabled]="acting()" (click)="openRejectDialog()">
                 Reject
               </button>
             }
