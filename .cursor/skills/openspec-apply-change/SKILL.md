@@ -70,6 +70,7 @@ Implement tasks from an OpenSpec change.
    - Show which task is being worked on
    - Make the code changes required
    - Keep changes minimal and focused
+   - When a task requires running tests, follow **Verification commands** below (do not default to full-reactor `mvn test`)
    - Mark task complete in the tasks file: `- [ ]` → `- [x]`
    - Continue to next task
 
@@ -138,6 +139,21 @@ All tasks complete! Ready to archive this change.
 What would you like to do?
 ```
 
+**Verification commands (backend / frontend)**
+
+Project policy: `openspec/config.yaml` (context + `rules.tasks`). Apply MUST follow it even when `tasks.md` predates the rules.
+
+- Run Maven from **`backend/`**. Prefer **`mvnd`** when installed; otherwise **`mvn`**.
+- **TDD / red-green** (write-test + implement-until-green pairs): use the command on the write-test task, or
+  `mvn test -pl <module> -Dtest=<TestClass>` — one module, one class. Re-run the **same** `-Dtest` after implementation.
+  Use `-am` only when upstream modules must compile first.
+- **Compile/codegen tasks**: `mvn compile` or `mvn -pl <module> -am compile` only — never `mvn test`.
+- **Do not** run full-reactor `cd backend && mvn test` until the **Final verification** task (or the single task that explicitly says full reactor / all modules green).
+- **Mid-phase tasks** that say "run mvn test on X and Y": interpret as
+  `mvn test -pl <modules> -am` only if no Final verification full run exists yet; if Final verification is already planned, skip redundant mid-phase full/scoped suite runs and rely on TDD `-Dtest` loops instead.
+- **`mmx-bootstrap`** (Testcontainers PostgreSQL/Kafka): included only in the final full `mvn test`, unless the task names a specific bootstrap integration test (`-pl mmx-bootstrap -Dtest=…`).
+- **Frontend**: run `npm run test` in `frontend/` only for Final verification or when a task explicitly requires the full suite; for Vitest tasks, prefer the narrowest test file/command the task describes.
+
 **Guardrails**
 - Keep going through tasks until done or blocked
 - Always read context files before starting (from the apply instructions output)
@@ -147,6 +163,7 @@ What would you like to do?
 - Update task checkbox immediately after completing each task
 - Pause on errors, blockers, or unclear requirements - don't guess
 - Use contextFiles from CLI output, don't assume specific file names
+- Never run bare `mvn test` from `backend/` during TDD or mid-phase work — always `-pl` and/or `-Dtest` unless the checkbox is the one Final verification full-reactor run
 
 **Fluid Workflow Integration**
 

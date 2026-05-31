@@ -33,6 +33,16 @@ context: |
   - Backend: JUnit 5; frontend: Angular/Vitest; HTTP contract: integration tests against running app where appropriate.
   - OpenSpec **`tasks.md` should explicitly call out test tasks** alongside implementation (or order them red-first).
 
+  **Backend verification during apply (fast loop)**
+  - Run Maven from **`backend/`**. Prefer **`mvnd`** when installed; otherwise **`mvn`**.
+  - **TDD / red-green**: scope to one module and one test class — e.g.
+    `mvn test -pl mmx-domain -Dtest=TermRateIngestPolicyTest`.
+    Use `-am` only when upstream modules must compile first.
+  - **Do not** run full-reactor `mvn test` (all modules including `mmx-bootstrap` Testcontainers) until the
+    **Final verification** section of `tasks.md`.
+  - `mmx-bootstrap` integration tests (PostgreSQL/Kafka Testcontainers) are the slow path — reserve them for
+    that single final full run unless the change only touches bootstrap integration code.
+
   **Specifications (SDD)**
   - Material API or behaviour changes remain aligned with the matching feature specs under `specs/` (OpenAPI,
     `api-v1.md`, `spec.md`, etc.) — same delivery as implementation.
@@ -57,4 +67,10 @@ rules:
     - Backend tasks MUST name layers (`domain` / `application` / `adapter-in-rest` / `adapter-out-*` / `bootstrap`) — no shortcutting through the wrong module.
     - '**REST changes**: explicit steps to update **`openapi.yaml`**, **`api-v1.md`**, run **codegen**, then adapt controllers/domain — never the reverse order.'
     - Frontend tasks SHOULD reference `frontend/` patterns (standalone components, services, existing API client conventions).
-    - Include running or extending tests (`mvn test`, `npm run test`, Cypress) as concrete checklist items when behaviour changes.
+    - '**TDD task pairs** (domain/application/adapter unit work): `X.N Write failing <TestClass>` MUST include the exact scoped command, e.g. `` `mvn test -pl mmx-domain -Dtest=TermRateIngestPolicyTest` ``; the following `X.N+1 Implement … until green` MUST NOT add a separate "run mvn test" checkbox — the implement step implies re-running that same `-Dtest` only.'
+    - '**Compile/codegen gates** use `mvn compile` or `mvn -pl <module> -am compile` only — never `mvn test` for compile-only checkpoints.'
+    - '**No duplicate full suites**: at most one task in the entire `tasks.md` may run full-reactor `cd backend && mvn test`. Place it in a final section titled **Final verification** (or equivalent). Do not add mid-phase tasks like "Run `mvn test` on mmx-application and mmx-adapter-in-rest" when a final full run already exists.'
+    - '**Optional scoped gate** (omit if final full run is enough): at most one mid-change task may run `mvn test -pl <comma-separated touched modules> -am` listing only modules changed in this delivery — never bare `mvn test` without `-pl`.'
+    - '**Final verification section** (required when backend behaviour changes): include exactly `- [ ] N.1 Run full `cd backend && mvn test` — all modules green`; when frontend behaviour changes, exactly one `- [ ] N.2 Run `npm run test` in `frontend/` — green`; contract/SDD alignment tasks as needed. No other full-reactor `mvn test` or `npm run test` tasks elsewhere.'
+    - '**Forbidden in generated tasks**: bare `Run mvn test` without `-pl` and/or `-Dtest`; multiple "full `mvn test`" checkboxes; pairing "implement until tests pass" with an extra "run mvn test on …" in the same section; Cypress unless the change explicitly needs e2e.'
+    - Vitest/component tests belong next to the UI task that introduces them; do not add a separate `npm run test` per component when Final verification already runs the suite.

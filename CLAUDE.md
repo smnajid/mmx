@@ -62,6 +62,16 @@ Commands live under `.claude/commands/opsx/` (e.g. `/opsx:propose`, `/opsx:apply
 
 CLI: `openspec validate`, `openspec archive <change>`, `openspec status --json`.
 
+## LiteLLM proxy
+
+Claude Code routes API calls through a local LiteLLM proxy (`ANTHROPIC_BASE_URL=http://localhost:4000`). Start it before a session:
+
+```bash
+~/.litellm/start-proxy.sh --port 4000
+```
+
+Proxy is **stateless** (no Postgres). Use the OpenRouter dashboard for usage and billing.
+
 ## Domain and issues
 
 - Domain: `CONTEXT.md`, `docs/adr/` — see `docs/agents/domain.md`

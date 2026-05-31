@@ -46,6 +46,16 @@ From repo root, re-copy Speckit and project skills from `.cursor/skills` into `.
 python3 scripts/migrate-cursor-skills-to-claude.py
 ```
 
+## LiteLLM proxy (Claude Code → OpenRouter)
+
+Claude Code is configured with `ANTHROPIC_BASE_URL=http://localhost:4000` (see `~/.claude/settings.json`). Start the proxy **before** `claude`:
+
+```bash
+~/.litellm/start-proxy.sh --port 4000
+```
+
+The proxy runs **without a database** (fast startup). Track spend on the [OpenRouter dashboard](https://openrouter.ai/activity), not LiteLLM UI.
+
 ## Cursor coexistence
 
 You can keep `.cursor/` for teammates still on Cursor. Prefer **one** primary agent per branch to avoid editing the wrong skill copy. `AGENTS.md` applies to any agent; `CLAUDE.md` is the Claude Code entry point.
