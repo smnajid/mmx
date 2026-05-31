@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# scripts/register-schemas.sh — Idempotently register OrderExecutedV1 schema
+# scripts/register-schemas.sh — Idempotently register AsyncAPI JSON schemas
 # against the Confluent-compatible Redpanda Schema Registry.
 #
 # Usage: ./scripts/register-schemas.sh [registry_url]
@@ -8,10 +8,9 @@
 set -euo pipefail
 
 REGISTRY_URL="${1:-${SCHEMA_REGISTRY_URL:-http://localhost:18081}}"
-SUBJECT="mmx.order.executed-value"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SCHEMA_FILE="$SCRIPT_DIR/../specs/002-trader-orders-views/contracts/schemas/OrderExecutedV1.json"
+SCHEMAS_DIR="$SCRIPT_DIR/../specs/002-trader-orders-views/contracts/schemas"
 
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -22,9 +21,45 @@ log()  { echo -e "${GREEN}[schema-registry]${NC} $*"; }
 warn() { echo -e "${YELLOW}[schema-registry]${NC} $*"; }
 die()  { echo -e "${RED}[schema-registry] ERROR:${NC} $*" >&2; exit 1; }
 
-if [ ! -f "$SCHEMA_FILE" ]; then
-  die "Schema file not found at: $SCHEMA_FILE"
-fi
+register_schema() {
+  local subject="$1"
+  local schema_file="$2"
+
+  if [ ! -f "$schema_file" ]; then
+    die "Schema file not found at: $schema_file"
+  fi
+
+  log "Registering JSON schema for subject: $subject..."
+  local schema_content payload response version_id
+  schema_content=$(jq -c '.' "$schema_file")
+  payload=$(jq -n --arg schema "$schema_content" '{schemaType: "JSON", schema: $schema}')
+
+  response=$(curl -sS -X POST "$REGISTRY_URL/subjects/$subject/versions" \
+    -H "Content-Type: application/vnd.schemaregistry.v1+json" \
+    -d "$payload")
+
+  version_id=$(echo "$response" | jq -r '.id // empty')
+
+  if [ -z "$version_id" ] || [ "$version_id" = "null" ]; then
+    die "Schema registration failed for $subject. Response: $response"
+  fi
+
+  log "Schema registered successfully with Version ID: $version_id"
+
+  log "Configuring compatibility mode to BACKWARD for subject: $subject..."
+  local conf_response
+  conf_response=$(curl -sS -X PUT "$REGISTRY_URL/config/$subject" \
+    -H "Content-Type: application/vnd.schemaregistry.v1+json" \
+    -d '{"compatibility": "BACKWARD"}')
+
+  if echo "$conf_response" | jq -e '.compatibility' > /dev/null 2>&1; then
+    log "Compatibility set successfully to: $(echo "$conf_response" | jq -r '.compatibility')"
+  else
+    local check_compat
+    check_compat=$(curl -sS "$REGISTRY_URL/config/$subject" || true)
+    log "Subject compatibility configured. Current config: $check_compat"
+  fi
+}
 
 # Ensure registry is reachable
 log "Checking connection to Redpanda Schema Registry at $REGISTRY_URL..."
@@ -40,36 +75,8 @@ until curl -sf "$REGISTRY_URL/subjects" > /dev/null 2>&1; do
 done
 log "Schema Registry is reachable."
 
-# 1. Register the schema first (which guarantees the subject exists)
-log "Registering JSON schema for subject: $SUBJECT..."
-SCHEMA_CONTENT=$(jq -c '.' "$SCHEMA_FILE")
-PAYLOAD=$(jq -n --arg schema "$SCHEMA_CONTENT" '{schemaType: "JSON", schema: $schema}')
+register_schema "mmx.order.executed-value" "$SCHEMAS_DIR/OrderExecutedV1.json"
+register_schema "mmx.oncall.rate.handoff-value" "$SCHEMAS_DIR/OnCallRateUpdatedV1.json"
+register_schema "mmx.oncall.rate.canceled-value" "$SCHEMAS_DIR/OnCallRateCanceledV1.json"
 
-RESPONSE=$(curl -sS -X POST "$REGISTRY_URL/subjects/$SUBJECT/versions" \
-  -H "Content-Type: application/vnd.schemaregistry.v1+json" \
-  -d "$PAYLOAD")
-
-VERSION_ID=$(echo "$RESPONSE" | jq -r '.id // empty')
-
-if [ -z "$VERSION_ID" ] || [ "$VERSION_ID" = "null" ]; then
-  die "Schema registration failed. Response: $RESPONSE"
-fi
-
-log "Schema registered successfully with Version ID: $VERSION_ID"
-
-# 2. Set compatibility level to BACKWARD on the subject
-log "Configuring compatibility mode to BACKWARD for subject: $SUBJECT..."
-CONF_RESPONSE=$(curl -sS -X PUT "$REGISTRY_URL/config/$SUBJECT" \
-  -H "Content-Type: application/vnd.schemaregistry.v1+json" \
-  -d '{"compatibility": "BACKWARD"}')
-
-if echo "$CONF_RESPONSE" | jq -e '.compatibility' > /dev/null 2>&1; then
-  log "Compatibility set successfully to: $(echo "$CONF_RESPONSE" | jq -r '.compatibility')"
-else
-  # Confluent standard says PUT /config/subject returns {"compatibility": "BACKWARD"}
-  # If a registry version returns empty on success, let's verify via GET
-  CHECK_COMPAT=$(curl -sS "$REGISTRY_URL/config/$SUBJECT" || true)
-  log "Subject compatibility configured. Current config: $CHECK_COMPAT"
-fi
-
-log "Schema governance setup complete for $SUBJECT!"
+log "Schema governance setup complete!"

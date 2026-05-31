@@ -19,6 +19,11 @@ import com.mmx.order.domain.exception.InvalidInstitutionException;
 import com.mmx.order.domain.exception.InvalidManagedCurrencyException;
 import com.mmx.order.domain.exception.InvalidOrderException;
 import com.mmx.order.domain.exception.InvalidStatusTransitionException;
+import com.mmx.order.domain.exception.OnCallBackdatedValueDateException;
+import com.mmx.order.domain.exception.OnCallInvalidSegmentStatusException;
+import com.mmx.order.domain.exception.OnCallPendingExistsException;
+import com.mmx.order.domain.exception.OnCallSegmentCanceledException;
+import com.mmx.order.domain.exception.OnCallSegmentNotFoundException;
 import com.mmx.order.domain.exception.OrderNotFoundException;
 import com.mmx.order.domain.exception.UnauthorizedTraderException;
 import org.springframework.http.HttpStatus;
@@ -127,6 +132,52 @@ public class GlobalExceptionHandler {
                                                                         .field(row.field())
                                                                         .message(row.message()))
                                                 .toList()));
+    }
+
+    @ExceptionHandler(OnCallSegmentNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleOnCallSegmentNotFound(OnCallSegmentNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(
+                        new ErrorResponse()
+                                .error(ErrorCode.ONCALL_SEGMENT_NOT_FOUND)
+                                .message(ex.getMessage()));
+    }
+
+    @ExceptionHandler(OnCallPendingExistsException.class)
+    public ResponseEntity<ErrorResponse> handleOnCallPendingExists(OnCallPendingExistsException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(
+                        new ErrorResponse()
+                                .error(ErrorCode.ONCALL_PENDING_EXISTS)
+                                .message(ex.getMessage()));
+    }
+
+    @ExceptionHandler(OnCallBackdatedValueDateException.class)
+    public ResponseEntity<ErrorResponse> handleOnCallBackdatedValueDate(OnCallBackdatedValueDateException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(
+                        new ErrorResponse()
+                                .error(ErrorCode.ONCALL_BACKDATED_VALUE_DATE)
+                                .message(ex.getMessage()));
+    }
+
+    @ExceptionHandler(OnCallInvalidSegmentStatusException.class)
+    public ResponseEntity<ErrorResponse> handleOnCallInvalidSegmentStatus(
+            OnCallInvalidSegmentStatusException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(
+                        new ErrorResponse()
+                                .error(ErrorCode.ONCALL_INVALID_SEGMENT_STATUS)
+                                .message(ex.getMessage()));
+    }
+
+    @ExceptionHandler(OnCallSegmentCanceledException.class)
+    public ResponseEntity<ErrorResponse> handleOnCallSegmentCanceled(OnCallSegmentCanceledException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(
+                        new ErrorResponse()
+                                .error(ErrorCode.ONCALL_SEGMENT_CANCELED)
+                                .message(ex.getMessage()));
     }
 
     @ExceptionHandler(OrderNotFoundException.class)

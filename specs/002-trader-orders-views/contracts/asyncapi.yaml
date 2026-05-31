@@ -3,8 +3,8 @@ info:
   title: mmx Back-office Integration (async)
   version: 1.0.0
   description: |
-    Contract-first async surface for mmx → back-office execution handoff.
-    Kafka message key MUST be the mmx orderId (UUID string).
+    Contract-first async surface for mmx → back-office handoffs (execution and OnCall rates).
+    Kafka message keys: orderId (execution) or segmentId (OnCall rates).
     Prose mirror: asyncapi-v1.md
 
 defaultContentType: application/json
@@ -17,6 +17,17 @@ channels:
       orderExecutedV1:
         $ref: '#/components/messages/OrderExecutedV1'
 
+  oncallRateHandoff:
+    address: mmx.oncall.rate.handoff
+    description: |
+      Published when a trader adds or cancels a pending OnCall rate segment (outbox relay).
+      Record key MUST be segmentId; consumers MUST process idempotently on segmentId.
+    messages:
+      onCallRateUpdatedV1:
+        $ref: '#/components/messages/OnCallRateUpdatedV1'
+      onCallRateCanceledV1:
+        $ref: '#/components/messages/OnCallRateCanceledV1'
+
 operations:
   publishOrderExecuted:
     action: send
@@ -25,6 +36,22 @@ operations:
     summary: mmx publishes execution handoff after transactional outbox relay
     messages:
       - $ref: '#/channels/orderExecuted/messages/orderExecutedV1'
+
+  publishOnCallRateUpdated:
+    action: send
+    channel:
+      $ref: '#/channels/oncallRateHandoff'
+    summary: mmx publishes OnCall rate update after transactional outbox relay
+    messages:
+      - $ref: '#/channels/oncallRateHandoff/messages/onCallRateUpdatedV1'
+
+  publishOnCallRateCanceled:
+    action: send
+    channel:
+      $ref: '#/channels/oncallRateHandoff'
+    summary: mmx publishes OnCall rate cancel notification after transactional outbox relay
+    messages:
+      - $ref: '#/channels/oncallRateHandoff/messages/onCallRateCanceledV1'
 
 components:
   messages:
@@ -40,3 +67,29 @@ components:
             description: Kafka record key = orderId (UUID)
       payload:
         $ref: './schemas/OrderExecutedV1.json'
+
+    OnCallRateUpdatedV1:
+      name: OnCallRateUpdatedV1
+      title: OnCall rate updated handoff (v1)
+      summary: Thin delta for in-life contract refresh; idempotent on segmentId
+      contentType: application/json
+      bindings:
+        kafka:
+          key:
+            type: string
+            description: Kafka record key = segmentId (UUID)
+      payload:
+        $ref: './schemas/OnCallRateUpdatedV1.json'
+
+    OnCallRateCanceledV1:
+      name: OnCallRateCanceledV1
+      title: OnCall rate canceled notification (v1)
+      summary: Early-discard signal for pending refresh work; idempotent on segmentId
+      contentType: application/json
+      bindings:
+        kafka:
+          key:
+            type: string
+            description: Kafka record key = segmentId (UUID)
+      payload:
+        $ref: './schemas/OnCallRateCanceledV1.json'

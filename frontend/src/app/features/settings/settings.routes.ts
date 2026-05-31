@@ -19,4 +19,9 @@ export const SETTINGS_ROUTES: Routes = [
     loadChildren: () =>
       import('../term-rate-settings/term-rate-settings.routes').then((m) => m.TERM_RATE_SETTINGS_ROUTES),
   },
+  {
+    path: 'oncall-rates',
+    loadChildren: () =>
+      import('../oncall-rate-settings/oncall-rate-settings.routes').then((m) => m.ONCALL_RATE_SETTINGS_ROUTES),
+  },
 ];

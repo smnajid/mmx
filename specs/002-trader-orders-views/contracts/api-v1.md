@@ -235,6 +235,86 @@ or
 
 ---
 
+### Back-office OnCall rate confirmation callback
+
+Unauthenticated baseline (no `X-Trader-Id`).
+
+#### Request
+
+**POST** `/api/v1/back-office/oncall-rates/{segmentId}/confirmed`
+
+Optional empty JSON body; mmx stamps `validatedAt` server-side.
+
+#### Responses
+
+| Status | Condition |
+|--------|-----------|
+| `200 OK` | Segment transitioned `PENDING_CONFIRMATION` → `VALID`, **or** was already `VALID` (idempotent) |
+| `404 Not Found` | Unknown `segmentId` — `ONCALL_SEGMENT_NOT_FOUND` |
+| `409 Conflict` | Segment is `CANCELED` — `ONCALL_SEGMENT_CANCELED` |
+
+---
+
+### OnCall rate settings (institution-scoped)
+
+Trader operations require `X-Trader-Id`.
+
+#### List segments
+
+**GET** `/api/v1/settings/institutions/{institutionCode}/oncall-rates`
+
+Returns all rate segments for the institution (all curve points).
+
+#### Add rate
+
+**POST** `/api/v1/settings/institutions/{institutionCode}/oncall-rates`
+
+```json
+{
+  "currency": "EUR",
+  "noticePeriod": "24H",
+  "rate": 3.25,
+  "valueDate": "2026-05-31"
+}
+```
+
+| Status | Condition |
+|--------|-----------|
+| `201 Created` | New `PENDING_CONFIRMATION` segment; prior open segment end-dated to `valueDate − 1` |
+| `400 Bad Request` | Backdated `valueDate` — `ONCALL_BACKDATED_VALUE_DATE` |
+| `404 Not Found` | Unknown institution — `INSTITUTION_NOT_FOUND` |
+| `409 Conflict` | Curve point already has pending segment — `ONCALL_PENDING_EXISTS` |
+
+#### Cancel pending segment
+
+**POST** `/api/v1/settings/institutions/{institutionCode}/oncall-rates/{segmentId}/cancel`
+
+| Status | Condition |
+|--------|-----------|
+| `200 OK` | Segment `CANCELED`; prior segment end restored to `2999-12-31` when applicable |
+| `404 Not Found` | Unknown segment or institution |
+| `409 Conflict` | Segment not `PENDING_CONFIRMATION` — `ONCALL_INVALID_SEGMENT_STATUS` |
+
+#### OnCallRateSegmentResponse
+
+```json
+{
+  "segmentId": "uuid",
+  "institutionCode": "HSBC-01",
+  "currency": "EUR",
+  "noticePeriod": "24H",
+  "rate": 3.25,
+  "valueDate": "2026-05-31",
+  "endDate": "2999-12-31",
+  "status": "PENDING_CONFIRMATION | VALID | CANCELED",
+  "validatedAt": "2026-05-31T10:00:00Z"
+}
+```
+
+`validatedAt` is present only when `status` is `VALID`.
+
+---
+
 ### 4. Get Order Details
 
 **GET** `/api/v1/orders/{orderId}`

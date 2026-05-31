@@ -8,7 +8,7 @@ info:
     list response. Workspace **Assigned** lists are **desk-wide** (all assignees) per User Story 2.
     Human-readable mirror: [api-v1.md](./api-v1.md). Trader-facing operations require header
     `X-Trader-Id` (actor identity; Assigned workspace lists are not filtered by assignee).
-  version: 1.5.0
+  version: 1.6.0
 
 servers:
   - url: /
@@ -21,6 +21,8 @@ tags:
     description: Trader-facing order operations
   - name: BackOffice
     description: Portfolio accounting callbacks (no X-Trader-Id; unauthenticated baseline)
+  - name: OnCallRateSettings
+    description: Trader-facing OnCall rate curve maintenance (institution-scoped)
 
 paths:
   /api/v1/orders:
@@ -199,6 +201,131 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "409":
           description: Invalid status for accounting confirmation (order must currently be EXECUTED)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/back-office/oncall-rates/{segmentId}/confirmed:
+    post:
+      tags: [BackOffice]
+      summary: Confirm OnCall rate segment validated by back office
+      description: |
+        Idempotent callback from back-office. Transitions `PENDING_CONFIRMATION` → `VALID`.
+        Does **not** require `X-Trader-Id` or any other caller authentication for this baseline.
+        Returns **409** when the segment was canceled; **404** when unknown.
+      operationId: confirmOnCallRateSegment
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/SegmentIdPath"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConfirmOnCallRateSegmentRequest"
+      responses:
+        "200":
+          description: Segment is now VALID or was already VALID (idempotent no-op)
+        "404":
+          description: Segment does not exist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Segment was canceled — cannot confirm
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/settings/institutions/{institutionCode}/oncall-rates:
+    get:
+      tags: [OnCallRateSettings]
+      summary: List OnCall rate segments for an institution
+      operationId: listOnCallRateSegments
+      parameters:
+        - $ref: "#/components/parameters/TraderIdHeader"
+        - $ref: "#/components/parameters/InstitutionCodePath"
+      responses:
+        "200":
+          description: Segments for the institution (may be empty)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OnCallRateSegmentResponse"
+        "404":
+          description: Institution not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      tags: [OnCallRateSettings]
+      summary: Add an OnCall rate to a curve point
+      operationId: addOnCallRate
+      parameters:
+        - $ref: "#/components/parameters/TraderIdHeader"
+        - $ref: "#/components/parameters/InstitutionCodePath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddOnCallRateRequest"
+      responses:
+        "201":
+          description: Pending segment created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OnCallRateSegmentResponse"
+        "400":
+          description: Validation error (e.g. backdated value date)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Institution not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Curve point already has a pending segment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/settings/institutions/{institutionCode}/oncall-rates/{segmentId}/cancel:
+    post:
+      tags: [OnCallRateSettings]
+      summary: Cancel a pending OnCall rate segment
+      operationId: cancelOnCallRate
+      parameters:
+        - $ref: "#/components/parameters/TraderIdHeader"
+        - $ref: "#/components/parameters/InstitutionCodePath"
+        - $ref: "#/components/parameters/SegmentIdPath"
+      responses:
+        "200":
+          description: Segment canceled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OnCallRateSegmentResponse"
+        "404":
+          description: Segment or institution not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Segment is not pending confirmation
           content:
             application/json:
               schema:
@@ -487,6 +614,23 @@ components:
         type: string
         format: uuid
 
+    SegmentIdPath:
+      name: segmentId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    InstitutionCodePath:
+      name: institutionCode
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 32
+
     Page:
       name: page
       in: query
@@ -528,6 +672,12 @@ components:
         - INVALID_STATUS_TRANSITION
         - UNAUTHORIZED_TRADER
         - DUPLICATE_ORDER
+        - INSTITUTION_NOT_FOUND
+        - ONCALL_SEGMENT_NOT_FOUND
+        - ONCALL_PENDING_EXISTS
+        - ONCALL_BACKDATED_VALUE_DATE
+        - ONCALL_INVALID_SEGMENT_STATUS
+        - ONCALL_SEGMENT_CANCELED
 
     FieldError:
       type: object
@@ -880,6 +1030,74 @@ components:
           minLength: 1
           maxLength: 32
           description: Active onboarded institution from the settings catalog.
+
+    OnCallRateSegmentStatus:
+      type: string
+      enum: [PENDING_CONFIRMATION, VALID, CANCELED]
+
+    OnCallNoticePeriod:
+      type: string
+      enum: [24H, 48H]
+
+    AddOnCallRateRequest:
+      type: object
+      required: [currency, noticePeriod, rate, valueDate]
+      properties:
+        currency:
+          type: string
+          minLength: 1
+        noticePeriod:
+          $ref: "#/components/schemas/OnCallNoticePeriod"
+        rate:
+          type: number
+          format: double
+        valueDate:
+          type: string
+          format: date
+          description: Inclusive segment start; must be today or later.
+
+    OnCallRateSegmentResponse:
+      type: object
+      required:
+        - segmentId
+        - institutionCode
+        - currency
+        - noticePeriod
+        - rate
+        - valueDate
+        - endDate
+        - status
+      properties:
+        segmentId:
+          type: string
+          format: uuid
+        institutionCode:
+          type: string
+        currency:
+          type: string
+        noticePeriod:
+          $ref: "#/components/schemas/OnCallNoticePeriod"
+        rate:
+          type: number
+          format: double
+        valueDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+          description: Inclusive end; open segment uses sentinel 2999-12-31.
+        status:
+          $ref: "#/components/schemas/OnCallRateSegmentStatus"
+        validatedAt:
+          type: string
+          format: date-time
+          description: Present when status is VALID.
+
+    ConfirmOnCallRateSegmentRequest:
+      type: object
+      description: Optional body; mmx stamps validatedAt server-side.
+      properties: {}
 
     RejectOrderRequest:
       type: object

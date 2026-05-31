@@ -36,7 +36,7 @@ public final class SampleTermRateCsvGenerator {
     }
 
     public byte[] generate() {
-        LocalDate tradingDate = LocalDate.now(zoneId);
+        LocalDate tradingDate = clock.now().atZone(zoneId).toLocalDate();
         StringBuilder csv = new StringBuilder();
         csv.append("tradingDate,institutionCode,currency,tenor,rate").append('\n');
         for (Institution institution : institutionRepository.findActive()) {

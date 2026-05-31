@@ -16,6 +16,9 @@ import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/rou
       <a routerLink="/settings/term-rates" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: false }">
         Term rates
       </a>
+      <a routerLink="/settings/oncall-rates" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: false }">
+        OnCall rates
+      </a>
     </nav>
     <router-outlet />
   `,

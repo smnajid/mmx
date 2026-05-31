@@ -5,6 +5,7 @@ import com.mmx.order.adapter.out.persistence.entity.InstitutionEntity;
 import com.mmx.order.adapter.out.persistence.mapper.InstitutionPersistenceMapper;
 import com.mmx.order.adapter.out.persistence.mapper.TermRatePersistenceMapper;
 import com.mmx.order.adapter.out.persistence.repository.SpringDataInstitutionRepository;
+import com.mmx.order.adapter.out.persistence.repository.SpringDataOnCallRateSegmentRepository;
 import com.mmx.order.adapter.out.persistence.repository.SpringDataTermRateRepository;
 import com.mmx.order.application.termrate.TermRateAuditRow;
 import com.mmx.order.domain.model.Institution;
@@ -35,6 +36,9 @@ class JpaTermRateRepositoryTest {
     SpringDataInstitutionRepository springDataInstitutionRepository;
 
     @Autowired
+    SpringDataOnCallRateSegmentRepository onCallRateSegmentRepository;
+
+    @Autowired
     InstitutionPersistenceMapper institutionMapper;
 
     @Autowired
@@ -50,6 +54,7 @@ class JpaTermRateRepositoryTest {
                         new TermRatePersistenceMapper(),
                         new TransactionTemplate(transactionManager));
         springDataTermRateRepository.deleteAll();
+        onCallRateSegmentRepository.deleteAll();
         springDataInstitutionRepository.deleteAll();
         seedInstitution("HSBC-01");
     }

@@ -17,4 +17,9 @@ public class UuidReferenceGenerator implements ReferenceGenerator {
     public ContractNumber generateContractNumber() {
         return new ContractNumber("CN-" + UUID.randomUUID());
     }
+
+    @Override
+    public UUID generateSegmentId() {
+        return UUID.randomUUID();
+    }
 }

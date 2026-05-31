@@ -3,6 +3,7 @@ package com.mmx.order.adapter.out.persistence.institution;
 import com.mmx.order.adapter.out.persistence.JpaInstitutionRepository;
 import com.mmx.order.adapter.out.persistence.mapper.InstitutionPersistenceMapper;
 import com.mmx.order.adapter.out.persistence.repository.SpringDataInstitutionRepository;
+import com.mmx.order.adapter.out.persistence.repository.SpringDataOnCallRateSegmentRepository;
 import com.mmx.order.domain.model.Institution;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -22,6 +23,9 @@ class JpaInstitutionRepositoryTest {
     SpringDataInstitutionRepository springDataRepository;
 
     @Autowired
+    SpringDataOnCallRateSegmentRepository onCallRateSegmentRepository;
+
+    @Autowired
     InstitutionPersistenceMapper mapper;
 
     JpaInstitutionRepository repository;
@@ -29,6 +33,7 @@ class JpaInstitutionRepositoryTest {
     @BeforeEach
     void setUp() {
         repository = new JpaInstitutionRepository(springDataRepository, mapper);
+        onCallRateSegmentRepository.deleteAll();
         springDataRepository.deleteAll();
     }
 

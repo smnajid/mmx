@@ -52,3 +52,10 @@ mmx:
       relay-enabled: true
       max-publish-attempts: 5
       poll-interval-ms: 1000
+  oncall:
+    kafka:
+      topic: mmx.oncall.rate.handoff
+    outbox:
+      relay-enabled: true
+      max-publish-attempts: 5
+      poll-interval-ms: 1000

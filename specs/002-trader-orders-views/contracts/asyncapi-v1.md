@@ -36,6 +36,33 @@ Optional: `tenor`, `noticePeriod` (nullable).
 
 Duplicate deliveries with the same `orderId` MUST be handled idempotently by the back-office consumer (at-least-once Kafka semantics).
 
+## Channel: `mmx.oncall.rate.handoff`
+
+- **Publisher**: mmx (after transactional outbox relay for OnCall rate segments).
+- **Consumer**: back-office application (out of mmx scope).
+- **Key**: `segmentId` (UUID string) — partition key and idempotency key for both message types.
+- **Body**: `OnCallRateUpdatedV1` or `OnCallRateCanceledV1` JSON (discriminated by `eventType`).
+
+## Message: `OnCallRateUpdatedV1`
+
+**Payload schema (canonical file)**: [schemas/OnCallRateUpdatedV1.json](./schemas/OnCallRateUpdatedV1.json)
+
+Required fields: `eventType` (const `OnCallRateUpdatedV1`), `segmentId`, `institution`, `currency`, `noticePeriod`, `rate`, `valueDate`.
+
+Does **not** include `priorEndDate` — the consumer derives the superseded prior end as `valueDate − 1`.
+
+## Message: `OnCallRateCanceledV1`
+
+**Payload schema (canonical file)**: [schemas/OnCallRateCanceledV1.json](./schemas/OnCallRateCanceledV1.json)
+
+Required fields: `eventType` (const `OnCallRateCanceledV1`), `segmentId`.
+
+Observability / early-discard signal when a trader cancels a pending segment; confirmation safety is enforced by the inbound HTTP compare-and-set on `segmentId`.
+
+## OnCall consumer idempotency
+
+Duplicate deliveries with the same `segmentId` MUST be handled idempotently by the back-office consumer (at-least-once Kafka semantics).
+
 ## Versioning
 
 Breaking payload changes require a new message version (e.g. `OrderExecutedV2`) and compatibility policy documented in the AsyncAPI spec and OpenSpec delta specs.
