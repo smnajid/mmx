@@ -7,7 +7,11 @@ import com.mmx.order.adapter.in.rest.generated.settings.model.SettingsErrorCode;
 import com.mmx.order.adapter.in.rest.generated.settings.model.SettingsErrorResponse;
 import com.mmx.order.adapter.in.rest.generated.institution.model.InstitutionSettingsErrorCode;
 import com.mmx.order.adapter.in.rest.generated.institution.model.InstitutionSettingsErrorResponse;
+import com.mmx.order.adapter.in.rest.generated.termrate.model.TermRateIngestErrorCode;
+import com.mmx.order.adapter.in.rest.generated.termrate.model.TermRateIngestErrorResponse;
 import com.mmx.order.application.service.ManageCurrencySettingsService;
+import com.mmx.order.application.termrate.TermRateCsvStructuralException;
+import com.mmx.order.application.termrate.TermRateIngestFailedException;
 import com.mmx.order.application.service.ManageInstitutionSettingsService;
 import com.mmx.order.domain.exception.DuplicateManagedCurrencyException;
 import com.mmx.order.domain.exception.InstitutionSuffixOverflowException;
@@ -94,6 +98,35 @@ public class GlobalExceptionHandler {
                         new InstitutionSettingsErrorResponse()
                                 .error(InstitutionSettingsErrorCode.INSTITUTION_NOT_FOUND)
                                 .message(ex.getMessage()));
+    }
+
+    @ExceptionHandler(TermRateCsvStructuralException.class)
+    public ResponseEntity<TermRateIngestErrorResponse> handleTermRateStructural(TermRateCsvStructuralException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(
+                        new TermRateIngestErrorResponse()
+                                .error(TermRateIngestErrorCode.TERM_RATE_STRUCTURAL_ERROR)
+                                .message(ex.getMessage()));
+    }
+
+    @ExceptionHandler(TermRateIngestFailedException.class)
+    public ResponseEntity<TermRateIngestErrorResponse> handleTermRateIngestFailed(
+            TermRateIngestFailedException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(
+                        new TermRateIngestErrorResponse()
+                                .error(TermRateIngestErrorCode.TERM_RATE_INGEST_ERROR)
+                                .message(ex.getMessage())
+                                .errors(
+                                        ex.getErrors().stream()
+                                                .map(
+                                                        row ->
+                                                                new com.mmx.order.adapter.in.rest.generated.termrate
+                                                                                .model.TermRateRowError()
+                                                                        .line(row.line())
+                                                                        .field(row.field())
+                                                                        .message(row.message()))
+                                                .toList()));
     }
 
     @ExceptionHandler(OrderNotFoundException.class)

@@ -37,12 +37,153 @@
   letter-spacing: -0.02em;
 }
 
+.settings-card {
+  border: 1px solid var(--mmx-border);
+  border-radius: 6px;
+  background: var(--mmx-surface);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+  padding: 1rem 1.15rem;
+  margin-bottom: 1.25rem;
+}
+
+.settings-card__title {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 0 0.75rem;
+}
+
+.settings-lede {
+  color: var(--mmx-text-muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  margin: 0 0 1.25rem;
+  max-width: 42rem;
+}
+
+.settings-hint {
+  color: var(--mmx-text-muted);
+  font-size: 0.85rem;
+  margin: 0 0 1rem;
+  line-height: 1.45;
+}
+
+.settings-hint .mono {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+}
+
+.settings-day-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.75rem;
+}
+
+.settings-day-chip {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 0.35rem 0.6rem;
+  border-radius: 4px;
+  border: 1px solid var(--mmx-border);
+  background: transparent;
+  color: var(--mmx-text-muted);
+  cursor: pointer;
+}
+
+.settings-day-chip:hover {
+  color: var(--mmx-text);
+  border-color: var(--mmx-text-muted);
+}
+
+.settings-day-chip--active {
+  color: var(--mmx-accent);
+  border-color: var(--mmx-accent);
+  background: var(--mmx-accent-dim);
+}
+
+.settings-day-summary {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  color: var(--mmx-text-muted);
+  margin: 0 0 0.85rem;
+}
+
+.settings-day-summary strong {
+  color: var(--mmx-text);
+  font-weight: 600;
+}
+
+.settings-date-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  color: var(--mmx-text-muted);
+  margin-bottom: 0.75rem;
+  max-width: 12rem;
+}
+
+.settings-date-label input[type='date'],
+.settings-file-input {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  padding: 0.45rem 0.55rem;
+  border-radius: 4px;
+  border: 1px solid var(--mmx-border);
+  background: var(--mmx-bg);
+  color: var(--mmx-text);
+}
+
+.settings-date-label input[type='date']:focus,
+.settings-file-input:focus {
+  outline: none;
+  border-color: var(--mmx-accent);
+  box-shadow: 0 0 0 1px rgba(232, 168, 56, 0.35);
+}
+
+.settings-upload-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.settings-row-errors {
+  color: #fda4af;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  margin: 0.5rem 0 0;
+  padding-left: 1.25rem;
+}
+
+.settings-success {
+  color: var(--mmx-accent);
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  margin-top: 0.75rem;
+}
+
 .settings-table-wrap {
   overflow-x: auto;
   border: 1px solid var(--mmx-border);
   border-radius: 6px;
   background: var(--mmx-surface);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+}
+
+.settings-card .settings-table-wrap {
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  padding: 0;
+  margin: 0 -0.15rem;
 }
 
 .mmx-table {
@@ -136,7 +277,8 @@
   background: rgba(255, 255, 255, 0.03);
 }
 
-.btn-primary {
+.btn-primary,
+button.btn-primary {
   font-family: var(--font-mono);
   font-size: 0.68rem;
   font-weight: 600;
@@ -148,13 +290,48 @@
   background: var(--mmx-accent-dim);
   color: var(--mmx-accent);
   text-decoration: none;
+  cursor: pointer;
   transition:
     background 0.2s ease,
     border-color 0.2s ease;
 }
 
-.btn-primary:hover {
+.btn-primary:hover:not(:disabled),
+button.btn-primary:hover:not(:disabled) {
   background: rgba(232, 168, 56, 0.18);
+}
+
+.btn-primary:disabled,
+button.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-secondary,
+button.btn-secondary {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.5rem 0.85rem;
+  border-radius: 4px;
+  border: 1px solid var(--mmx-border);
+  background: transparent;
+  color: var(--mmx-text);
+  cursor: pointer;
+}
+
+.btn-secondary:hover:not(:disabled),
+button.btn-secondary:hover:not(:disabled) {
+  border-color: var(--mmx-accent);
+  color: var(--mmx-accent);
+}
+
+.btn-secondary:disabled,
+button.btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .settings-form {

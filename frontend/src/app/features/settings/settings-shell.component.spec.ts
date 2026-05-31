@@ -34,7 +34,18 @@ describe('SettingsShellComponent', () => {
     const links = fixture.nativeElement.querySelectorAll('.settings-hub-nav a') as NodeListOf<HTMLAnchorElement>;
     expect(links[0].getAttribute('href')).toContain('/settings/currencies');
     expect(links[1].getAttribute('href')).toContain('/settings/institutions');
+    expect(links[2].getAttribute('href')).toContain('/settings/term-rates');
     expect(router.isActive('/settings/currencies', false)).toBe(true);
     expect(router.isActive('/settings/institutions', false)).toBe(false);
+  });
+
+  it('highlights Term rates sub-nav', async () => {
+    await router.navigateByUrl('/settings/term-rates');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(router.url).toContain('/settings/term-rates');
+    expect(router.isActive('/settings/term-rates', false)).toBe(true);
   });
 });

@@ -1,0 +1,219 @@
+openapi: 3.0.3
+info:
+  title: MMX Term Rate Settings API
+  description: |
+    Trader-facing morning Term rate sheet upload and query. Mirror: [api-v1.md](./api-v1.md).
+  version: 1.0.0
+
+servers:
+  - url: /
+    description: Relative to deployment base
+
+tags:
+  - name: TermRateSettings
+    description: Term rate CSV upload and daily reference data
+
+paths:
+  /api/v1/settings/term-rates/upload:
+    post:
+      tags: [TermRateSettings]
+      summary: Upload Term rates CSV
+      operationId: uploadTermRates
+      parameters:
+        - $ref: "#/components/parameters/TraderIdHeader"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: UTF-8 CSV with header tradingDate,institutionCode,currency,tenor,rate
+      responses:
+        "200":
+          description: Rates persisted for the trading day
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TermRateUploadResponse"
+        "400":
+          $ref: "#/components/responses/TermRateIngestError"
+
+  /api/v1/settings/term-rates:
+    get:
+      tags: [TermRateSettings]
+      summary: List Term rates for a trading day
+      operationId: listTermRatesForDay
+      parameters:
+        - $ref: "#/components/parameters/TraderIdHeader"
+        - name: tradingDate
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Rates for the requested day (may be empty)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TermRateResponse"
+        "400":
+          $ref: "#/components/responses/TermRateIngestError"
+
+  /api/v1/settings/term-rates/days:
+    get:
+      tags: [TermRateSettings]
+      summary: List trading days with uploaded Term rates
+      operationId: listTermRateTradingDays
+      parameters:
+        - $ref: "#/components/parameters/TraderIdHeader"
+      responses:
+        "200":
+          description: Distinct trading dates, newest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TermRateTradingDayResponse"
+
+  /api/v1/settings/term-rates/sample:
+    get:
+      tags: [TermRateSettings]
+      summary: Download sample Term rate CSV
+      operationId: downloadTermRateSample
+      parameters:
+        - $ref: "#/components/parameters/TraderIdHeader"
+      responses:
+        "200":
+          description: Sample CSV template
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+              example: attachment; filename="term-rates-sample.csv"
+
+components:
+  parameters:
+    TraderIdHeader:
+      name: X-Trader-Id
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 100
+
+  responses:
+    TermRateIngestError:
+      description: CSV structural or row validation error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/TermRateIngestErrorResponse"
+
+  schemas:
+    TenorCode:
+      type: string
+      enum: ["1W", "2W", "1M", "3M", "6M", "1Y"]
+
+    TermRateResponse:
+      type: object
+      required:
+        - tradingDate
+        - institutionCode
+        - currency
+        - tenor
+        - rate
+        - uploadedAt
+        - uploadedBy
+      properties:
+        tradingDate:
+          type: string
+          format: date
+        institutionCode:
+          type: string
+          maxLength: 32
+        currency:
+          type: string
+          pattern: "^[A-Z]{3}$"
+        tenor:
+          $ref: "#/components/schemas/TenorCode"
+        rate:
+          type: number
+          format: double
+          exclusiveMinimum: 0
+        uploadedAt:
+          type: string
+          format: date-time
+        uploadedBy:
+          type: string
+          maxLength: 100
+
+    TermRateUploadResponse:
+      type: object
+      required: [tradingDate, rowCount, uploadedAt]
+      properties:
+        tradingDate:
+          type: string
+          format: date
+        rowCount:
+          type: integer
+          minimum: 1
+        uploadedAt:
+          type: string
+          format: date-time
+
+    TermRateTradingDayResponse:
+      type: object
+      required: [tradingDate]
+      properties:
+        tradingDate:
+          type: string
+          format: date
+
+    TermRateRowError:
+      type: object
+      required: [line, message]
+      properties:
+        line:
+          type: integer
+          minimum: 1
+          description: 1-based CSV line number (header is line 1)
+        field:
+          type: string
+          description: Column name when applicable
+        message:
+          type: string
+
+    TermRateIngestErrorCode:
+      type: string
+      enum:
+        - TERM_RATE_INGEST_ERROR
+        - TERM_RATE_STRUCTURAL_ERROR
+
+    TermRateIngestErrorResponse:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          $ref: "#/components/schemas/TermRateIngestErrorCode"
+        message:
+          type: string
+        errors:
+          type: array
+          items:
+            $ref: "#/components/schemas/TermRateRowError"

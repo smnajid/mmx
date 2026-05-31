@@ -13,6 +13,9 @@ import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/rou
       <a routerLink="/settings/institutions" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: false }">
         Institutions
       </a>
+      <a routerLink="/settings/term-rates" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: false }">
+        Term rates
+      </a>
     </nav>
     <router-outlet />
   `,

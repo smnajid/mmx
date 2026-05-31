@@ -87,6 +87,38 @@ echo "Seeding institutions (required before execute) -> ${BASE_URL}"
 onboard_institution "BankCo International"
 echo
 
+upload_term_rates_sample() {
+  local sample_file
+  sample_file="$(mktemp /tmp/term-rates-sample.XXXXXX.csv)"
+  local code
+  code="$(curl -sS -H "X-Trader-Id: demo-trader" "${BASE_URL}/api/v1/settings/term-rates/sample" -o "${sample_file}" -w "%{http_code}")"
+  if [[ "${code}" != "200" ]]; then
+    echo "SKIP term rates sample (HTTP ${code}) — backend may lack term_rate migration"
+    rm -f "${sample_file}"
+    return 0
+  fi
+  if [[ ! -s "${sample_file}" ]]; then
+    echo "SKIP term rates upload (empty sample)"
+    rm -f "${sample_file}"
+    return 0
+  fi
+  local upload_code
+  upload_code="$(curl -sS -o /dev/null -w "%{http_code}" \
+    -X POST "${BASE_URL}/api/v1/settings/term-rates/upload" \
+    -H "X-Trader-Id: demo-trader" \
+    -F "file=@${sample_file}")"
+  rm -f "${sample_file}"
+  if [[ "${upload_code}" == "200" ]]; then
+    echo "OK   uploaded term rates from sample CSV"
+  else
+    echo "INFO term rates upload -> HTTP ${upload_code} (edit sample rates if needed)"
+  fi
+}
+
+echo "Term rates (optional) -> ${BASE_URL}"
+upload_term_rates_sample
+echo
+
 echo "Seeding demo orders -> ${BASE_URL}"
 echo "  near-term valueDate=${VALUE_DATE_NEAR}"
 echo "  far valueDate=${VALUE_DATE_FAR} (Received: enable \"Show all value dates\")  run=${RUN_ID}"

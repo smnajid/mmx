@@ -14,4 +14,9 @@ export const SETTINGS_ROUTES: Routes = [
         (m) => m.INSTITUTION_SETTINGS_ROUTES
       ),
   },
+  {
+    path: 'term-rates',
+    loadChildren: () =>
+      import('../term-rate-settings/term-rate-settings.routes').then((m) => m.TERM_RATE_SETTINGS_ROUTES),
+  },
 ];

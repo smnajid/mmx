@@ -21,11 +21,11 @@ Spec reference (when written): `order-institution-constraints`, `institution-onb
 
 | ID | Topic | Notes | Status |
 |----|--------|-------|--------|
-| T-01 | CSV row grain | Rate per `(institution, currency)` only, or per **currency × tenor**? | open |
-| T-02 | Same-day re-upload | Replace whole day, reject second upload, or versioned batches? | open |
-| T-03 | Trading day | Calendar date in desk timezone vs explicit date column in file? | open |
-| T-04 | Back office Term feed | Is morning CSV trader-only reference, or also async handoff to BO? | open |
-| T-05 | Sample CSV | Need 1–2 anonymized real morning files from traders | open |
+| T-01 | CSV row grain | Rate per **(institutionCode, currency, tenor)** per `tradingDate`. See [`term-rate-daily-upload`](../term-rate-daily-upload/) design §2. | **decided** |
+| T-02 | Same-day re-upload | **Replace whole day** (delete all rows for date, insert new set). | **decided** |
+| T-03 | Trading day | **Explicit `tradingDate` column** in CSV; single date per file. | **decided** |
+| T-04 | Back office Term feed | Morning CSV is **trader-only reference**; no async BO handoff in phase 2. | **decided** |
+| T-05 | Sample CSV | Server-generated sample + UI **Download sample CSV**; no dependency on trader-provided files. | **decided** |
 
 ---
 
