@@ -6,11 +6,18 @@ import { vi } from 'vitest';
 import { TermRateSettingsComponent } from './term-rate-settings.component';
 import { TraderContextService } from '../../core/trader/trader-context.service';
 import type { TermRate } from '../../core/api/term-rate-settings-api.service';
+import type { Institution } from '../../core/api/institution-settings-api.service';
 
 describe('TermRateSettingsComponent', () => {
   let fixture: ComponentFixture<TermRateSettingsComponent>;
   let http: HttpTestingController;
   let confirmSpy: ReturnType<typeof vi.spyOn>;
+
+  const HSBC_INST: Institution = {
+    institutionCode: 'HSBC-01',
+    displayName: 'HSBC',
+    active: true,
+  };
 
   beforeEach(async () => {
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:mock');
@@ -38,9 +45,19 @@ describe('TermRateSettingsComponent', () => {
     vi.restoreAllMocks();
   });
 
-  function flushInitRequests(rates: TermRate[], days: { tradingDate: string }[] = []): void {
+  function flushInstitutions(list: Institution[] = []): void {
+    http.match((r) => r.url === '/api/v1/settings/institutions').forEach((r) => r.flush(list));
+  }
+
+  function flushInitRequests(
+    rates: TermRate[],
+    days: { tradingDate: string }[] = [],
+    institutions: Institution[] = []
+  ): void {
     const daysReq = http.match((r) => r.url === '/api/v1/settings/term-rates/days');
     daysReq.forEach((r) => r.flush(days));
+
+    flushInstitutions(institutions);
 
     http
       .match(
@@ -54,7 +71,8 @@ describe('TermRateSettingsComponent', () => {
       .forEach((r) => r.flush(rates));
   }
 
-  function flushListRequests(rates: TermRate[]): void {
+  function flushListRequests(rates: TermRate[], institutions: Institution[] = []): void {
+    flushInstitutions(institutions);
     http
       .match(
         (r) =>
@@ -65,6 +83,16 @@ describe('TermRateSettingsComponent', () => {
           !r.url.includes('/upload')
       )
       .forEach((r) => r.flush(rates));
+  }
+
+  function reviewTree(): HTMLElement {
+    return fixture.nativeElement.querySelector('[data-testid="term-rates-review-tree"]');
+  }
+
+  function openInstitutionSummaries(): HTMLElement[] {
+    return [
+      ...reviewTree().querySelectorAll<HTMLElement>('.settings-review-tree__institution > summary'),
+    ];
   }
 
   it('shows lede and prepare, upload, review section headings', () => {
@@ -96,21 +124,24 @@ describe('TermRateSettingsComponent', () => {
     (chips[1] as HTMLButtonElement).click();
     fixture.detectChanges();
 
-    flushListRequests([
-      {
-        tradingDate: '2026-05-30',
-        institutionCode: 'HSBC-01',
-        currency: 'EUR',
-        tenor: '1M',
-        rate: 3.25,
-        uploadedAt: '2026-05-30T10:00:00Z',
-        uploadedBy: 'trader-test',
-      },
-    ]);
+    flushListRequests(
+      [
+        {
+          tradingDate: '2026-05-30',
+          institutionCode: 'HSBC-01',
+          currency: 'EUR',
+          tenor: '1M',
+          rate: 3.25,
+          uploadedAt: '2026-05-30T10:00:00Z',
+          uploadedBy: 'trader-test',
+        },
+      ],
+      [HSBC_INST]
+    );
     fixture.detectChanges();
 
     expect(fixture.componentInstance.tradingDate()).toBe('2026-05-30');
-    expect(fixture.nativeElement.textContent).toContain('HSBC-01');
+    expect(reviewTree().textContent).toContain('HSBC');
   });
 
   it('shows day summary with row count and last upload', () => {
@@ -164,6 +195,184 @@ describe('TermRateSettingsComponent', () => {
     req.flush(new Blob(['tradingDate,institutionCode,currency,tenor,rate\n'], { type: 'text/csv' }));
   });
 
+  it('shows institution display name and code on review header', () => {
+    fixture = TestBed.createComponent(TermRateSettingsComponent);
+    fixture.detectChanges();
+    flushInitRequests(
+      [
+        {
+          tradingDate: '2026-05-30',
+          institutionCode: 'HSBC-01',
+          currency: 'EUR',
+          tenor: '1M',
+          rate: 3.25,
+          uploadedAt: '2026-05-30T10:00:00Z',
+          uploadedBy: 'trader-test',
+        },
+      ],
+      [],
+      [HSBC_INST]
+    );
+    fixture.detectChanges();
+
+    const instSummary = openInstitutionSummaries()[0];
+    expect(instSummary.textContent).toContain('HSBC');
+    expect(instSummary.querySelector('.settings-review-tree__inst-code')?.textContent?.trim()).toBe('HSBC-01');
+  });
+
+  it('falls back to institution code when catalog has no display name', () => {
+    fixture = TestBed.createComponent(TermRateSettingsComponent);
+    fixture.detectChanges();
+    flushInitRequests(
+      [
+        {
+          tradingDate: '2026-05-30',
+          institutionCode: 'XX-99',
+          currency: 'EUR',
+          tenor: '1M',
+          rate: 1,
+          uploadedAt: '2026-05-30T10:00:00Z',
+          uploadedBy: 'trader-test',
+        },
+      ],
+      [],
+      []
+    );
+    fixture.detectChanges();
+
+    const instSummary = openInstitutionSummaries()[0];
+    expect(instSummary.querySelector('.settings-review-tree__inst-name')?.textContent?.trim()).toBe('XX-99');
+    expect(instSummary.querySelector('.settings-review-tree__inst-code')).toBeNull();
+  });
+
+  it('review tree starts collapsed and expand all reveals leaves', () => {
+    fixture = TestBed.createComponent(TermRateSettingsComponent);
+    fixture.detectChanges();
+    flushInitRequests(
+      [
+        {
+          tradingDate: '2026-05-30',
+          institutionCode: 'HSBC-01',
+          currency: 'EUR',
+          tenor: '1M',
+          rate: 3.25,
+          uploadedAt: '2026-05-30T10:00:00Z',
+          uploadedBy: 'trader-test',
+        },
+      ],
+      [],
+      [HSBC_INST]
+    );
+    fixture.detectChanges();
+
+    const instDetails = reviewTree().querySelector(
+      '.settings-review-tree__institution'
+    ) as HTMLDetailsElement;
+    const ccyDetails = reviewTree().querySelector(
+      '.settings-review-tree__currency'
+    ) as HTMLDetailsElement;
+    expect(instDetails.open).toBe(false);
+    expect(ccyDetails.open).toBe(false);
+
+    const buttons = [...fixture.nativeElement.querySelectorAll('.settings-review-tree__toolbar button')];
+    (buttons[0] as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    expect(instDetails.open).toBe(true);
+    expect(reviewTree().textContent).toContain('1M');
+    expect(reviewTree().textContent).toContain('3.25');
+  });
+
+  it('collapse all hides review leaves', () => {
+    fixture = TestBed.createComponent(TermRateSettingsComponent);
+    fixture.detectChanges();
+    flushInitRequests(
+      [
+        {
+          tradingDate: '2026-05-30',
+          institutionCode: 'HSBC-01',
+          currency: 'EUR',
+          tenor: '1M',
+          rate: 3.25,
+          uploadedAt: '2026-05-30T10:00:00Z',
+          uploadedBy: 'trader-test',
+        },
+      ],
+      [],
+      [HSBC_INST]
+    );
+    fixture.detectChanges();
+
+    const toolbarButtons = fixture.nativeElement.querySelectorAll(
+      '.settings-review-tree__toolbar button'
+    );
+    (toolbarButtons[0] as HTMLButtonElement).click();
+    fixture.detectChanges();
+    (toolbarButtons[1] as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    const instDetails = reviewTree().querySelector(
+      '.settings-review-tree__institution'
+    ) as HTMLDetailsElement;
+    const ccyDetails = reviewTree().querySelector(
+      '.settings-review-tree__currency'
+    ) as HTMLDetailsElement;
+    expect(instDetails.open).toBe(false);
+    expect(ccyDetails.open).toBe(false);
+  });
+
+  it('changing trading day resets review tree to collapsed', () => {
+    fixture = TestBed.createComponent(TermRateSettingsComponent);
+    fixture.detectChanges();
+    flushInitRequests(
+      [
+        {
+          tradingDate: '2026-05-31',
+          institutionCode: 'HSBC-01',
+          currency: 'EUR',
+          tenor: '1M',
+          rate: 3.25,
+          uploadedAt: '2026-05-31T10:00:00Z',
+          uploadedBy: 'trader-test',
+        },
+      ],
+      [{ tradingDate: '2026-05-31' }, { tradingDate: '2026-05-30' }],
+      [HSBC_INST]
+    );
+    fixture.detectChanges();
+
+    const toolbarButtons = fixture.nativeElement.querySelectorAll(
+      '.settings-review-tree__toolbar button'
+    );
+    (toolbarButtons[0] as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    const chips = fixture.nativeElement.querySelectorAll('.settings-day-chip');
+    (chips[1] as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    flushListRequests(
+      [
+        {
+          tradingDate: '2026-05-30',
+          institutionCode: 'HSBC-01',
+          currency: 'USD',
+          tenor: '1W',
+          rate: 4,
+          uploadedAt: '2026-05-30T10:00:00Z',
+          uploadedBy: 'trader-test',
+        },
+      ],
+      [HSBC_INST]
+    );
+    fixture.detectChanges();
+
+    const instDetails = reviewTree().querySelector(
+      '.settings-review-tree__institution'
+    ) as HTMLDetailsElement;
+    expect(instDetails.open).toBe(false);
+  });
+
   it('shows rates after successful upload', () => {
     const file = new File(['csv'], 'rates.csv', { type: 'text/csv' });
     fixture.componentInstance.selectedFile.set(file);
@@ -182,21 +391,24 @@ describe('TermRateSettingsComponent', () => {
     const daysReq = http.expectOne('/api/v1/settings/term-rates/days');
     daysReq.flush([{ tradingDate: '2026-05-30' }]);
 
-    flushListRequests([
-      {
-        tradingDate: '2026-05-30',
-        institutionCode: 'HSBC-01',
-        currency: 'EUR',
-        tenor: '1M',
-        rate: 3.25,
-        uploadedAt: '2026-05-30T10:00:00Z',
-        uploadedBy: 'trader-test',
-      },
-    ]);
+    flushListRequests(
+      [
+        {
+          tradingDate: '2026-05-30',
+          institutionCode: 'HSBC-01',
+          currency: 'EUR',
+          tenor: '1M',
+          rate: 3.25,
+          uploadedAt: '2026-05-30T10:00:00Z',
+          uploadedBy: 'trader-test',
+        },
+      ],
+      [HSBC_INST]
+    );
 
     fixture.detectChanges();
     expect(fixture.componentInstance.rates()).toHaveLength(1);
-    expect(fixture.nativeElement.textContent).toContain('HSBC-01');
+    expect(reviewTree().textContent).toContain('HSBC');
   });
 
   it('prompts replace-day confirm when rates exist; cancel skips upload', () => {
@@ -251,7 +463,7 @@ describe('TermRateSettingsComponent', () => {
       uploadedAt: '2026-05-30T10:00:00Z',
     });
     http.expectOne('/api/v1/settings/term-rates/days').flush([{ tradingDate: '2026-05-30' }]);
-    flushListRequests([]);
+    flushListRequests([], []);
   });
 
   it('displays row errors from failed upload', () => {

@@ -2,14 +2,20 @@ import { DatePipe, DecimalPipe } from '@angular/common';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { forkJoin } from 'rxjs';
 import {
   TermRate,
   TermRateIngestError,
   TermRateRowError,
   TermRateSettingsApiService,
 } from '../../core/api/term-rate-settings-api.service';
+import { InstitutionSettingsApiService } from '../../core/api/institution-settings-api.service';
 import { DeskReturnService } from '../../core/trader/desk-return.service';
 import { TraderContextService } from '../../core/trader/trader-context.service';
+import {
+  groupTermRatesForReview,
+  reviewCurrencyKey,
+} from './group-term-rates-for-review';
 
 const REPLACE_DAY_CONFIRM =
   'Re-upload will replace all rates for the selected trading day. Continue?';
@@ -116,27 +122,56 @@ const REPLACE_DAY_CONFIRM =
             Download sample CSV
           </button>
         } @else {
-          <div class="settings-table-wrap">
-            <table class="mmx-table">
-              <thead>
-                <tr>
-                  <th>Institution</th>
-                  <th>Currency</th>
-                  <th>Tenor</th>
-                  <th class="num">Rate</th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (r of rates(); track r.institutionCode + r.currency + r.tenor) {
-                  <tr>
-                    <td class="mono">{{ r.institutionCode }}</td>
-                    <td class="mono">{{ r.currency }}</td>
-                    <td class="mono">{{ r.tenor }}</td>
-                    <td class="num mono">{{ r.rate | number: '1.2-8' }}</td>
-                  </tr>
-                }
-              </tbody>
-            </table>
+          <div class="settings-review-tree__toolbar">
+            <button type="button" class="btn-secondary" (click)="expandAllReview()">Expand all</button>
+            <button type="button" class="btn-secondary" (click)="collapseAllReview()">Collapse all</button>
+          </div>
+          <div class="settings-review-tree" data-testid="term-rates-review-tree">
+            @for (inst of reviewTree(); track inst.institutionCode) {
+              <details
+                class="settings-review-tree__institution"
+                [open]="isInstitutionOpen(inst.institutionCode)"
+                (toggle)="onInstitutionToggle($event, inst.institutionCode)"
+              >
+                <summary>
+                  <span class="settings-review-tree__inst-name">{{
+                    institutionLabel(inst.institutionCode)
+                  }}</span>
+                  @if (hasInstitutionDisplayName(inst.institutionCode)) {
+                    <span class="settings-review-tree__inst-code">{{ inst.institutionCode }}</span>
+                  }
+                  <span class="settings-review-tree__meta"
+                    >{{ inst.currencies.length }} currencies · {{ inst.rateCount }} rates</span
+                  >
+                </summary>
+                <div class="settings-review-tree__body">
+                  @for (ccy of inst.currencies; track ccy.currency) {
+                    <details
+                      class="settings-review-tree__currency"
+                      [open]="isCurrencyOpen(inst.institutionCode, ccy.currency)"
+                      (toggle)="onCurrencyToggle($event, inst.institutionCode, ccy.currency)"
+                    >
+                      <summary>
+                        <span class="settings-review-tree__currency-label">{{ ccy.currency }}</span>
+                        <span class="settings-review-tree__meta">{{ ccy.tenors.length }} tenors</span>
+                      </summary>
+                      <div class="settings-review-tree__body">
+                        <ul class="settings-review-tree__leaves">
+                          @for (leaf of ccy.tenors; track leaf.tenor) {
+                            <li class="settings-review-tree__leaf">
+                              <span class="settings-review-tree__leaf-tenor">{{ leaf.tenor }}</span>
+                              <span class="settings-review-tree__leaf-rate">{{
+                                leaf.rate | number: '1.2-8'
+                              }}</span>
+                            </li>
+                          }
+                        </ul>
+                      </div>
+                    </details>
+                  }
+                </div>
+              </details>
+            }
           </div>
         }
       </section>
@@ -147,17 +182,24 @@ export class TermRateSettingsComponent implements OnInit {
   protected readonly deskReturn = inject(DeskReturnService);
 
   private readonly api = inject(TermRateSettingsApiService);
+  private readonly institutionApi = inject(InstitutionSettingsApiService);
   private readonly trader = inject(TraderContextService);
 
   readonly tradingDate = signal(todayIso());
   readonly tradingDays = signal<{ tradingDate: string }[]>([]);
   readonly rates = signal<TermRate[]>([]);
+  readonly institutionNames = signal<ReadonlyMap<string, string>>(new Map());
   readonly loading = signal(false);
   readonly busy = signal(false);
   readonly error = signal<string | null>(null);
   readonly rowErrors = signal<TermRateRowError[]>([]);
   readonly uploadSuccess = signal<{ tradingDate: string; rowCount: number } | null>(null);
   readonly selectedFile = signal<File | null>(null);
+
+  private readonly openInstitutions = signal<ReadonlySet<string>>(new Set());
+  private readonly openCurrencies = signal<ReadonlySet<string>>(new Set());
+
+  readonly reviewTree = computed(() => groupTermRatesForReview(this.rates()));
 
   readonly daySummary = computed(() => {
     const list = this.rates();
@@ -175,6 +217,63 @@ export class TermRateSettingsComponent implements OnInit {
   ngOnInit(): void {
     this.loadTradingDays();
     this.loadRates();
+  }
+
+  protected institutionLabel(institutionCode: string): string {
+    return this.institutionNames().get(institutionCode) ?? institutionCode;
+  }
+
+  protected hasInstitutionDisplayName(institutionCode: string): boolean {
+    return this.institutionNames().has(institutionCode);
+  }
+
+  protected isInstitutionOpen(institutionCode: string): boolean {
+    return this.openInstitutions().has(institutionCode);
+  }
+
+  protected isCurrencyOpen(institutionCode: string, currency: string): boolean {
+    return this.openCurrencies().has(reviewCurrencyKey(institutionCode, currency));
+  }
+
+  protected expandAllReview(): void {
+    const inst = new Set<string>();
+    const ccy = new Set<string>();
+    for (const node of this.reviewTree()) {
+      inst.add(node.institutionCode);
+      for (const currencyNode of node.currencies) {
+        ccy.add(reviewCurrencyKey(node.institutionCode, currencyNode.currency));
+      }
+    }
+    this.openInstitutions.set(inst);
+    this.openCurrencies.set(ccy);
+  }
+
+  protected collapseAllReview(): void {
+    this.openInstitutions.set(new Set());
+    this.openCurrencies.set(new Set());
+  }
+
+  protected onInstitutionToggle(event: Event, institutionCode: string): void {
+    const open = (event.target as HTMLDetailsElement).open;
+    const next = new Set(this.openInstitutions());
+    if (open) {
+      next.add(institutionCode);
+    } else {
+      next.delete(institutionCode);
+    }
+    this.openInstitutions.set(next);
+  }
+
+  protected onCurrencyToggle(event: Event, institutionCode: string, currency: string): void {
+    const open = (event.target as HTMLDetailsElement).open;
+    const key = reviewCurrencyKey(institutionCode, currency);
+    const next = new Set(this.openCurrencies());
+    if (open) {
+      next.add(key);
+    } else {
+      next.delete(key);
+    }
+    this.openCurrencies.set(next);
   }
 
   protected onFileSelected(event: Event): void {
@@ -261,9 +360,20 @@ export class TermRateSettingsComponent implements OnInit {
   private loadRates(): void {
     this.loading.set(true);
     this.error.set(null);
-    this.api.listForDay(this.trader.traderId(), this.tradingDate()).subscribe({
-      next: (list) => {
-        this.rates.set(list);
+    this.collapseAllReview();
+    const traderId = this.trader.traderId();
+    const tradingDate = this.tradingDate();
+    forkJoin({
+      rates: this.api.listForDay(traderId, tradingDate),
+      institutions: this.institutionApi.list(traderId),
+    }).subscribe({
+      next: ({ rates, institutions }) => {
+        const names = new Map<string, string>();
+        for (const inst of institutions) {
+          names.set(inst.institutionCode, inst.displayName);
+        }
+        this.institutionNames.set(names);
+        this.rates.set(rates);
         this.loading.set(false);
       },
       error: (err) => {

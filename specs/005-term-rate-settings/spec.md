@@ -12,11 +12,12 @@ Trader-maintained **morning Term rate sheet** per trading day: CSV upload, valid
 
 ### Settings UI (trader-facing)
 
-- **Workflow layout**: Prepare (sample download) → Upload (CSV file) → Review (day picker + rates table), with lede explaining morning sheet and whole-day replace.
+- **Workflow layout**: Prepare (sample download) → Upload (CSV file) → Review (day picker + hierarchical rates tree), with lede explaining morning sheet and whole-day replace.
 - **Trading day discovery**: `GET /api/v1/settings/term-rates/days` drives quick-select chips; manual date control remains for days without uploads.
 - **Day summary**: When rates exist for the selected day, show row count and last upload time (from row `uploadedAt`).
 - **Replace-day guard**: Confirm before upload when the selected day already has rates.
-- **Presentation**: Desk-aligned `settings.scss` tokens, elevated settings cards, styled file/date inputs; rates table shows institution code, currency, tenor, rate (no per-row `uploadedBy`).
+- **Review tree**: Rates grouped institution → currency → tenor/rate; default **collapsed**; **Expand all** / **Collapse all**; institution header shows **displayName** from Institutions catalog (client join) plus code as secondary label when known; tenors in catalog order `1W` … `1Y` (no per-row `uploadedBy`).
+- **Presentation**: Desk-aligned `settings.scss` tokens, elevated settings cards, styled file/date inputs.
 - **Empty state**: Directs trader to download sample then upload.
 
 ## Programme decisions

@@ -444,3 +444,123 @@ button.btn-secondary:disabled {
   font-family: var(--font-mono);
   font-size: 0.8125rem;
 }
+
+.settings-review-tree__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.settings-review-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.settings-review-tree details {
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.settings-review-tree details[open] > summary {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.settings-review-tree__institution {
+  margin: 0;
+}
+
+.settings-review-tree__currency {
+  margin: 0 0 0 1rem;
+  border-left: 2px solid var(--mmx-border);
+  border-radius: 0 4px 4px 0;
+}
+
+.settings-review-tree summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.65rem;
+  padding: 0.55rem 0.75rem;
+  cursor: pointer;
+  list-style: none;
+  font-size: 0.875rem;
+}
+
+.settings-review-tree summary::-webkit-details-marker {
+  display: none;
+}
+
+.settings-review-tree summary::before {
+  content: '▸';
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--mmx-text-muted);
+  margin-right: 0.15rem;
+  transition: transform 0.15s ease;
+}
+
+.settings-review-tree details[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.settings-review-tree__inst-name {
+  font-weight: 600;
+  color: var(--mmx-text);
+}
+
+.settings-review-tree__inst-code {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--mmx-text-muted);
+}
+
+.settings-review-tree__currency-label {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 0.8125rem;
+  color: var(--mmx-text);
+}
+
+.settings-review-tree__meta {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--mmx-text-muted);
+  margin-left: auto;
+}
+
+.settings-review-tree__body {
+  padding: 0.35rem 0.75rem 0.55rem;
+}
+
+.settings-review-tree__currency .settings-review-tree__body {
+  padding-left: 0.5rem;
+}
+
+.settings-review-tree__leaves {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.settings-review-tree__leaf {
+  display: grid;
+  grid-template-columns: 3rem 1fr;
+  gap: 0.75rem;
+  align-items: baseline;
+  padding: 0.25rem 0;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+}
+
+.settings-review-tree__leaf-tenor {
+  color: var(--mmx-text-muted);
+}
+
+.settings-review-tree__leaf-rate {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--mmx-text);
+}
