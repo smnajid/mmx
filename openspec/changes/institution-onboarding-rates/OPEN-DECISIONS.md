@@ -33,11 +33,11 @@ Spec reference (when written): `order-institution-constraints`, `institution-onb
 
 | ID | Topic | Notes | Status |
 |----|--------|-------|--------|
-| O-01 | Curve point key | Point keyed by `(institution, currency, noticePeriod)` or other axis? | open |
-| O-02 | Value date / end date | Inclusive vs exclusive end; gaps/overlaps; backdated corrections? | open |
-| O-03 | Canceled semantics | Never effective vs withdraw a Valid segment? | open |
-| O-04 | Kafka payload | Thin delta vs full segment history for BO consumer | open |
-| O-05 | BO contract impact | Confirm required fields with back office (open contracts refresh) | open |
+| O-01 | Curve point key | Point keyed by **`(institution, currency, noticePeriod)`**. | **decided** |
+| O-02 | Value date / end date | **Inclusive** dates. Last (open) segment end = sentinel **`2999-12-31`** (no-end). Adding a rate with `valueDate = V` supersedes the prior segment by setting its end to **`V−1`** (**provisional** until BO confirms — Option A). `valueDate ≥ today` (no backdating); **no further ordering restriction** relative to the prior segment — the curve reflects the institution's actual rates. First-ever segment for a curve point spans `[valueDate, 2999-12-31]` with nothing to supersede. | **decided** |
+| O-03 | Canceled / lifecycle semantics | Three states: **`PENDING_CONFIRMATION → VALID \| CANCELED`**. Cancel is legal **only** from `PENDING_CONFIRMATION` (before BO confirms). On cancel, the prior segment's end reverts to `2999-12-31` (or the pending first segment is discarded). At most **one `PENDING` segment per curve point** at a time. The BO **cannot reject** — `PENDING` resolves only to `VALID` or `CANCELED`. **A pending rate is already active for pricing new orders** whose value date falls in the segment; the `PENDING_CONFIRMATION` status only tells the trader whether the BO has refreshed **in-life contracts**. | **decided** |
+| O-04 | Kafka payload | **Thin delta**, keyed by **`segmentId`** (Kafka record key + confirmation address). | **decided** |
+| O-05 | BO contract impact | **Outbound `OnCallRateUpdatedV1`** = `segmentId` + curve key `(institution, currency, noticePeriod)` + `rate` + `valueDate`. **No `priorEndDate`** — implicit (a segment ends the day before the next starts; BO derives it). **Inbound confirmation** = a minimal **ack keyed by `segmentId`** delivered as an **atomic compare-and-set** (PENDING→VALID = `200`; canceled = `409`; unknown = `404`); BO **confirms first, impacts in-life contracts only on `200`**. Transport is **synchronous HTTP + idempotent retry** (async-event alternative rejected — see design §6). mmx stamps its own `validatedAt`. | **decided** |
 
 ---
 
