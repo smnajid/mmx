@@ -29,4 +29,4 @@
 ## 5. Final verification
 
 - [x] 5.1 Run `npm run test` in `frontend/` — green
-- [ ] 5.2 Manual smoke: `/settings/term-rates` — download sample, upload, chips switch days, re-upload shows confirm, back to desk works
+- [x] 5.2 Manual smoke: `/settings/term-rates` — download sample, upload, chips switch days, re-upload shows confirm, back to desk works

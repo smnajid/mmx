@@ -28,4 +28,4 @@
 ## 6. Final verification
 
 - [x] 6.1 Run `npm run test` in `frontend/` — green
-- [ ] 6.2 Manual smoke: `/settings/term-rates` — load day with data → tree collapsed → expand one bank/currency → Expand all → Collapse all → switch day chip → names visible on headers
+- [x] 6.2 Manual smoke: `/settings/term-rates` — load day with data → tree collapsed → expand one bank/currency → Expand all → Collapse all → switch day chip → names visible on headers
