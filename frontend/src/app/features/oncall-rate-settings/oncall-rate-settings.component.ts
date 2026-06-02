@@ -1,4 +1,4 @@
-import { DatePipe, DecimalPipe } from '@angular/common';
+import { DecimalPipe } from '@angular/common';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -14,13 +14,19 @@ import {
 } from '../../core/api/institution-settings-api.service';
 import { DeskReturnService } from '../../core/trader/desk-return.service';
 import { TraderContextService } from '../../core/trader/trader-context.service';
+import {
+  curvePointKey,
+  formatOnCallEndDate,
+  groupOnCallRateSegmentsForReview,
+  type OnCallCurvePointNode,
+} from './group-oncall-rate-segments-for-review';
 
 const NOTICE_PERIODS: OnCallNoticePeriod[] = ['24H', '48H'];
 
 @Component({
   selector: 'app-oncall-rate-settings',
   standalone: true,
-  imports: [FormsModule, DecimalPipe, DatePipe, RouterLink],
+  imports: [FormsModule, DecimalPipe, RouterLink],
   template: `
     <section class="settings-panel">
       <nav class="settings-toolbar">
@@ -63,7 +69,13 @@ const NOTICE_PERIODS: OnCallNoticePeriod[] = ['24H', '48H'];
           <form class="settings-form-grid" (ngSubmit)="submitAdd()">
             <label class="settings-field">
               <span class="settings-field__label">Currency</span>
-              <input class="settings-input" type="text" [(ngModel)]="addForm.currency" name="currency" required />
+              <input
+                class="settings-input"
+                type="text"
+                [(ngModel)]="addForm.currency"
+                name="currency"
+                required
+              />
             </label>
             <label class="settings-field">
               <span class="settings-field__label">Notice period</span>
@@ -107,51 +119,72 @@ const NOTICE_PERIODS: OnCallNoticePeriod[] = ['24H', '48H'];
 
           @if (loading()) {
             <p class="settings-state">Loading…</p>
-          } @else if (segments().length === 0) {
+          } @else if (reviewTree().length === 0) {
             <p class="settings-state">No rate segments for this institution yet.</p>
           } @else {
-            <div class="settings-table-wrap">
-              <table class="mmx-table">
-                <thead>
-                  <tr>
-                    <th>Currency</th>
-                    <th>Notice</th>
-                    <th>Rate</th>
-                    <th>Value date</th>
-                    <th>End date</th>
-                    <th>Status</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  @for (s of sortedSegments(); track s.segmentId) {
-                    <tr>
-                      <td class="mono">{{ s.currency }}</td>
-                      <td class="mono">{{ s.noticePeriod }}</td>
-                      <td>{{ s.rate | number: '1.4-4' }}</td>
-                      <td>{{ s.valueDate }}</td>
-                      <td>{{ s.endDate }}</td>
-                      <td>
-                        <span class="status-badge" [class]="statusBadgeClass(s.status)">
-                          {{ statusLabel(s.status) }}
-                        </span>
-                      </td>
-                      <td>
-                        @if (s.status === 'PENDING_CONFIRMATION') {
-                          <button
-                            type="button"
-                            class="btn-secondary btn-compact"
-                            (click)="cancelSegment(s)"
-                            [disabled]="busy()"
-                          >
-                            Cancel
-                          </button>
+            <div class="settings-review-tree__toolbar">
+              <button type="button" class="btn-secondary" (click)="expandAllReview()">Expand all</button>
+              <button type="button" class="btn-secondary" (click)="collapseAllReview()">
+                Collapse all
+              </button>
+            </div>
+            <div class="settings-review-tree" data-testid="oncall-rates-review-tree">
+              @for (point of reviewTree(); track curvePointKey(point.currency, point.noticePeriod)) {
+                <details
+                  class="settings-review-tree__curve-point"
+                  [class.settings-review-tree__curve-point--selected]="
+                    isCurvePointSelected(point.currency, point.noticePeriod)
+                  "
+                  [open]="isCurvePointOpen(point.currency, point.noticePeriod)"
+                  (toggle)="onCurvePointToggle($event, point)"
+                >
+                  <summary>
+                    <span class="settings-review-tree__curve-point-label"
+                      >{{ point.currency }} · {{ point.noticePeriod }}</span
+                    >
+                    <span class="settings-review-tree__meta">{{ currentRateSummary(point) }}</span>
+                  </summary>
+                  <div class="settings-review-tree__body">
+                    <table class="settings-review-tree__segment-table">
+                      <thead>
+                        <tr>
+                          <th>Value date</th>
+                          <th>End date</th>
+                          <th>Rate</th>
+                          <th>Status</th>
+                          <th></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        @for (s of point.segments; track s.segmentId) {
+                          <tr>
+                            <td>{{ s.valueDate }}</td>
+                            <td>{{ formatEndDate(s.endDate) }}</td>
+                            <td>{{ s.rate | number: '1.4-4' }}</td>
+                            <td>
+                              <span class="status-badge" [class]="statusBadgeClass(s.status)">
+                                {{ statusLabel(s.status) }}
+                              </span>
+                            </td>
+                            <td>
+                              @if (s.status === 'PENDING_CONFIRMATION') {
+                                <button
+                                  type="button"
+                                  class="btn-secondary btn-compact"
+                                  (click)="cancelSegment(s)"
+                                  [disabled]="busy()"
+                                >
+                                  Cancel
+                                </button>
+                              }
+                            </td>
+                          </tr>
                         }
-                      </td>
-                    </tr>
-                  }
-                </tbody>
-              </table>
+                      </tbody>
+                    </table>
+                  </div>
+                </details>
+              }
             </div>
           }
         </section>
@@ -230,6 +263,8 @@ const NOTICE_PERIODS: OnCallNoticePeriod[] = ['24H', '48H'];
 export class OnCallRateSettingsComponent implements OnInit {
   protected readonly deskReturn = inject(DeskReturnService);
   protected readonly noticePeriods = NOTICE_PERIODS;
+  protected readonly curvePointKey = curvePointKey;
+  protected readonly formatEndDate = formatOnCallEndDate;
 
   private readonly api = inject(OnCallRateSettingsApiService);
   private readonly institutionApi = inject(InstitutionSettingsApiService);
@@ -243,6 +278,9 @@ export class OnCallRateSettingsComponent implements OnInit {
   readonly error = signal<string | null>(null);
   readonly success = signal<string | null>(null);
 
+  private readonly openCurvePoints = signal<ReadonlySet<string>>(new Set());
+  private readonly selectedCurvePointKey = signal<string | null>(null);
+
   addForm: AddOnCallRateRequest = {
     currency: 'EUR',
     noticePeriod: '24H',
@@ -250,12 +288,7 @@ export class OnCallRateSettingsComponent implements OnInit {
     valueDate: new Date().toISOString().slice(0, 10),
   };
 
-  readonly sortedSegments = computed(() =>
-    [...this.segments()].sort((a, b) => {
-      const key = (s: OnCallRateSegment) => `${s.currency}:${s.noticePeriod}:${s.valueDate}`;
-      return key(b).localeCompare(key(a));
-    })
-  );
+  readonly reviewTree = computed(() => groupOnCallRateSegmentsForReview(this.segments()));
 
   ngOnInit(): void {
     this.institutionApi.list(this.trader.traderId()).subscribe({
@@ -331,6 +364,51 @@ export class OnCallRateSettingsComponent implements OnInit {
     });
   }
 
+  isCurvePointOpen(currency: string, noticePeriod: OnCallNoticePeriod): boolean {
+    return this.openCurvePoints().has(curvePointKey(currency, noticePeriod));
+  }
+
+  isCurvePointSelected(currency: string, noticePeriod: OnCallNoticePeriod): boolean {
+    return this.selectedCurvePointKey() === curvePointKey(currency, noticePeriod);
+  }
+
+  expandAllReview(): void {
+    const next = new Set<string>();
+    for (const point of this.reviewTree()) {
+      next.add(curvePointKey(point.currency, point.noticePeriod));
+    }
+    this.openCurvePoints.set(next);
+  }
+
+  collapseAllReview(): void {
+    this.openCurvePoints.set(new Set());
+    this.selectedCurvePointKey.set(null);
+  }
+
+  onCurvePointToggle(event: Event, point: OnCallCurvePointNode): void {
+    const el = event.target as HTMLDetailsElement;
+    const key = curvePointKey(point.currency, point.noticePeriod);
+    const next = new Set(this.openCurvePoints());
+    if (el.open) {
+      next.add(key);
+      this.selectedCurvePointKey.set(key);
+      this.addForm.currency = point.currency;
+      this.addForm.noticePeriod = point.noticePeriod;
+    } else {
+      next.delete(key);
+    }
+    this.openCurvePoints.set(next);
+  }
+
+  currentRateSummary(point: OnCallCurvePointNode): string {
+    const open = point.currentSegment;
+    if (!open) {
+      return 'No open segment';
+    }
+    const rate = open.rate.toFixed(4);
+    return `${rate} · ${this.statusLabel(open.status)}`;
+  }
+
   statusLabel(status: OnCallRateSegment['status']): string {
     switch (status) {
       case 'PENDING_CONFIRMATION':
@@ -355,6 +433,7 @@ export class OnCallRateSettingsComponent implements OnInit {
 
   private loadSegments(institutionCode: string): void {
     this.loading.set(true);
+    this.collapseAllReview();
     this.api.list(this.trader.traderId(), institutionCode).subscribe({
       next: (list) => {
         this.segments.set(list);

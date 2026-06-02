@@ -149,6 +149,17 @@ Detailed user narratives remain in User Stories 4–5 and FR-008–FR-012 below.
 - **FR-014**: For executed-not-accounted rows where handoff has **succeeded**, the **Executed** view MUST convey **how long** execution has awaited accounting (staleness), using one authoritative business timestamp per order; **longer-waiting** items MUST be **more salient** than fresher ones per desk-agreed rules; **default list order** MUST favour **longest-waiting first** unless the trader chooses another sort.
 - **FR-015**: The trader application MUST NOT offer a primary browsing experience whose **sole purpose** is listing **Accounted-only** orders for desk operations.
 
+### OnCall rate settings (`/settings/oncall-rates`) — presentation
+
+Presentation-only; REST contract unchanged (`GET`/`POST` institution on-call rates per [contracts/openapi.yaml](contracts/openapi.yaml)).
+
+- **Curve segments review tree**: Segments for the selected institution MUST appear in a **curve-point review tree** (one expandable node per `(currency, noticePeriod)` with at least one non-canceled segment), not a flat table mixing all curve points. Nodes ordered by currency ascending, then notice period `24H`, `48H`; segments within a node by value date descending.
+- **Current rate on header**: Each collapsed curve-point header MUST show the **open** segment rate and status (`endDate` sentinel `2999-12-31`); if none, indicate no open segment without expanding.
+- **Canceled hidden**: Segments with status **`CANCELED`** MUST NOT appear in the review UI (client-side filter; API may still return them).
+- **Default collapsed**: All curve-point nodes start collapsed on load and after institution change; **Expand all** / **Collapse all** controls MUST be available.
+- **Add form coupling**: Selecting or expanding a curve-point node MUST set **Add rate** `currency` and `noticePeriod` and highlight the selected node.
+- **Open end date label**: Sentinel end date `2999-12-31` MUST display as **Open** in segment rows.
+
 ### Key Entities *(include if feature involves data)*
 
 - **Money Market order (extended concept)**: Existing order; extended with recognition of **Accounted** vs **Executed-only**, and presentation fields for lists (Tenor / Notice period, counterparty on executed-not-accounted).

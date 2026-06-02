@@ -83,6 +83,29 @@ class OnCallRateSegmentJpaAdapterTest {
     }
 
     @Test
+    void findOpenSegment_ignoresCanceledSegmentWithNoEndDate() {
+        OnCallRateSegment validOpen =
+                new OnCallRateSegment(
+                        UUID.randomUUID(),
+                        CURVE,
+                        new BigDecimal("3.00"),
+                        LocalDate.of(2026, 1, 1),
+                        OnCallRateSegment.NO_END_DATE,
+                        OnCallRateSegmentStatus.VALID,
+                        Instant.parse("2026-01-02T00:00:00Z"));
+        OnCallRateSegment canceledPending =
+                OnCallRateSegment.createPending(
+                                UUID.randomUUID(), CURVE, new BigDecimal("3.50"), LocalDate.of(2026, 6, 1))
+                        .cancel();
+        repository.save(validOpen);
+        repository.save(canceledPending);
+
+        assertThat(repository.findOpenSegment(CURVE))
+                .map(OnCallRateSegment::getSegmentId)
+                .contains(validOpen.getSegmentId());
+    }
+
+    @Test
     void compareAndConfirmPending_transitionsRow() {
         UUID id = UUID.randomUUID();
         repository.save(

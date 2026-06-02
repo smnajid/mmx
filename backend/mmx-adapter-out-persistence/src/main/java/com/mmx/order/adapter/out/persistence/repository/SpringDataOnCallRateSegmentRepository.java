@@ -20,6 +20,14 @@ public interface SpringDataOnCallRateSegmentRepository
     Optional<OnCallRateSegmentEntity> findByInstitutionCodeAndCurrencyAndNoticePeriodAndEndDate(
             String institutionCode, String currency, String noticePeriod, LocalDate endDate);
 
+    Optional<OnCallRateSegmentEntity>
+            findByInstitutionCodeAndCurrencyAndNoticePeriodAndEndDateAndStatus(
+                    String institutionCode,
+                    String currency,
+                    String noticePeriod,
+                    LocalDate endDate,
+                    String status);
+
     Optional<OnCallRateSegmentEntity> findByInstitutionCodeAndCurrencyAndNoticePeriodAndStatus(
             String institutionCode, String currency, String noticePeriod, String status);
 

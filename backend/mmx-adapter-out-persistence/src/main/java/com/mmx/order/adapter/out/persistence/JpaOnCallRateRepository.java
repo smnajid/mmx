@@ -40,11 +40,12 @@ public class JpaOnCallRateRepository implements OnCallRateRepository {
     @Override
     public Optional<OnCallRateSegment> findOpenSegment(OnCallCurveKey curveKey) {
         return springDataRepository
-                .findByInstitutionCodeAndCurrencyAndNoticePeriodAndEndDate(
+                .findByInstitutionCodeAndCurrencyAndNoticePeriodAndEndDateAndStatus(
                         curveKey.institutionCode(),
                         curveKey.currency(),
                         curveKey.noticePeriod().name(),
-                        OnCallRateSegment.NO_END_DATE)
+                        OnCallRateSegment.NO_END_DATE,
+                        OnCallRateSegmentStatus.VALID.name())
                 .map(mapper::toDomain);
     }
 

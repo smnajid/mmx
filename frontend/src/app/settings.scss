@@ -564,3 +564,48 @@ button.btn-secondary:disabled {
   font-variant-numeric: tabular-nums;
   color: var(--mmx-text);
 }
+
+.settings-review-tree__curve-point {
+  margin: 0;
+}
+
+.settings-review-tree__curve-point--selected > summary {
+  background: rgba(232, 168, 56, 0.08);
+  outline: 1px solid var(--mmx-accent);
+  outline-offset: -1px;
+}
+
+.settings-review-tree__curve-point-label {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 0.8125rem;
+  color: var(--mmx-text);
+}
+
+.settings-review-tree__segment-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+}
+
+.settings-review-tree__segment-table th {
+  text-align: left;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--mmx-text-muted);
+  padding: 0.35rem 0.5rem 0.25rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.settings-review-tree__segment-table td {
+  padding: 0.35rem 0.5rem 0.35rem 0;
+  color: var(--mmx-text);
+  vertical-align: middle;
+}
+
+.settings-review-tree__segment-table td:last-child {
+  text-align: right;
+}
