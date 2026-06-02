@@ -28,6 +28,16 @@ Read the current plan at `specs/002-trader-orders-views/plan.md` for structure a
 
 OpenSpec project context: `openspec/config.yaml`.
 
+## Agent navigation
+
+Before exploring implementation for a non-trivial task:
+
+1. [CONTEXT.md](CONTEXT.md) — domain glossary
+2. [docs/agents/codebase-map.md](docs/agents/codebase-map.md) — module, route, and contract locations
+3. Active feature `specs/<feature>/plan.md` + `contracts/openapi.yaml` (desk: `specs/002-trader-orders-views/`)
+
+Search order: **domain → application → adapters**. Contract-first for HTTP.
+
 ## Test-driven development (TDD)
 
 For **new behavior** and **bug fixes**: failing test first (red), smallest change to pass (green), refactor. Backend: JUnit 5; frontend: Angular/Vitest; e2e: Cypress where appropriate.

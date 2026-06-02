@@ -28,6 +28,13 @@ Issues are tracked as local markdown files under `.scratch/`. See `docs/agents/i
 
 This repo uses the default canonical triage labels. See `docs/agents/triage-labels.md`.
 
-### Domain docs
+### Domain docs and navigation
 
-This repo uses a single-context layout (`CONTEXT.md` + `docs/adr/` at repo root). See `docs/agents/domain.md`.
+| File | Purpose |
+|------|---------|
+| [CONTEXT.md](CONTEXT.md) | Domain glossary and relationships (ubiquitous language) |
+| [docs/agents/codebase-map.md](docs/agents/codebase-map.md) | Where modules, routes, contracts, and tests live |
+| [docs/agents/domain.md](docs/agents/domain.md) | How skills consume CONTEXT and ADRs |
+| [docs/adr/](docs/adr/) | Architecture decision records (when present) |
+
+Agents SHOULD read **CONTEXT.md** and **codebase-map.md** before broad codebase exploration.
