@@ -171,9 +171,10 @@ class TraderWorkflowE2ETest {
                   "amount": 5000000.00,
                   "valueDate": "%s",
                   "minimumRate": 3.25,
-                  "tenor": "3M"
+                  "tenor": "3M",
+                  "institutionCode": "%s"
                 }
                 """
-                .formatted(externalOrderReference, valueDate);
+                .formatted(externalOrderReference, valueDate, RestTestInstitutions.BANKCO_CODE);
     }
 }

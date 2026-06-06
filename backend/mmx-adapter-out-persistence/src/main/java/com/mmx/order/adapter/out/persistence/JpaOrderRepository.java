@@ -4,6 +4,7 @@ import com.mmx.order.adapter.out.persistence.entity.OrderEntity;
 import com.mmx.order.adapter.out.persistence.mapper.OrderPersistenceMapper;
 import com.mmx.order.adapter.out.persistence.repository.SpringDataOrderRepository;
 import com.mmx.order.application.port.in.OrderPage;
+import com.mmx.order.application.port.out.ExecutedSubscriptionContractInfo;
 import com.mmx.order.application.port.out.OrderRepository;
 import com.mmx.order.domain.model.*;
 import org.springframework.data.domain.Page;
@@ -93,6 +94,26 @@ public class JpaOrderRepository implements OrderRepository {
                 .stream()
                 .map(mapper::toDomain)
                 .toList();
+    }
+
+    @Override
+    public Optional<ExecutedSubscriptionContractInfo> findExecutedSubscriptionByContractNumber(
+            String contractNumber) {
+        return springDataRepository
+                .findByGeneratedContractNumberAndOrderTypeAndOrderOperationAndStatus(
+                        contractNumber,
+                        OrderType.ON_CALL.name(),
+                        OrderOperation.SUBSCRIPTION.name(),
+                        OrderStatus.EXECUTED.name())
+                .map(JpaOrderRepository::toExecutedSubscriptionContractInfo);
+    }
+
+    private static ExecutedSubscriptionContractInfo toExecutedSubscriptionContractInfo(OrderEntity entity) {
+        if (entity.getNoticePeriod() == null) {
+            throw new IllegalStateException("Executed OnCall subscription missing notice period");
+        }
+        return new ExecutedSubscriptionContractInfo(
+                entity.getCurrency(), NoticePeriod.valueOf(entity.getNoticePeriod()));
     }
 
 }

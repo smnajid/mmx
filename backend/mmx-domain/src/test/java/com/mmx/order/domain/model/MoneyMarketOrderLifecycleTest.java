@@ -37,7 +37,7 @@ class MoneyMarketOrderLifecycleTest {
                 TODAY.plusDays(2),
                 new BigDecimal("3.25000000"),
                 Tenor._3M,
-                null, null, null,
+                null, null, "BNKCO", "BankCo",
                 TODAY
         );
     }
@@ -152,8 +152,7 @@ class MoneyMarketOrderLifecycleTest {
                             null,
                             null,
                             NoticePeriod._24H,
-                            new ContractNumber("CN-SRC"),
-                            null,
+                            new ContractNumber("CN-SRC"), "BNKCO", "BankCo",
                             TODAY);
             increase.assign(TRADER_A, NOW);
 
@@ -192,10 +191,7 @@ class MoneyMarketOrderLifecycleTest {
                     new BigDecimal("5000000.00"),
                     TODAY.plusDays(2),
                     null,
-                    Tenor._3M,
-                    null,
-                    null,
-                    null,
+                    Tenor._3M, null, null, "BNKCO", "BankCo",
                     TODAY
             );
             openFloor.assign(TRADER_A, NOW);
@@ -218,10 +214,7 @@ class MoneyMarketOrderLifecycleTest {
                     new BigDecimal("5000000.00"),
                     TODAY.plusDays(2),
                     new BigDecimal("3.25000000"),
-                    Tenor._3M,
-                    null,
-                    null,
-                    null,
+                    Tenor._3M, null, null, "BNKCO", "BankCo",
                     TODAY
             );
             assertThatThrownBy(

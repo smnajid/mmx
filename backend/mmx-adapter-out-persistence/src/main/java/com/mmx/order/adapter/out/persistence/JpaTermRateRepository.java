@@ -5,6 +5,7 @@ import com.mmx.order.adapter.out.persistence.mapper.TermRatePersistenceMapper;
 import com.mmx.order.adapter.out.persistence.repository.SpringDataTermRateRepository;
 import com.mmx.order.application.port.out.TermRateRepository;
 import com.mmx.order.application.termrate.TermRateAuditRow;
+import com.mmx.order.domain.model.Tenor;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDate;
@@ -47,5 +48,17 @@ public class JpaTermRateRepository implements TermRateRepository {
     @Override
     public List<LocalDate> findDistinctTradingDatesDesc() {
         return springDataRepository.findDistinctTradingDatesDesc();
+    }
+
+    @Override
+    public List<TermRateAuditRow> findLatestRatePerInstitution(String currency, Tenor tenor) {
+        return springDataRepository.findLatestRatePerInstitution(currency, tenor.getCode()).stream()
+                .map(mapper::toDomain)
+                .toList();
+    }
+
+    @Override
+    public List<String> findDistinctCurrenciesWithTermRates() {
+        return springDataRepository.findDistinctCurrenciesWithTermRates();
     }
 }

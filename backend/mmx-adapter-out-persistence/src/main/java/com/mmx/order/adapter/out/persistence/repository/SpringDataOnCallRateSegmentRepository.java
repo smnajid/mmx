@@ -48,4 +48,42 @@ public interface SpringDataOnCallRateSegmentRepository
             """)
     int confirmPending(
             @Param("segmentId") UUID segmentId, @Param("validatedAt") Instant validatedAt);
+
+    @Query(
+            """
+            SELECT s FROM OnCallRateSegmentEntity s
+            INNER JOIN InstitutionEntity i ON i.institutionCode = s.institutionCode AND i.active = true
+            WHERE s.currency = :currency AND s.noticePeriod = :noticePeriod
+            AND s.status IN ('VALID', 'PENDING_CONFIRMATION')
+            AND s.endDate = :openEndDate
+            ORDER BY s.institutionCode
+            """)
+    List<OnCallRateSegmentEntity> findOpenSegmentsByCurrencyAndNoticePeriod(
+            @Param("currency") String currency,
+            @Param("noticePeriod") String noticePeriod,
+            @Param("openEndDate") LocalDate openEndDate);
+
+    @Query(
+            """
+            SELECT s FROM OnCallRateSegmentEntity s
+            INNER JOIN InstitutionEntity i ON i.institutionCode = s.institutionCode AND i.active = true
+            WHERE s.currency = :currency AND s.noticePeriod = :noticePeriod
+            AND s.status IN ('VALID', 'PENDING_CONFIRMATION')
+            AND s.valueDate <= :valueDate AND s.endDate >= :valueDate
+            ORDER BY s.institutionCode
+            """)
+    List<OnCallRateSegmentEntity> findSegmentsCoveringDate(
+            @Param("currency") String currency,
+            @Param("noticePeriod") String noticePeriod,
+            @Param("valueDate") LocalDate valueDate);
+
+    @Query(
+            """
+            SELECT DISTINCT s.currency FROM OnCallRateSegmentEntity s
+            INNER JOIN InstitutionEntity i ON i.institutionCode = s.institutionCode AND i.active = true
+            WHERE s.status IN ('VALID', 'PENDING_CONFIRMATION')
+            AND s.endDate = :openEndDate
+            ORDER BY s.currency
+            """)
+    List<String> findDistinctCurrenciesWithOpenOnCallSegments(@Param("openEndDate") LocalDate openEndDate);
 }

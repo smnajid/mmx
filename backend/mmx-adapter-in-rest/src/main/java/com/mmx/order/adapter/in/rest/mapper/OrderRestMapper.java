@@ -61,11 +61,8 @@ public class OrderRestMapper {
                         .status(OrderStatus.fromValue(order.getStatus().name()))
                         .assignedTraderId(assignment != null ? assignment.traderId().value() : null)
                         .createdAt(OffsetDateTime.ofInstant(order.getCreatedAt(), UTC));
-        ExecutionDetails summaryEx = order.getExecutionDetails();
-        if (summaryEx != null) {
-            summary.setCounterparty(summaryEx.counterparty());
-            summary.setInstitutionCode(summaryEx.institutionCode());
-        }
+        summary.setCounterparty(order.getCounterparty());
+        summary.setInstitutionCode(order.getInstitutionCode());
         if (order.getStatus() == com.mmx.order.domain.model.OrderStatus.EXECUTED
                 && order.getHandoffStatus() != null) {
             summary.setHandoffStatus(HandoffStatus.fromValue(order.getHandoffStatus().name()));
@@ -96,21 +93,19 @@ public class OrderRestMapper {
         d.setNoticePeriod(order.getNoticePeriod() != null ? order.getNoticePeriod().getCode() : null);
         d.setSourceContractNumber(
                 order.getSourceContractNumber() != null ? order.getSourceContractNumber().value() : null);
-        d.setDesiredCounterpartyComment(order.getDesiredCounterpartyComment());
         d.setAssignedTraderId(assignment != null ? assignment.traderId().value() : null);
         d.setAssignedAt(assignment != null
                 ? OffsetDateTime.ofInstant(assignment.assignedAt(), UTC)
                 : null);
+        d.setCounterparty(order.getCounterparty());
+        d.setInstitutionCode(order.getInstitutionCode());
         if (ex != null) {
             d.setExecutedRate(ex.executedRate().doubleValue());
-            d.setCounterparty(ex.counterparty());
-            d.setInstitutionCode(ex.institutionCode());
             d.setExecutionTime(OffsetDateTime.ofInstant(ex.executionTime(), UTC));
             d.setDealingReference(ex.dealingReference().value());
             d.setGeneratedContractNumber(ex.generatedContractNumber().value());
         } else {
             d.setExecutedRate(null);
-            d.setCounterparty(null);
             d.setExecutionTime(null);
             d.setDealingReference(null);
             d.setGeneratedContractNumber(null);
@@ -124,7 +119,7 @@ public class OrderRestMapper {
                 request.getExecutedRate() != null
                         ? BigDecimal.valueOf(request.getExecutedRate())
                         : null;
-        return new ExecuteOrderCommand(orderId, new TraderId(xTraderId), executedRate, request.getInstitutionCode());
+        return new ExecuteOrderCommand(orderId, new TraderId(xTraderId), executedRate);
     }
 
     public CancelOrderCommand toCancelCommand(UUID orderId, String xTraderId) {
@@ -158,7 +153,7 @@ public class OrderRestMapper {
                 request.getSourceContractNumber() == null
                         ? null
                         : new ContractNumber(request.getSourceContractNumber()),
-                request.getDesiredCounterpartyComment());
+                request.getInstitutionCode());
     }
 
     public ReceiveOrderResponse toReceiveResponse(ReceiveOrderUseCase.Result result) {

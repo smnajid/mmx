@@ -1,6 +1,6 @@
 # REST API Contract: Money Market Order Processing (baseline + trader workspaces)
 
-**Canonical OpenAPI 3 spec (contract-first, codegen)**: [openapi.yaml](./openapi.yaml) — **v1.5.0** adds **`handoffStatus`** on executed-list summaries (`PENDING` / `PUBLISHED` / `FAILED`) for back-office Kafka delivery visibility ([FR-013](spec.md)); Async companion for outbound Kafka remains [**asyncapi.yaml**](./asyncapi.yaml).
+**Canonical OpenAPI 3 spec (contract-first, codegen)**: [openapi.yaml](./openapi.yaml) — **v1.7.0** adds **Order Creation** wizard options (`/api/v1/order-creation/*`), requires **`institutionCode`** at intake, and makes execute **rate-only** (no `institutionCode` on execute). **v1.5.0** added **`handoffStatus`** on executed-list summaries (`PENDING` / `PUBLISHED` / `FAILED`) for back-office Kafka delivery visibility ([FR-013](spec.md)); Async companion for outbound Kafka remains [**asyncapi.yaml**](./asyncapi.yaml).
 
 **Base URL**: `/api/v1`
 **Content-Type**: `application/json`
@@ -39,13 +39,14 @@ Error codes: `VALIDATION_ERROR`, `ORDER_NOT_FOUND`, `INVALID_STATUS_TRANSITION`,
   "noticePeriod": "24H | 48H | null",
   "status": "RECEIVED | ASSIGNED | EXECUTED | ACCOUNTED | CANCELLED | REJECTED",
   "counterparty": "string | null",
+  "institutionCode": "string | null",
   "handoffStatus": "PENDING | PUBLISHED | FAILED | omitted",
   "assignedTraderId": "string | null",
   "createdAt": "2026-04-28T21:30:00Z"
 }
 ```
 
-`counterparty` is populated from execution details once the order is **EXECUTED** (or thereafter). When there is no counterparty yet, the field is **omitted** from JSON responses (omit-null), not serialized as `"counterparty": null`.
+`counterparty` and `institutionCode` are set at intake from Portfolio Management’s institution selection. When absent (e.g. legacy rows), fields are **omitted** from JSON responses (omit-null), not serialized as `null`.
 
 `handoffStatus` applies to **EXECUTED** rows on workspace executed-list endpoints (`GET .../term/executed`, `GET .../oncall/executed`). It reflects durable outbound **Kafka handoff** state (transactional outbox + relay), **not** `OrderStatus`: **`PENDING`** — outbox written, producer not yet acked; **`PUBLISHED`** — handoff message acked toward back-office, awaiting accounting; **`FAILED`** — retries exhausted (integration problem). The field is **omitted** when null or for non-EXECUTED summaries (omit-null).
 
@@ -71,12 +72,12 @@ Error codes: `VALIDATION_ERROR`, `ORDER_NOT_FOUND`, `INVALID_STATUS_TRANSITION`,
   "tenor": "1W | 2W | 1M | 3M | 6M | 1Y | null",
   "noticePeriod": "24H | 48H | null",
   "sourceContractNumber": "string | null",
-  "desiredCounterpartyComment": "string | null",
+  "institutionCode": "BNKCO",
   "status": "RECEIVED | ASSIGNED | EXECUTED | ACCOUNTED | CANCELLED | REJECTED",
   "assignedTraderId": "string | null",
   "assignedAt": "2026-04-28T21:30:00Z | null",
   "executedRate": 3.50000000,
-  "counterparty": "string | null",
+  "counterparty": "BankCo",
   "executionTime": "2026-04-28T22:00:00Z | null",
   "dealingReference": "string | null",
   "generatedContractNumber": "string | null",
@@ -113,7 +114,7 @@ Intake endpoint called by the external Portfolio Management system.
   "tenor": "3M",
   "noticePeriod": null,
   "sourceContractNumber": null,
-  "desiredCounterpartyComment": "Prefer BankCo if available"
+  "institutionCode": "BNKCO"
 }
 ```
 
@@ -130,7 +131,9 @@ Intake endpoint called by the external Portfolio Management system.
 | tenor | string | Conditional | Required if orderType=TERM; one of: 1W, 2W, 1M, 3M, 6M, 1Y |
 | noticePeriod | string | Conditional | Required if orderType=ON_CALL; one of: 24H, 48H |
 | sourceContractNumber | string | Conditional | Required if orderOperation ∈ {INCREASE, DECREASE, REDEMPTION}. For SUBSCRIPTION the system does not store this field; if PM sends it, it is discarded at reception. |
-| desiredCounterpartyComment | string | No | Free text; max 500 chars |
+| institutionCode | string | Yes | Active onboarded institution from the settings catalog; max 32 chars. Counterparty display name is derived server-side at intake. |
+
+**Breaking change (PM order creation wizard):** `desiredCounterpartyComment` is removed from intake. Portfolio Management selects the counterparty via `institutionCode` using the Order Creation options API.
 
 #### Responses
 
@@ -444,17 +447,15 @@ All fields are optional; only provided fields are updated.
 
 ```json
 {
-  "executedRate": 3.50000000,
-  "institutionCode": "HSBC-01"
+  "executedRate": 3.50000000
 }
 ```
 
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
 | executedRate | decimal | Yes | Must be ≥ 0; when the order has a `minimumRate` from intake, must be ≥ `minimumRate` |
-| institutionCode | string | Yes | Active onboarded institution from settings catalog; max 32 chars |
 
-**Breaking change (institution onboarding):** Free-text `counterparty` is no longer accepted on the execute request. The server sets response `counterparty` from the institution `displayName` and may expose `institutionCode` on executed order detail.
+**Breaking change (PM order creation wizard):** `institutionCode` is no longer accepted on execute — it is set at intake by Portfolio Management. The trader provides only `executedRate`. If the trader cannot deal with the PM-chosen counterparty, they must reject the order. The server still validates the intake institution remains active at execute time.
 
 #### Responses
 
@@ -531,6 +532,118 @@ All list endpoints use Spring's page-based pagination:
   "size": 20
 }
 ```
+
+### Order Creation Options (PM wizard)
+
+Read-only endpoints consumed by the external Portfolio Management application to build a step-by-step order creation wizard. **No `X-Trader-Id` header** required.
+
+#### Term currencies
+
+**GET** `/api/v1/order-creation/term/currencies`
+
+Returns currencies where the managed currency is active, has enabled tenors, and at least one active institution has a term rate.
+
+```json
+{
+  "tradingDate": "2026-06-06",
+  "currencies": ["EUR", "USD"]
+}
+```
+
+#### OnCall currencies
+
+**GET** `/api/v1/order-creation/oncall/currencies`
+
+Returns currencies with at least one open on-call segment from an active institution.
+
+```json
+{
+  "currencies": ["EUR"]
+}
+```
+
+#### Term operations
+
+**GET** `/api/v1/order-creation/term/operations?currency=EUR`
+
+Returns allowed Term operations with minimum amounts (Term allows only `SUBSCRIPTION`).
+
+```json
+{
+  "operations": [
+    { "operation": "SUBSCRIPTION", "minAmount": 500000.00 }
+  ]
+}
+```
+
+#### OnCall operations
+
+**GET** `/api/v1/order-creation/oncall/operations?currency=EUR`
+
+Returns all four OnCall operations with their minimum amounts.
+
+#### Term tenors
+
+**GET** `/api/v1/order-creation/term/tenors?currency=EUR`
+
+Returns enabled tenors with at least one counterparty rate.
+
+```json
+{
+  "tenors": ["1M", "3M"]
+}
+```
+
+#### OnCall notice periods
+
+**GET** `/api/v1/order-creation/oncall/notice-periods?currency=EUR`
+
+Returns enabled notice periods with at least one open counterparty segment.
+
+```json
+{
+  "noticePeriods": ["24H"]
+}
+```
+
+#### Term counterparties
+
+**GET** `/api/v1/order-creation/term/counterparties?currency=EUR&tenor=3M`
+
+Returns active institutions with the latest term rate per institution, sorted by best rate first.
+
+```json
+{
+  "counterparties": [
+    {
+      "institutionCode": "BNKCO",
+      "displayName": "BankCo",
+      "rate": 3.45,
+      "rateDate": "2026-06-06",
+      "indicative": false
+    }
+  ]
+}
+```
+
+#### OnCall counterparties
+
+**GET** `/api/v1/order-creation/oncall/counterparties?currency=EUR&noticePeriod=24H&valueDate=2026-06-09`
+
+Returns active institutions with a segment covering `valueDate`, sorted by best rate first. Same `CounterpartyOption` shape as Term counterparties.
+
+#### OnCall contract info
+
+**GET** `/api/v1/order-creation/oncall/contract-info?contractNumber=CT-00042`
+
+Looks up an executed OnCall **Subscription** by `generatedContractNumber`.
+
+| Status | Body |
+|--------|------|
+| `200 OK` | `{ "currency": "EUR", "noticePeriod": "24H" }` |
+| `404 Not Found` | ErrorResponse when no matching executed Subscription exists |
+
+---
 
 ### Decimal Serialization
 

@@ -169,10 +169,7 @@ class OrderAssignmentControllerTest {
                 new BigDecimal("1000000.00"),
                 TODAY.plusDays(3),
                 new BigDecimal("3.25000000"),
-                Tenor._3M,
-                null,
-                null,
-                null,
+                Tenor._3M, null, null, "BNKCO", "BankCo",
                 TODAY);
     }
 }

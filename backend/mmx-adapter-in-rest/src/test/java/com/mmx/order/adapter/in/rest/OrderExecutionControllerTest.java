@@ -98,7 +98,7 @@ class OrderExecutionControllerTest {
                         post("/api/v1/orders/" + order.getId() + "/execute")
                                 .header("X-Trader-Id", "trader-a")
                                 .contentType(APPLICATION_JSON)
-                                .content("{\"executedRate\":3.55,\"institutionCode\":\"HSBC-01\"}"))
+                                .content("{\"executedRate\":3.55}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("EXECUTED"))
                 .andExpect(jsonPath("$.orderId").value(order.getId().toString()))
@@ -132,7 +132,7 @@ class OrderExecutionControllerTest {
                         post("/api/v1/orders/" + id + "/execute")
                                 .header("X-Trader-Id", "intruder")
                                 .contentType(APPLICATION_JSON)
-                                .content("{\"executedRate\":3.5,\"institutionCode\":\"HSBC-01\"}"))
+                                .content("{\"executedRate\":3.5}"))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.error").value("UNAUTHORIZED_TRADER"));
     }
@@ -147,7 +147,7 @@ class OrderExecutionControllerTest {
                         post("/api/v1/orders/" + id + "/execute")
                                 .header("X-Trader-Id", "trader-a")
                                 .contentType(APPLICATION_JSON)
-                                .content("{\"executedRate\":3.5,\"institutionCode\":\"HSBC-01\"}"))
+                                .content("{\"executedRate\":3.5}"))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.error").value("INVALID_STATUS_TRANSITION"));
     }
@@ -201,10 +201,7 @@ class OrderExecutionControllerTest {
                         new BigDecimal("1000000.00"),
                         TODAY.plusDays(3),
                         new BigDecimal("3.25000000"),
-                        Tenor._3M,
-                        null,
-                        null,
-                        null,
+                        Tenor._3M, null, null, "BNKCO", "BankCo",
                         TODAY);
         order.assign(new TraderId("trader-a"), NOW);
         order.execute(

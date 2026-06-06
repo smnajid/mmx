@@ -4,9 +4,11 @@ import com.mmx.order.application.command.ReceiveOrderCommand;
 import com.mmx.order.application.port.in.ReceiveOrderUseCase;
 import com.mmx.order.application.port.out.AuditLogger;
 import com.mmx.order.application.port.out.Clock;
+import com.mmx.order.application.port.out.InstitutionRepository;
 import com.mmx.order.application.port.out.ManagedCurrencyRepository;
 import com.mmx.order.application.port.out.OpenPositionPort;
 import com.mmx.order.application.port.out.OrderRepository;
+import com.mmx.order.domain.model.Institution;
 import com.mmx.order.domain.model.ManagedCurrency;
 import com.mmx.order.domain.model.NoticePeriod;
 import com.mmx.order.domain.exception.InvalidOrderException;
@@ -63,6 +65,9 @@ class ReceiveOrderServiceTest {
     ManagedCurrencyRepository managedCurrencyRepository;
 
     @Mock
+    InstitutionRepository institutionRepository;
+
+    @Mock
     OpenPositionPort openPositionPort;
 
     ReceiveOrderService subject;
@@ -73,8 +78,26 @@ class ReceiveOrderServiceTest {
         when(clock.today()).thenReturn(TODAY);
         subject =
                 new ReceiveOrderService(
-                        orderRepository, managedCurrencyRepository, openPositionPort, auditLogger, clock);
+                        orderRepository,
+                        managedCurrencyRepository,
+                        institutionRepository,
+                        openPositionPort,
+                        auditLogger,
+                        clock);
         when(managedCurrencyRepository.findByCode("EUR")).thenReturn(Optional.of(permissiveEur()));
+        when(managedCurrencyRepository.findByCode("USD")).thenReturn(Optional.of(permissiveUsd()));
+        when(institutionRepository.findByInstitutionCode("BNKCO"))
+                .thenReturn(Optional.of(new Institution("BNKCO", "BankCo", true)));
+    }
+
+    private static ManagedCurrency permissiveUsd() {
+        return new ManagedCurrency(
+                "USD",
+                true,
+                new BigDecimal("1.00"),
+                new BigDecimal("1.00"),
+                EnumSet.allOf(Tenor.class),
+                EnumSet.allOf(NoticePeriod.class));
     }
 
     private static ManagedCurrency permissiveEur() {
@@ -124,7 +147,7 @@ class ReceiveOrderServiceTest {
                         Tenor._3M,
                         null,
                         new ContractNumber("CN-should-not-stick"),
-                        "note");
+                        "BNKCO");
 
         when(orderRepository.findByExternalOrderReference(ref)).thenReturn(Optional.empty());
         when(orderRepository.save(any(MoneyMarketOrder.class))).then(returnsFirstArg());
@@ -168,7 +191,8 @@ class ReceiveOrderServiceTest {
                         Tenor._3M,
                         null,
                         null,
-                        "Old comment",
+                        "BNKCO",
+                        "BankCo",
                         TODAY);
 
         ReceiveOrderCommand differentPayload =
@@ -184,7 +208,7 @@ class ReceiveOrderServiceTest {
                         Tenor._6M,
                         null,
                         null,
-                        "New payload must be ignored");
+                        "BNKCO");
 
         when(orderRepository.findByExternalOrderReference(ref)).thenReturn(Optional.of(existing));
 
@@ -222,7 +246,7 @@ class ReceiveOrderServiceTest {
                         Tenor._1M,
                         null,
                         null,
-                        null);
+                        "BNKCO");
 
         when(orderRepository.findByExternalOrderReference(ref)).thenReturn(Optional.empty());
 
@@ -245,6 +269,6 @@ class ReceiveOrderServiceTest {
                 Tenor._3M,
                 null,
                 null,
-                "Prefer stable bank");
+                "BNKCO");
     }
 }

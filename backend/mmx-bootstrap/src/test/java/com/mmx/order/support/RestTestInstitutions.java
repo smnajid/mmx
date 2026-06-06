@@ -8,11 +8,11 @@ public final class RestTestInstitutions {
 
     private RestTestInstitutions() {}
 
-    public static String executeJson(double executedRate, String institutionCode) {
-        return "{\"executedRate\":" + executedRate + ",\"institutionCode\":\"" + institutionCode + "\"}";
+    public static String rateOnlyExecuteJson(double executedRate) {
+        return "{\"executedRate\":" + executedRate + "}";
     }
 
     public static String bankCoExecuteJson(double executedRate) {
-        return executeJson(executedRate, BANKCO_CODE);
+        return rateOnlyExecuteJson(executedRate);
     }
 }

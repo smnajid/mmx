@@ -82,11 +82,17 @@ public class OrderModuleConfiguration {
     public ReceiveOrderUseCase receiveOrderUseCase(
             OrderRepository orderRepository,
             ManagedCurrencyRepository managedCurrencyRepository,
+            InstitutionRepository institutionRepository,
             OpenPositionPort openPositionPort,
             AuditLogger auditLogger,
             Clock clock) {
         return new ReceiveOrderService(
-                orderRepository, managedCurrencyRepository, openPositionPort, auditLogger, clock);
+                orderRepository,
+                managedCurrencyRepository,
+                institutionRepository,
+                openPositionPort,
+                auditLogger,
+                clock);
     }
 
     @Bean

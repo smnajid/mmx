@@ -2,88 +2,65 @@
 
 ## Purpose
 
-Enforce onboarded **institution** rules at **order execution**: assigned traders MUST select an active catalog institution; execution facts persist **counterparty** (order vocabulary) from the institution’s `displayName`. Uses `OrderAgainstInstitutionPolicy` with `InstitutionRepository`. Contract-first execute API delta in `specs/002-trader-orders-views/contracts/openapi.yaml`.
+Enforce onboarded **institution** rules at **order intake** and **execution**: Portfolio Management MUST supply an active catalog `institutionCode` at intake; the system derives **counterparty** (order vocabulary) from the institution's `displayName`. At execute, assigned traders provide only `executedRate` — the intake institution is locked; traders who cannot deal with the PM-chosen counterparty MUST reject the order. Uses `OrderAgainstInstitutionPolicy` with `InstitutionRepository`. Contract-first execute and intake API delta in `specs/002-trader-orders-views/contracts/openapi.yaml`.
 
-## ADDED Requirements
-
-### Requirement: Reject execute when institution catalog is empty
-
-Before validating a specific institution, the system SHALL reject execute when no institution row exists in the catalog (strict execute cold start, mirror currencies discipline for reference data setup).
-
-#### Scenario: Empty catalog rejects execute
-
-- **WHEN** the assigned trader submits a valid execute request and the institution catalog is empty
-- **THEN** the system rejects execute with a clear error indicating institutions must be onboarded first
-- **AND** the order remains in ASSIGNED status
-
----
+## Requirements
 
 ### Requirement: Execute requires active onboarded institutionCode
 
-On execute, the trader request SHALL include **`institutionCode`** referencing a catalog row. The system MUST reject execute when the code is unknown or the institution is inactive. The system MUST NOT accept free-text **counterparty** on the execute request as the source of truth for catalog validation.
+On execute, the trader request SHALL include only **`executedRate`**. The **`institutionCode`** is already set on the order at intake by Portfolio Management. The system SHALL use the intake-provided institution for execution — the trader MUST NOT change the counterparty. If the trader cannot deal with the PM-chosen counterparty, they MUST reject the order. The system MUST still validate that the institution remains active at execution time.
 
-#### Scenario: Successful execute with institutionCode
+#### Scenario: Successful execute uses intake institution
 
-- **WHEN** the assigned trader executes with `institutionCode` `HSBC-01` for an active institution with `displayName` `HSBC`
-- **THEN** the order transitions to EXECUTED
-- **AND** persisted execution **counterparty** equals `HSBC` (the institution `displayName`)
+- **WHEN** the assigned trader executes an order that was received with `institutionCode` `HSBC-01` (active, displayName `HSBC`) and provides only `executedRate` 3.45
+- **THEN** the order transitions to EXECUTED with counterparty `HSBC` and executedRate 3.45
 
-#### Scenario: Unknown institutionCode rejects execute
+#### Scenario: Execute with stale institution rejects
 
-- **WHEN** the assigned trader executes with `institutionCode` `NOPE-01` that does not exist
+- **WHEN** institution `HSBC-01` was active at intake but is now inactive, and the assigned trader submits execute
 - **THEN** the system rejects execute with a clear institution error
 - **AND** the order remains ASSIGNED
 
-#### Scenario: Inactive institution rejects execute
+#### Scenario: Trader rejects order when counterparty is unworkable
 
-- **WHEN** `HSBC-01` is inactive and the assigned trader executes with `institutionCode` `HSBC-01`
-- **THEN** the system rejects execute with a clear institution error
-- **AND** the order remains ASSIGNED
-
-#### Scenario: Missing institutionCode rejects execute
-
-- **WHEN** the assigned trader submits execute without `institutionCode`
-- **THEN** the system rejects execute with a clear validation error
+- **WHEN** the assigned trader cannot deal with the PM-chosen counterparty
+- **THEN** the trader rejects the order with a reason explaining why the counterparty cannot be serviced
 
 ---
 
 ### Requirement: Execute API is contract-first with institutionCode
 
-The canonical OpenAPI for trader execute (`specs/002-trader-orders-views/contracts/openapi.yaml`) SHALL define **`institutionCode`** as required on the execute request body. Prose mirror `api-v1.md` SHALL match. Generated server interfaces and Angular clients MUST align with the published contract in the same delivery.
+The canonical OpenAPI for trader execute (`specs/002-trader-orders-views/contracts/openapi.yaml`) SHALL define `ExecuteOrderRequest` with only **`executedRate`** as required. `institutionCode` and `counterparty` SHALL NOT appear on the execute request body — they are set at intake. Prose mirror `api-v1.md` SHALL match. Generated server interfaces and Angular clients MUST align with the published contract in the same delivery.
 
-#### Scenario: OpenAPI documents required institutionCode
+#### Scenario: OpenAPI documents rate-only execute
 
 - **WHEN** a consumer reads the execute operation schema
-- **THEN** `institutionCode` is required and `counterparty` is not a client-supplied execute input field
-
----
-
-### Requirement: Execute UI selects institution from catalog
-
-On the order details execute action, the trader application SHALL provide **autocomplete** (or equivalent constrained picker) over **active** institutions: visible label **`displayName`**, submitted value **`institutionCode`**. The UI MUST NOT offer unconstrained free-text counterparty entry for execute.
-
-#### Scenario: Autocomplete shows active institutions only
-
-- **WHEN** the assignee opens execute on an ASSIGNED order and `HSBC-01` is active and `BCI-01` is inactive
-- **THEN** the picker includes `HSBC-01` (by display name) and excludes inactive `BCI-01`
-
-#### Scenario: Execute disabled when catalog empty
-
-- **WHEN** the assignee opens execute and the institution catalog is empty
-- **THEN** execute is not submittable and the trader is directed to onboard institutions in Settings
-
-#### Scenario: Submit sends institutionCode
-
-- **WHEN** the assignee selects institution `HSBC` (`HSBC-01`) and confirms execute
-- **THEN** the client calls the execute API with `institutionCode` `HSBC-01` and not a free-text counterparty field
+- **THEN** `executedRate` is required and neither `institutionCode` nor `counterparty` is a client-supplied execute input field
 
 ---
 
 ### Requirement: Intake unchanged for institutions in phase 1
 
-Portfolio Management intake (`POST /api/v1/orders`) SHALL NOT require an institution field in this capability. Institution rules apply at execute only.
+**Superseded.** Portfolio Management intake (`POST /api/v1/orders`) SHALL now require **`institutionCode`** referencing an active institution. The system SHALL validate the institution is active and onboarded, derive `counterparty` from `Institution.displayName`, and persist both on the order at reception. `desiredCounterpartyComment` is removed from the intake request.
 
-#### Scenario: Intake succeeds without institution catalog
+#### Scenario: Intake with valid active institutionCode succeeds
 
-- **WHEN** Portfolio Management submits a structurally valid order and the institution catalog is empty but currency rules pass
-- **THEN** intake succeeds and the order is persisted (execute remains blocked until institutions exist)
+- **WHEN** Portfolio Management submits a valid order with `institutionCode` `BNKCO` for active institution with displayName `BankCo`
+- **THEN** intake succeeds, the order is persisted with institutionCode `BNKCO` and counterparty `BankCo`
+
+#### Scenario: Intake with unknown institutionCode is rejected
+
+- **WHEN** Portfolio Management submits an order with `institutionCode` `NOPE-01` that does not exist
+- **THEN** the system rejects intake with a clear institution error
+- **AND** no order is created
+
+#### Scenario: Intake with inactive institutionCode is rejected
+
+- **WHEN** Portfolio Management submits an order with `institutionCode` `DEAD-01` for an inactive institution
+- **THEN** the system rejects intake with a clear institution error
+- **AND** no order is created
+
+#### Scenario: Intake without institutionCode is rejected
+
+- **WHEN** Portfolio Management submits an order without `institutionCode`
+- **THEN** the system rejects intake with a validation error

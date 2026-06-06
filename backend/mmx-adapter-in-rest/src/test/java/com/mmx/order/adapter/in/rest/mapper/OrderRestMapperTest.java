@@ -90,7 +90,6 @@ class OrderRestMapperTest {
     void toExecuteCommand_mapsFields() {
         var request = new ExecuteOrderRequest();
         request.setExecutedRate(3.5);
-        request.setInstitutionCode("HSBC-01");
         UUID id = UUID.randomUUID();
 
         var command = mapper.toExecuteCommand(request, id, "trader-a");
@@ -98,7 +97,6 @@ class OrderRestMapperTest {
         assertThat(command.orderId()).isEqualTo(id);
         assertThat(command.traderId()).isEqualTo(new TraderId("trader-a"));
         assertThat(command.executedRate()).isEqualByComparingTo(new BigDecimal("3.5"));
-        assertThat(command.institutionCode()).isEqualTo("HSBC-01");
     }
 
     private static MoneyMarketOrder receivedTerm() {
@@ -111,10 +109,7 @@ class OrderRestMapperTest {
                 new BigDecimal("1000000.00"),
                 TODAY.plusDays(3),
                 new BigDecimal("3.25000000"),
-                Tenor._3M,
-                null,
-                null,
-                null,
+                Tenor._3M, null, null, "BNKCO", "BankCo",
                 TODAY);
     }
 

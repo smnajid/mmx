@@ -50,12 +50,13 @@ public final class ExecuteOrderService implements ExecuteOrderUseCase {
         validate(command);
         institutionPolicy.validateCatalogNotEmpty(institutionRepository.existsAny());
 
-        var institutionOpt = institutionRepository.findByInstitutionCode(command.institutionCode());
-        institutionPolicy.validateExecute(command.institutionCode(), institutionOpt);
-        Institution institution = institutionOpt.orElseThrow();
-
         MoneyMarketOrder order =
                 orderRepository.findById(command.orderId()).orElseThrow(() -> new OrderNotFoundException(command.orderId()));
+
+        String institutionCode = order.getInstitutionCode();
+        var institutionOpt = institutionRepository.findByInstitutionCode(institutionCode);
+        institutionPolicy.validateExecute(institutionCode, institutionOpt);
+        Institution institution = institutionOpt.orElseThrow();
 
         var now = clock.now();
         ContractNumber contractNumber = resolveExecutionContractNumber(order);
@@ -81,9 +82,6 @@ public final class ExecuteOrderService implements ExecuteOrderUseCase {
     private static void validate(ExecuteOrderCommand command) {
         if (command.executedRate() == null) {
             throw new InvalidOrderException("executedRate is required");
-        }
-        if (command.institutionCode() == null || command.institutionCode().isBlank()) {
-            throw new InvalidOrderException("institutionCode is required");
         }
     }
 

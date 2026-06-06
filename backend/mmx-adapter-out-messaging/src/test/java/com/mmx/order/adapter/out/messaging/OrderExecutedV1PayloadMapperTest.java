@@ -59,10 +59,7 @@ class OrderExecutedV1PayloadMapperTest {
                         new BigDecimal("1000000.00"),
                         TODAY.plusDays(5),
                         new BigDecimal("3.25"),
-                        Tenor._3M,
-                        null,
-                        null,
-                        null,
+                        Tenor._3M, null, null, "BNKCO", "BankCo",
                         TODAY);
         order.assign(new TraderId("alice"), Instant.parse("2026-05-10T10:00:00Z"));
         order.execute(

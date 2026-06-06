@@ -63,6 +63,7 @@ rules:
     - If behaviour is exposed over HTTP, requirement text SHOULD be consistent with eventual **OpenAPI** operations and schemas (contract-first).
 
   tasks:
+    - Read `.cursor/skills/tdd/SKILL.md` and align task breakdown with its red-green-refactor workflow and test-quality guidance.
     - Prefer ordering **failing tests before implementation** for new behaviour and fixes (TDD).
     - Backend tasks MUST name layers (`domain` / `application` / `adapter-in-rest` / `adapter-out-*` / `bootstrap`) — no shortcutting through the wrong module.
     - '**REST changes**: explicit steps to update **`openapi.yaml`**, **`api-v1.md`**, run **codegen**, then adapt controllers/domain — never the reverse order.'

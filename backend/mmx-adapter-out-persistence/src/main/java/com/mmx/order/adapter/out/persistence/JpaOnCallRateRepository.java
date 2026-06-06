@@ -3,6 +3,7 @@ package com.mmx.order.adapter.out.persistence;
 import com.mmx.order.adapter.out.persistence.mapper.OnCallRateSegmentPersistenceMapper;
 import com.mmx.order.adapter.out.persistence.repository.SpringDataOnCallRateSegmentRepository;
 import com.mmx.order.application.port.out.OnCallRateRepository;
+import com.mmx.order.domain.model.NoticePeriod;
 import com.mmx.order.domain.model.OnCallCurveKey;
 import com.mmx.order.domain.model.OnCallRateSegment;
 import com.mmx.order.domain.model.OnCallRateSegmentStatus;
@@ -81,5 +82,32 @@ public class JpaOnCallRateRepository implements OnCallRateRepository {
     @Override
     public boolean compareAndConfirmPending(UUID segmentId, Instant validatedAt) {
         return springDataRepository.confirmPending(segmentId, validatedAt) > 0;
+    }
+
+    @Override
+    public List<OnCallRateSegment> findOpenSegmentsByCurrencyAndNoticePeriod(
+            String currency, NoticePeriod noticePeriod) {
+        return springDataRepository
+                .findOpenSegmentsByCurrencyAndNoticePeriod(
+                        currency, noticePeriod.name(), OnCallRateSegment.NO_END_DATE)
+                .stream()
+                .map(mapper::toDomain)
+                .toList();
+    }
+
+    @Override
+    public List<OnCallRateSegment> findSegmentsCoveringDate(
+            String currency, NoticePeriod noticePeriod, LocalDate valueDate) {
+        return springDataRepository
+                .findSegmentsCoveringDate(currency, noticePeriod.name(), valueDate)
+                .stream()
+                .map(mapper::toDomain)
+                .toList();
+    }
+
+    @Override
+    public List<String> findDistinctCurrenciesWithOpenOnCallSegments() {
+        return springDataRepository.findDistinctCurrenciesWithOpenOnCallSegments(
+                OnCallRateSegment.NO_END_DATE);
     }
 }

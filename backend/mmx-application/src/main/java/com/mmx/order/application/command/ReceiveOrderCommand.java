@@ -23,5 +23,5 @@ public record ReceiveOrderCommand(
         Tenor tenor,
         NoticePeriod noticePeriod,
         ContractNumber sourceContractNumber,
-        String desiredCounterpartyComment
+        String institutionCode
 ) {}

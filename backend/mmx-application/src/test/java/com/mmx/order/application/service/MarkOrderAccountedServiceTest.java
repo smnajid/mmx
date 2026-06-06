@@ -113,10 +113,7 @@ class MarkOrderAccountedServiceTest {
                 new BigDecimal("1000000.00"),
                 TODAY.plusDays(5),
                 new BigDecimal("3.25"),
-                Tenor._3M,
-                null,
-                null,
-                null,
+                Tenor._3M, null, null, "BNKCO", "BankCo",
                 TODAY);
         when(orderRepository.findById(received.getId())).thenReturn(Optional.of(received));
 
@@ -138,10 +135,7 @@ class MarkOrderAccountedServiceTest {
                         new BigDecimal("1000000.00"),
                         TODAY.plusDays(5),
                         new BigDecimal("3.25"),
-                        Tenor._3M,
-                        null,
-                        null,
-                        null,
+                        Tenor._3M, null, null, "BNKCO", "BankCo",
                         TODAY);
         order.assign(new TraderId("trader-x"), T0);
         order.execute(

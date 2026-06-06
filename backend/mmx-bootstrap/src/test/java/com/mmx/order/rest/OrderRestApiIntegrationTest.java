@@ -6,6 +6,7 @@ import com.mmx.order.MmxApplication;
 import com.mmx.order.adapter.out.integration.InMemoryOpenPositionPort;
 import com.mmx.order.domain.model.ContractNumber;
 import com.mmx.order.domain.model.OpenContractPosition;
+import com.mmx.order.support.RestTestInstitutions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -84,10 +85,11 @@ class OrderRestApiIntegrationTest {
                   "currency": "JPY",
                   "amount": 1000000.00,
                   "valueDate": "%s",
-                  "tenor": "3M"
+                  "tenor": "3M",
+                  "institutionCode": "%s"
                 }
                 """
-                        .formatted(ref, valueDate);
+                        .formatted(ref, valueDate, RestTestInstitutions.BANKCO_CODE);
         HttpResponse<String> res = postJson("/api/v1/orders", json);
         assertThat(res.statusCode()).isEqualTo(400);
     }
@@ -106,10 +108,11 @@ class OrderRestApiIntegrationTest {
                   "currency": "EUR",
                   "amount": 0.50,
                   "valueDate": "%s",
-                  "tenor": "3M"
+                  "tenor": "3M",
+                  "institutionCode": "%s"
                 }
                 """
-                        .formatted(ref, valueDate);
+                        .formatted(ref, valueDate, RestTestInstitutions.BANKCO_CODE);
         assertThat(postJson("/api/v1/orders", json).statusCode()).isEqualTo(400);
     }
 
@@ -144,10 +147,11 @@ class OrderRestApiIntegrationTest {
                   "currency": "SEK",
                   "amount": 1000000.00,
                   "valueDate": "%s",
-                  "tenor": "3M"
+                  "tenor": "3M",
+                  "institutionCode": "%s"
                 }
                 """
-                        .formatted(ref, valueDate);
+                        .formatted(ref, valueDate, RestTestInstitutions.BANKCO_CODE);
         assertThat(postJson("/api/v1/orders", json).statusCode()).isEqualTo(400);
     }
 
@@ -169,10 +173,11 @@ class OrderRestApiIntegrationTest {
                   "amount": 60.00,
                   "valueDate": "%s",
                   "sourceContractNumber": "CNT-IT-FLOOR",
-                  "noticePeriod": "24H"
+                  "noticePeriod": "24H",
+                  "institutionCode": "%s"
                 }
                 """
-                        .formatted(ref, valueDate);
+                        .formatted(ref, valueDate, RestTestInstitutions.CP_OC_CODE);
         assertThat(postJson("/api/v1/orders", json).statusCode()).isEqualTo(400);
     }
 
@@ -305,7 +310,7 @@ class OrderRestApiIntegrationTest {
         HttpResponse<String> exec =
                 postJson(
                         "/api/v1/orders/" + orderId + "/execute",
-                        com.mmx.order.support.RestTestInstitutions.bankCoExecuteJson(3.5),
+                        RestTestInstitutions.bankCoExecuteJson(3.5),
                         TRADER);
         assertThat(exec.statusCode()).isEqualTo(200);
 
@@ -334,7 +339,7 @@ class OrderRestApiIntegrationTest {
         String onId = objectMapper.readTree(ocPost.body()).path("orderId").asText();
         assertThat(postEmpty("/api/v1/orders/" + termId + "/assign", TRADER).statusCode()).isEqualTo(200);
         assertThat(postEmpty("/api/v1/orders/" + onId + "/assign", TRADER).statusCode()).isEqualTo(200);
-        String execPayload = com.mmx.order.support.RestTestInstitutions.bankCoExecuteJson(3.5);
+        String execPayload = RestTestInstitutions.bankCoExecuteJson(3.5);
         assertThat(postJson("/api/v1/orders/" + termId + "/execute", execPayload, TRADER).statusCode()).isEqualTo(200);
         assertThat(postJson("/api/v1/orders/" + onId + "/execute", execPayload, TRADER).statusCode()).isEqualTo(200);
 
@@ -364,8 +369,7 @@ class OrderRestApiIntegrationTest {
         String onId = objectMapper.readTree(ocPost.body()).path("orderId").asText();
         postEmpty("/api/v1/orders/" + termId + "/assign", TRADER);
         postEmpty("/api/v1/orders/" + onId + "/assign", TRADER);
-        String execPayload =
-                com.mmx.order.support.RestTestInstitutions.executeJson(3.5, com.mmx.order.support.RestTestInstitutions.CP_OC_CODE);
+        String execPayload = RestTestInstitutions.rateOnlyExecuteJson(3.5);
         postJson("/api/v1/orders/" + termId + "/execute", execPayload, TRADER);
         postJson("/api/v1/orders/" + onId + "/execute", execPayload, TRADER);
 
@@ -393,7 +397,7 @@ class OrderRestApiIntegrationTest {
         assertThat(
                         postJson(
                                         "/api/v1/orders/" + orderId + "/execute",
-                                        com.mmx.order.support.RestTestInstitutions.bankCoExecuteJson(3.5),
+                                        RestTestInstitutions.bankCoExecuteJson(3.5),
                                         TRADER)
                                 .statusCode())
                 .isEqualTo(200);
@@ -435,7 +439,7 @@ class OrderRestApiIntegrationTest {
         postEmpty("/api/v1/orders/" + orderId + "/assign", TRADER);
         postJson(
                 "/api/v1/orders/" + orderId + "/execute",
-                com.mmx.order.support.RestTestInstitutions.bankCoExecuteJson(3.5),
+                RestTestInstitutions.bankCoExecuteJson(3.5),
                 TRADER);
 
         assertThat(postJsonBackOffice("/api/v1/back-office/orders/" + orderId + "/accounted", "{}").statusCode())
@@ -460,7 +464,7 @@ class OrderRestApiIntegrationTest {
         postEmpty("/api/v1/orders/" + orderId + "/assign", TRADER);
         postJson(
                 "/api/v1/orders/" + orderId + "/execute",
-                com.mmx.order.support.RestTestInstitutions.bankCoExecuteJson(3.5),
+                RestTestInstitutions.bankCoExecuteJson(3.5),
                 TRADER);
 
         HttpResponse<String> bo = postJsonBackOffice("/api/v1/back-office/orders/" + orderId + "/accounted", "{}");
@@ -583,10 +587,11 @@ class OrderRestApiIntegrationTest {
                   "amount": 1000000.00,
                   "valueDate": "%s",
                   "minimumRate": 3.25,
-                  "tenor": "3M"
+                  "tenor": "3M",
+                  "institutionCode": "%s"
                 }
                 """
-                .formatted(externalOrderReference, valueDate);
+                .formatted(externalOrderReference, valueDate, RestTestInstitutions.BANKCO_CODE);
     }
 
     private static String onCallSubscribeJson(String externalOrderReference) {
@@ -601,10 +606,11 @@ class OrderRestApiIntegrationTest {
                   "amount": 500000.00,
                   "valueDate": "%s",
                   "minimumRate": 2.50,
-                  "noticePeriod": "24H"
+                  "noticePeriod": "24H",
+                  "institutionCode": "%s"
                 }
                 """
-                .formatted(externalOrderReference, valueDate);
+                .formatted(externalOrderReference, valueDate, RestTestInstitutions.CP_OC_CODE);
     }
 
     private static String termSubscribeJsonWithoutMinimum(String externalOrderReference) {
@@ -618,9 +624,10 @@ class OrderRestApiIntegrationTest {
                   "currency": "EUR",
                   "amount": 1000000.00,
                   "valueDate": "%s",
-                  "tenor": "3M"
+                  "tenor": "3M",
+                  "institutionCode": "%s"
                 }
                 """
-                .formatted(externalOrderReference, valueDate);
+                .formatted(externalOrderReference, valueDate, RestTestInstitutions.BANKCO_CODE);
     }
 }

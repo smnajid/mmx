@@ -238,10 +238,7 @@ class DeskOrderQueryServiceTest {
                 new BigDecimal("100000.00"),
                 TODAY.plusDays(5),
                 new BigDecimal("2.00000000"),
-                Tenor._1M,
-                null,
-                null,
-                null,
+                Tenor._1M, null, null, "BNKCO", "BankCo",
                 TODAY);
     }
 
@@ -256,9 +253,7 @@ class DeskOrderQueryServiceTest {
                 TODAY.plusDays(5),
                 new BigDecimal("1.50000000"),
                 null,
-                NoticePeriod._24H,
-                null,
-                null,
+                NoticePeriod._24H, null, "BNKCO", "BankCo",
                 TODAY);
     }
 }

@@ -36,7 +36,8 @@ public class OrderPersistenceMapper {
         e.setNoticePeriod(order.getNoticePeriod() != null ? order.getNoticePeriod().name() : null);
         e.setSourceContractNumber(
                 order.getSourceContractNumber() != null ? order.getSourceContractNumber().value() : null);
-        e.setDesiredCounterpartyComment(order.getDesiredCounterpartyComment());
+        e.setInstitutionCode(order.getInstitutionCode());
+        e.setCounterparty(order.getCounterparty());
         e.setStatus(order.getStatus().name());
         e.setCreatedAt(order.getCreatedAt());
         e.setUpdatedAt(order.getUpdatedAt());
@@ -83,7 +84,8 @@ public class OrderPersistenceMapper {
                 tenor,
                 noticePeriod,
                 sourceContract,
-                e.getDesiredCounterpartyComment(),
+                e.getInstitutionCode(),
+                e.getCounterparty(),
                 OrderStatus.valueOf(e.getStatus()),
                 buildAssignment(e),
                 buildExecutionDetails(e),

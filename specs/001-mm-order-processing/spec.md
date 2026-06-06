@@ -17,6 +17,10 @@
 
 - Q: Who controls MinimumRate, and when is it required? → A: MinimumRate is an **optional** field supplied by Portfolio Management at intake only. When present, it states the Portfolio Manager’s **minimum acceptable executed rate** (execution condition); the Trader MUST NOT edit it after intake. When absent, the Trader places the deposit under **best available market conditions** (no PM-specified rate floor). If a PM-specified floor is present but cannot be met, the Trader MUST **reject** the order (with reason); the system MUST NOT allow recording an execution with ExecutedRate below that floor when MinimumRate was supplied.
 
+### Session 2026-06-06
+
+- Q: When and how is Counterparty chosen? → A: Portfolio Management selects an active onboarded **institution** via required `institutionCode` at intake (using the Order Creation options API). The system derives **counterparty** (institution display name) at reception and locks it for the order lifecycle. The Trader records execution with **ExecutedRate only**; if the Trader cannot deal with the PM-chosen counterparty, they MUST **reject** the order. `desiredCounterpartyComment` is removed from intake.
+
 ## Order lifecycle (workflow discipline)
 
 The order lifecycle MUST follow an explicit, deterministic state machine. This section is the authoritative definition of allowed statuses and transitions (aligned with **FR-019** and **FR-020**).
@@ -85,7 +89,7 @@ A Trader selects a Received order and assigns it to themselves. This signals tha
 
 ### User Story 3 — Execute an Order (Priority: P3)
 
-After market dealing happens outside the system, the assigned Trader records the execution outcome. The Trader provides the ExecutedRate and the chosen Counterparty. The system generates a DealingReference, allocates or reuses the ContractNumber recorded as execution `generatedContractNumber` (**new** for Subscription via `ReferenceGenerator`; **equal to intake** `sourceContractNumber` for Increase, Decrease, and Redemption), and records the ExecutionTime automatically. The order then moves to Executed status. When Portfolio Management supplied a MinimumRate at intake, ExecutedRate must meet or exceed it; when MinimumRate was omitted, execution reflects best market outcome with no PM rate floor enforced beyond ExecutedRate being valid.
+After market dealing happens outside the system, the assigned Trader records the execution outcome. The Trader provides **ExecutedRate only**; **Counterparty** was locked at intake from Portfolio Management’s `institutionCode` selection. The system generates a DealingReference, allocates or reuses the ContractNumber recorded as execution `generatedContractNumber` (**new** for Subscription via `ReferenceGenerator`; **equal to intake** `sourceContractNumber` for Increase, Decrease, and Redemption), and records the ExecutionTime automatically. The order then moves to Executed status. When Portfolio Management supplied a MinimumRate at intake, ExecutedRate must meet or exceed it; when MinimumRate was omitted, execution reflects best market outcome with no PM rate floor enforced beyond ExecutedRate being valid. If the Trader cannot deal with the PM-chosen counterparty, they MUST reject the order rather than substitute a different institution at execute time.
 
 **Why this priority**: Execution is the primary business outcome — it captures the result of market dealing and generates the identifiers needed by downstream systems.
 
@@ -93,13 +97,13 @@ After market dealing happens outside the system, the assigned Trader records the
 
 **Acceptance Scenarios**:
 
-1. **Given** an order assigned to a Trader, **When** the Trader provides a valid ExecutedRate and Counterparty, **Then** the order moves to Executed status with a system-generated DealingReference, an execution ContractNumber per Subscription vs lifecycle rules (see FR-018), and ExecutionTime.
+1. **Given** an order assigned to a Trader with counterparty locked from intake, **When** the Trader provides a valid ExecutedRate, **Then** the order moves to Executed status with a system-generated DealingReference, an execution ContractNumber per Subscription vs lifecycle rules (see FR-018), and ExecutionTime, using the intake counterparty.
 2. **Given** an order assigned to a Trader, **When** the Trader attempts to execute without providing ExecutedRate, **Then** the system rejects the execution with a clear error.
-3. **Given** an order assigned to a Trader, **When** the Trader attempts to execute without providing Counterparty, **Then** the system rejects the execution.
-4. **Given** an order assigned to Trader A, **When** Trader B attempts to execute it, **Then** the system rejects the action because only the assigned Trader can execute.
-5. **Given** an order in Received status, **When** any Trader attempts to execute it, **Then** the system rejects the action because execution is only allowed from Assigned status.
-6. **Given** an assigned order whose intake included a MinimumRate, **When** the Trader submits execution with ExecutedRate below that MinimumRate, **Then** the system rejects the execution.
-7. **Given** an assigned order whose intake omitted MinimumRate, **When** the Trader submits a valid ExecutedRate and Counterparty, **Then** execution succeeds without a MinimumRate comparison.
+3. **Given** an order assigned to Trader A, **When** Trader B attempts to execute it, **Then** the system rejects the action because only the assigned Trader can execute.
+4. **Given** an order in Received status, **When** any Trader attempts to execute it, **Then** the system rejects the action because execution is only allowed from Assigned status.
+5. **Given** an assigned order whose intake included a MinimumRate, **When** the Trader submits execution with ExecutedRate below that MinimumRate, **Then** the system rejects the execution.
+6. **Given** an assigned order whose intake omitted MinimumRate, **When** the Trader submits a valid ExecutedRate, **Then** execution succeeds without a MinimumRate comparison.
+7. **Given** an assigned order whose intake institution has become inactive, **When** the Trader attempts to execute, **Then** the system rejects the execution.
 
 ---
 
@@ -124,7 +128,7 @@ A Trader can cancel an order while it is still in Received status (**Cancel** re
 
 ### User Story 5 — Update an Assigned Order (Priority: P5)
 
-The assigned Trader can modify **Amount** and **ValueDate** before execution to reflect operational adjustments. **MinimumRate** is not included: when provided at intake, it is Portfolio Management’s execution-floor indication and stays fixed; when omitted, execution follows best market conditions (see User Story 3). DesiredCounterpartyComment is supplied only at order reception (Portfolio Management) and is not editable by the Trader. The system enforces that updated values remain valid (e.g., ValueDate must still be at least two days in the future, Amount must be positive).
+The assigned Trader can modify **Amount** and **ValueDate** before execution to reflect operational adjustments. **MinimumRate** is not included: when provided at intake, it is Portfolio Management’s execution-floor indication and stays fixed; when omitted, execution follows best market conditions (see User Story 3). **institutionCode** and derived **counterparty** are set at intake and are not editable by the Trader. The system enforces that updated values remain valid (e.g., ValueDate must still be at least two days in the future, Amount must be positive).
 
 **Why this priority**: Allows the Trader to adjust order parameters based on market conditions before dealing while preserving PM-authored rate constraints. Useful but not blocking for the core workflow.
 
@@ -155,7 +159,7 @@ The assigned Trader can modify **Amount** and **ValueDate** before execution to 
 
 - **FR-001**: The system MUST accept Money Market orders from the external Portfolio Management system via a dedicated intake channel.
 - **FR-002**: The system MUST validate that the OrderOperation is allowed for the given OrderType. Term orders allow only Subscription. OnCall orders allow Subscription, Increase, Decrease, and Redemption.
-- **FR-003**: The system MUST validate that Subscription orders contain: PortfolioNumber, ExternalOrderReference, OrderType, Currency, Amount, ValueDate, and either Tenor (for Term) or NoticePeriod (for OnCall). MinimumRate MAY be omitted by Portfolio Management; when present it MUST satisfy FR-008.
+- **FR-003**: The system MUST validate that Subscription orders contain: PortfolioNumber, ExternalOrderReference, OrderType, Currency, Amount, ValueDate, **institutionCode** (active onboarded institution from the catalog), and either Tenor (for Term) or NoticePeriod (for OnCall). MinimumRate MAY be omitted by Portfolio Management; when present it MUST satisfy FR-008.
 - **FR-004**: The system MUST validate that Increase, Decrease, and Redemption orders reference an existing ContractNumber.
 - **FR-005**: The system MUST validate that Tenor values are within the global allowed set: 1W, 2W, 1M, 3M, 6M, 1Y, and that the tenor is **enabled** for the order currency in the managed currency catalog.
 - **FR-006**: The system MUST validate that NoticePeriod values are within the global allowed set: 24H, 48H, and that the notice period is **enabled** for the order currency in the managed currency catalog.
@@ -172,21 +176,21 @@ The assigned Trader can modify **Amount** and **ValueDate** before execution to 
 - **FR-014**: Only the assigned Trader MUST be able to update or execute an order.
 - **FR-015**: A Trader MUST be able to view a list of orders assigned to them.
 - **FR-016**: The assigned Trader MUST be able to update Amount and ValueDate on an Assigned order. Updated values MUST pass the same validation rules as the corresponding intake fields. The Trader MUST NOT change MinimumRate after intake.
-- **FR-017**: The assigned Trader MUST be able to execute an order by providing ExecutedRate and Counterparty (free-text input). Execution MUST fail if either is missing or blank. When the order has a MinimumRate from intake, ExecutedRate MUST be greater than or equal to MinimumRate; when MinimumRate was not supplied, no PM rate floor applies beyond valid execution data.
+- **FR-017**: The assigned Trader MUST be able to execute an order by providing **ExecutedRate only**. Counterparty and institutionCode are locked from intake (see FR-022). Execution MUST fail if ExecutedRate is missing or blank. The system MUST re-validate that the intake institution remains active at execute time. When the order has a MinimumRate from intake, ExecutedRate MUST be greater than or equal to MinimumRate; when MinimumRate was not supplied, no PM rate floor applies beyond valid execution data.
 - **FR-018**: Upon execution, the system MUST generate a DealingReference and MUST record the ExecutionTime automatically. For **Subscription** orders, the system MUST allocate a new ContractNumber via `ReferenceGenerator` (or equivalent) for execution `generatedContractNumber`. For **Increase**, **Decrease**, and **Redemption**, execution `generatedContractNumber` MUST equal the persisted intake `sourceContractNumber`, and the system MUST NOT call `ReferenceGenerator.generateContractNumber()` for that execution.
 - **FR-019**: Cancellation (order withdrawn, no longer needed) MUST be allowed only from Received status. Rejection (Trader refuses to proceed, including when PM execution conditions such as MinimumRate cannot be met) MUST be allowed from Received or Assigned status. Only the assigned Trader MAY reject an Assigned order; any Trader MAY reject a Received order. Rejection MUST include a reason.
 - **FR-020**: All status transitions MUST follow the allowed state machine: Received → Assigned, Received → Cancelled, Received → Rejected, Assigned → Received (unassign), Assigned → Executed, Assigned → Rejected. Any other transition MUST be rejected.
 - **FR-021**: Every mutating business action MUST produce an audit record capturing who performed it and when.
-- **FR-022**: The DesiredCounterpartyComment MAY be provided at order reception as an optional free-text field. It MUST NOT be modified by the Trader after intake. Counterparty itself is assigned only during execution.
+- **FR-022**: Order intake MUST require **institutionCode** referencing an **active** onboarded institution from the settings catalog. At reception the system MUST resolve the institution’s display name to **counterparty** and persist both on the order. The Trader MUST NOT change institutionCode or counterparty after intake. Portfolio Management selects the institution using the Order Creation options API (`/api/v1/order-creation/*`).
 - **FR-023**: Any authenticated Trader MUST be able to view the full details of any order regardless of its status or assignment. Mutating actions remain restricted to the assigned Trader.
 - **FR-024**: On intake, when OrderOperation is Subscription, the system MUST NOT persist `sourceContractNumber`. If Portfolio Management supplies `sourceContractNumber` on a Subscription payload, the system MUST discard it at reception (the stored order has null `sourceContractNumber`).
 
 ### Key Entities
 
-- **MoneyMarketOrder**: The central business object representing an order. Characterized by its OrderType (Term or OnCall), OrderOperation (Subscription, Increase, Decrease, Redemption), financial details (Currency, Amount, ValueDate, **Tenor for Term** / **NoticePeriod for OnCall**, optional MinimumRate — PM execution floor when present), and lifecycle status (Received, Assigned, Executed, Cancelled, Rejected).
+- **MoneyMarketOrder**: The central business object representing an order. Characterized by its OrderType (Term or OnCall), OrderOperation (Subscription, Increase, Decrease, Redemption), financial details (Currency, Amount, ValueDate, **Tenor for Term** / **NoticePeriod for OnCall**, optional MinimumRate — PM execution floor when present), **institutionCode** and derived **counterparty** (set at intake), and lifecycle status (Received, Assigned, Executed, Cancelled, Rejected).
 - **Trader**: The internal user who assigns orders to themselves, manages them, and records execution outcomes.
 - **Assignment**: The relationship between a Trader and an order. Only one assignment at a time. Created when a Trader assigns an order; cleared on unassignment.
-- **ExecutionDetails**: The data captured when a Trader confirms execution: ExecutedRate, Counterparty (free-text name of the financial institution), ExecutionTime (system-recorded), DealingReference (system-generated), and `generatedContractNumber` (new allocation for Subscription; for lifecycle operations, same value as intake `sourceContractNumber`).
+- **ExecutionDetails**: The data captured when a Trader confirms execution: ExecutedRate, Counterparty (institution display name locked from intake), institutionCode (locked from intake), ExecutionTime (system-recorded), DealingReference (system-generated), and `generatedContractNumber` (new allocation for Subscription; for lifecycle operations, same value as intake `sourceContractNumber`).
 
 ## Success Criteria *(mandatory)*
 
@@ -199,7 +203,7 @@ The assigned Trader can modify **Amount** and **ValueDate** before execution to 
 - **SC-005**: Every mutating action (assign, unassign, update, execute, cancel, reject) produces a traceable audit record with actor identity and timestamp.
 - **SC-006**: No invalid status transition is permitted by the system — 100% of disallowed transitions are rejected (including cancel or reject from forbidden states).
 - **SC-007**: All monetary and rate values maintain exact precision throughout the entire lifecycle — no rounding artifacts from intake through execution.
-- **SC-008**: An order cannot be executed with incomplete data (missing ExecutedRate or Counterparty) — 100% enforcement.
+- **SC-008**: An order cannot be executed with incomplete data (missing ExecutedRate) — 100% enforcement.
 
 ## Assumptions
 
@@ -211,4 +215,4 @@ The assigned Trader can modify **Amount** and **ValueDate** before execution to 
 - Integration with the downstream Deposits application is modeled as a boundary but not implemented in V1.
 - Outbound email communication to counterparties is out of scope for V1.
 - The application serves a small number of concurrent Traders (single digits). High-throughput optimization is not a V1 concern.
-- DesiredCounterpartyComment is informational only — it does not constrain which Counterparty can be assigned at execution.
+- Portfolio Management selects the counterparty institution at intake via `institutionCode`; the Trader cannot substitute a different institution at execution.

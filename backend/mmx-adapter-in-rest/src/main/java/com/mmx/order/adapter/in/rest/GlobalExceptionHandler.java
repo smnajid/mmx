@@ -10,6 +10,7 @@ import com.mmx.order.adapter.in.rest.generated.institution.model.InstitutionSett
 import com.mmx.order.adapter.in.rest.generated.termrate.model.TermRateIngestErrorCode;
 import com.mmx.order.adapter.in.rest.generated.termrate.model.TermRateIngestErrorResponse;
 import com.mmx.order.application.service.ManageCurrencySettingsService;
+import com.mmx.order.application.service.OnCallOrderCreationOptionsService;
 import com.mmx.order.application.termrate.TermRateCsvStructuralException;
 import com.mmx.order.application.termrate.TermRateIngestFailedException;
 import com.mmx.order.application.service.ManageInstitutionSettingsService;
@@ -182,6 +183,16 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(OrderNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleNotFound(OrderNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(
+                        new ErrorResponse()
+                                .error(ErrorCode.ORDER_NOT_FOUND)
+                                .message(ex.getMessage()));
+    }
+
+    @ExceptionHandler(OnCallOrderCreationOptionsService.ContractNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleContractNotFound(
+            OnCallOrderCreationOptionsService.ContractNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(
                         new ErrorResponse()

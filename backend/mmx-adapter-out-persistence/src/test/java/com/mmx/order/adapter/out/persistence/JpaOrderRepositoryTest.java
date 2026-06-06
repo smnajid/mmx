@@ -55,7 +55,7 @@ class JpaOrderRepositoryTest {
                 VALUE_DATE,
                 new BigDecimal("3.25000000"),
                 Tenor._3M,
-                null, null, null,
+                null, null, "BNKCO", "BankCo",
                 TODAY
         );
     }
@@ -71,8 +71,7 @@ class JpaOrderRepositoryTest {
                 VALUE_DATE,
                 new BigDecimal("2.50000000"),
                 null,
-                NoticePeriod._24H,
-                null, null,
+                NoticePeriod._24H, null, "BNKCO", "BankCo",
                 TODAY
         );
     }
@@ -182,10 +181,7 @@ class JpaOrderRepositoryTest {
                     new BigDecimal("100000.00"),
                     TODAY.plusDays(20),
                     new BigDecimal("3.00000000"),
-                    Tenor._1M,
-                    null,
-                    null,
-                    null,
+                    Tenor._1M, null, null, "BNKCO", "BankCo",
                     TODAY);
             repository.save(far);
 

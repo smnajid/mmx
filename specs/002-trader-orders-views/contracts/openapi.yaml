@@ -8,7 +8,7 @@ info:
     list response. Workspace **Assigned** lists are **desk-wide** (all assignees) per User Story 2.
     Human-readable mirror: [api-v1.md](./api-v1.md). Trader-facing operations require header
     `X-Trader-Id` (actor identity; Assigned workspace lists are not filtered by assignee).
-  version: 1.6.0
+  version: 1.7.0
 
 servers:
   - url: /
@@ -17,6 +17,8 @@ servers:
 tags:
   - name: Intake
     description: Portfolio Management order reception (no Trader header)
+  - name: OrderCreation
+    description: Portfolio Management order creation wizard options (no Trader header)
   - name: Orders
     description: Trader-facing order operations
   - name: BackOffice
@@ -595,6 +597,201 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /api/v1/order-creation/term/currencies:
+    get:
+      tags: [OrderCreation]
+      summary: List currencies available for Term order creation
+      operationId: listTermCurrencies
+      responses:
+        "200":
+          description: Currencies with at least one viable Term counterparty
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TermCurrenciesResponse"
+
+  /api/v1/order-creation/oncall/currencies:
+    get:
+      tags: [OrderCreation]
+      summary: List currencies available for OnCall order creation
+      operationId: listOnCallCurrencies
+      responses:
+        "200":
+          description: Currencies with at least one viable OnCall counterparty
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OnCallCurrenciesResponse"
+
+  /api/v1/order-creation/term/operations:
+    get:
+      tags: [OrderCreation]
+      summary: List Term operations for a currency
+      operationId: listTermOperations
+      parameters:
+        - name: currency
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 3
+            maxLength: 3
+      responses:
+        "200":
+          description: Allowed Term operations with minimum amounts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OperationsResponse"
+
+  /api/v1/order-creation/oncall/operations:
+    get:
+      tags: [OrderCreation]
+      summary: List OnCall operations for a currency
+      operationId: listOnCallOperations
+      parameters:
+        - name: currency
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 3
+            maxLength: 3
+      responses:
+        "200":
+          description: Allowed OnCall operations with minimum amounts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OperationsResponse"
+
+  /api/v1/order-creation/term/tenors:
+    get:
+      tags: [OrderCreation]
+      summary: List Term tenors for a currency
+      operationId: listTermTenors
+      parameters:
+        - name: currency
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 3
+            maxLength: 3
+      responses:
+        "200":
+          description: Enabled tenors with at least one counterparty rate
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenorsResponse"
+
+  /api/v1/order-creation/oncall/notice-periods:
+    get:
+      tags: [OrderCreation]
+      summary: List OnCall notice periods for a currency
+      operationId: listOnCallNoticePeriods
+      parameters:
+        - name: currency
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 3
+            maxLength: 3
+      responses:
+        "200":
+          description: Enabled notice periods with at least one open counterparty segment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NoticePeriodsResponse"
+
+  /api/v1/order-creation/term/counterparties:
+    get:
+      tags: [OrderCreation]
+      summary: List Term counterparties with latest rates
+      operationId: listTermCounterparties
+      parameters:
+        - name: currency
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 3
+            maxLength: 3
+        - name: tenor
+          in: query
+          required: true
+          schema:
+            $ref: "#/components/schemas/Tenor"
+      responses:
+        "200":
+          description: Active institutions with latest term rates, best rate first
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CounterpartiesResponse"
+
+  /api/v1/order-creation/oncall/counterparties:
+    get:
+      tags: [OrderCreation]
+      summary: List OnCall counterparties with segment rates for a value date
+      operationId: listOnCallCounterparties
+      parameters:
+        - name: currency
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 3
+            maxLength: 3
+        - name: noticePeriod
+          in: query
+          required: true
+          schema:
+            $ref: "#/components/schemas/NoticePeriod"
+        - name: valueDate
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Active institutions with segment rates covering valueDate, best rate first
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CounterpartiesResponse"
+
+  /api/v1/order-creation/oncall/contract-info:
+    get:
+      tags: [OrderCreation]
+      summary: Resolve contract number to currency and notice period
+      operationId: getOnCallContractInfo
+      parameters:
+        - name: contractNumber
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 50
+      responses:
+        "200":
+          description: Currency and notice period from executed Subscription
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContractInfoResponse"
+        "404":
+          description: No executed OnCall Subscription with this contract number
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   parameters:
     TraderIdHeader:
@@ -738,6 +935,7 @@ components:
         - currency
         - amount
         - valueDate
+        - institutionCode
       properties:
         externalOrderReference:
           type: string
@@ -777,10 +975,11 @@ components:
           description: >
             Required when orderOperation is INCREASE, DECREASE, or REDEMPTION (existing MM contract).
             When orderOperation is SUBSCRIPTION, MUST NOT be persisted; if supplied, the service discards it at reception.
-        desiredCounterpartyComment:
+        institutionCode:
           type: string
-          nullable: true
-          maxLength: 500
+          minLength: 1
+          maxLength: 32
+          description: Active onboarded institution selected by Portfolio Management at order creation.
 
     ReceiveOrderResponse:
       type: object
@@ -850,7 +1049,7 @@ components:
           type: string
           nullable: true
           description: |
-            Execution counterparty (institution display name); present once the order has been executed.
+            Institution display name derived from intake institutionCode.
             Omit from JSON when null (omit-null serialization).
           x-field-extra-annotation: "@com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)"
         institutionCode:
@@ -858,7 +1057,7 @@ components:
           nullable: true
           maxLength: 32
           description: |
-            Catalog institution code selected at execute; present once executed.
+            Catalog institution code selected by Portfolio Management at intake.
             Omit from JSON when null (omit-null serialization).
           x-field-extra-annotation: "@com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)"
         handoffStatus:
@@ -936,9 +1135,6 @@ components:
             Intake contract reference for lifecycle operations (INCREASE, DECREASE, REDEMPTION); null for Subscription
             (PM-supplied value is discarded at reception). After execute on lifecycle orders, echoes the same reference
             as used for execution contract identity.
-        desiredCounterpartyComment:
-          type: string
-          nullable: true
         status:
           $ref: "#/components/schemas/OrderStatus"
         assignedTraderId:
@@ -955,12 +1151,12 @@ components:
         counterparty:
           type: string
           nullable: true
-          description: Institution display name after execute.
+          description: Institution display name derived from intake institutionCode.
         institutionCode:
           type: string
           nullable: true
           maxLength: 32
-          description: Selected catalog institution code after execute.
+          description: Catalog institution code selected by Portfolio Management at intake.
         executionTime:
           type: string
           format: date-time
@@ -1007,7 +1203,7 @@ components:
 
     UpdateOrderRequest:
       type: object
-      description: Partial update — only Amount and ValueDate may be changed. MinimumRate and DesiredCounterpartyComment are intake-only and not mutable via this endpoint.
+      description: Partial update — only Amount and ValueDate may be changed. MinimumRate, institutionCode, and counterparty are intake-only and not mutable via this endpoint.
       properties:
         amount:
           type: number
@@ -1019,17 +1215,122 @@ components:
 
     ExecuteOrderRequest:
       type: object
-      required: [executedRate, institutionCode]
+      required: [executedRate]
       properties:
         executedRate:
           type: number
           format: double
           minimum: 0
+
+    TermCurrenciesResponse:
+      type: object
+      required: [tradingDate, currencies]
+      properties:
+        tradingDate:
+          type: string
+          format: date
+          description: Today's business date used for indicative rate comparisons.
+        currencies:
+          type: array
+          items:
+            type: string
+            minLength: 3
+            maxLength: 3
+
+    OnCallCurrenciesResponse:
+      type: object
+      required: [currencies]
+      properties:
+        currencies:
+          type: array
+          items:
+            type: string
+            minLength: 3
+            maxLength: 3
+
+    OperationsResponse:
+      type: object
+      required: [operations]
+      properties:
+        operations:
+          type: array
+          items:
+            $ref: "#/components/schemas/OperationOption"
+
+    OperationOption:
+      type: object
+      required: [operation, minAmount]
+      properties:
+        operation:
+          $ref: "#/components/schemas/OrderOperation"
+        minAmount:
+          type: number
+          format: double
+          exclusiveMinimum: 0
+
+    TenorsResponse:
+      type: object
+      required: [tenors]
+      properties:
+        tenors:
+          type: array
+          items:
+            $ref: "#/components/schemas/Tenor"
+
+    NoticePeriodsResponse:
+      type: object
+      required: [noticePeriods]
+      properties:
+        noticePeriods:
+          type: array
+          items:
+            $ref: "#/components/schemas/NoticePeriod"
+
+    CounterpartiesResponse:
+      type: object
+      required: [counterparties]
+      properties:
+        counterparties:
+          type: array
+          items:
+            $ref: "#/components/schemas/CounterpartyOption"
+
+    CounterpartyOption:
+      type: object
+      required:
+        - institutionCode
+        - displayName
+        - rate
+        - rateDate
+        - indicative
+      properties:
         institutionCode:
           type: string
-          minLength: 1
           maxLength: 32
-          description: Active onboarded institution from the settings catalog.
+        displayName:
+          type: string
+          maxLength: 128
+        rate:
+          type: number
+          format: double
+        rateDate:
+          type: string
+          format: date
+          description: Trading date (Term) or segment value date (OnCall) for the quoted rate.
+        indicative:
+          type: boolean
+          description: True when the rate is stale or otherwise not from today's trading date.
+
+    ContractInfoResponse:
+      type: object
+      required: [currency, noticePeriod]
+      properties:
+        currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+        noticePeriod:
+          $ref: "#/components/schemas/NoticePeriod"
 
     OnCallRateSegmentStatus:
       type: string

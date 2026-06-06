@@ -32,4 +32,7 @@ public interface OrderRepository {
             OrderType orderType, Optional<LocalDate> valueDateFrom, Optional<LocalDate> valueDateTo, int page, int size);
 
     List<MoneyMarketOrder> findByAssignedTraderIdAndStatus(TraderId traderId, OrderStatus status);
+
+    Optional<ExecutedSubscriptionContractInfo> findExecutedSubscriptionByContractNumber(
+            String contractNumber);
 }

@@ -35,7 +35,8 @@ public class MoneyMarketOrder {
     private final Tenor tenor;
     private final NoticePeriod noticePeriod;
     private final ContractNumber sourceContractNumber;
-    private String desiredCounterpartyComment;
+    private final String institutionCode;
+    private final String counterparty;
     private OrderStatus status;
     private Assignment assignment;
     private ExecutionDetails executionDetails;
@@ -58,7 +59,8 @@ public class MoneyMarketOrder {
             Tenor tenor,
             NoticePeriod noticePeriod,
             ContractNumber sourceContractNumber,
-            String desiredCounterpartyComment,
+            String institutionCode,
+            String counterparty,
             OrderStatus status,
             HandoffStatus handoffStatus,
             Instant createdAt
@@ -75,7 +77,8 @@ public class MoneyMarketOrder {
         this.tenor = tenor;
         this.noticePeriod = noticePeriod;
         this.sourceContractNumber = sourceContractNumber;
-        this.desiredCounterpartyComment = desiredCounterpartyComment;
+        this.institutionCode = institutionCode;
+        this.counterparty = counterparty;
         this.status = status;
         this.handoffStatus = handoffStatus;
         this.createdAt = createdAt;
@@ -96,9 +99,11 @@ public class MoneyMarketOrder {
             Tenor tenor,
             NoticePeriod noticePeriod,
             ContractNumber sourceContractNumber,
-            String desiredCounterpartyComment,
+            String institutionCode,
+            String counterparty,
             LocalDate today
     ) {
+        validateInstitutionAtIntake(institutionCode, counterparty);
         validateOrderTypeOperation(orderType, orderOperation);
         validateTenorNoticePeriod(orderType, tenor, noticePeriod);
         validateSourceContractNumber(orderOperation, sourceContractNumber);
@@ -124,7 +129,8 @@ public class MoneyMarketOrder {
                 tenor,
                 noticePeriod,
                 sourceContractNumber,
-                desiredCounterpartyComment,
+                institutionCode,
+                counterparty,
                 OrderStatus.RECEIVED,
                 null,
                 now
@@ -146,7 +152,8 @@ public class MoneyMarketOrder {
             Tenor tenor,
             NoticePeriod noticePeriod,
             ContractNumber sourceContractNumber,
-            String desiredCounterpartyComment,
+            String institutionCode,
+            String counterparty,
             OrderStatus status,
             Assignment assignment,
             ExecutionDetails executionDetails,
@@ -158,7 +165,7 @@ public class MoneyMarketOrder {
         MoneyMarketOrder order = new MoneyMarketOrder(
                 id, externalOrderReference, orderType, orderOperation,
                 portfolioNumber, currency, amount, valueDate, minimumRate,
-                tenor, noticePeriod, sourceContractNumber, desiredCounterpartyComment,
+                tenor, noticePeriod, sourceContractNumber, institutionCode, counterparty,
                 status, handoffStatus, createdAt
         );
         order.assignment = assignment;
@@ -365,6 +372,18 @@ public class MoneyMarketOrder {
         }
     }
 
+    private static void validateInstitutionAtIntake(String institutionCode, String counterparty) {
+        if (institutionCode == null || institutionCode.isBlank()) {
+            throw new InvalidOrderException("institutionCode is required");
+        }
+        if (institutionCode.length() > 32) {
+            throw new InvalidOrderException("institutionCode must not exceed 32 characters");
+        }
+        if (counterparty == null || counterparty.isBlank()) {
+            throw new InvalidOrderException("counterparty is required");
+        }
+    }
+
     // ── Getters ───────────────────────────────────────────────────────────────
 
     public UUID getId() { return id; }
@@ -379,7 +398,13 @@ public class MoneyMarketOrder {
     public Tenor getTenor() { return tenor; }
     public NoticePeriod getNoticePeriod() { return noticePeriod; }
     public ContractNumber getSourceContractNumber() { return sourceContractNumber; }
-    public String getDesiredCounterpartyComment() { return desiredCounterpartyComment; }
+    public String getInstitutionCode() {
+        return executionDetails != null ? executionDetails.institutionCode() : institutionCode;
+    }
+
+    public String getCounterparty() {
+        return executionDetails != null ? executionDetails.counterparty() : counterparty;
+    }
     public OrderStatus getStatus() { return status; }
     public Assignment getAssignment() { return assignment; }
     public ExecutionDetails getExecutionDetails() { return executionDetails; }
