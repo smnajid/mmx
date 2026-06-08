@@ -11,6 +11,9 @@
     "skipLibCheck": true,
     "isolatedModules": true,
     "experimentalDecorators": true,
+    "paths": {
+      "order-creation-widget": ["./dist/order-creation-widget"]
+    },
     "importHelpers": true,
     "target": "ES2022",
     "module": "preserve"
@@ -28,6 +31,12 @@
     },
     {
       "path": "./tsconfig.spec.json"
+    },
+    {
+      "path": "./projects/order-creation-widget/tsconfig.lib.json"
+    },
+    {
+      "path": "./projects/order-creation-widget/tsconfig.spec.json"
     }
   ]
 }

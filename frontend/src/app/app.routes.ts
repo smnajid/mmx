@@ -1,3 +1,4 @@
+import { isDevMode } from '@angular/core';
 import { Routes } from '@angular/router';
 
 export const routes: Routes = [
@@ -65,6 +66,14 @@ export const routes: Routes = [
     path: 'orders/:id',
     loadComponent: () =>
       import('./features/order-details/order-details.component').then((m) => m.OrderDetailsComponent),
+  },
+  {
+    path: 'dev/widget-playground',
+    canMatch: [() => isDevMode()],
+    loadChildren: () =>
+      import('./features/widget-playground/widget-playground.routes').then(
+        (m) => m.WIDGET_PLAYGROUND_ROUTES,
+      ),
   },
   { path: '**', redirectTo: 'oncall/received' },
 ];
