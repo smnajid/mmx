@@ -1,6 +1,6 @@
 # REST API Contract: Money Market Order Processing (baseline + trader workspaces)
 
-**Canonical OpenAPI 3 spec (contract-first, codegen)**: [openapi.yaml](./openapi.yaml) — **v1.7.0** adds **Order Creation** wizard options (`/api/v1/order-creation/*`), requires **`institutionCode`** at intake, and makes execute **rate-only** (no `institutionCode` on execute). **v1.5.0** added **`handoffStatus`** on executed-list summaries (`PENDING` / `PUBLISHED` / `FAILED`) for back-office Kafka delivery visibility ([FR-013](spec.md)); Async companion for outbound Kafka remains [**asyncapi.yaml**](./asyncapi.yaml).
+**Canonical OpenAPI 3 spec (contract-first, codegen)**: [openapi.yaml](./openapi.yaml) — **v1.9.0** extends **`GET /api/v1/order-creation/oncall/contract-info`** with required **`institutionCode`** and **`counterparty`** from the executed Subscription. **v1.8.0** adds **`GET /api/v1/order-creation/contracts`** (live contracts listing for portfolio pickers). **v1.7.0** adds **Order Creation** wizard options (`/api/v1/order-creation/*`), requires **`institutionCode`** at intake, and makes execute **rate-only** (no `institutionCode` on execute). **v1.5.0** added **`handoffStatus`** on executed-list summaries (`PENDING` / `PUBLISHED` / `FAILED`) for back-office Kafka delivery visibility ([FR-013](spec.md)); Async companion for outbound Kafka remains [**asyncapi.yaml**](./asyncapi.yaml).
 
 **Base URL**: `/api/v1`
 **Content-Type**: `application/json`
@@ -535,7 +535,7 @@ All list endpoints use Spring's page-based pagination:
 
 ### Order Creation Options (PM wizard)
 
-Read-only endpoints consumed by the external Portfolio Management application to build a step-by-step order creation wizard. **No `X-Trader-Id` header** required.
+Read-only endpoints consumed by the external Portfolio Management application to build a step-by-step order creation wizard. **No `X-Trader-Id` header** required. The surface comprises **ten** GET operations (currencies, operations, tenors, notice-periods, counterparties, contract-info, and live contracts).
 
 #### Term currencies
 
@@ -636,12 +636,66 @@ Returns active institutions with a segment covering `valueDate`, sorted by best 
 
 **GET** `/api/v1/order-creation/oncall/contract-info?contractNumber=CT-00042`
 
-Looks up an executed OnCall **Subscription** by `generatedContractNumber`.
+Looks up an executed OnCall **Subscription** by `generatedContractNumber`. Returns the contract's `currency`, `noticePeriod`, and the original subscription's `institutionCode` and `counterparty` (display name).
 
 | Status | Body |
 |--------|------|
-| `200 OK` | `{ "currency": "EUR", "noticePeriod": "24H" }` |
+| `200 OK` | `{ "currency": "EUR", "noticePeriod": "24H", "institutionCode": "BNKCO", "counterparty": "BankCo" }` |
 | `404 Not Found` | ErrorResponse when no matching executed Subscription exists |
+
+#### Live contracts
+
+**GET** `/api/v1/order-creation/contracts?portfolioNumber=PF-001&orderType=ON_CALL`
+
+Returns **live** contracts for the given portfolio and order type. A contract is materialised when a **Subscription** order is **executed** (`generatedContractNumber` allocated). Both query parameters are required.
+
+**Liveness rules** (applied server-side; only live contracts are returned):
+
+| Order type | Live while… |
+|------------|-------------|
+| **OnCall** | No **redemption** order exists against the contract (`sourceContractNumber` equals the contract number, `orderOperation` = `REDEMPTION`, status ≠ `CANCELLED`). Received and executed redemptions both disqualify the contract. Increases and decreases do not end a contract. |
+| **Term** | Contract **end date** is in the future. End date = subscription `valueDate` + tenor duration (`1W`, `2W`, `1M`, `3M`, `6M`, `1Y`). |
+
+Non-executed Subscriptions (no `generatedContractNumber`) are not contracts and are excluded.
+
+```json
+{
+  "contracts": [
+    {
+      "contractNumber": "CT-00042",
+      "orderType": "ON_CALL",
+      "currency": "EUR",
+      "noticePeriod": "24H",
+      "valueDate": "2026-06-01",
+      "originalAmount": 5000000.00
+    },
+    {
+      "contractNumber": "CT-00100",
+      "orderType": "TERM",
+      "currency": "EUR",
+      "tenor": "3M",
+      "valueDate": "2026-06-01",
+      "endDate": "2026-09-01",
+      "originalAmount": 10000000.00
+    }
+  ]
+}
+```
+
+| Field | Type | Notes |
+|-------|------|-------|
+| contractNumber | string | `generatedContractNumber` of the executed Subscription |
+| orderType | string | `TERM` or `ON_CALL` (matches the request filter) |
+| currency | string | ISO 4217 (3 chars) |
+| noticePeriod | string | OnCall only (`24H`, `48H`); omitted for Term |
+| tenor | string | Term only (`1W` … `1Y`); omitted for OnCall |
+| valueDate | date | Subscription value date |
+| endDate | date | Term only — `valueDate` + tenor; omitted for OnCall |
+| originalAmount | number | Subscription amount at creation (reference, not a running balance) |
+
+| Status | Body |
+|--------|------|
+| `200 OK` | `LiveContractsResponse` (may be an empty `contracts` array) |
 
 ---
 

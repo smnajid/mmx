@@ -8,7 +8,7 @@ info:
     list response. Workspace **Assigned** lists are **desk-wide** (all assignees) per User Story 2.
     Human-readable mirror: [api-v1.md](./api-v1.md). Trader-facing operations require header
     `X-Trader-Id` (actor identity; Assigned workspace lists are not filtered by assignee).
-  version: 1.7.0
+  version: 1.9.0
 
 servers:
   - url: /
@@ -765,6 +765,32 @@ paths:
               schema:
                 $ref: "#/components/schemas/CounterpartiesResponse"
 
+  /api/v1/order-creation/contracts:
+    get:
+      tags: [OrderCreation]
+      summary: List live contracts for a portfolio and order type
+      operationId: listLiveContracts
+      parameters:
+        - name: portfolioNumber
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 50
+        - name: orderType
+          in: query
+          required: true
+          schema:
+            $ref: "#/components/schemas/OrderType"
+      responses:
+        "200":
+          description: Live contracts materialised by executed Subscriptions for the portfolio and type
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LiveContractsResponse"
+
   /api/v1/order-creation/oncall/contract-info:
     get:
       tags: [OrderCreation]
@@ -1323,7 +1349,7 @@ components:
 
     ContractInfoResponse:
       type: object
-      required: [currency, noticePeriod]
+      required: [currency, noticePeriod, institutionCode, counterparty]
       properties:
         currency:
           type: string
@@ -1331,6 +1357,63 @@ components:
           maxLength: 3
         noticePeriod:
           $ref: "#/components/schemas/NoticePeriod"
+        institutionCode:
+          type: string
+          maxLength: 32
+          description: Institution code from the executed Subscription order.
+        counterparty:
+          type: string
+          maxLength: 128
+          description: Institution display name from the executed Subscription order.
+
+    LiveContract:
+      type: object
+      required:
+        - contractNumber
+        - orderType
+        - currency
+        - valueDate
+        - originalAmount
+      properties:
+        contractNumber:
+          type: string
+          minLength: 1
+          maxLength: 50
+          description: generatedContractNumber of the executed Subscription
+        orderType:
+          $ref: "#/components/schemas/OrderType"
+        currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+        noticePeriod:
+          $ref: "#/components/schemas/NoticePeriod"
+          description: OnCall only; omitted for Term contracts (omit-null).
+        tenor:
+          $ref: "#/components/schemas/Tenor"
+          description: Term only; omitted for OnCall contracts (omit-null).
+        valueDate:
+          type: string
+          format: date
+          description: Subscription value date
+        endDate:
+          type: string
+          format: date
+          description: Term only — valueDate plus tenor duration; omitted for OnCall (omit-null).
+        originalAmount:
+          type: number
+          format: double
+          exclusiveMinimum: 0
+          description: Subscription amount at contract creation (reference, not a running balance).
+
+    LiveContractsResponse:
+      type: object
+      required: [contracts]
+      properties:
+        contracts:
+          type: array
+          items:
+            $ref: "#/components/schemas/LiveContract"
 
     OnCallRateSegmentStatus:
       type: string

@@ -88,6 +88,30 @@ kafka-topics.sh --bootstrap-server <host>:9092 \
 
 Spring Kafka producer is configured with `spring.kafka.producer.acks=all` (strongest durability guarantee).
 
+### Schema Registry (governance)
+
+Schema registration is **governance-only** — the outbox relay publishes Jackson JSON and does not call Schema Registry at runtime. A broken registry blocks `scripts/register-schemas.sh` and deploy-time compatibility checks, not live order handoff.
+
+| Environment | Registration | Readiness |
+|-------------|--------------|-----------|
+| Local dev | `mmx-start.sh` runs `scripts/register-schemas.sh` after Docker healthchecks pass | Redpanda healthcheck includes `GET /subjects` on the internal registry (`:8081`) |
+| Production | Run `scripts/register-schemas.sh` against the cluster registry URL before or during deploy | Probe `GET /subjects` (expect HTTP 2xx); do not rely on broker health alone |
+
+**Production checklist**
+
+1. At provision time, confirm the internal `_schemas` topic uses `cleanup.policy=compact` (not `delete`). Wrong retention can cause `offset_out_of_range` and HTTP 400 (`error_code: 40002`) from the registry API.
+2. Pin the Redpanda version; test upgrades in staging with `register-schemas.sh`.
+3. Alert on registry API failures in readiness probes.
+4. If the registry fails in production, escalate to Redpanda support — do not delete broker volumes or the `_schemas` topic.
+
+**Local dev recovery** (when `register-schemas.sh` reports fetch/offset errors):
+
+```bash
+docker compose down
+docker volume rm mmx_redpanda-data
+docker compose up -d
+```
+
 ### Local dev
 
 1. Start infrastructure (Postgres + Redpanda + Redpanda Console):
