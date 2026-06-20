@@ -150,7 +150,7 @@ The screen SHALL provide:
 - **Replace-day guard** — when the selected day already has rates, require trader confirmation before upload (T-02).
 - **Workflow presentation** — lede explaining morning sheet and whole-day replace; prepare / upload / review sections on elevated settings surfaces.
 
-Rates MUST NOT appear on order detail or execute screens in this capability.
+Term rate **management** UI MUST NOT appear on order detail screens. The trader execute form MAY display a **single proposed indicative rate** for the PM-chosen intake institution (via order-creation counterparties APIs) as an execution aid.
 
 #### Scenario: Download sample from UI
 
