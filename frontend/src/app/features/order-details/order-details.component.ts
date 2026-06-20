@@ -76,10 +76,6 @@ import { canShowAction, type OrderDetailAction } from './order-detail-actions';
             <dt>Source contract</dt>
             <dd class="mono">{{ o.sourceContractNumber }}</dd>
           }
-          @if (o.desiredCounterpartyComment) {
-            <dt>Comment</dt>
-            <dd>{{ o.desiredCounterpartyComment }}</dd>
-          }
           @if (o.assignedTraderId) {
             <dt>Assigned trader</dt>
             <dd class="mono">{{ o.assignedTraderId }}</dd>

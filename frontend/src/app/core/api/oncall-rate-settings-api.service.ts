@@ -1,29 +1,14 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import type { components } from './generated/trader-orders-views';
 
-export type OnCallNoticePeriod = '24H' | '48H';
+type Schemas = components['schemas'];
 
-export type OnCallRateSegmentStatus = 'PENDING_CONFIRMATION' | 'VALID' | 'CANCELED';
-
-export interface OnCallRateSegment {
-  segmentId: string;
-  institutionCode: string;
-  currency: string;
-  noticePeriod: OnCallNoticePeriod;
-  rate: number;
-  valueDate: string;
-  endDate: string;
-  status: OnCallRateSegmentStatus;
-  validatedAt?: string;
-}
-
-export interface AddOnCallRateRequest {
-  currency: string;
-  noticePeriod: OnCallNoticePeriod;
-  rate: number;
-  valueDate: string;
-}
+export type OnCallNoticePeriod = Schemas['OnCallNoticePeriod'];
+export type OnCallRateSegmentStatus = Schemas['OnCallRateSegmentStatus'];
+export type OnCallRateSegment = Schemas['OnCallRateSegmentResponse'];
+export type AddOnCallRateRequest = Schemas['AddOnCallRateRequest'];
 
 function basePath(institutionCode: string): string {
   return `/api/v1/settings/institutions/${encodeURIComponent(institutionCode)}/oncall-rates`;

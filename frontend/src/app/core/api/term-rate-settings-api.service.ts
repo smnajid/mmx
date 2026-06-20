@@ -1,40 +1,16 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import type { components } from './generated/term-rate-settings';
 
-export type TenorCode = '1W' | '2W' | '1M' | '3M' | '6M' | '1Y';
+type Schemas = components['schemas'];
 
-export interface TermRate {
-  tradingDate: string;
-  institutionCode: string;
-  currency: string;
-  tenor: TenorCode;
-  rate: number;
-  uploadedAt: string;
-  uploadedBy: string;
-}
-
-export interface TermRateUploadResult {
-  tradingDate: string;
-  rowCount: number;
-  uploadedAt: string;
-}
-
-export interface TermRateTradingDay {
-  tradingDate: string;
-}
-
-export interface TermRateRowError {
-  line: number;
-  field?: string;
-  message: string;
-}
-
-export interface TermRateIngestError {
-  error: string;
-  message: string;
-  errors?: TermRateRowError[];
-}
+export type TenorCode = Schemas['TenorCode'];
+export type TermRate = Schemas['TermRateResponse'];
+export type TermRateUploadResult = Schemas['TermRateUploadResponse'];
+export type TermRateTradingDay = Schemas['TermRateTradingDayResponse'];
+export type TermRateRowError = Schemas['TermRateRowError'];
+export type TermRateIngestError = Schemas['TermRateIngestErrorResponse'];
 
 const BASE = '/api/v1/settings/term-rates';
 

@@ -1,104 +1,38 @@
-import { OrderType } from './order-type.enum';
+import type { components } from '../api/generated/trader-orders-views';
 import { OrderOperation } from './order-operation.enum';
 import { OrderStatus } from './order-status.enum';
+import { OrderType } from './order-type.enum';
 import { HandoffStatus } from './handoff-status.enum';
 
-export interface OrderSummary {
-  orderId: string;
-  externalOrderReference: string;
+type Schemas = components['schemas'];
+
+type WithAppOrderEnums<T> = Omit<T, 'orderType' | 'orderOperation' | 'status' | 'handoffStatus'> & {
   orderType: OrderType;
   orderOperation: OrderOperation;
-  portfolioNumber: string;
-  currency: string;
-  amount: number;
-  valueDate: string;
-  minimumRate: number | null;
-  /** Present for term orders when set at intake; null otherwise. */
-  tenor: string | null;
-  /** Present for on-call orders when set at intake; null otherwise. */
-  noticePeriod: string | null;
   status: OrderStatus;
-  /** Execution counterparty; present on executed summaries when omit-null exposes it from the API. */
-  counterparty?: string | null;
-  /** EXECUTED workspace executed-list rows only; back-office Kafka handoff delivery state. */
   handoffStatus?: HandoffStatus | null;
-  assignedTraderId: string | null;
-  createdAt: string;
-}
+};
 
-export interface OrderDetails {
-  orderId: string;
-  externalOrderReference: string;
+/** Contract-derived types from `contracts/002-trader-orders-views/openapi.yaml`. */
+export type ReceiveOrderRequest = Omit<
+  Schemas['ReceiveOrderRequest'],
+  'orderType' | 'orderOperation'
+> & {
   orderType: OrderType;
   orderOperation: OrderOperation;
-  portfolioNumber: string;
-  currency: string;
-  amount: number;
-  valueDate: string;
-  minimumRate: number | null;
-  tenor: string | null;
-  noticePeriod: string | null;
-  sourceContractNumber: string | null;
-  desiredCounterpartyComment: string | null;
+};
+export type ReceiveOrderResponse = Omit<Schemas['ReceiveOrderResponse'], 'status'> & {
   status: OrderStatus;
-  assignedTraderId: string | null;
-  assignedAt: string | null;
-  executedRate: number | null;
-  /** Intake institution code from PM order creation; present before execution. */
-  institutionCode: string | null;
-  counterparty: string | null;
-  executionTime: string | null;
-  dealingReference: string | null;
-  generatedContractNumber: string | null;
-  rejectionReason: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
+};
+export type UpdateOrderRequest = Schemas['UpdateOrderRequest'];
+export type ExecuteOrderRequest = Schemas['ExecuteOrderRequest'];
+export type RejectOrderRequest = Schemas['RejectOrderRequest'];
+export type OrderSummary = WithAppOrderEnums<Schemas['OrderSummaryResponse']>;
+export type OrderDetails = WithAppOrderEnums<Schemas['OrderDetailsResponse']>;
+export type ErrorDetail = Schemas['FieldError'];
+export type ApiError = Schemas['ErrorResponse'];
 
-export interface ReceiveOrderRequest {
-  externalOrderReference: string;
-  orderType: OrderType;
-  orderOperation: OrderOperation;
-  portfolioNumber: string;
-  currency: string;
-  amount: number;
-  valueDate: string;
-  institutionCode: string;
-  minimumRate?: number | null;
-  tenor?: string | null;
-  noticePeriod?: string | null;
-  sourceContractNumber?: string | null;
-}
-
+/** Not in 002 contract; assign uses `X-Trader-Id` header. */
 export interface AssignOrderRequest {
   traderId: string;
-}
-
-export interface UpdateOrderRequest {
-  amount?: number;
-  valueDate?: string;
-}
-
-export interface ExecuteOrderRequest {
-  executedRate: number;
-}
-
-export interface RejectOrderRequest {
-  reason: string;
-}
-
-export interface ReceiveOrderResponse {
-  orderId: string;
-  status: OrderStatus;
-}
-
-export interface ErrorDetail {
-  field: string;
-  message: string;
-}
-
-export interface ApiError {
-  error: string;
-  message: string;
-  details: ErrorDetail[];
 }

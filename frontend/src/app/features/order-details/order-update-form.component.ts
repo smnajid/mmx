@@ -19,18 +19,12 @@ import type { OrderDetails, UpdateOrderRequest } from '../../core/models/order.m
       <h2 class="panel-title">Adjust order parameters</h2>
       <p class="hint">
         Change amount or value date before execution. Minimum rate is set only by Portfolio Management at intake and
-        cannot be changed here. Counterparty preference from intake is shown for reference only.
+        cannot be changed here.
       </p>
       @if (order().minimumRate !== null && order().minimumRate !== undefined) {
         <div class="readonly-block">
           <span class="readonly-label">Minimum rate (PM floor)</span>
           <p class="readonly-value mono">{{ order().minimumRate | number: '1.2-8' }}</p>
-        </div>
-      }
-      @if (order().desiredCounterpartyComment) {
-        <div class="readonly-comment">
-          <span class="readonly-label">Counterparty comment (intake)</span>
-          <p class="readonly-value">{{ order().desiredCounterpartyComment }}</p>
         </div>
       }
       <form class="form" (ngSubmit)="onSubmit()">

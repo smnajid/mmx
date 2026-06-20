@@ -3,6 +3,10 @@
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
+    "generate:api": "openapi-typescript ../contracts/002-trader-orders-views/openapi.yaml -o src/app/core/api/generated/trader-orders-views.ts && openapi-typescript ../contracts/003-managed-currency-settings/openapi.yaml -o src/app/core/api/generated/currency-settings.ts && openapi-typescript ../contracts/004-institution-settings/openapi.yaml -o src/app/core/api/generated/institution-settings.ts && openapi-typescript ../contracts/005-term-rate-settings/openapi.yaml -o src/app/core/api/generated/term-rate-settings.ts",
+    "prebuild": "npm run generate:api",
+    "pretest": "npm run generate:api",
+    "prestart": "npm run generate:api",
     "start": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
@@ -29,6 +33,7 @@
     "cypress": "^15.5.0",
     "jsdom": "^28.0.0",
     "ng-packagr": "^21.2.0",
+    "openapi-typescript": "^7.9.1",
     "prettier": "^3.8.1",
     "typescript": "~5.9.2",
     "vitest": "^4.0.8"

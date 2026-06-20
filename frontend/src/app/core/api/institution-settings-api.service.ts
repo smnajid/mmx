@@ -1,16 +1,12 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import type { components } from './generated/institution-settings';
 
-export interface Institution {
-  institutionCode: string;
-  displayName: string;
-  active: boolean;
-}
+type Schemas = components['schemas'];
 
-export interface OnboardInstitutionRequest {
-  displayName: string;
-}
+export type Institution = Schemas['InstitutionResponse'];
+export type OnboardInstitutionRequest = Schemas['OnboardInstitutionRequest'];
 
 const BASE = '/api/v1/settings/institutions';
 

@@ -26,7 +26,6 @@ function stubDetails(overrides: Partial<OrderDetails> = {}): OrderDetails {
     tenor: '6M',
     noticePeriod: null,
     sourceContractNumber: null,
-    desiredCounterpartyComment: null,
     status: OrderStatus.RECEIVED,
     assignedTraderId: null,
     assignedAt: null,

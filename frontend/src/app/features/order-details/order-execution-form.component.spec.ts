@@ -23,7 +23,6 @@ function stubOrder(overrides: Partial<OrderDetails> = {}): OrderDetails {
     tenor: '3M',
     noticePeriod: null,
     sourceContractNumber: null,
-    desiredCounterpartyComment: null,
     status: OrderStatus.ASSIGNED,
     assignedTraderId: 'trader-self',
     assignedAt: '2026-06-01T00:00:00Z',

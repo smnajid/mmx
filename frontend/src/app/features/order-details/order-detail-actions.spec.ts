@@ -19,7 +19,6 @@ function base(overrides: Partial<OrderDetails> = {}): OrderDetails {
     tenor: '3M',
     noticePeriod: null,
     sourceContractNumber: null,
-    desiredCounterpartyComment: null,
     status: OrderStatus.RECEIVED,
     assignedTraderId: null,
     assignedAt: null,

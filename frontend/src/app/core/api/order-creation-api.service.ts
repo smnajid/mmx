@@ -1,18 +1,12 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
+import type { components } from './generated/trader-orders-views';
 
-export interface CounterpartyRow {
-  institutionCode: string;
-  displayName: string;
-  rate: number;
-  rateDate: string;
-  indicative: boolean;
-}
+type Schemas = components['schemas'];
 
-export interface CounterpartiesResponse {
-  counterparties: CounterpartyRow[];
-}
+export type CounterpartyRow = Schemas['CounterpartyOption'];
+export type CounterpartiesResponse = Schemas['CounterpartiesResponse'];
 
 @Injectable({ providedIn: 'root' })
 export class OrderCreationApiService {
