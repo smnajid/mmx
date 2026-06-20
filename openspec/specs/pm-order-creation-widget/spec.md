@@ -96,7 +96,7 @@ The operation step SHALL call the appropriate operations endpoint (`GET /api/v1/
 - **WHEN** the wizard reaches the operation step for Term/EUR
 - **THEN** it displays SUBSCRIPTION with the minimum amount from the API response
 
-### Requirement: OnCall operations show only SUBSCRIPTION in fresh flow
+#### Scenario: OnCall operations show only SUBSCRIPTION in fresh flow
 
 - **WHEN** the wizard reaches the operation step for OnCall/EUR in the normal flow (no contractNumber)
 - **THEN** it displays only SUBSCRIPTION with the minimum amount from the API response (not INCREASE, DECREASE, or REDEMPTION)
