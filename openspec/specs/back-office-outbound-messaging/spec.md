@@ -6,7 +6,7 @@ Contract-first asynchronous integration from mmx toward the back-office: transac
 ## Requirements
 ### Requirement: Product and integration communication is contract-first (sync and async)
 
-All wire formats used for **product** communication (Trader HTTP API) and **integration** communication (mmx-published Kafka toward back-office) for this capability SHALL be defined **first** in machine-readable contracts before implementation ships. **Synchronous** HTTP MUST use the canonical **OpenAPI 3** document (`specs/002-trader-orders-views/contracts/openapi.yaml`) with prose mirror `api-v1.md`. **Asynchronous** Kafka messages MUST use the canonical **AsyncAPI 3.0** document (`specs/002-trader-orders-views/contracts/asyncapi.yaml`) with prose mirror `asyncapi-v1.md`. Prose mirrors MUST NOT be the sole source of truth. Runtime request, response, and message bodies MUST conform to the published contracts in the **same delivery** as behavioural changes.
+All wire formats used for **product** communication (Trader HTTP API) and **integration** communication (mmx-published Kafka toward back-office) for this capability SHALL be defined **first** in machine-readable contracts before implementation ships. **Synchronous** HTTP MUST use the canonical **OpenAPI 3** document (`contracts/002-trader-orders-views/openapi.yaml`) with prose mirror `api-v1.md`. **Asynchronous** Kafka messages MUST use the canonical **AsyncAPI 3.0** document (`contracts/002-trader-orders-views/asyncapi.yaml`) with prose mirror `asyncapi-v1.md`. Prose mirrors MUST NOT be the sole source of truth. Runtime request, response, and message bodies MUST conform to the published contracts in the **same delivery** as behavioural changes.
 
 #### Scenario: HTTP surface changes start in OpenAPI
 

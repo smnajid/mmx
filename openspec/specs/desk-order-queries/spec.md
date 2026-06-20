@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Define the application-layer seam for Trader **desk queue reads** (Money Market Order list cohorts and order detail lookup). HTTP shape remains defined by `specs/002-trader-orders-views/contracts/openapi.yaml`; this capability governs how the modular monolith exposes those reads behind a single inbound port.
+Define the application-layer seam for Trader **desk queue reads** (Money Market Order list cohorts and order detail lookup). HTTP shape remains defined by `contracts/002-trader-orders-views/openapi.yaml`; this capability governs how the modular monolith exposes those reads behind a single inbound port.
 
 ## Requirements
 

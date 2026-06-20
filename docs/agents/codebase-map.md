@@ -6,8 +6,8 @@
 
 1. [CONTEXT.md](../../CONTEXT.md) — vocabulary
 2. This file — locations
-3. Active feature `specs/<feature>/plan.md` + `contracts/openapi.yaml`
-4. Cross-cutting behaviour in `openspec/specs/` when no numbered `specs/00N-*` folder exists
+3. Canonical HTTP contracts under `contracts/<feature>/openapi.yaml` + `api-v1.md`
+4. Cross-cutting behaviour in `openspec/specs/`
 
 ---
 
@@ -17,33 +17,32 @@
 mmx/
 ├── CONTEXT.md                 ← glossary (agents)
 ├── docs/agents/               ← agent docs (this file, domain.md, issue-tracker.md)
-├── specs/00N-<feature>/       ← Spec Kit features (spec, plan, contracts, data-model)
-├── openspec/specs/            ← archived / cross-cutting capability specs
+├── contracts/00N-<feature>/   ← canonical OpenAPI, AsyncAPI, JSON schemas
+├── openspec/specs/            ← capability specs (SDD)
 ├── openspec/changes/archive/  ← historical change designs (not canonical alone)
 ├── backend/                   ← Java / Maven hexagonal monolith
 ├── frontend/src/app/          ← Angular 21 trader SPA
-├── .specify/                  ← Spec Kit templates & constitution
 ├── AGENTS.md / CLAUDE.md      ← agent entry points
 └── scripts/                   ← ad-hoc ops scripts (not product code)
 ```
 
 ---
 
-## Spec Kit features (`specs/`)
+## Canonical contracts (`contracts/`)
 
 | Folder | Topic | Canonical HTTP contract |
 |--------|--------|-------------------------|
-| `001-mm-order-processing/` | Core order domain, intake, lifecycle | `contracts/openapi.yaml` (superseded for desk by 002) |
-| `002-trader-orders-views/` | Desk queues, order detail, on-call rates API, async handoff | `contracts/openapi.yaml` + `api-v1.md` |
-| `003-managed-currency-settings/` | Managed currency catalog | `contracts/openapi.yaml` |
-| `004-institution-settings/` | Institution onboarding | `contracts/openapi.yaml` |
-| `005-term-rate-settings/` | Term rate CSV upload & day view | `contracts/openapi.yaml` |
+| `001-mm-order-processing/` | Core order domain, intake, lifecycle | `openapi.yaml` (superseded for desk by 002) |
+| `002-trader-orders-views/` | Desk queues, order detail, on-call rates API, async handoff | `openapi.yaml` + `api-v1.md` |
+| `003-managed-currency-settings/` | Managed currency catalog | `openapi.yaml` |
+| `004-institution-settings/` | Institution onboarding | `openapi.yaml` |
+| `005-term-rate-settings/` | Term rate CSV upload & day view | `openapi.yaml` |
 
 **Active desk + on-call rates:** treat **`002`** OpenAPI as the primary product contract for orders and `OnCallRateSettings` paths.
 
 **Codegen:** `backend/mmx-adapter-in-rest/pom.xml` runs OpenAPI Generator per spec (002, 003, 004, 005). Generated Java lives under `target/generated-sources/` after `mvn compile` — not committed.
 
-**Prose mirror:** each feature's `contracts/api-v1.md` must stay aligned with `openapi.yaml`.
+**Prose mirror:** each feature's `api-v1.md` must stay aligned with `openapi.yaml`.
 
 ---
 
@@ -174,14 +173,14 @@ Implements generated `*Api` interfaces from OpenAPI (under `adapter/in/rest/gene
 
 ## Exploration strategy (agents)
 
-1. **Contract first** — path and schema in the feature `openapi.yaml`, then controller, then use case, then domain.
+1. **Contract first** — path and schema in `contracts/<feature>/openapi.yaml`, then controller, then use case, then domain.
 2. **Hexagonal inward** — domain → application → adapter; avoid starting from JPA unless persistence-only.
 3. **Grep tips**
    - API paths: `/api/v1/orders`, `/settings/institutions`
    - Java enum `ON_CALL` vs URL `oncall` vs UI label `ON-CALL` — same OnCall product
    - Generated code: search `target/generated-sources` only after `mvn -pl backend/mmx-adapter-in-rest -am compile -DskipTests`
 4. **Semantic search** (Cursor index): "where is pending on-call segment enforced" before broad `grep PENDING`
-5. **Material changes** — update matching `specs/` + `openspec/specs/` per [spec-sdd-sync](../../.cursor/rules/spec-sdd-sync.mdc)
+5. **Material changes** — update matching `openspec/specs/` capability specs and `contracts/` per SDD governance in `openspec/config.yaml`
 
 ---
 
@@ -204,4 +203,5 @@ mvn -q -pl backend/mmx-domain,backend/mmx-application test
 
 - [domain.md](domain.md) — how skills use CONTEXT and ADRs
 - [issue-tracker.md](issue-tracker.md) — `.scratch/` issues
-- [specs/001-mm-order-processing/plan.md](../../specs/001-mm-order-processing/plan.md) — full backend package tree (001-era; still useful for orders)
+- [openspec/specs/money-market-order-lifecycle/spec.md](../openspec/specs/money-market-order-lifecycle/spec.md) — core order lifecycle rules
+- [openspec/config.yaml](../openspec/config.yaml) — OpenSpec project context and SDD defaults

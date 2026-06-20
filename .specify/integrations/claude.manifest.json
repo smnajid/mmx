@@ -1,7 +1,0 @@
-{
-  "integration": "claude",
-  "version": "1.0.0",
-  "installed_at": "2026-05-22T00:00:00.000000+00:00",
-  "migrated_from": "cursor-agent",
-  "note": "Skills copied from .cursor/skills; specify init --ai claude template unavailable in CLI 1.0.0"
-}

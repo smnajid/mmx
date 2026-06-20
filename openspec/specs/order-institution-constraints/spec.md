@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Enforce onboarded **institution** rules at **order intake** and **execution**: Portfolio Management MUST supply an active catalog `institutionCode` at intake; the system derives **counterparty** (order vocabulary) from the institution's `displayName`. At execute, assigned traders provide only `executedRate` — the intake institution is locked; traders who cannot deal with the PM-chosen counterparty MUST reject the order. Uses `OrderAgainstInstitutionPolicy` with `InstitutionRepository`. Contract-first execute and intake API delta in `specs/002-trader-orders-views/contracts/openapi.yaml`.
+Enforce onboarded **institution** rules at **order intake** and **execution**: Portfolio Management MUST supply an active catalog `institutionCode` at intake; the system derives **counterparty** (order vocabulary) from the institution's `displayName`. At execute, assigned traders provide only `executedRate` — the intake institution is locked; traders who cannot deal with the PM-chosen counterparty MUST reject the order. Uses `OrderAgainstInstitutionPolicy` with `InstitutionRepository`. Contract-first execute and intake API delta in `contracts/002-trader-orders-views/openapi.yaml`.
 
 ## Requirements
 
@@ -14,6 +14,11 @@ On execute, the trader request SHALL include only **`executedRate`**. The **`ins
 
 - **WHEN** the assigned trader executes an order that was received with `institutionCode` `HSBC-01` (active, displayName `HSBC`) and provides only `executedRate` 3.45
 - **THEN** the order transitions to EXECUTED with counterparty `HSBC` and executedRate 3.45
+
+#### Scenario: Execute below minimumRate rejected
+
+- **WHEN** the order has `minimumRate` 3.50 from intake and the assignee submits `executedRate` 3.45
+- **THEN** the system rejects execute and the order remains ASSIGNED
 
 #### Scenario: Execute with stale institution rejects
 
@@ -30,7 +35,7 @@ On execute, the trader request SHALL include only **`executedRate`**. The **`ins
 
 ### Requirement: Execute API is contract-first with institutionCode
 
-The canonical OpenAPI for trader execute (`specs/002-trader-orders-views/contracts/openapi.yaml`) SHALL define `ExecuteOrderRequest` with only **`executedRate`** as required. `institutionCode` and `counterparty` SHALL NOT appear on the execute request body — they are set at intake. Prose mirror `api-v1.md` SHALL match. Generated server interfaces and Angular clients MUST align with the published contract in the same delivery.
+The canonical OpenAPI for trader execute (`contracts/002-trader-orders-views/openapi.yaml`) SHALL define `ExecuteOrderRequest` with only **`executedRate`** as required. `institutionCode` and `counterparty` SHALL NOT appear on the execute request body — they are set at intake. Prose mirror `api-v1.md` SHALL match. Generated server interfaces and Angular clients MUST align with the published contract in the same delivery.
 
 #### Scenario: OpenAPI documents rate-only execute
 

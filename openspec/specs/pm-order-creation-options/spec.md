@@ -203,7 +203,7 @@ Read-only REST API exposing available order creation options for the Portfolio M
 
 ### Requirement: Order creation API is contract-first
 
-All endpoints under `/api/v1/order-creation/` SHALL be defined in the canonical OpenAPI (`specs/002-trader-orders-views/contracts/openapi.yaml`) under tag `OrderCreation`. Prose mirror `api-v1.md` SHALL match. Generated server interfaces and controller implementation MUST align with the published contract. The surface comprises **ten** GET operations: currencies (term, oncall), operations (term, oncall), tenors (term), notice-periods (oncall), counterparties (term, oncall), contract-info (oncall), and live contracts listing.
+All endpoints under `/api/v1/order-creation/` SHALL be defined in the canonical OpenAPI (`contracts/002-trader-orders-views/openapi.yaml`) under tag `OrderCreation`. Prose mirror `api-v1.md` SHALL match. Generated server interfaces and controller implementation MUST align with the published contract. The surface comprises **ten** GET operations: currencies (term, oncall), operations (term, oncall), tenors (term), notice-periods (oncall), counterparties (term, oncall), contract-info (oncall), and live contracts listing.
 
 #### Scenario: OpenAPI documents all order creation endpoints
 

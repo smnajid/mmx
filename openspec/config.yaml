@@ -10,7 +10,7 @@ context: |
 
   **Contract-first product API (mandatory)**
   - The **trader/product HTTP API** is defined only in the **canonical OpenAPI** for the active feature
-    (e.g. `specs/002-trader-orders-views/contracts/openapi.yaml`) and its prose mirror **`api-v1.md`**.
+    (e.g. `contracts/002-trader-orders-views/openapi.yaml`) and its prose mirror **`api-v1.md`**.
   - **Never** implement ad-hoc REST shapes in code first: extend the contract, regenerate server stubs / models,
     then implement controllers against the generated API interfaces and keep runtime behaviour aligned.
   - Frontend and integration tests MUST target paths, parameters, and bodies that match the published contract.
@@ -43,9 +43,12 @@ context: |
   - `mmx-bootstrap` integration tests (PostgreSQL/Kafka Testcontainers) are the slow path — reserve them for
     that single final full run unless the change only touches bootstrap integration code.
 
-  **Specifications (SDD)**
-  - Material API or behaviour changes remain aligned with the matching feature specs under `specs/` (OpenAPI,
-    `api-v1.md`, `spec.md`, etc.) — same delivery as implementation.
+  **Specifications (SDD) — spec–code parity is blocking**
+  - Material API or behaviour changes remain aligned with the matching capability specs under `openspec/specs/` and
+    canonical contracts under `contracts/` (OpenAPI, `api-v1.md`, etc.) — **same delivery** as implementation.
+  - "Material" = REST paths/headers/schemas, domain validation or lifecycle rules, Flyway/DB columns,
+    ubiquitous-language terms in UX or errors, queue/list/detail fields, and acceptance criteria.
+  - Missing spec updates for a material code change are a **blocking defect**, not a follow-up. Full governance: `docs/governance.md`.
 
 
 rules:

@@ -29,7 +29,7 @@ Currency settings, institution settings, and the shared **Settings** hub shell S
 
 ### Requirement: Settings hub sub-nav uses desk theme
 
-The in-settings sub-navigation strip (**Currencies** | **Institutions**) SHALL use the same typography and colour tokens as other settings chrome and SHALL visually integrate with the settings shell below the application header.
+The in-settings sub-navigation strip (**Currencies** | **Institutions** | **Term rates** | **OnCall rates**) SHALL use the same typography and colour tokens as other settings chrome and SHALL visually integrate with the settings shell below the application header.
 
 #### Scenario: Sub-nav readable on dark settings background
 

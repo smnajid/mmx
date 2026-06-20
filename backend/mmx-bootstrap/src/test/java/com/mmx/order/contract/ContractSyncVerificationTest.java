@@ -31,9 +31,9 @@ class ContractSyncVerificationTest {
 
     private static final String CANONICAL_SCHEMA_CLASSPATH = "/contracts/OrderExecutedV1.json";
     private static final String CANONICAL_SCHEMA_RELATIVE =
-            "../../specs/002-trader-orders-views/contracts/schemas/OrderExecutedV1.json";
+            "../../contracts/002-trader-orders-views/schemas/OrderExecutedV1.json";
     private static final String ASYNCAPI_CONTRACT_RELATIVE =
-            "../../specs/002-trader-orders-views/contracts/asyncapi.yaml";
+            "../../contracts/002-trader-orders-views/asyncapi.yaml";
 
     private static final ObjectMapper JSON = new ObjectMapper();
 
@@ -140,7 +140,7 @@ class ContractSyncVerificationTest {
         Path dir = Paths.get("").toAbsolutePath();
         while (dir != null) {
             Path target =
-                    dir.resolve("specs/002-trader-orders-views/contracts/schemas/OrderExecutedV1.json");
+                    dir.resolve("contracts/002-trader-orders-views/schemas/OrderExecutedV1.json");
             if (Files.exists(target)) {
                 return target;
             }
@@ -157,14 +157,14 @@ class ContractSyncVerificationTest {
         }
         Path dir = Paths.get("").toAbsolutePath();
         while (dir != null) {
-            Path target = dir.resolve("specs/002-trader-orders-views/contracts/asyncapi.yaml");
+            Path target = dir.resolve("contracts/002-trader-orders-views/asyncapi.yaml");
             if (Files.exists(target)) {
                 return target;
             }
             dir = dir.getParent();
         }
         throw new IllegalStateException(
-                "Cannot locate specs/002-trader-orders-views/contracts/asyncapi.yaml. "
+                "Cannot locate contracts/002-trader-orders-views/asyncapi.yaml. "
                         + "Searched relative path: " + candidate);
     }
 }

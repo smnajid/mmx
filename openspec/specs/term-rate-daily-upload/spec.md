@@ -184,7 +184,7 @@ Term rate **management** UI MUST NOT appear on order detail screens. The trader 
 
 ### Requirement: Term rates REST is contract-first
 
-HTTP paths, request bodies, response schemas, and error shapes for Term rate settings SHALL be defined only in `specs/005-term-rate-settings/contracts/openapi.yaml` and prose mirror `api-v1.md`. Server controllers SHALL implement generated API interfaces; the Angular client SHALL call the published contract.
+HTTP paths, request bodies, response schemas, and error shapes for Term rate settings SHALL be defined only in `contracts/005-term-rate-settings/openapi.yaml` and prose mirror `api-v1.md`. Server controllers SHALL implement generated API interfaces; the Angular client SHALL call the published contract.
 
 #### Scenario: Upload path matches OpenAPI
 

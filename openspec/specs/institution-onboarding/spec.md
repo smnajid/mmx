@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Trader-maintained catalog of onboarded **institutions** (banks) for desk settings, future rate tables, and execution selection. Exposed via contract-first REST under `specs/004-institution-settings/contracts/openapi.yaml` and Angular settings UI under `/settings/institutions`. **Institution** is the Settings vocabulary; **counterparty** remains the order/execution field (see `order-institution-constraints`).
+Trader-maintained catalog of onboarded **institutions** (banks) for desk settings, future rate tables, and execution selection. Exposed via contract-first REST under `contracts/004-institution-settings/openapi.yaml` and Angular settings UI under `/settings/institutions`. **Institution** is the Settings vocabulary; **counterparty** remains the order/execution field (see `order-institution-constraints`).
 
 ## ADDED Requirements
 

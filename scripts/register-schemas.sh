@@ -10,7 +10,7 @@ set -euo pipefail
 REGISTRY_URL="${1:-${SCHEMA_REGISTRY_URL:-http://localhost:18081}}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SCHEMAS_DIR="$SCRIPT_DIR/../specs/002-trader-orders-views/contracts/schemas"
+SCHEMAS_DIR="$SCRIPT_DIR/../contracts/002-trader-orders-views/schemas"
 
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'

@@ -156,7 +156,8 @@ Modeled ports for contract balance checks (e.g. Decrease validation); not full p
 
 ## Further reading
 
-- Authoritative order rules: [specs/001-mm-order-processing/spec.md](specs/001-mm-order-processing/spec.md)
-- Desk views and Accounted: [specs/002-trader-orders-views/spec.md](specs/002-trader-orders-views/spec.md)
+- Core order lifecycle (intake, assign, execute, cancel/reject): [openspec/specs/money-market-order-lifecycle/spec.md](openspec/specs/money-market-order-lifecycle/spec.md)
+- Desk queues and accounting: [openspec/specs/desk-order-queries/spec.md](openspec/specs/desk-order-queries/spec.md), [openspec/specs/trader-executed-queue/spec.md](openspec/specs/trader-executed-queue/spec.md), [openspec/specs/back-office-accounting-handoff/spec.md](openspec/specs/back-office-accounting-handoff/spec.md)
+- HTTP contracts: [contracts/001-mm-order-processing/api-v1.md](contracts/001-mm-order-processing/api-v1.md), [contracts/002-trader-orders-views/api-v1.md](contracts/002-trader-orders-views/api-v1.md)
 - On-call curve rules: [openspec/specs/oncall-rate-curve-management/spec.md](openspec/specs/oncall-rate-curve-management/spec.md)
 - ADRs (when present): [docs/adr/](docs/adr/)

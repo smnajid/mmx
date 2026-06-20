@@ -8,11 +8,11 @@ Governance and auto-setup rules for the `OrderExecutedV1` schema registry integr
 
 ### Requirement: OrderExecutedV1 JSON Schema has a single canonical file
 
-The `OrderExecutedV1` schema SHALL be defined in exactly one file: `specs/002-trader-orders-views/contracts/schemas/OrderExecutedV1.json`. All other representations (inline schema in `asyncapi.yaml`, test resource copies) SHALL be removed in favour of references to this file. The file SHALL include a `$schema` declaration (draft-07) and a stable `$id`.
+The `OrderExecutedV1` schema SHALL be defined in exactly one file: `contracts/002-trader-orders-views/schemas/OrderExecutedV1.json`. All other representations (inline schema in `asyncapi.yaml`, test resource copies) SHALL be removed in favour of references to this file. The file SHALL include a `$schema` declaration (draft-07) and a stable `$id`.
 
 #### Scenario: No inline schema in asyncapi.yaml
 
-- **WHEN** `specs/002-trader-orders-views/contracts/asyncapi.yaml` is inspected
+- **WHEN** `contracts/002-trader-orders-views/asyncapi.yaml` is inspected
 - **THEN** the `OrderExecutedV1` payload is a `$ref` to `./schemas/OrderExecutedV1.json` and no inline schema exists under `components/schemas`
 
 #### Scenario: No hand-maintained mirror in test resources

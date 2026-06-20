@@ -29,7 +29,7 @@ The order lifecycle SHALL allow exactly one transition out of `OrderStatus.EXECU
 
 ### Requirement: Outbound transmission of every newly executed order
 
-For every order that transitions to `EXECUTED`, the system SHALL schedule exactly one durable back-office handoff by writing a transactional **outbox** row whose payload conforms to **`OrderExecutedV1`** in `specs/002-trader-orders-views/contracts/asyncapi.yaml`. Scheduling SHALL occur in the **same database transaction** as persisting `EXECUTED` (via `ExecuteOrderService` orchestration). The back-office SHALL observe the handoff only after the outbox **relay** successfully publishes to Kafka (post-commit); mmx MUST NOT invoke a synchronous `notifyExecution` gateway call from the REST controller.
+For every order that transitions to `EXECUTED`, the system SHALL schedule exactly one durable back-office handoff by writing a transactional **outbox** row whose payload conforms to **`OrderExecutedV1`** in `contracts/002-trader-orders-views/asyncapi.yaml`. Scheduling SHALL occur in the **same database transaction** as persisting `EXECUTED` (via `ExecuteOrderService` orchestration). The back-office SHALL observe the handoff only after the outbox **relay** successfully publishes to Kafka (post-commit); mmx MUST NOT invoke a synchronous `notifyExecution` gateway call from the REST controller.
 
 #### Scenario: Each EXECUTED transition schedules exactly one outbox row
 
@@ -108,7 +108,7 @@ The accounted callback endpoint SHALL accept requests without authentication for
 
 ### Requirement: Inbound HTTP accounted callback remains contract-first OpenAPI
 
-The inbound `POST /api/v1/back-office/orders/{orderId}/accounted` surface SHALL remain defined in `specs/002-trader-orders-views/contracts/openapi.yaml` (contract-first sync). Idempotent `EXECUTED → ACCOUNTED` behaviour and POC unauthenticated callback posture from the baseline spec are unchanged.
+The inbound `POST /api/v1/back-office/orders/{orderId}/accounted` surface SHALL remain defined in `contracts/002-trader-orders-views/openapi.yaml` (contract-first sync). Idempotent `EXECUTED → ACCOUNTED` behaviour and POC unauthenticated callback posture from the baseline spec are unchanged.
 
 #### Scenario: Accounted callback documented in OpenAPI
 

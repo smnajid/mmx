@@ -74,7 +74,7 @@
                             <goal>generate</goal>
                         </goals>
                         <configuration>
-                            <inputSpec>${project.basedir}/../../specs/002-trader-orders-views/contracts/openapi.yaml</inputSpec>
+                            <inputSpec>${project.basedir}/../../contracts/002-trader-orders-views/openapi.yaml</inputSpec>
                             <generatorName>java</generatorName>
                             <library>native</library>
                             <generateApis>false</generateApis>
@@ -104,7 +104,7 @@
                             <goal>generate</goal>
                         </goals>
                         <configuration>
-                            <inputSpec>${project.basedir}/../../specs/002-trader-orders-views/contracts/openapi.yaml</inputSpec>
+                            <inputSpec>${project.basedir}/../../contracts/002-trader-orders-views/openapi.yaml</inputSpec>
                             <generatorName>spring</generatorName>
                             <output>${project.build.directory}/generated-sources/openapi-spring</output>
                             <generateApis>true</generateApis>
@@ -135,7 +135,7 @@
                             <goal>generate</goal>
                         </goals>
                         <configuration>
-                            <inputSpec>${project.basedir}/../../specs/003-managed-currency-settings/contracts/openapi.yaml</inputSpec>
+                            <inputSpec>${project.basedir}/../../contracts/003-managed-currency-settings/openapi.yaml</inputSpec>
                             <generatorName>java</generatorName>
                             <output>${project.build.directory}/generated-sources/openapi-settings</output>
                             <library>native</library>
@@ -162,7 +162,7 @@
                             <goal>generate</goal>
                         </goals>
                         <configuration>
-                            <inputSpec>${project.basedir}/../../specs/003-managed-currency-settings/contracts/openapi.yaml</inputSpec>
+                            <inputSpec>${project.basedir}/../../contracts/003-managed-currency-settings/openapi.yaml</inputSpec>
                             <generatorName>spring</generatorName>
                             <output>${project.build.directory}/generated-sources/openapi-settings-spring</output>
                             <generateApis>true</generateApis>
@@ -188,7 +188,7 @@
                             <goal>generate</goal>
                         </goals>
                         <configuration>
-                            <inputSpec>${project.basedir}/../../specs/004-institution-settings/contracts/openapi.yaml</inputSpec>
+                            <inputSpec>${project.basedir}/../../contracts/004-institution-settings/openapi.yaml</inputSpec>
                             <generatorName>java</generatorName>
                             <output>${project.build.directory}/generated-sources/openapi-institution</output>
                             <library>native</library>
@@ -215,7 +215,7 @@
                             <goal>generate</goal>
                         </goals>
                         <configuration>
-                            <inputSpec>${project.basedir}/../../specs/004-institution-settings/contracts/openapi.yaml</inputSpec>
+                            <inputSpec>${project.basedir}/../../contracts/004-institution-settings/openapi.yaml</inputSpec>
                             <generatorName>spring</generatorName>
                             <output>${project.build.directory}/generated-sources/openapi-institution-spring</output>
                             <generateApis>true</generateApis>
@@ -241,7 +241,7 @@
                             <goal>generate</goal>
                         </goals>
                         <configuration>
-                            <inputSpec>${project.basedir}/../../specs/005-term-rate-settings/contracts/openapi.yaml</inputSpec>
+                            <inputSpec>${project.basedir}/../../contracts/005-term-rate-settings/openapi.yaml</inputSpec>
                             <generatorName>java</generatorName>
                             <output>${project.build.directory}/generated-sources/openapi-term-rate</output>
                             <library>native</library>
@@ -268,7 +268,7 @@
                             <goal>generate</goal>
                         </goals>
                         <configuration>
-                            <inputSpec>${project.basedir}/../../specs/005-term-rate-settings/contracts/openapi.yaml</inputSpec>
+                            <inputSpec>${project.basedir}/../../contracts/005-term-rate-settings/openapi.yaml</inputSpec>
                             <generatorName>spring</generatorName>
                             <output>${project.build.directory}/generated-sources/openapi-term-rate-spring</output>
                             <generateApis>true</generateApis>

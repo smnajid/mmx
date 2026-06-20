@@ -37,3 +37,22 @@ The shared Received list SHALL preserve existing trader-visible behaviour from `
 
 - **WHEN** the trader views Received under Term
 - **THEN** only Term received API list operation is called (not OnCall)
+
+### Requirement: Tenor and notice period on Assigned and Executed queues
+
+For **Term** rows on Assigned and Executed list surfaces, **Tenor** SHALL be visible in the list or reachable in one obvious step without leaving context. For **OnCall** rows on Assigned and Executed list surfaces, **Notice period** SHALL be visible under the same rule. REST `OrderSummaryResponse` SHALL expose `tenor` for Term and `noticePeriod` for OnCall consistent with Received behaviour.
+
+#### Scenario: Term Assigned list shows tenor column
+
+- **WHEN** the trader views `/term/assigned`
+- **THEN** each row exposes the order's tenor
+
+#### Scenario: OnCall Executed list shows notice period
+
+- **WHEN** the trader views `/oncall/executed`
+- **THEN** each row exposes the order's notice period
+
+#### Scenario: Order detail shows workspace-appropriate scheduling field
+
+- **WHEN** the trader opens order detail for a Term order from Assigned or Executed
+- **THEN** tenor is visible without navigating away from the detail screen

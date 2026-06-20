@@ -77,7 +77,7 @@ The Executed list endpoints SHALL be query-only and SHALL NOT modify any order's
 
 ### Requirement: Executed list rows expose handoffStatus (contract-first OpenAPI)
 
-For each row returned by a workspace Executed list endpoint (`GET /api/v1/orders/term/executed` and `GET /api/v1/orders/oncall/executed`), the response SHALL include `handoffStatus` with one of `PENDING`, `PUBLISHED`, or `FAILED` as defined in `specs/002-trader-orders-views/contracts/openapi.yaml`. The field SHALL be added **contract-first** (OpenAPI and `api-v1.md` before implementation). For orders in `EXECUTED` status, `handoffStatus` SHALL reflect the integration handoff state distinct from lifecycle `status` (which remains `EXECUTED` until accounted).
+For each row returned by a workspace Executed list endpoint (`GET /api/v1/orders/term/executed` and `GET /api/v1/orders/oncall/executed`), the response SHALL include `handoffStatus` with one of `PENDING`, `PUBLISHED`, or `FAILED` as defined in `contracts/002-trader-orders-views/openapi.yaml`. The field SHALL be added **contract-first** (OpenAPI and `api-v1.md` before implementation). For orders in `EXECUTED` status, `handoffStatus` SHALL reflect the integration handoff state distinct from lifecycle `status` (which remains `EXECUTED` until accounted).
 
 #### Scenario: PENDING visible while relay has not acked Kafka
 
@@ -98,6 +98,22 @@ For each row returned by a workspace Executed list endpoint (`GET /api/v1/orders
 
 - **WHEN** this capability is implemented
 - **THEN** `handoffStatus` exists on `OrderSummaryResponse` in `openapi.yaml` and the server uses generated or contract-aligned types — not a hand-maintained parallel DTO
+
+---
+
+### Requirement: Executed list conveys accounting staleness
+
+For executed-not-accounted rows where handoff has succeeded (`handoffStatus` is `PUBLISHED`), the Executed view SHALL convey how long execution has awaited accounting using one authoritative business timestamp per order (execution time). Longer-waiting items SHALL be more salient than fresher ones per desk-agreed presentation rules. The default list order SHALL favour longest-waiting first unless the trader chooses another sort.
+
+#### Scenario: Default sort longest-waiting first
+
+- **WHEN** the trader opens an Executed list with multiple `PUBLISHED` handoff rows of different execution ages
+- **THEN** the default row order places the longest-waiting order first
+
+#### Scenario: Staleness visible on row
+
+- **WHEN** an order has been `EXECUTED` with `handoffStatus = PUBLISHED` for an extended period
+- **THEN** the Executed list row conveys elapsed time since execution more prominently than fresher rows
 
 ---
 

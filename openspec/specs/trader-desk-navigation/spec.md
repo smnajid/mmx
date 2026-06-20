@@ -163,17 +163,27 @@ When the trader is on any settings route (`/settings` and children, including cu
 
 ### Requirement: Settings hub sub-navigation for catalog areas
 
-Within settings, the application SHALL expose sub-navigation for reference-data areas. In phase 1 of the institution programme, sub-nav SHALL include **Currencies** and **Institutions**. Selecting a section SHALL route to `/settings/currencies` or `/settings/institutions` respectively without leaving the settings shell.
+Within settings, the application SHALL expose sub-navigation for reference-data and rate areas: **Currencies**, **Institutions**, **Term rates**, and **OnCall rates**. Selecting a section SHALL route to `/settings/currencies`, `/settings/institutions`, `/settings/term-rates`, or `/settings/oncall-rates` respectively without leaving the settings shell.
 
 #### Scenario: Sub-nav visible on institution list
 
 - **WHEN** the trader is on `/settings/institutions`
-- **THEN** settings sub-navigation shows **Currencies** and **Institutions** with **Institutions** indicated as active
+- **THEN** settings sub-navigation shows **Currencies**, **Institutions**, **Term rates**, and **OnCall rates** with **Institutions** indicated as active
 
 #### Scenario: Navigate from currencies to institutions
 
 - **WHEN** the trader is on `/settings/currencies` and selects **Institutions** in sub-nav
 - **THEN** routing navigates to `/settings/institutions`
+
+#### Scenario: Navigate to term rates from settings sub-nav
+
+- **WHEN** the trader is on any settings route and selects **Term rates** in sub-nav
+- **THEN** routing navigates to `/settings/term-rates`
+
+#### Scenario: Navigate to oncall rates from settings sub-nav
+
+- **WHEN** the trader is on any settings route and selects **OnCall rates** in sub-nav
+- **THEN** routing navigates to `/settings/oncall-rates`
 
 #### Scenario: Default settings entry opens currencies
 

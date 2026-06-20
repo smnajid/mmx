@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Trader-maintained money-market currency catalog and per-currency operational rules (enabled tenors, enabled notice periods, minimum amounts). Exposed via contract-first REST under `specs/003-managed-currency-settings/contracts/openapi.yaml` and Angular settings UI.
+Trader-maintained money-market currency catalog and per-currency operational rules (enabled tenors, enabled notice periods, minimum amounts). Exposed via contract-first REST under `contracts/003-managed-currency-settings/openapi.yaml` and Angular settings UI.
 
 ## Requirements
 
@@ -161,7 +161,7 @@ The Angular application SHALL provide a currency settings area reachable without
 
 ### Requirement: Contract-first settings REST API
 
-The currency settings HTTP surface SHALL be defined in `specs/003-managed-currency-settings/contracts/openapi.yaml` with a prose mirror in `api-v1.md`. The `mmx-adapter-in-rest` module SHALL implement generated API interfaces; runtime request and response shapes MUST match the published contract.
+The currency settings HTTP surface SHALL be defined in `contracts/003-managed-currency-settings/openapi.yaml` with a prose mirror in `api-v1.md`. The `mmx-adapter-in-rest` module SHALL implement generated API interfaces; runtime request and response shapes MUST match the published contract.
 
 #### Scenario: Implementation follows OpenAPI
 

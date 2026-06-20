@@ -100,14 +100,14 @@
         </dependency>
     </dependencies>
 
-    <!-- Package canonical OpenAPI from Spec Kit contracts so Swagger UI loads the codegen source-of-truth. -->
+    <!-- Package canonical OpenAPI from contracts so Swagger UI loads the codegen source-of-truth. -->
     <build>
         <resources>
             <resource>
                 <directory>src/main/resources</directory>
             </resource>
             <resource>
-                <directory>${project.basedir}/../../specs/001-mm-order-processing/contracts</directory>
+                <directory>${project.basedir}/../../contracts/001-mm-order-processing</directory>
                 <includes>
                     <include>openapi.yaml</include>
                 </includes>
@@ -119,7 +119,7 @@
                 <directory>src/test/resources</directory>
             </testResource>
             <testResource>
-                <directory>${project.basedir}/../../specs/002-trader-orders-views/contracts/schemas</directory>
+                <directory>${project.basedir}/../../contracts/002-trader-orders-views/schemas</directory>
                 <targetPath>contracts</targetPath>
             </testResource>
         </testResources>

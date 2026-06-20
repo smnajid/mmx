@@ -37,7 +37,7 @@ management:
       show-details: always
 
 springdoc:
-  # Serve only the canonical contract (same file as OpenAPI Generator input); avoids runtime scan drift vs specs/002-trader-orders-views/contracts/openapi.yaml
+  # Serve only the canonical contract (same file as OpenAPI Generator input); avoids runtime scan drift vs contracts/002-trader-orders-views/openapi.yaml
   api-docs:
     enabled: false
   swagger-ui:

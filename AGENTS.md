@@ -1,6 +1,6 @@
 ## Spec-Driven Development (SDD)
 
-Agents MUST keep **specifications and code aligned** for any material change (API, domain behavior, persistence, Trader-facing UX). Operational checklist: `.cursor/rules/spec-sdd-sync.mdc` (Cursor) or `CLAUDE.md` (Claude Code). Governance: `.specify/memory/constitution.md` Principle VI (Spec–code parity), version **1.6.0+**. Treat missing spec updates as a **blocking** defect, not a follow-up.
+Agents MUST keep **specifications and code aligned** for any material change (API, domain behavior, persistence, Trader-facing UX). Operational checklist: `CLAUDE.md`. Governance: `docs/governance.md` Principle VI (Spec–code parity). Treat missing spec updates as a **blocking** defect, not a follow-up.
 
 **Claude Code**: skills and OPSX commands live under `.claude/` — see `docs/agents/claude-code.md`.
 
@@ -14,9 +14,9 @@ For **new behavior** and **bug fixes**, the default workflow is **strict TDD**: 
 
 Agents SHOULD read the `tdd` skill (`.claude/skills/tdd/SKILL.md` on Claude Code, `.cursor/skills/tdd/SKILL.md` on Cursor) when the user asks for TDD, red-green-refactor, or test-first delivery.
 
-## Spec Kit Git hook (`/speckit.specify`)
+## OpenSpec changes
 
-Starting a **new** feature with `/speckit.specify` MUST flow through Spec Kit’s **`before_specify`** hook (see `.specify/extensions.yml`): it runs **`speckit.git.feature`**, which creates and checks out the next numbered feature branch (e.g. `003-…`). Repo setting **`auto_execute_hooks: true`** keeps that hook automatic. If you run specify without going through the normal Speckit command path, create the feature branch yourself with the same script or `git checkout -b …` so branch name and spec folder stay aligned.
+Use OpenSpec for spec-driven work: propose a change (`/opsx:propose` or `/opsx:new`), implement from `tasks.md` (`/opsx:apply`), and merge into `openspec/specs/` (`/opsx:archive`). CLI: `openspec validate`, `openspec status --json`. Project context and task-generation rules live in `openspec/config.yaml`.
 
 ## Agent skills
 
