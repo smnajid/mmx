@@ -21,6 +21,49 @@ log()  { echo -e "${GREEN}[schema-registry]${NC} $*"; }
 warn() { echo -e "${YELLOW}[schema-registry]${NC} $*"; }
 die()  { echo -e "${RED}[schema-registry] ERROR:${NC} $*" >&2; exit 1; }
 
+LAST_SR_HTTP_CODE=""
+LAST_SR_BODY=""
+
+schema_registry_probe() {
+  local response http_code
+  if ! response=$(curl -sS -w '\n%{http_code}' "$REGISTRY_URL/subjects" 2>&1); then
+    LAST_SR_HTTP_CODE=""
+    LAST_SR_BODY="$response"
+    return 1
+  fi
+
+  http_code=$(echo "$response" | tail -n1)
+  LAST_SR_HTTP_CODE="$http_code"
+  LAST_SR_BODY=$(echo "$response" | sed '$d')
+
+  [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]
+}
+
+describe_schema_registry_failure() {
+  local error_code message
+  error_code=$(echo "$LAST_SR_BODY" | jq -r '.error_code // empty' 2>/dev/null || true)
+  message=$(echo "$LAST_SR_BODY" | jq -r '.message // empty' 2>/dev/null || true)
+
+  if [ -n "$LAST_SR_HTTP_CODE" ]; then
+    warn "Last response: HTTP $LAST_SR_HTTP_CODE ${LAST_SR_BODY:-"(empty body)"}"
+  elif [ -n "$LAST_SR_BODY" ]; then
+    warn "Last response: $LAST_SR_BODY"
+  fi
+
+  if [ "$error_code" = "40002" ] || [[ "$message" == *"Fetch returned with error"* ]]; then
+    warn "Schema Registry cannot read its internal _schemas topic (often offset_out_of_range)."
+    warn "The _schemas topic must use cleanup.policy=compact; delete retention can trim required records."
+    warn ""
+    warn "Local dev recovery:"
+    warn "  docker compose down"
+    warn "  docker volume rm mmx_redpanda-data"
+    warn "  docker compose up -d"
+    warn ""
+    warn "Production: verify _schemas has cleanup.policy=compact at cluster provision time,"
+    warn "monitor GET /subjects in readiness checks, and escalate to Redpanda support — do not wipe volumes."
+  fi
+}
+
 register_schema() {
   local subject="$1"
   local schema_file="$2"
@@ -61,15 +104,20 @@ register_schema() {
   fi
 }
 
-# Ensure registry is reachable
+# Ensure registry is reachable and serving 2xx on /subjects
 log "Checking connection to Redpanda Schema Registry at $REGISTRY_URL..."
 MAX_ATTEMPTS=15
 ATTEMPT=1
-until curl -sf "$REGISTRY_URL/subjects" > /dev/null 2>&1; do
+until schema_registry_probe; do
   if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
-    die "Schema Registry at $REGISTRY_URL is unreachable after $MAX_ATTEMPTS attempts."
+    describe_schema_registry_failure >&2
+    die "Schema Registry at $REGISTRY_URL is not ready after $MAX_ATTEMPTS attempts."
   fi
-  warn "Schema Registry is not ready yet. Retrying in 2s... ($ATTEMPT/$MAX_ATTEMPTS)"
+  if [ -n "$LAST_SR_HTTP_CODE" ] && [ "$LAST_SR_HTTP_CODE" != "000" ]; then
+    warn "Schema Registry returned HTTP $LAST_SR_HTTP_CODE (expected 2xx). Retrying in 2s... ($ATTEMPT/$MAX_ATTEMPTS)"
+  else
+    warn "Schema Registry is not ready yet. Retrying in 2s... ($ATTEMPT/$MAX_ATTEMPTS)"
+  fi
   sleep 2
   ATTEMPT=$((ATTEMPT + 1))
 done

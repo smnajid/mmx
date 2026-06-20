@@ -40,11 +40,11 @@ until docker inspect --format='{{.State.Health.Status}}' mmx-postgres 2>/dev/nul
 done
 log "Postgres is healthy."
 
-log "Waiting for Redpanda to be healthy..."
+log "Waiting for Redpanda and Schema Registry to be healthy..."
 until docker inspect --format='{{.State.Health.Status}}' mmx-redpanda 2>/dev/null | grep -q healthy; do
   sleep 3
 done
-log "Redpanda is healthy."
+log "Redpanda and Schema Registry are healthy."
 
 # ── 1.5. Schema Registry Registration ──────────────────────────────────────────
 log "Registering schemas in Redpanda Schema Registry..."

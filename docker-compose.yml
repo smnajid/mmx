@@ -44,7 +44,8 @@ services:
     volumes:
       - redpanda-data:/var/lib/redpanda/data
     healthcheck:
-      test: ["CMD-SHELL", "rpk cluster health | grep -E 'Healthy:.+true' || exit 1"]
+      # Kafka cluster health alone is insufficient — Schema Registry can fail while brokers are healthy.
+      test: ["CMD-SHELL", "rpk cluster health | grep -E 'Healthy:.+true' && curl -sf http://localhost:8081/subjects > /dev/null || exit 1"]
       interval: 15s
       timeout: 10s
       retries: 5

@@ -1,225 +1,317 @@
 #!/usr/bin/env bash
-# Post a handful of Money Market orders for local UI smoke testing.
+# Seed mmx demo orders for the trader desk (test env).
 #
-# Prerequisites: backend running (e.g. ./mmx-start.sh or mvn spring-boot:run -pl mmx-bootstrap with Postgres up)
-# Default URL: http://localhost:8080  (override with BASE_URL)
+# Does NOT touch Settings (currencies, institutions, rates). Configure those separately.
+# By default wipes all order rows via Postgres before seeding (WIPE_ORDERS=1).
+#
+# Populates desk queues — Received (near + far), Assigned (two traders), Executed, OnCall INCREASE
+#
+# Prerequisites:
+#   - Backend running (e.g. ./mmx-start.sh)
+#   - Postgres reachable (default: docker container mmx-postgres)
+#   - ≥1 active institution and onboarded currencies in Settings
+#
+# Use X-Trader-Id demo-trader in the SPA (or TRADER_ID below).
 #
 # Intake: valueDate must be ≥ today + 2 calendar days.
 #
-# Some rows use valueDate = today+2 so they appear under the default Received near-term window
-# (today … today+2, Europe/Paris). Others use today+30 — valid for intake but hidden until you enable
-# “Show all value dates” on the Received screen.
+# Environment:
+#   BASE_URL                   API base (default http://localhost:8080)
+#   TRADER_ID                  Primary trader (default demo-trader)
+#   TRADER_ID_OTHER            Second trader for Assigned visibility (default demo-trader-2)
+#   ADVANCE_WORKFLOW           1 = assign/execute subset (default); 0 = intake only
+#   WIPE_ORDERS                1 = DELETE all orders + audit/outbox first (default); 0 = append
+#   POSTGRES_CONTAINER         Docker container for wipe (default mmx-postgres)
+#   INSTITUTION_PRIMARY_CODE   Override; else first active institution from Settings API
+#   INSTITUTION_SECONDARY_CODE Override; else second active institution (or primary again)
 #
-# No verification step — curl exit status only. Use any X-Trader-Id in the SPA (e.g. demo-trader).
+# After seeding:
+#   ./scripts/bo-confirm.sh              # move Executed → Accounted (optional)
+#   Open http://localhost:4200 → ON-CALL / Term → Received / Assigned / Executed
 
 set -euo pipefail
 
 BASE_URL="${BASE_URL:-http://localhost:8080}"
+TRADER_ID="${TRADER_ID:-demo-trader}"
+TRADER_ID_OTHER="${TRADER_ID_OTHER:-demo-trader-2}"
+ADVANCE_WORKFLOW="${ADVANCE_WORKFLOW:-1}"
+WIPE_ORDERS="${WIPE_ORDERS:-1}"
+POSTGRES_CONTAINER="${POSTGRES_CONTAINER:-mmx-postgres}"
 RUN_ID="$(date +%s)"
+
 VALUE_DATE_NEAR="$(python3 -c "from datetime import date, timedelta; print((date.today() + timedelta(days=2)).isoformat())")"
 VALUE_DATE_FAR="$(python3 -c "from datetime import date, timedelta; print((date.today() + timedelta(days=30)).isoformat())")"
+
+INSTITUTION_PRIMARY=""
+INSTITUTION_SECONDARY=""
+LAST_ORDER_ID=""
+LAST_CONTRACT_NUMBER=""
+
+json_field() {
+  local json="$1"
+  local field="$2"
+  python3 -c "import json,sys; d=json.loads(sys.argv[1]); print(d.get(sys.argv[2]) or '')" "${json}" "${field}"
+}
+
+trader_curl() {
+  local method="$1"
+  local path="$2"
+  local trader="${3:-${TRADER_ID}}"
+  shift 3
+  curl -sS -X "${method}" "${BASE_URL}${path}" \
+    -H "X-Trader-Id: ${trader}" \
+    "$@"
+}
+
+wipe_order_data() {
+  if ! docker inspect "${POSTGRES_CONTAINER}" >/dev/null 2>&1; then
+    echo "FAIL wipe: container ${POSTGRES_CONTAINER} not running" >&2
+    exit 1
+  fi
+  docker exec "${POSTGRES_CONTAINER}" psql -U mmx -d mmx -v ON_ERROR_STOP=1 -c "
+    DELETE FROM back_office_outbox;
+    DELETE FROM order_audit_log;
+    DELETE FROM money_market_order;
+  " >/dev/null
+  echo "OK   wiped orders (money_market_order, order_audit_log, back_office_outbox)"
+}
+
+resolve_institution_codes() {
+  if [[ -n "${INSTITUTION_PRIMARY_CODE:-}" ]]; then
+    INSTITUTION_PRIMARY="${INSTITUTION_PRIMARY_CODE}"
+    INSTITUTION_SECONDARY="${INSTITUTION_SECONDARY_CODE:-${INSTITUTION_PRIMARY_CODE}}"
+    return 0
+  fi
+
+  local json
+  json="$(trader_curl GET "/api/v1/settings/institutions?active=true" "${TRADER_ID}")"
+  read -r INSTITUTION_PRIMARY INSTITUTION_SECONDARY <<<"$(python3 -c "
+import json, sys
+rows = json.load(sys.stdin)
+codes = sorted(r['institutionCode'] for r in rows if r.get('active'))
+if not codes:
+    sys.exit(1)
+primary = codes[0]
+secondary = codes[1] if len(codes) > 1 else codes[0]
+print(primary, secondary)
+" <<<"${json}")" || {
+    echo "FAIL no active institutions in Settings — onboard at least one before seeding" >&2
+    exit 1
+  }
+}
 
 post_order() {
   local label="$1"
   local json="$2"
+  local body_file
+  body_file="$(mktemp)"
   local code
-  code="$(curl -sS -o /dev/null -w "%{http_code}" \
+  code="$(curl -sS -o "${body_file}" -w "%{http_code}" \
     -X POST "${BASE_URL}/api/v1/orders" \
     -H "Content-Type: application/json" \
     -d "${json}")"
   if [[ "${code}" != "201" && "${code}" != "200" ]]; then
+    echo "FAIL ${label} -> HTTP ${code}" >&2
+    if [[ -s "${body_file}" ]]; then
+      cat "${body_file}" >&2
+    fi
+    rm -f "${body_file}"
+    exit 1
+  fi
+  LAST_ORDER_ID="$(json_field "$(cat "${body_file}")" "orderId")"
+  rm -f "${body_file}"
+  echo "OK   ${label} (${code}) id=${LAST_ORDER_ID}"
+}
+
+assign_order() {
+  local order_id="$1"
+  local trader="${2:-${TRADER_ID}}"
+  local label="${3:-assign ${order_id}}"
+  local code
+  code="$(trader_curl POST "/api/v1/orders/${order_id}/assign" "${trader}" -o /dev/null -w "%{http_code}")"
+  if [[ "${code}" != "200" ]]; then
     echo "FAIL ${label} -> HTTP ${code}" >&2
     exit 1
   fi
   echo "OK   ${label} (${code})"
 }
 
-onboard_currency() {
-  local iso="$1"
+execute_order() {
+  local order_id="$1"
+  local executed_rate="$2"
+  local trader="${3:-${TRADER_ID}}"
+  local label="${4:-execute ${order_id}}"
+  local body_file
+  body_file="$(mktemp)"
   local code
-  code="$(curl -sS -o /dev/null -w "%{http_code}" \
-    -X POST "${BASE_URL}/api/v1/settings/currencies" \
+  code="$(trader_curl POST "/api/v1/orders/${order_id}/execute" "${trader}" \
     -H "Content-Type: application/json" \
-    -H "X-Trader-Id: demo-trader" \
-    -d "$(cat <<EOF
-{
-  "code": "${iso}",
-  "minSubscriptionAmount": 1.00,
-  "minIncreaseDecreaseAmount": 1.00,
-  "enabledTenors": ["1W","2W","1M","3M","6M","1Y"],
-  "enabledNoticePeriods": ["24H","48H"]
-}
-EOF
-)")"
-  if [[ "${code}" == "201" ]]; then
-    echo "OK   onboard currency ${iso}"
-  elif [[ "${code}" == "409" ]]; then
-    echo "SKIP currency ${iso} (already onboarded)"
-  else
-    echo "FAIL onboard ${iso} -> HTTP ${code}" >&2
+    -d "{\"executedRate\":${executed_rate}}" \
+    -o "${body_file}" -w "%{http_code}")"
+  if [[ "${code}" != "200" ]]; then
+    echo "FAIL ${label} -> HTTP ${code}" >&2
+    if [[ -s "${body_file}" ]]; then
+      cat "${body_file}" >&2
+    fi
+    rm -f "${body_file}"
     exit 1
   fi
+  LAST_CONTRACT_NUMBER="$(json_field "$(cat "${body_file}")" "generatedContractNumber")"
+  rm -f "${body_file}"
+  echo "OK   ${label} (${code}) contract=${LAST_CONTRACT_NUMBER:-—}"
 }
 
-echo "Seeding managed currencies -> ${BASE_URL}"
-onboard_currency "EUR"
-onboard_currency "USD"
+order_json() {
+  local external_ref="$1"
+  local order_type="$2"
+  local operation="$3"
+  local portfolio="$4"
+  local currency="$5"
+  local amount="$6"
+  local value_date="$7"
+  local institution_code="$8"
+  local minimum_rate="${9:-}"
+  local tenor="${10:-}"
+  local notice="${11:-}"
+  local source_contract="${12:-}"
+
+  python3 - "${external_ref}" "${order_type}" "${operation}" "${portfolio}" "${currency}" \
+    "${amount}" "${value_date}" "${institution_code}" "${minimum_rate}" "${tenor}" "${notice}" \
+    "${source_contract}" <<'PY'
+import json, sys
+(
+    external_ref, order_type, operation, portfolio, currency,
+    amount, value_date, institution_code, minimum_rate, tenor, notice,
+    source_contract,
+) = sys.argv[1:]
+
+payload = {
+    "externalOrderReference": external_ref,
+    "orderType": order_type,
+    "orderOperation": operation,
+    "portfolioNumber": portfolio,
+    "currency": currency,
+    "amount": float(amount),
+    "valueDate": value_date,
+    "institutionCode": institution_code,
+}
+if minimum_rate:
+    payload["minimumRate"] = float(minimum_rate)
+if tenor:
+    payload["tenor"] = tenor
+if notice:
+    payload["noticePeriod"] = notice
+if source_contract:
+    payload["sourceContractNumber"] = source_contract
+print(json.dumps(payload))
+PY
+}
+
+echo "=== mmx demo seed -> ${BASE_URL} (run=${RUN_ID}) ==="
+echo "  trader=${TRADER_ID}  other=${TRADER_ID_OTHER}  advance=${ADVANCE_WORKFLOW}  wipe=${WIPE_ORDERS}"
+echo "  near valueDate=${VALUE_DATE_NEAR}  far=${VALUE_DATE_FAR}"
 echo
 
-onboard_institution() {
-  local name="$1"
-  local code
-  code="$(curl -sS -o /dev/null -w "%{http_code}" \
-    -X POST "${BASE_URL}/api/v1/settings/institutions" \
-    -H "Content-Type: application/json" \
-    -H "X-Trader-Id: demo-trader" \
-    -d "{\"displayName\":\"${name}\"}")"
-  if [[ "${code}" == "201" ]]; then
-    echo "OK   onboard institution ${name}"
-  elif [[ "${code}" == "409" ]]; then
-    echo "SKIP institution ${name} (suffix overflow or conflict)"
-  else
-    echo "INFO institution ${name} -> HTTP ${code} (may already exist)"
-  fi
-}
+if [[ "${WIPE_ORDERS}" == "1" ]]; then
+  echo "--- Wipe existing orders (test env) ---"
+  wipe_order_data
+  echo
+fi
 
-echo "Seeding institutions (required before execute) -> ${BASE_URL}"
-onboard_institution "BankCo International"
+echo "--- Institutions (read from Settings; not modified) ---"
+resolve_institution_codes
+echo "  primary=${INSTITUTION_PRIMARY}  secondary=${INSTITUTION_SECONDARY}"
 echo
 
-upload_term_rates_sample() {
-  local sample_file
-  sample_file="$(mktemp /tmp/term-rates-sample.XXXXXX.csv)"
-  local code
-  code="$(curl -sS -H "X-Trader-Id: demo-trader" "${BASE_URL}/api/v1/settings/term-rates/sample" -o "${sample_file}" -w "%{http_code}")"
-  if [[ "${code}" != "200" ]]; then
-    echo "SKIP term rates sample (HTTP ${code}) — backend may lack term_rate migration"
-    rm -f "${sample_file}"
-    return 0
-  fi
-  if [[ ! -s "${sample_file}" ]]; then
-    echo "SKIP term rates upload (empty sample)"
-    rm -f "${sample_file}"
-    return 0
-  fi
-  local upload_code
-  upload_code="$(curl -sS -o /dev/null -w "%{http_code}" \
-    -X POST "${BASE_URL}/api/v1/settings/term-rates/upload" \
-    -H "X-Trader-Id: demo-trader" \
-    -F "file=@${sample_file}")"
-  rm -f "${sample_file}"
-  if [[ "${upload_code}" == "200" ]]; then
-    echo "OK   uploaded term rates from sample CSV"
-  else
-    echo "INFO term rates upload -> HTTP ${upload_code} (edit sample rates if needed)"
-  fi
-}
+echo "--- Orders: Received (near-term — default Received view) ---"
+post_order "TERM EUR 3M received" "$(order_json \
+  "DEMO-${RUN_ID}-TERM-EUR-RCV" "TERM" "SUBSCRIPTION" "PF-DEMO" "EUR" "1000000.00" \
+  "${VALUE_DATE_NEAR}" "${INSTITUTION_PRIMARY}" "3.45" "3M")"
 
-echo "Term rates (optional) -> ${BASE_URL}"
-upload_term_rates_sample
-echo
+post_order "ON_CALL EUR 24H received" "$(order_json \
+  "DEMO-${RUN_ID}-OC-EUR-RCV" "ON_CALL" "SUBSCRIPTION" "PF-DEMO" "EUR" "750000.00" \
+  "${VALUE_DATE_NEAR}" "${INSTITUTION_PRIMARY}" "2.85" "" "24H")"
 
-echo "Seeding demo orders -> ${BASE_URL}"
-echo "  near-term valueDate=${VALUE_DATE_NEAR}"
-echo "  far valueDate=${VALUE_DATE_FAR} (Received: enable \"Show all value dates\")  run=${RUN_ID}"
-echo
+post_order "TERM USD 6M received" "$(order_json \
+  "DEMO-${RUN_ID}-TERM-USD-RCV" "TERM" "SUBSCRIPTION" "PF-DEMO" "USD" "1000000.00" \
+  "${VALUE_DATE_NEAR}" "${INSTITUTION_SECONDARY}" "4.00" "6M")"
 
-# Near-term band — visible on default Received
-post_order "TERM EUR 3M" "$(cat <<EOF
-{
-  "externalOrderReference": "DEMO-${RUN_ID}-TERM-EUR",
-  "orderType": "TERM",
-  "orderOperation": "SUBSCRIPTION",
-  "portfolioNumber": "PF-DEMO",
-  "currency": "EUR",
-  "amount": 1000000.00,
-  "valueDate": "${VALUE_DATE_NEAR}",
-  "minimumRate": 3.45,
-  "tenor": "3M",
-  "desiredCounterpartyComment": "Demo placement"
-}
-EOF
-)"
-
-post_order "TERM USD 6M" "$(cat <<EOF
-{
-  "externalOrderReference": "DEMO-${RUN_ID}-TERM-USD",
-  "orderType": "TERM",
-  "orderOperation": "SUBSCRIPTION",
-  "portfolioNumber": "PF-DEMO",
-  "currency": "USD",
-  "amount": 500000.00,
-  "valueDate": "${VALUE_DATE_NEAR}",
-  "minimumRate": 4.00,
-  "tenor": "6M"
-}
-EOF
-)"
-
-# On-call — near-term
-post_order "ON_CALL EUR 24H" "$(cat <<EOF
-{
-  "externalOrderReference": "DEMO-${RUN_ID}-OC-EUR",
-  "orderType": "ON_CALL",
-  "orderOperation": "SUBSCRIPTION",
-  "portfolioNumber": "PF-DEMO",
-  "currency": "EUR",
-  "amount": 750000.00,
-  "valueDate": "${VALUE_DATE_NEAR}",
-  "minimumRate": 2.85,
-  "noticePeriod": "24H"
-}
-EOF
-)"
-
-post_order "ON_CALL USD 48H" "$(cat <<EOF
-{
-  "externalOrderReference": "DEMO-${RUN_ID}-OC-USD",
-  "orderType": "ON_CALL",
-  "orderOperation": "SUBSCRIPTION",
-  "portfolioNumber": "PF-DEMO",
-  "currency": "USD",
-  "amount": 300000.00,
-  "valueDate": "${VALUE_DATE_NEAR}",
-  "minimumRate": 3.10,
-  "noticePeriod": "48H"
-}
-EOF
-)"
-
-# Outside near-term window — enable "Show all value dates" on Received
-post_order "TERM EUR 3M (far)" "$(cat <<EOF
-{
-  "externalOrderReference": "DEMO-${RUN_ID}-TERM-EUR-FAR",
-  "orderType": "TERM",
-  "orderOperation": "SUBSCRIPTION",
-  "portfolioNumber": "PF-DEMO-FAR",
-  "currency": "EUR",
-  "amount": 2000000.00,
-  "valueDate": "${VALUE_DATE_FAR}",
-  "minimumRate": 3.50,
-  "tenor": "3M",
-  "desiredCounterpartyComment": "Far value date — use Show all"
-}
-EOF
-)"
-
-post_order "ON_CALL EUR 24H (far)" "$(cat <<EOF
-{
-  "externalOrderReference": "DEMO-${RUN_ID}-OC-EUR-FAR",
-  "orderType": "ON_CALL",
-  "orderOperation": "SUBSCRIPTION",
-  "portfolioNumber": "PF-DEMO-FAR",
-  "currency": "EUR",
-  "amount": 400000.00,
-  "valueDate": "${VALUE_DATE_FAR}",
-  "minimumRate": 2.90,
-  "noticePeriod": "24H",
-  "desiredCounterpartyComment": "Far value date — use Show all"
-}
-EOF
-)"
+post_order "ON_CALL USD 48H received" "$(order_json \
+  "DEMO-${RUN_ID}-OC-USD-RCV" "ON_CALL" "SUBSCRIPTION" "PF-DEMO" "USD" "1000000.00" \
+  "${VALUE_DATE_NEAR}" "${INSTITUTION_SECONDARY}" "3.10" "" "48H")"
 
 echo
-echo "Done. Open http://localhost:4200 → Term / OnCall → Received."
-echo "Toggle \"Show all value dates\" to see orders with external ref ...-FAR (value ${VALUE_DATE_FAR})."
+echo "--- Orders: Received (far — enable \"Show all value dates\") ---"
+post_order "TERM EUR 3M far" "$(order_json \
+  "DEMO-${RUN_ID}-TERM-EUR-FAR" "TERM" "SUBSCRIPTION" "PF-DEMO-FAR" "EUR" "2000000.00" \
+  "${VALUE_DATE_FAR}" "${INSTITUTION_PRIMARY}" "3.50" "3M")"
+
+post_order "ON_CALL EUR 24H far" "$(order_json \
+  "DEMO-${RUN_ID}-OC-EUR-FAR" "ON_CALL" "SUBSCRIPTION" "PF-DEMO-FAR" "EUR" "400000.00" \
+  "${VALUE_DATE_FAR}" "${INSTITUTION_PRIMARY}" "2.90" "" "24H")"
+
+if [[ "${ADVANCE_WORKFLOW}" != "1" ]]; then
+  echo
+  echo "Done (intake only). Set ADVANCE_WORKFLOW=1 to populate Assigned and Executed queues."
+  echo "Open http://localhost:4200 → ON-CALL (default) or Term → Received."
+  exit 0
+fi
+
+echo
+echo "--- Workflow: Assigned (ready to execute in UI) ---"
+post_order "TERM EUR 1M assign-me" "$(order_json \
+  "DEMO-${RUN_ID}-TERM-EUR-ASG" "TERM" "SUBSCRIPTION" "PF-DEMO" "EUR" "2500000.00" \
+  "${VALUE_DATE_NEAR}" "${INSTITUTION_PRIMARY}" "3.20" "1M")"
+assign_order "${LAST_ORDER_ID}" "${TRADER_ID}" "assign TERM EUR 1M → ${TRADER_ID}"
+
+post_order "ON_CALL EUR 48H assign-me" "$(order_json \
+  "DEMO-${RUN_ID}-OC-EUR-ASG" "ON_CALL" "SUBSCRIPTION" "PF-DEMO" "EUR" "600000.00" \
+  "${VALUE_DATE_NEAR}" "${INSTITUTION_PRIMARY}" "2.80" "" "48H")"
+assign_order "${LAST_ORDER_ID}" "${TRADER_ID}" "assign ON_CALL EUR 48H → ${TRADER_ID}"
+
+echo
+echo "--- Workflow: Assigned (desk-wide — other trader) ---"
+post_order "TERM USD 3M assign-other" "$(order_json \
+  "DEMO-${RUN_ID}-TERM-USD-OTH" "TERM" "SUBSCRIPTION" "PF-DEMO" "USD" "1000000.00" \
+  "${VALUE_DATE_NEAR}" "${INSTITUTION_SECONDARY}" "3.75" "3M")"
+assign_order "${LAST_ORDER_ID}" "${TRADER_ID_OTHER}" "assign TERM USD 3M → ${TRADER_ID_OTHER}"
+
+echo
+echo "--- Workflow: Executed (not yet accounted) ---"
+post_order "TERM EUR 3M executed" "$(order_json \
+  "DEMO-${RUN_ID}-TERM-EUR-EXE" "TERM" "SUBSCRIPTION" "PF-DEMO" "EUR" "3200000.00" \
+  "${VALUE_DATE_NEAR}" "${INSTITUTION_PRIMARY}" "3.30" "3M")"
+assign_order "${LAST_ORDER_ID}" "${TRADER_ID}" "assign TERM EUR 3M"
+execute_order "${LAST_ORDER_ID}" "3.55" "${TRADER_ID}" "execute TERM EUR 3M"
+
+post_order "ON_CALL EUR 24H executed" "$(order_json \
+  "DEMO-${RUN_ID}-OC-EUR-EXE" "ON_CALL" "SUBSCRIPTION" "PF-DEMO" "EUR" "900000.00" \
+  "${VALUE_DATE_NEAR}" "${INSTITUTION_PRIMARY}" "2.75" "" "24H")"
+assign_order "${LAST_ORDER_ID}" "${TRADER_ID}" "assign ON_CALL EUR 24H"
+execute_order "${LAST_ORDER_ID}" "2.90" "${TRADER_ID}" "execute ON_CALL EUR 24H"
+LIVE_CONTRACT="${LAST_CONTRACT_NUMBER}"
+
+if [[ -n "${LIVE_CONTRACT}" ]]; then
+  echo
+  echo "--- Workflow: OnCall INCREASE (lifecycle on contract ${LIVE_CONTRACT}) ---"
+  post_order "ON_CALL EUR INCREASE" "$(order_json \
+    "DEMO-${RUN_ID}-OC-EUR-INC" "ON_CALL" "INCREASE" "PF-DEMO" "EUR" "250000.00" \
+    "${VALUE_DATE_NEAR}" "${INSTITUTION_PRIMARY}" "" "" "24H" "${LIVE_CONTRACT}")"
+fi
+
+echo
+echo "=== Done ==="
+cat <<EOF
+
+Desk tour (http://localhost:4200, trader ${TRADER_ID}):
+
+  ON-CALL → Received     near-term subscriptions (+ toggle Show all for FAR rows)
+  ON-CALL → Assigned     EUR 48H ready to execute; USD row visible but owned by ${TRADER_ID_OTHER}
+  ON-CALL → Executed     EUR 24H subscription awaiting accounting (counterparty visible)
+  Term → Received / Assigned / Executed   mirror Term product rows
+
+Institutions used (from Settings): ${INSTITUTION_PRIMARY}, ${INSTITUTION_SECONDARY}
+
+Optional: ./scripts/bo-confirm.sh --orders-only   # EXECUTED → ACCOUNTED
+
+EOF
