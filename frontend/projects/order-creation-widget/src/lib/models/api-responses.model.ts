@@ -1,4 +1,7 @@
+import type { components } from '../generated/trader-orders-views';
 import type { NoticePeriod, OrderOperation, OrderType, Tenor } from './order-creation-payload.model';
+
+type Schemas = components['schemas'];
 
 /** ISO 4217 currency code returned by order-creation currency endpoints. */
 export type CurrencyOption = string;
@@ -7,62 +10,40 @@ export type TenorOption = Tenor;
 
 export type NoticePeriodOption = NoticePeriod;
 
-export interface OperationOption {
+export type OperationOption = Omit<Schemas['OperationOption'], 'operation'> & {
   operation: OrderOperation;
-  minAmount: number;
-}
+};
 
-export interface CounterpartyOption {
-  institutionCode: string;
-  displayName: string;
-  rate: number;
-  rateDate: string;
-  indicative: boolean;
-}
+export type CounterpartyOption = Schemas['CounterpartyOption'];
 
-export interface TermCurrenciesResponse {
-  tradingDate: string;
-  currencies: CurrencyOption[];
-}
+export type TermCurrenciesResponse = Schemas['TermCurrenciesResponse'];
 
-export interface OnCallCurrenciesResponse {
-  currencies: CurrencyOption[];
-}
+export type OnCallCurrenciesResponse = Schemas['OnCallCurrenciesResponse'];
 
-export interface OperationsResponse {
+export type OperationsResponse = Omit<Schemas['OperationsResponse'], 'operations'> & {
   operations: OperationOption[];
-}
+};
 
-export interface TenorsResponse {
+export type TenorsResponse = Omit<Schemas['TenorsResponse'], 'tenors'> & {
   tenors: TenorOption[];
-}
+};
 
-export interface NoticePeriodsResponse {
+export type NoticePeriodsResponse = Omit<Schemas['NoticePeriodsResponse'], 'noticePeriods'> & {
   noticePeriods: NoticePeriodOption[];
-}
+};
 
-export interface CounterpartiesResponse {
-  counterparties: CounterpartyOption[];
-}
+export type CounterpartiesResponse = Schemas['CounterpartiesResponse'];
 
-export interface ContractInfoResponse {
-  currency: string;
+export type ContractInfoResponse = Omit<Schemas['ContractInfoResponse'], 'noticePeriod'> & {
   noticePeriod: NoticePeriod;
-  institutionCode: string;
-  counterparty: string;
-}
+};
 
-export interface LiveContract {
-  contractNumber: string;
+export type LiveContract = Omit<Schemas['LiveContract'], 'orderType' | 'noticePeriod' | 'tenor'> & {
   orderType: OrderType;
-  currency: string;
   noticePeriod?: NoticePeriod;
   tenor?: Tenor;
-  valueDate: string;
-  endDate?: string;
-  originalAmount: number;
-}
+};
 
-export interface LiveContractsResponse {
+export type LiveContractsResponse = Omit<Schemas['LiveContractsResponse'], 'contracts'> & {
   contracts: LiveContract[];
-}
+};
