@@ -5,6 +5,7 @@ export const WIZARD_STEP_LABELS: Record<WizardStepId, string> = {
   [WizardStepId.CURRENCY]: 'Currency',
   [WizardStepId.OPERATION]: 'Operation',
   [WizardStepId.TENOR_OR_NOTICE_PERIOD]: 'Tenor / notice',
+  [WizardStepId.VALUE_DATE]: 'Value date',
   [WizardStepId.COUNTERPARTY]: 'Counterparty',
   [WizardStepId.ORDER_DETAILS]: 'Details',
   [WizardStepId.REVIEW]: 'Review',

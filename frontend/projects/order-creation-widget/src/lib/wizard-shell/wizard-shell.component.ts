@@ -9,6 +9,7 @@ import { StepOrderDetailsComponent } from '../steps/step-order-details.component
 import { StepOrderTypeComponent } from '../steps/step-order-type.component';
 import { StepReviewComponent } from '../steps/step-review.component';
 import { StepTenorNoticePeriodComponent } from '../steps/step-tenor-notice-period.component';
+import { StepValueDateComponent } from '../steps/step-value-date.component';
 import { WIZARD_STEP_LABELS } from './wizard-step-labels';
 
 @Component({
@@ -19,6 +20,7 @@ import { WIZARD_STEP_LABELS } from './wizard-step-labels';
     StepCurrencyComponent,
     StepOperationComponent,
     StepTenorNoticePeriodComponent,
+    StepValueDateComponent,
     StepCounterpartyComponent,
     StepOrderDetailsComponent,
     StepReviewComponent,
@@ -55,6 +57,9 @@ import { WIZARD_STEP_LABELS } from './wizard-step-labels';
           }
           @case (stepIds.TENOR_OR_NOTICE_PERIOD) {
             <mmx-step-tenor-notice-period />
+          }
+          @case (stepIds.VALUE_DATE) {
+            <mmx-step-value-date />
           }
           @case (stepIds.COUNTERPARTY) {
             <mmx-step-counterparty />

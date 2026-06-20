@@ -44,6 +44,8 @@ export interface OrderDetails {
   assignedTraderId: string | null;
   assignedAt: string | null;
   executedRate: number | null;
+  /** Intake institution code from PM order creation; present before execution. */
+  institutionCode: string | null;
   counterparty: string | null;
   executionTime: string | null;
   dealingReference: string | null;
@@ -61,11 +63,11 @@ export interface ReceiveOrderRequest {
   currency: string;
   amount: number;
   valueDate: string;
+  institutionCode: string;
   minimumRate?: number | null;
   tenor?: string | null;
   noticePeriod?: string | null;
   sourceContractNumber?: string | null;
-  desiredCounterpartyComment?: string | null;
 }
 
 export interface AssignOrderRequest {
@@ -79,7 +81,6 @@ export interface UpdateOrderRequest {
 
 export interface ExecuteOrderRequest {
   executedRate: number;
-  institutionCode: string;
 }
 
 export interface RejectOrderRequest {

@@ -153,6 +153,8 @@ export class OrderCreationWizardComponent implements OnInit {
           response.currency,
           response.noticePeriod,
           contractNumber,
+          response.institutionCode,
+          response.counterparty,
         );
         this.contractLoading.set(false);
         this.initialized = true;

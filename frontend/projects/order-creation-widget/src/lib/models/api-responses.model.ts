@@ -1,4 +1,4 @@
-import type { NoticePeriod, OrderOperation, Tenor } from './order-creation-payload.model';
+import type { NoticePeriod, OrderOperation, OrderType, Tenor } from './order-creation-payload.model';
 
 /** ISO 4217 currency code returned by order-creation currency endpoints. */
 export type CurrencyOption = string;
@@ -48,4 +48,21 @@ export interface CounterpartiesResponse {
 export interface ContractInfoResponse {
   currency: string;
   noticePeriod: NoticePeriod;
+  institutionCode: string;
+  counterparty: string;
+}
+
+export interface LiveContract {
+  contractNumber: string;
+  orderType: OrderType;
+  currency: string;
+  noticePeriod?: NoticePeriod;
+  tenor?: Tenor;
+  valueDate: string;
+  endDate?: string;
+  originalAmount: number;
+}
+
+export interface LiveContractsResponse {
+  contracts: LiveContract[];
 }

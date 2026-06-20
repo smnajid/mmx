@@ -163,7 +163,7 @@ export class StepOperationComponent implements OnInit {
       next: (response) => {
         const filtered = contractShortcut
           ? response.operations.filter((option) => LIFECYCLE_OPERATIONS.includes(option.operation))
-          : response.operations;
+          : response.operations.filter((option) => option.operation === 'SUBSCRIPTION');
         this.operations.set(filtered);
         this.loading.set(false);
       },

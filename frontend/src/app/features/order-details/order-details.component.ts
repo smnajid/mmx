@@ -84,11 +84,18 @@ import { canShowAction, type OrderDetailAction } from './order-detail-actions';
             <dt>Assigned trader</dt>
             <dd class="mono">{{ o.assignedTraderId }}</dd>
           }
+          @if (o.counterparty) {
+            <dt>Counterparty</dt>
+            <dd>
+              {{ o.counterparty }}
+              @if (o.institutionCode) {
+                <span class="mono muted">{{ o.institutionCode }}</span>
+              }
+            </dd>
+          }
           @if (o.status === executed || o.status === accounted) {
             <dt>Executed rate</dt>
             <dd class="mono">{{ o.executedRate | number: '1.2-8' }}</dd>
-            <dt>Counterparty</dt>
-            <dd>{{ o.counterparty }}</dd>
             <dt>Dealing reference</dt>
             <dd class="mono">{{ o.dealingReference }}</dd>
             <dt>Contract number</dt>
@@ -140,6 +147,7 @@ import { canShowAction, type OrderDetailAction } from './order-detail-actions';
         }
         @if (showAction(o, 'execute')) {
           <mmx-order-execution-form
+            [order]="o"
             [submitting]="acting()"
             (submitExecute)="execute($event)"
           />
@@ -420,6 +428,11 @@ import { canShowAction, type OrderDetailAction } from './order-detail-actions';
     .mono {
       font-family: var(--font-mono);
       font-size: 0.875rem;
+    }
+
+    .muted {
+      margin-left: 0.5rem;
+      color: var(--mmx-text-muted);
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,

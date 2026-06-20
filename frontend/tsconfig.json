@@ -12,7 +12,7 @@
     "isolatedModules": true,
     "experimentalDecorators": true,
     "paths": {
-      "order-creation-widget": ["./dist/order-creation-widget"]
+      "order-creation-widget": ["./projects/order-creation-widget/src/public-api.ts"]
     },
     "importHelpers": true,
     "target": "ES2022",

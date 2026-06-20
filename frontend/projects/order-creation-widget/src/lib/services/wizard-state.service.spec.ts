@@ -110,10 +110,37 @@ describe('WizardStateService', () => {
     });
     expect(service.visibleSteps()).toEqual([
       WizardStepId.OPERATION,
+      WizardStepId.VALUE_DATE,
       WizardStepId.COUNTERPARTY,
       WizardStepId.ORDER_DETAILS,
       WizardStepId.REVIEW,
     ]);
+  });
+
+  it('preserves sourceContractNumber when changing operation in contract shortcut', () => {
+    service.applyContractShortcut('EUR', '24H', 'CT-00042');
+    service.setOperation('INCREASE', 50000);
+    service.completeAndAdvance();
+
+    service.setOperation('REDEMPTION', 50000);
+
+    expect(service.state().operation).toBe('REDEMPTION');
+    expect(service.state().sourceContractNumber).toBe('CT-00042');
+  });
+
+  it('setOrderDetails does not modify sourceContractNumber', () => {
+    service.applyContractShortcut('EUR', '24H', 'CT-00042');
+    service.setOperation('INCREASE', 50000);
+    service.completeAndAdvance();
+    service.setValueDate('2026-06-10');
+    service.completeAndAdvance();
+    service.setCounterparty('BNKCO', 'BankCo');
+    service.completeAndAdvance();
+
+    service.setOrderDetails(600000);
+
+    expect(service.state().sourceContractNumber).toBe('CT-00042');
+    expect(service.state().amount).toBe(600000);
   });
 
   it('reset restores initial full-flow state', () => {
@@ -127,5 +154,96 @@ describe('WizardStateService', () => {
       skipOrderTypeStep: false,
       contractShortcut: false,
     });
+  });
+
+  it('OnCall visibleSteps includes VALUE_DATE between notice and counterparty', () => {
+    service.setOrderType('ON_CALL');
+
+    const steps = service.visibleSteps();
+    const noticeIndex = steps.indexOf(WizardStepId.TENOR_OR_NOTICE_PERIOD);
+    const valueDateIndex = steps.indexOf(WizardStepId.VALUE_DATE);
+    const counterpartyIndex = steps.indexOf(WizardStepId.COUNTERPARTY);
+
+    expect(valueDateIndex).toBeGreaterThan(noticeIndex);
+    expect(counterpartyIndex).toBeGreaterThan(valueDateIndex);
+  });
+
+  it('Term visibleSteps omits VALUE_DATE', () => {
+    service.setOrderType('TERM');
+
+    expect(service.visibleSteps()).not.toContain(WizardStepId.VALUE_DATE);
+  });
+
+  it('contract shortcut visibleSteps are OPERATION → VALUE_DATE → COUNTERPARTY → ORDER_DETAILS → REVIEW', () => {
+    service.applyContractShortcut('EUR', '24H');
+
+    expect(service.visibleSteps()).toEqual([
+      WizardStepId.OPERATION,
+      WizardStepId.VALUE_DATE,
+      WizardStepId.COUNTERPARTY,
+      WizardStepId.ORDER_DETAILS,
+      WizardStepId.REVIEW,
+    ]);
+  });
+
+  it('isStepComplete(VALUE_DATE) requires valueDate', () => {
+    service.setOrderType('ON_CALL');
+    expect(service.isStepComplete(WizardStepId.VALUE_DATE)).toBe(false);
+
+    service.setValueDate('2026-06-30');
+    expect(service.isStepComplete(WizardStepId.VALUE_DATE)).toBe(true);
+  });
+
+  it('setCounterparty does not clear valueDate', () => {
+    service.setOrderType('ON_CALL');
+    service.setValueDate('2026-06-30');
+    service.setCounterparty('BNKCO', 'BankCo', 3.5, '2026-06-07');
+
+    expect(service.state().valueDate).toBe('2026-06-30');
+  });
+
+  it('clearDownstream preserves contractInstitutionCode and contractCounterparty in shortcut mode', () => {
+    service.applyContractShortcut('EUR', '24H', 'CT-00042', 'BNKCO', 'BankCo');
+    service.setOperation('INCREASE', 50000);
+    service.completeAndAdvance();
+    service.setValueDate('2026-06-10');
+    service.completeAndAdvance();
+    service.setCounterparty('BNKCO', 'BankCo', 3.5, '2026-06-07');
+
+    service.setOperation('DECREASE', 50000);
+
+    expect(service.state().contractInstitutionCode).toBe('BNKCO');
+    expect(service.state().contractCounterparty).toBe('BankCo');
+    expect(service.state().institutionCode).toBeUndefined();
+    expect(service.state().counterparty).toBeUndefined();
+  });
+
+  it('isStepComplete(COUNTERPARTY) is true for outflow shortcut when institution set without rate', () => {
+    service.applyContractShortcut('EUR', '24H', 'CT-00042', 'BNKCO', 'BankCo');
+    service.setOperation('DECREASE', 50000);
+    service.setCounterparty('BNKCO', 'BankCo');
+
+    expect(service.isStepComplete(WizardStepId.COUNTERPARTY)).toBe(true);
+    expect(service.state().counterpartyRate).toBeUndefined();
+  });
+
+  it('changing notice period clears valueDate and downstream', () => {
+    service.setOrderType('ON_CALL');
+    service.completeAndAdvance();
+    service.setCurrency('EUR');
+    service.completeAndAdvance();
+    service.setOperation('INCREASE', 500000);
+    service.completeAndAdvance();
+    service.setNoticePeriod('24H');
+    service.completeAndAdvance();
+    service.setValueDate('2026-06-30');
+    service.completeAndAdvance();
+    service.setCounterparty('BNKCO', 'BankCo', 3.5, '2026-06-07');
+
+    service.setNoticePeriod('48H');
+
+    expect(service.state().valueDate).toBeUndefined();
+    expect(service.state().institutionCode).toBeUndefined();
+    expect(service.state().counterparty).toBeUndefined();
   });
 });

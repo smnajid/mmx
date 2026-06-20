@@ -72,6 +72,29 @@ describe('StepOperationComponent', () => {
     expect(fixture.nativeElement.querySelector('[data-testid="operation-INCREASE"]')).toBeTruthy();
   });
 
+  it('shows only SUBSCRIPTION in the fresh OnCall flow', () => {
+    state.initialize({ orderType: 'ON_CALL', skipOrderType: true });
+    state.setCurrency('EUR');
+    state.completeAndAdvance();
+    fixture = TestBed.createComponent(StepOperationComponent);
+    fixture.detectChanges();
+
+    http.expectOne(`${apiBaseUrl}/api/v1/order-creation/oncall/operations?currency=EUR`).flush({
+      operations: [
+        { operation: 'SUBSCRIPTION', minAmount: 100000 },
+        { operation: 'INCREASE', minAmount: 50000 },
+        { operation: 'DECREASE', minAmount: 50000 },
+        { operation: 'REDEMPTION', minAmount: 50000 },
+      ],
+    });
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('[data-testid="operation-SUBSCRIPTION"]')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('[data-testid="operation-INCREASE"]')).toBeFalsy();
+    expect(fixture.nativeElement.querySelector('[data-testid="operation-DECREASE"]')).toBeFalsy();
+    expect(fixture.nativeElement.querySelector('[data-testid="operation-REDEMPTION"]')).toBeFalsy();
+  });
+
   it('selecting an operation updates state and emits navigation', () => {
     state.initialize({ orderType: 'ON_CALL', skipOrderType: true });
     state.setCurrency('EUR');

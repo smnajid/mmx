@@ -24,6 +24,7 @@ function base(overrides: Partial<OrderDetails> = {}): OrderDetails {
     assignedTraderId: null,
     assignedAt: null,
     executedRate: null,
+    institutionCode: null,
     counterparty: null,
     executionTime: null,
     dealingReference: null,

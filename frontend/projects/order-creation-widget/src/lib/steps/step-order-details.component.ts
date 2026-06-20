@@ -1,10 +1,7 @@
-import { Component, inject, OnInit, output, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, output, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import type { OrderOperation } from '../models/order-creation-payload.model';
 import { WizardStateService } from '../services/wizard-state.service';
 import { isOnOrAfterMinSettlementDate, minSettlementDate } from '../utils/settlement-date';
-
-const LIFECYCLE_OPERATIONS: OrderOperation[] = ['INCREASE', 'DECREASE', 'REDEMPTION'];
 
 @Component({
   selector: 'mmx-step-order-details',
@@ -25,20 +22,22 @@ const LIFECYCLE_OPERATIONS: OrderOperation[] = ['INCREASE', 'DECREASE', 'REDEMPT
           }
         </label>
 
-        <label class="field">
-          <span>Value date</span>
-          <input
-            type="date"
-            formControlName="valueDate"
-            [min]="minValueDate"
-            data-testid="details-value-date"
-          />
-          @if (form.controls.valueDate.touched && form.controls.valueDate.hasError('minSettlement')) {
-            <span class="field-error" data-testid="details-value-date-error">
-              Value date must be at least two calendar days from today.
-            </span>
-          }
-        </label>
+        @if (showValueDateField()) {
+          <label class="field">
+            <span>Value date</span>
+            <input
+              type="date"
+              formControlName="valueDate"
+              [min]="minValueDate"
+              data-testid="details-value-date"
+            />
+            @if (form.controls.valueDate.touched && form.controls.valueDate.hasError('minSettlement')) {
+              <span class="field-error" data-testid="details-value-date-error">
+                Value date must be at least two calendar days from today.
+              </span>
+            }
+          </label>
+        }
 
         <label class="field">
           <span>Minimum rate (optional)</span>
@@ -49,17 +48,6 @@ const LIFECYCLE_OPERATIONS: OrderOperation[] = ['INCREASE', 'DECREASE', 'REDEMPT
             </span>
           }
         </label>
-
-        @if (showSourceContractNumber()) {
-          <label class="field">
-            <span>Source contract number</span>
-            <input
-              type="text"
-              formControlName="sourceContractNumber"
-              data-testid="details-source-contract"
-            />
-          </label>
-        }
 
         <button type="submit" data-testid="details-continue">Continue</button>
       </form>
@@ -115,46 +103,49 @@ const LIFECYCLE_OPERATIONS: OrderOperation[] = ['INCREASE', 'DECREASE', 'REDEMPT
   `,
 })
 export class StepOrderDetailsComponent implements OnInit {
-  private readonly wizardState = inject(WizardStateService);
+  protected readonly wizardState = inject(WizardStateService);
   private readonly fb = inject(FormBuilder);
 
   readonly stepComplete = output<void>();
 
   readonly minAmount = signal(0);
   readonly minValueDate = minSettlementDate();
+  readonly showValueDateField = computed(
+    () => this.wizardState.state().orderType === 'TERM',
+  );
 
   readonly form = this.fb.nonNullable.group({
     amount: [0, [Validators.required, Validators.min(0)]],
-    valueDate: ['', Validators.required],
+    valueDate: [''],
     minimumRate: this.fb.control<number | null>(null),
-    sourceContractNumber: [''],
   });
 
   ngOnInit(): void {
     const state = this.wizardState.state();
+    const term = this.showValueDateField();
     this.minAmount.set(state.operationMinAmount ?? 0);
     this.form.controls.amount.setValidators([
       Validators.required,
       Validators.min(this.minAmount()),
     ]);
-    this.form.controls.valueDate.setValidators([
-      Validators.required,
-      (control) =>
-        control.value && isOnOrAfterMinSettlementDate(control.value)
-          ? null
-          : { minSettlement: true },
-    ]);
+
+    if (term) {
+      this.form.controls.valueDate.setValidators([
+        Validators.required,
+        (control) =>
+          control.value && isOnOrAfterMinSettlementDate(control.value)
+            ? null
+            : { minSettlement: true },
+      ]);
+    } else {
+      this.form.controls.valueDate.clearValidators();
+    }
+
     this.form.patchValue({
       amount: state.amount ?? 0,
       valueDate: state.valueDate ?? '',
       minimumRate: state.minimumRate ?? null,
-      sourceContractNumber: state.sourceContractNumber ?? '',
     });
-  }
-
-  showSourceContractNumber(): boolean {
-    const operation = this.wizardState.state().operation;
-    return !!operation && LIFECYCLE_OPERATIONS.includes(operation);
   }
 
   submit(): void {
@@ -165,13 +156,12 @@ export class StepOrderDetailsComponent implements OnInit {
       return;
     }
 
-    const { amount, valueDate, minimumRate, sourceContractNumber } = this.form.getRawValue();
-    this.wizardState.setOrderDetails(
-      amount,
-      valueDate,
-      minimumRate ?? undefined,
-      sourceContractNumber || undefined,
-    );
+    const { amount, valueDate, minimumRate } = this.form.getRawValue();
+    if (this.showValueDateField()) {
+      this.wizardState.setOrderDetails(amount, valueDate, minimumRate ?? undefined);
+    } else {
+      this.wizardState.setOrderDetails(amount, undefined, minimumRate ?? undefined);
+    }
     this.wizardState.completeAndAdvance();
     this.stepComplete.emit();
   }

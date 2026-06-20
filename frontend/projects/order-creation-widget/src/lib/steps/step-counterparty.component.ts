@@ -1,9 +1,8 @@
 import { DecimalPipe } from '@angular/common';
-import { Component, inject, OnInit, output, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, output, signal } from '@angular/core';
 import type { CounterpartyOption } from '../models/api-responses.model';
 import { WizardApiService } from '../services/wizard-api.service';
 import { WizardStateService } from '../services/wizard-state.service';
-import { minSettlementDate } from '../utils/settlement-date';
 
 @Component({
   selector: 'mmx-step-counterparty',
@@ -14,28 +13,47 @@ import { minSettlementDate } from '../utils/settlement-date';
       <h2 class="step-title">Choose counterparty</h2>
 
       @if (wizardState.state().orderType === 'ON_CALL' && !wizardState.state().valueDate) {
-        <label class="field">
-          <span>Value date</span>
-          <input
-            type="date"
-            data-testid="counterparty-value-date"
-            [min]="minValueDate"
-            [value]="valueDateInput()"
-            (change)="onValueDateChange($event)"
-          />
-        </label>
-      }
-
-      @if (loading()) {
+        <p class="step-state" data-testid="counterparty-missing-value-date">
+          Set a value date before choosing a counterparty.
+        </p>
+      } @else if (loading()) {
         <p class="step-state" data-testid="counterparty-loading">Loading counterparties…</p>
       } @else if (error()) {
         <div class="step-error" data-testid="counterparty-error" role="alert">
           <p>{{ error() }}</p>
           <button type="button" data-testid="counterparty-retry" (click)="load()">Retry</button>
         </div>
+      } @else if (isOutflowShortcut()) {
+        <div class="counterparty-list">
+          <div class="counterparty-card counterparty-card--locked" data-testid="counterparty-locked">
+            <div class="counterparty-header">
+              <span class="counterparty-name">{{ lockedCounterpartyName() }}</span>
+            </div>
+            @if (lockedRate(); as rate) {
+              <div class="counterparty-meta">
+                <span>{{ rate.rate | number: '1.2-4' }}%</span>
+                <span>{{ rate.rateDate }}</span>
+              </div>
+            } @else {
+              <p class="step-state" data-testid="counterparty-no-rate">No rate published for this value date.</p>
+            }
+          </div>
+        </div>
+        <button
+          type="button"
+          class="continue-button"
+          data-testid="counterparty-continue-locked"
+          (click)="confirmLockedCounterparty()"
+        >
+          Continue
+        </button>
       } @else if (counterparties().length === 0) {
         <p class="step-state" data-testid="counterparty-empty">
-          No counterparties are currently available.
+          @if (isInflowShortcut()) {
+            No rate is available for the contract counterparty on this value date.
+          } @else {
+            No counterparties are currently available.
+          }
         </p>
       } @else {
         <div class="counterparty-list">
@@ -78,20 +96,6 @@ import { minSettlementDate } from '../utils/settlement-date';
       margin: 0;
       font-size: 1.125rem;
       font-weight: 600;
-    }
-
-    .field {
-      display: flex;
-      flex-direction: column;
-      gap: 0.375rem;
-      font-size: 0.875rem;
-      color: #344054;
-    }
-
-    .field input {
-      padding: 0.5rem 0.75rem;
-      border: 1px solid #d0d5dd;
-      border-radius: 0.375rem;
     }
 
     .step-state {
@@ -144,7 +148,11 @@ import { minSettlementDate } from '../utils/settlement-date';
       text-align: left;
     }
 
-    .counterparty-card:hover {
+    .counterparty-card--locked {
+      cursor: default;
+    }
+
+    .counterparty-card:hover:not(.counterparty-card--locked) {
       border-color: #98a2b3;
       background: #f9fafb;
     }
@@ -175,6 +183,16 @@ import { minSettlementDate } from '../utils/settlement-date';
       font-size: 0.875rem;
       color: #667085;
     }
+
+    .continue-button {
+      align-self: flex-start;
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 0.375rem;
+      background: #155eef;
+      color: #fff;
+      cursor: pointer;
+    }
   `,
 })
 export class StepCounterpartyComponent implements OnInit {
@@ -186,51 +204,72 @@ export class StepCounterpartyComponent implements OnInit {
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
   readonly counterparties = signal<CounterpartyOption[]>([]);
-  readonly valueDateInput = signal('');
+  readonly lockedRate = signal<CounterpartyOption | null>(null);
 
-  readonly minValueDate = minSettlementDate();
+  readonly isInflowShortcut = computed(() => {
+    const state = this.wizardState.state();
+    return state.contractShortcut && state.operation === 'INCREASE';
+  });
+
+  readonly isOutflowShortcut = computed(() => {
+    const state = this.wizardState.state();
+    return (
+      state.contractShortcut &&
+      (state.operation === 'DECREASE' || state.operation === 'REDEMPTION')
+    );
+  });
+
+  readonly lockedCounterpartyName = computed(
+    () => this.wizardState.state().contractCounterparty ?? '',
+  );
 
   ngOnInit(): void {
-    const { orderType, valueDate } = this.wizardState.state();
-    if (orderType === 'ON_CALL' && !valueDate) {
-      this.valueDateInput.set(this.minValueDate);
+    if (this.wizardState.state().orderType === 'ON_CALL' && !this.wizardState.state().valueDate) {
       return;
     }
     this.load();
   }
 
-  onValueDateChange(event: Event): void {
-    const value = (event.target as HTMLInputElement).value;
-    this.valueDateInput.set(value);
-    this.wizardState.setValueDate(value);
-    this.load();
-  }
-
   load(): void {
     const state = this.wizardState.state();
-    const { orderType, currency, tenor, noticePeriod } = state;
+    const { orderType, currency, tenor, noticePeriod, valueDate } = state;
     if (!orderType || !currency) {
       this.error.set('Currency must be selected before choosing a counterparty.');
+      return;
+    }
+
+    if (orderType === 'ON_CALL' && !valueDate) {
       return;
     }
 
     this.loading.set(true);
     this.error.set(null);
     this.counterparties.set([]);
+    this.lockedRate.set(null);
 
     const request$ =
       orderType === 'TERM'
         ? this.api.listTermCounterparties(currency, tenor!)
-        : this.api.listOnCallCounterparties(
-            currency,
-            noticePeriod!,
-            state.valueDate ?? this.valueDateInput(),
-          );
+        : this.api.listOnCallCounterparties(currency, noticePeriod!, valueDate!);
 
     request$.subscribe({
       next: (response) => {
         const sorted = [...response.counterparties].sort((a, b) => b.rate - a.rate);
-        this.counterparties.set(sorted);
+        if (this.isInflowShortcut()) {
+          const lockedCode = state.contractInstitutionCode;
+          const filtered = lockedCode
+            ? sorted.filter((cp) => cp.institutionCode === lockedCode)
+            : [];
+          this.counterparties.set(filtered);
+        } else if (this.isOutflowShortcut()) {
+          const lockedCode = state.contractInstitutionCode;
+          const match = lockedCode
+            ? sorted.find((cp) => cp.institutionCode === lockedCode) ?? null
+            : null;
+          this.lockedRate.set(match);
+        } else {
+          this.counterparties.set(sorted);
+        }
         this.loading.set(false);
       },
       error: () => {
@@ -246,6 +285,24 @@ export class StepCounterpartyComponent implements OnInit {
       counterparty.displayName,
       counterparty.rate,
       counterparty.rateDate,
+    );
+    this.wizardState.completeAndAdvance();
+    this.stepComplete.emit();
+  }
+
+  confirmLockedCounterparty(): void {
+    const state = this.wizardState.state();
+    const institutionCode = state.contractInstitutionCode;
+    const counterparty = state.contractCounterparty;
+    if (!institutionCode || !counterparty) {
+      return;
+    }
+    const rate = this.lockedRate();
+    this.wizardState.setCounterparty(
+      institutionCode,
+      counterparty,
+      rate?.rate,
+      rate?.rateDate,
     );
     this.wizardState.completeAndAdvance();
     this.stepComplete.emit();

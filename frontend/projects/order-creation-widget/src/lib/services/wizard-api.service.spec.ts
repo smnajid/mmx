@@ -153,4 +153,36 @@ describe('WizardApiService', () => {
     req.flush({ currency: 'EUR', noticePeriod: '24H' });
     await expect(promise).resolves.toEqual({ currency: 'EUR', noticePeriod: '24H' });
   });
+
+  it('listLiveContracts calls GET with portfolioNumber and orderType', async () => {
+    const promise = firstValueFrom(service.listLiveContracts('PF-001', 'ON_CALL'));
+    const req = http.expectOne(
+      `${apiBaseUrl}/api/v1/order-creation/contracts?portfolioNumber=PF-001&orderType=ON_CALL`,
+    );
+    expect(req.request.method).toBe('GET');
+    req.flush({
+      contracts: [
+        {
+          contractNumber: 'CT-00042',
+          orderType: 'ON_CALL',
+          currency: 'EUR',
+          noticePeriod: '24H',
+          valueDate: '2026-06-01',
+          originalAmount: 5000000,
+        },
+      ],
+    });
+    await expect(promise).resolves.toEqual({
+      contracts: [
+        {
+          contractNumber: 'CT-00042',
+          orderType: 'ON_CALL',
+          currency: 'EUR',
+          noticePeriod: '24H',
+          valueDate: '2026-06-01',
+          originalAmount: 5000000,
+        },
+      ],
+    });
+  });
 });

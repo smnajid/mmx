@@ -103,6 +103,31 @@ describe('OrderCreationWizardComponent', () => {
     expect(fixture.nativeElement.querySelector('mmx-step-currency')).toBeTruthy();
   });
 
+  it('seeds locked institution from contract-info response', () => {
+    fixture = createWizard({
+      apiBaseUrl,
+      portfolioNumber: 'PF-001',
+      contractNumber: 'CT-00042',
+    });
+
+    http
+      .expectOne(`${apiBaseUrl}/api/v1/order-creation/oncall/contract-info?contractNumber=CT-00042`)
+      .flush({
+        currency: 'EUR',
+        noticePeriod: '24H',
+        institutionCode: 'BNKCO',
+        counterparty: 'BankCo',
+      });
+    fixture.detectChanges();
+    http
+      .expectOne(`${apiBaseUrl}/api/v1/order-creation/oncall/operations?currency=EUR`)
+      .flush({ operations: [{ operation: 'INCREASE', minAmount: 50000 }] });
+    fixture.detectChanges();
+
+    expect(state.state().contractInstitutionCode).toBe('BNKCO');
+    expect(state.state().contractCounterparty).toBe('BankCo');
+  });
+
   it('resolves contractNumber shortcut via contract-info API', () => {
     fixture = createWizard({
       apiBaseUrl,
@@ -113,7 +138,12 @@ describe('OrderCreationWizardComponent', () => {
     const req = http.expectOne(
       `${apiBaseUrl}/api/v1/order-creation/oncall/contract-info?contractNumber=CT-00042`,
     );
-    req.flush({ currency: 'EUR', noticePeriod: '24H' });
+    req.flush({
+      currency: 'EUR',
+      noticePeriod: '24H',
+      institutionCode: 'BNKCO',
+      counterparty: 'BankCo',
+    });
     fixture.detectChanges();
     http
       .expectOne(`${apiBaseUrl}/api/v1/order-creation/oncall/operations?currency=EUR`)
@@ -126,6 +156,8 @@ describe('OrderCreationWizardComponent', () => {
       currency: 'EUR',
       noticePeriod: '24H',
       sourceContractNumber: 'CT-00042',
+      contractInstitutionCode: 'BNKCO',
+      contractCounterparty: 'BankCo',
       currentStep: WizardStepId.OPERATION,
     });
     expect(fixture.nativeElement.querySelector('mmx-step-operation')).toBeTruthy();
@@ -182,6 +214,130 @@ describe('OrderCreationWizardComponent', () => {
 
     expect(payloads[0]?.portfolioNumber).toBe('PF-001');
     expect(payloads[0]?.currency).toBe('EUR');
+  });
+
+  it('emits DECREASE shortcut payload with institution but no rate dependency', () => {
+    fixture = createWizard({
+      apiBaseUrl,
+      portfolioNumber: 'PF-001',
+      contractNumber: 'CT-00042',
+    });
+
+    http
+      .expectOne(`${apiBaseUrl}/api/v1/order-creation/oncall/contract-info?contractNumber=CT-00042`)
+      .flush({
+        currency: 'EUR',
+        noticePeriod: '24H',
+        institutionCode: 'BNKCO',
+        counterparty: 'BankCo',
+      });
+    fixture.detectChanges();
+    http
+      .expectOne(`${apiBaseUrl}/api/v1/order-creation/oncall/operations?currency=EUR`)
+      .flush({ operations: [{ operation: 'DECREASE', minAmount: 50000 }] });
+    fixture.detectChanges();
+
+    state.setOperation('DECREASE', 50000);
+    state.completeAndAdvance();
+    state.setValueDate('2026-06-10');
+    state.completeAndAdvance();
+    state.setCounterparty('BNKCO', 'BankCo');
+    state.completeAndAdvance();
+    state.setOrderDetails(600000);
+    state.completeAndAdvance();
+    fixture.detectChanges();
+
+    const payloads: OrderCreationPayload[] = [];
+    fixture.componentInstance.orderReady.subscribe((payload) => payloads.push(payload));
+    fixture.nativeElement.querySelector('[data-testid="review-create-order"]').click();
+    fixture.detectChanges();
+
+    expect(payloads[0]?.operation).toBe('DECREASE');
+    expect(payloads[0]?.institutionCode).toBe('BNKCO');
+    expect(payloads[0]?.counterparty).toBe('BankCo');
+    expect(payloads[0]?.sourceContractNumber).toBe('CT-00042');
+  });
+
+  it('emits shortcut-derived sourceContractNumber from a lifecycle flow', () => {
+    fixture = createWizard({
+      apiBaseUrl,
+      portfolioNumber: 'PF-001',
+      contractNumber: 'CT-00042',
+    });
+
+    http
+      .expectOne(`${apiBaseUrl}/api/v1/order-creation/oncall/contract-info?contractNumber=CT-00042`)
+      .flush({ currency: 'EUR', noticePeriod: '24H' });
+    fixture.detectChanges();
+    http
+      .expectOne(`${apiBaseUrl}/api/v1/order-creation/oncall/operations?currency=EUR`)
+      .flush({ operations: [{ operation: 'INCREASE', minAmount: 50000 }] });
+    fixture.detectChanges();
+
+    state.setOperation('INCREASE', 50000);
+    state.completeAndAdvance();
+    state.setValueDate('2026-06-10');
+    state.completeAndAdvance();
+    state.setCounterparty('BNKCO', 'BankCo', 3.5, '2026-06-07');
+    state.completeAndAdvance();
+    state.setOrderDetails(600000);
+    state.completeAndAdvance();
+    fixture.detectChanges();
+
+    const payloads: OrderCreationPayload[] = [];
+    fixture.componentInstance.orderReady.subscribe((payload) => payloads.push(payload));
+    fixture.nativeElement.querySelector('[data-testid="review-create-order"]').click();
+    fixture.detectChanges();
+
+    expect(payloads[0]?.operation).toBe('INCREASE');
+    expect(payloads[0]?.sourceContractNumber).toBe('CT-00042');
+    expect(payloads[0]?.valueDate).toBe('2026-06-10');
+  });
+
+  it('OnCall full flow visible steps include VALUE_DATE before counterparty', () => {
+    fixture = createWizard({
+      apiBaseUrl,
+      portfolioNumber: 'PF-001',
+      orderType: 'ON_CALL',
+    });
+
+    const steps = state.visibleSteps();
+    const valueDateIndex = steps.indexOf(WizardStepId.VALUE_DATE);
+    const counterpartyIndex = steps.indexOf(WizardStepId.COUNTERPARTY);
+    const noticeIndex = steps.indexOf(WizardStepId.TENOR_OR_NOTICE_PERIOD);
+
+    expect(valueDateIndex).toBeGreaterThan(noticeIndex);
+    expect(counterpartyIndex).toBeGreaterThan(valueDateIndex);
+  });
+
+  it('emits OnCall orderReady with single valueDate from value-date step', () => {
+    fixture = createWizard({
+      apiBaseUrl,
+      portfolioNumber: 'PF-001',
+      orderType: 'ON_CALL',
+    });
+
+    state.setCurrency('EUR');
+    state.completeAndAdvance();
+    state.setOperation('INCREASE', 500000);
+    state.completeAndAdvance();
+    state.setNoticePeriod('48H');
+    state.completeAndAdvance();
+    state.setValueDate('2026-06-30');
+    state.completeAndAdvance();
+    state.setCounterparty('BNKCO', 'BankCo', 3.5, '2026-06-07');
+    state.completeAndAdvance();
+    state.setOrderDetails(600000);
+    state.completeAndAdvance();
+    fixture.detectChanges();
+
+    const payloads: OrderCreationPayload[] = [];
+    fixture.componentInstance.orderReady.subscribe((payload) => payloads.push(payload));
+    fixture.nativeElement.querySelector('[data-testid="review-create-order"]').click();
+    fixture.detectChanges();
+
+    expect(payloads[0]?.valueDate).toBe('2026-06-30');
+    expect(payloads[0]?.noticePeriod).toBe('48H');
   });
 
   it('emits cancelled from review', () => {

@@ -3,6 +3,7 @@ import { signal } from '@angular/core';
 import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 
+import { OrderCreationApiService } from '../../core/api/order-creation-api.service';
 import { OrderApiService } from '../../core/api/order-api.service';
 import type { OrderDetails } from '../../core/models/order.model';
 import { OrderOperation } from '../../core/models/order-operation.enum';
@@ -30,6 +31,7 @@ function stubDetails(overrides: Partial<OrderDetails> = {}): OrderDetails {
     assignedTraderId: null,
     assignedAt: null,
     executedRate: null,
+    institutionCode: null,
     counterparty: null,
     executionTime: null,
     dealingReference: null,
@@ -45,6 +47,9 @@ describe('OrderDetailsComponent', () => {
   let fixture: ComponentFixture<OrderDetailsComponent>;
 
   const getOrderDetails = vi.fn();
+  const executeOrder = vi.fn();
+  const listTermCounterparties = vi.fn();
+  const listOnCallCounterparties = vi.fn();
   const apiStub: Pick<
     OrderApiService,
     | 'getOrderDetails'
@@ -61,17 +66,50 @@ describe('OrderDetailsComponent', () => {
     cancelOrder: vi.fn(),
     rejectOrder: vi.fn(),
     updateOrder: vi.fn(),
-    executeOrder: vi.fn(),
+    executeOrder,
   };
 
   beforeEach(async () => {
     vi.clearAllMocks();
+    listTermCounterparties.mockReturnValue(
+      of({
+        counterparties: [
+          {
+            institutionCode: 'QNB-01',
+            displayName: 'QNB',
+            rate: 2.15,
+            rateDate: '2026-06-20',
+            indicative: false,
+          },
+        ],
+      }),
+    );
+    listOnCallCounterparties.mockReturnValue(
+      of({
+        counterparties: [
+          {
+            institutionCode: 'QNB-01',
+            displayName: 'QNB',
+            rate: 2.15,
+            rateDate: '2026-06-20',
+            indicative: false,
+          },
+        ],
+      }),
+    );
 
     await TestBed.configureTestingModule({
       imports: [OrderDetailsComponent],
       providers: [
         provideRouter([]),
         { provide: OrderApiService, useValue: apiStub },
+        {
+          provide: OrderCreationApiService,
+          useValue: {
+            listTermCounterparties,
+            listOnCallCounterparties,
+          },
+        },
         { provide: TraderContextService, useValue: { traderId: signal('trader-self') } },
         {
           provide: ActivatedRoute,
@@ -120,6 +158,8 @@ describe('OrderDetailsComponent', () => {
         stubDetails({
           status: OrderStatus.ASSIGNED,
           assignedTraderId: 'trader-self',
+          counterparty: 'QNB',
+          institutionCode: 'QNB-01',
         })
       )
     );
@@ -131,7 +171,50 @@ describe('OrderDetailsComponent', () => {
     expect(text).toContain('Unassign');
     expect(text).toContain('Reject');
     expect(text).toContain('Record execution');
+    expect(text).toContain('QNB');
+    expect(text).toContain('QNB-01');
     expect(fixture.nativeElement.querySelectorAll('.actions .btn.danger-outline')).toHaveLength(1);
+    expect(fixture.nativeElement.querySelector('mmx-order-execution-form')).toBeTruthy();
+  });
+
+  it('execute calls API with rate-only body', async () => {
+    getOrderDetails.mockReturnValue(
+      of(
+        stubDetails({
+          status: OrderStatus.ASSIGNED,
+          assignedTraderId: 'trader-self',
+          counterparty: 'QNB',
+          institutionCode: 'QNB-01',
+          orderType: OrderType.ON_CALL,
+          tenor: null,
+          noticePeriod: '48H',
+        })
+      )
+    );
+    executeOrder.mockReturnValue(
+      of(
+        stubDetails({
+          status: OrderStatus.EXECUTED,
+          executedRate: 2.2,
+          counterparty: 'QNB',
+          institutionCode: 'QNB-01',
+        })
+      )
+    );
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const form = fixture.debugElement.query(
+      (el) => el.name === 'mmx-order-execution-form'
+    )?.componentInstance as { onSubmit: () => void; rateModel: string } | undefined;
+    expect(form).toBeTruthy();
+    form!.rateModel = '2.2';
+    form!.onSubmit();
+
+    expect(executeOrder).toHaveBeenCalledWith('order-fixture-1', 'trader-self', {
+      executedRate: 2.2,
+    });
   });
 
   it('does not show reject for ASSIGNED order owned by another trader', async () => {

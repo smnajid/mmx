@@ -10,6 +10,7 @@ export enum WizardStepId {
   CURRENCY = 'CURRENCY',
   OPERATION = 'OPERATION',
   TENOR_OR_NOTICE_PERIOD = 'TENOR_OR_NOTICE_PERIOD',
+  VALUE_DATE = 'VALUE_DATE',
   COUNTERPARTY = 'COUNTERPARTY',
   ORDER_DETAILS = 'ORDER_DETAILS',
   REVIEW = 'REVIEW',
@@ -34,4 +35,6 @@ export interface WizardState {
   minimumRate?: number;
   sourceContractNumber?: string;
   contractShortcut: boolean;
+  contractInstitutionCode?: string;
+  contractCounterparty?: string;
 }

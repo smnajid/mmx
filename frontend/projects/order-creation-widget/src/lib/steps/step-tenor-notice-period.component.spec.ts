@@ -104,4 +104,28 @@ describe('StepTenorNoticePeriodComponent', () => {
     expect(state.state().currentStep).toBe(WizardStepId.COUNTERPARTY);
     expect(navigated).toEqual([true]);
   });
+
+  it('selecting a notice period advances to value date for OnCall orders', () => {
+    state.initialize({ orderType: 'ON_CALL', skipOrderType: true });
+    state.setCurrency('EUR');
+    state.completeAndAdvance();
+    state.setOperation('SUBSCRIPTION', 100000);
+    state.completeAndAdvance();
+    fixture = TestBed.createComponent(StepTenorNoticePeriodComponent);
+    fixture.detectChanges();
+
+    http
+      .expectOne(`${apiBaseUrl}/api/v1/order-creation/oncall/notice-periods?currency=EUR`)
+      .flush({ noticePeriods: ['48H'] });
+    fixture.detectChanges();
+
+    const navigated: boolean[] = [];
+    fixture.componentInstance.stepComplete.subscribe(() => navigated.push(true));
+    fixture.nativeElement.querySelector('[data-testid="notice-48H"]').click();
+    fixture.detectChanges();
+
+    expect(state.state().noticePeriod).toBe('48H');
+    expect(state.state().currentStep).toBe(WizardStepId.VALUE_DATE);
+    expect(navigated).toEqual([true]);
+  });
 });

@@ -4,13 +4,14 @@ import { Observable } from 'rxjs';
 import type {
   ContractInfoResponse,
   CounterpartiesResponse,
+  LiveContractsResponse,
   NoticePeriodsResponse,
   OnCallCurrenciesResponse,
   OperationsResponse,
   TermCurrenciesResponse,
   TenorsResponse,
 } from '../models/api-responses.model';
-import type { NoticePeriod, Tenor } from '../models/order-creation-payload.model';
+import type { NoticePeriod, OrderType, Tenor } from '../models/order-creation-payload.model';
 import { WizardHostConfigService } from './wizard-host-config.service';
 import { ORDER_CREATION_API_BASE_URL } from '../tokens/order-creation-api-base-url.token';
 
@@ -87,6 +88,18 @@ export class WizardApiService {
       this.url('/api/v1/order-creation/oncall/contract-info'),
       { params: new HttpParams().set('contractNumber', contractNumber) },
     );
+  }
+
+  listLiveContracts(
+    portfolioNumber: string,
+    orderType: OrderType,
+  ): Observable<LiveContractsResponse> {
+    const params = new HttpParams()
+      .set('portfolioNumber', portfolioNumber)
+      .set('orderType', orderType);
+    return this.http.get<LiveContractsResponse>(this.url('/api/v1/order-creation/contracts'), {
+      params,
+    });
   }
 
   private url(path: string): string {

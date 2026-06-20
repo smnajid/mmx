@@ -1,39 +1,41 @@
 import {
   ChangeDetectionStrategy,
   Component,
-  OnInit,
+  effect,
   inject,
   input,
   output,
   signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
 import {
-  Institution,
-  InstitutionSettingsApiService,
-} from '../../core/api/institution-settings-api.service';
-import type { ExecuteOrderRequest } from '../../core/models/order.model';
-import { TraderContextService } from '../../core/trader/trader-context.service';
+  CounterpartyRow,
+  OrderCreationApiService,
+} from '../../core/api/order-creation-api.service';
+import type { ExecuteOrderRequest, OrderDetails } from '../../core/models/order.model';
+import { OrderType } from '../../core/models/order-type.enum';
 
 @Component({
   selector: 'mmx-order-execution-form',
   standalone: true,
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule],
   template: `
     <div class="panel">
       <h2 class="panel-title">Record execution</h2>
       <p class="hint">
-        Select an onboarded institution (counterparty). Dealing reference and contract number are generated on submit.
+        Counterparty was chosen at intake. Dealing reference and contract number are generated on submit.
       </p>
 
-      @if (catalogLoading()) {
-        <p class="hint">Loading institutions…</p>
-      } @else if (catalogEmpty()) {
-        <p class="empty-catalog" role="alert">
-          No institutions onboarded — execute is disabled.
-          <a routerLink="/settings/institutions">Onboard in Settings</a>
+      <div class="locked-counterparty">
+        <span class="label">Counterparty</span>
+        <p class="counterparty-value">
+          {{ order().counterparty }}
+          <span class="mono muted">{{ order().institutionCode }}</span>
         </p>
+      </div>
+
+      @if (rateLoading()) {
+        <p class="hint">Loading proposed rate…</p>
       } @else {
         <form class="form" (ngSubmit)="onSubmit()">
           <label class="field">
@@ -49,31 +51,23 @@ import { TraderContextService } from '../../core/trader/trader-context.service';
               required
               autocomplete="off"
             />
+            @if (proposedRateDate()) {
+              <span class="rate-meta mono">{{ proposedRateDate() }}</span>
+            }
+            @if (proposedIndicative()) {
+              <span class="indicative-badge" data-testid="execute-indicative-badge">Indicative</span>
+            }
+            @if (noRateHint()) {
+              <span class="no-rate-hint">{{ noRateHint() }}</span>
+            }
           </label>
-          <label class="field">
-            <span class="label">Counterparty</span>
-            <input
-              type="text"
-              name="institutionPicker"
-              class="input"
-              [(ngModel)]="pickerLabel"
-              [disabled]="submitting()"
-              list="institution-options"
-              required
-              placeholder="Start typing institution name"
-              autocomplete="off"
-              (input)="onPickerInput()"
-            />
-            <datalist id="institution-options">
-              @for (i of activeInstitutions(); track i.institutionCode) {
-                <option [value]="i.displayName"></option>
-              }
-            </datalist>
-          </label>
+          @if (order().minimumRate !== null && order().minimumRate !== undefined) {
+            <p class="floor-hint mono">PM floor: {{ order().minimumRate }}%</p>
+          }
           @if (localError()) {
             <p class="field-error" role="alert">{{ localError() }}</p>
           }
-          <button type="submit" class="submit" [disabled]="submitting() || !selectedCode()">
+          <button type="submit" class="submit" [disabled]="submitting()">
             {{ submitting() ? 'Submitting…' : 'Execute order' }}
           </button>
         </form>
@@ -105,16 +99,20 @@ import { TraderContextService } from '../../core/trader/trader-context.service';
       line-height: 1.4;
     }
 
-    .empty-catalog {
-      margin: 0;
-      font-size: 0.85rem;
-      color: #fda4af;
-      line-height: 1.5;
+    .locked-counterparty {
+      margin-bottom: 1rem;
     }
 
-    .empty-catalog a {
-      color: var(--mmx-accent);
-      margin-left: 0.35rem;
+    .counterparty-value {
+      margin: 0.25rem 0 0;
+      font-size: 0.95rem;
+      color: var(--mmx-text);
+    }
+
+    .muted {
+      margin-left: 0.5rem;
+      font-size: 0.82rem;
+      color: var(--mmx-text-muted);
     }
 
     .form {
@@ -160,6 +158,31 @@ import { TraderContextService } from '../../core/trader/trader-context.service';
       font-family: var(--font-mono);
     }
 
+    .rate-meta {
+      font-size: 0.78rem;
+      color: var(--mmx-text-muted);
+    }
+
+    .indicative-badge {
+      align-self: flex-start;
+      font-size: 0.72rem;
+      padding: 0.125rem 0.5rem;
+      border-radius: 999px;
+      background: rgba(232, 168, 56, 0.2);
+      color: var(--mmx-accent);
+    }
+
+    .no-rate-hint {
+      font-size: 0.78rem;
+      color: var(--mmx-text-muted);
+    }
+
+    .floor-hint {
+      margin: 0;
+      font-size: 0.78rem;
+      color: var(--mmx-text-muted);
+    }
+
     .field-error {
       margin: 0;
       font-size: 0.8rem;
@@ -194,43 +217,27 @@ import { TraderContextService } from '../../core/trader/trader-context.service';
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class OrderExecutionFormComponent implements OnInit {
+export class OrderExecutionFormComponent {
+  readonly order = input.required<OrderDetails>();
   readonly submitting = input(false);
 
   readonly submitExecute = output<ExecuteOrderRequest>();
 
-  private readonly institutionApi = inject(InstitutionSettingsApiService);
-  private readonly trader = inject(TraderContextService);
+  private readonly orderCreationApi = inject(OrderCreationApiService);
 
   readonly localError = signal<string | null>(null);
-  readonly catalogLoading = signal(true);
-  readonly catalogEmpty = signal(false);
-  readonly activeInstitutions = signal<Institution[]>([]);
-  readonly selectedCode = signal<string | null>(null);
+  readonly rateLoading = signal(true);
+  readonly proposedRateDate = signal<string | null>(null);
+  readonly proposedIndicative = signal(false);
+  readonly noRateHint = signal<string | null>(null);
 
   rateModel = '';
-  pickerLabel = '';
 
-  ngOnInit(): void {
-    this.institutionApi.list(this.trader.traderId(), true).subscribe({
-      next: (list) => {
-        this.activeInstitutions.set(list);
-        this.catalogEmpty.set(list.length === 0);
-        this.catalogLoading.set(false);
-      },
-      error: () => {
-        this.catalogEmpty.set(true);
-        this.catalogLoading.set(false);
-      },
+  constructor() {
+    effect(() => {
+      const o = this.order();
+      this.loadProposedRate(o);
     });
-  }
-
-  onPickerInput(): void {
-    const label = this.pickerLabel.trim();
-    const match = this.activeInstitutions().find(
-      (i) => i.displayName.toLowerCase() === label.toLowerCase()
-    );
-    this.selectedCode.set(match?.institutionCode ?? null);
   }
 
   onSubmit(): void {
@@ -240,12 +247,64 @@ export class OrderExecutionFormComponent implements OnInit {
       this.localError.set('Enter a valid executed rate (≥ 0).');
       return;
     }
-    this.onPickerInput();
-    const code = this.selectedCode();
-    if (!code) {
-      this.localError.set('Select an active institution from the list.');
+    const floor = this.order().minimumRate;
+    if (floor !== null && floor !== undefined && raw < floor) {
+      this.localError.set(`Executed rate must be at least ${floor}%.`);
       return;
     }
-    this.submitExecute.emit({ executedRate: raw, institutionCode: code });
+    this.submitExecute.emit({ executedRate: raw });
+  }
+
+  private loadProposedRate(order: OrderDetails): void {
+    this.rateLoading.set(true);
+    this.proposedRateDate.set(null);
+    this.proposedIndicative.set(false);
+    this.noRateHint.set(null);
+    this.rateModel = '';
+
+    const code = order.institutionCode;
+    if (!code) {
+      this.rateLoading.set(false);
+      this.noRateHint.set('No proposed rate found for this institution.');
+      return;
+    }
+
+    const onSuccess = (rows: CounterpartyRow[]): void => {
+      const match = rows.find((c) => c.institutionCode === code);
+      if (match) {
+        this.rateModel = String(match.rate);
+        this.proposedRateDate.set(match.rateDate);
+        this.proposedIndicative.set(match.indicative);
+      } else {
+        this.noRateHint.set('No proposed rate found for this institution.');
+      }
+      this.rateLoading.set(false);
+    };
+
+    const onError = (): void => {
+      this.noRateHint.set('No proposed rate found for this institution.');
+      this.rateLoading.set(false);
+    };
+
+    if (order.orderType === OrderType.TERM && order.tenor) {
+      this.orderCreationApi.listTermCounterparties(order.currency, order.tenor).subscribe({
+        next: (res) => onSuccess(res.counterparties),
+        error: onError,
+      });
+      return;
+    }
+
+    if (order.orderType === OrderType.ON_CALL && order.noticePeriod) {
+      this.orderCreationApi
+        .listOnCallCounterparties(order.currency, order.noticePeriod, order.valueDate)
+        .subscribe({
+          next: (res) => onSuccess(res.counterparties),
+          error: onError,
+        });
+      return;
+    }
+
+    this.rateLoading.set(false);
+    this.noRateHint.set('No proposed rate found for this institution.');
   }
 }

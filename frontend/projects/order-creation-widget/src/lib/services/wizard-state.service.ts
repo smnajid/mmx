@@ -7,6 +7,7 @@ const FULL_FLOW_STEPS: WizardStepId[] = [
   WizardStepId.CURRENCY,
   WizardStepId.OPERATION,
   WizardStepId.TENOR_OR_NOTICE_PERIOD,
+  WizardStepId.VALUE_DATE,
   WizardStepId.COUNTERPARTY,
   WizardStepId.ORDER_DETAILS,
   WizardStepId.REVIEW,
@@ -14,6 +15,7 @@ const FULL_FLOW_STEPS: WizardStepId[] = [
 
 const CONTRACT_SHORTCUT_STEPS: WizardStepId[] = [
   WizardStepId.OPERATION,
+  WizardStepId.VALUE_DATE,
   WizardStepId.COUNTERPARTY,
   WizardStepId.ORDER_DETAILS,
   WizardStepId.REVIEW,
@@ -52,6 +54,8 @@ export class WizardStateService {
     currency: string,
     noticePeriod: NoticePeriod,
     sourceContractNumber?: string,
+    contractInstitutionCode?: string,
+    contractCounterparty?: string,
   ): void {
     this.stateSignal.set(
       createInitialWizardState({
@@ -60,6 +64,8 @@ export class WizardStateService {
         currency,
         noticePeriod,
         sourceContractNumber,
+        contractInstitutionCode,
+        contractCounterparty,
         skipOrderTypeStep: true,
         currentStep: WizardStepId.OPERATION,
       }),
@@ -100,16 +106,14 @@ export class WizardStateService {
   }
 
   setValueDate(valueDate: string): void {
-    this.patch({ valueDate });
+    this.patch({ valueDate }, WizardStepId.VALUE_DATE);
   }
 
-  setOrderDetails(
-    amount: number,
-    valueDate: string,
-    minimumRate?: number,
-    sourceContractNumber?: string,
-  ): void {
-    this.patch({ amount, valueDate, minimumRate, sourceContractNumber }, WizardStepId.ORDER_DETAILS);
+  setOrderDetails(amount: number, valueDate?: string, minimumRate?: number): void {
+    const state = this.stateSignal();
+    const resolvedValueDate =
+      state.orderType === 'ON_CALL' ? state.valueDate : valueDate;
+    this.patch({ amount, valueDate: resolvedValueDate, minimumRate }, WizardStepId.ORDER_DETAILS);
   }
 
   completeAndAdvance(): void {
@@ -171,10 +175,20 @@ export class WizardStateService {
         return !!state.operation;
       case WizardStepId.TENOR_OR_NOTICE_PERIOD:
         return state.orderType === 'TERM' ? !!state.tenor : !!state.noticePeriod;
+      case WizardStepId.VALUE_DATE:
+        return !!state.valueDate;
       case WizardStepId.COUNTERPARTY:
+        if (
+          state.contractShortcut &&
+          (state.operation === 'DECREASE' || state.operation === 'REDEMPTION')
+        ) {
+          return !!state.institutionCode && !!state.counterparty;
+        }
         return !!state.institutionCode && !!state.counterparty;
       case WizardStepId.ORDER_DETAILS:
-        return state.amount != null && !!state.valueDate;
+        return state.orderType === 'ON_CALL'
+          ? state.amount != null
+          : state.amount != null && !!state.valueDate;
       case WizardStepId.REVIEW:
         return true;
       default:
@@ -207,30 +221,46 @@ export class WizardStateService {
       state.tenor = undefined;
       state.noticePeriod = state.contractShortcut ? state.noticePeriod : undefined;
     }
+    if (downstream.has(WizardStepId.VALUE_DATE)) {
+      state.valueDate = undefined;
+    }
     if (downstream.has(WizardStepId.COUNTERPARTY)) {
       state.institutionCode = undefined;
       state.counterparty = undefined;
       state.counterpartyRate = undefined;
       state.counterpartyRateDate = undefined;
+      if (!state.contractShortcut) {
+        state.contractInstitutionCode = undefined;
+        state.contractCounterparty = undefined;
+      }
     }
     if (downstream.has(WizardStepId.ORDER_DETAILS)) {
       state.amount = undefined;
-      state.valueDate = undefined;
+      if (downstream.has(WizardStepId.VALUE_DATE)) {
+        state.valueDate = undefined;
+      }
       state.minimumRate = undefined;
-      state.sourceContractNumber = undefined;
+      state.sourceContractNumber = state.contractShortcut ? state.sourceContractNumber : undefined;
     }
 
     state.completedSteps = state.completedSteps.filter((step) => !downstream.has(step));
   }
 
   private computeVisibleSteps(state: WizardState): WizardStepId[] {
+    let steps: WizardStepId[];
     if (state.contractShortcut) {
-      return [...CONTRACT_SHORTCUT_STEPS];
+      steps = [...CONTRACT_SHORTCUT_STEPS];
+    } else if (state.skipOrderTypeStep) {
+      steps = FULL_FLOW_STEPS.filter((step) => step !== WizardStepId.ORDER_TYPE);
+    } else {
+      steps = [...FULL_FLOW_STEPS];
     }
-    if (state.skipOrderTypeStep) {
-      return FULL_FLOW_STEPS.filter((step) => step !== WizardStepId.ORDER_TYPE);
+
+    if (state.orderType !== 'ON_CALL') {
+      steps = steps.filter((step) => step !== WizardStepId.VALUE_DATE);
     }
-    return [...FULL_FLOW_STEPS];
+
+    return steps;
   }
 
   private nextVisibleStep(current: WizardStepId, visible: WizardStepId[]): WizardStepId | null {

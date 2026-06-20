@@ -24,6 +24,77 @@ describe('StepOrderDetailsComponent', () => {
     state.completeAndAdvance();
     state.setNoticePeriod('24H');
     state.completeAndAdvance();
+    state.setValueDate('2026-06-10');
+    state.completeAndAdvance();
+    state.setCounterparty('BNKCO', 'BankCo', 3.5, '2026-06-07');
+    state.completeAndAdvance();
+
+    fixture = TestBed.createComponent(StepOrderDetailsComponent);
+    fixture.detectChanges();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('rejects amount below operation minimum', () => {
+    const amountInput = fixture.nativeElement.querySelector('[data-testid="details-amount"]');
+    amountInput.value = '100000';
+    amountInput.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+
+    fixture.nativeElement.querySelector('[data-testid="details-continue"]').click();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('[data-testid="details-amount-error"]')).toBeTruthy();
+    expect(state.state().currentStep).toBe(WizardStepId.ORDER_DETAILS);
+  });
+
+  it('OnCall form has amount and minimumRate only (no valueDate control)', () => {
+    expect(fixture.nativeElement.querySelector('[data-testid="details-value-date"]')).toBeFalsy();
+    expect(fixture.nativeElement.querySelector('[data-testid="details-amount"]')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('[data-testid="details-minimum-rate"]')).toBeTruthy();
+  });
+
+  it('OnCall submit preserves valueDate from wizard state', () => {
+    fixture.componentInstance.form.patchValue({
+      amount: 600000,
+      minimumRate: null,
+    });
+    fixture.detectChanges();
+
+    const navigated: boolean[] = [];
+    fixture.componentInstance.stepComplete.subscribe(() => navigated.push(true));
+    fixture.componentInstance.submit();
+    fixture.detectChanges();
+
+    expect(state.state().valueDate).toBe('2026-06-10');
+    expect(state.state().amount).toBe(600000);
+    expect(navigated).toEqual([true]);
+  });
+});
+
+describe('StepOrderDetailsComponent (Term)', () => {
+  let fixture: ComponentFixture<StepOrderDetailsComponent>;
+  let state: WizardStateService;
+
+  beforeEach(async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-07T12:00:00Z'));
+
+    await TestBed.configureTestingModule({
+      imports: [StepOrderDetailsComponent],
+      providers: [WizardStateService],
+    }).compileComponents();
+
+    state = TestBed.inject(WizardStateService);
+    state.initialize({ orderType: 'TERM', skipOrderType: true });
+    state.setCurrency('EUR');
+    state.completeAndAdvance();
+    state.setOperation('SUBSCRIPTION', 500000);
+    state.completeAndAdvance();
+    state.setTenor('3M');
+    state.completeAndAdvance();
     state.setCounterparty('BNKCO', 'BankCo', 3.5, '2026-06-07');
     state.completeAndAdvance();
 
@@ -85,7 +156,7 @@ describe('StepOrderDetailsComponent', () => {
     expect(navigated).toEqual([true]);
   });
 
-  it('shows sourceContractNumber for lifecycle operations', () => {
-    expect(fixture.nativeElement.querySelector('[data-testid="details-source-contract"]')).toBeTruthy();
+  it('never shows a source contract number field, even for lifecycle operations', () => {
+    expect(fixture.nativeElement.querySelector('[data-testid="details-source-contract"]')).toBeFalsy();
   });
 });
