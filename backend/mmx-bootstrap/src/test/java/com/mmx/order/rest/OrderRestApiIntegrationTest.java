@@ -46,6 +46,50 @@ class OrderRestApiIntegrationTest {
     InMemoryOpenPositionPort openPositionPort;
 
     @Test
+    void postReceive_returns400_forOnCallLifecycleWithMismatchedInstitution() throws Exception {
+        String subRef = "IT-OC-SUB-" + System.nanoTime();
+        HttpResponse<String> created = postJson("/api/v1/orders", onCallSubscribeJson(subRef));
+        assertThat(created.statusCode()).isEqualTo(201);
+        String orderId = objectMapper.readTree(created.body()).path("orderId").asText();
+        assertThat(postEmpty("/api/v1/orders/" + orderId + "/assign", TRADER).statusCode()).isEqualTo(200);
+        HttpResponse<String> executed =
+                postJson(
+                        "/api/v1/orders/" + orderId + "/execute",
+                        RestTestInstitutions.rateOnlyExecuteJson(3.5),
+                        TRADER);
+        assertThat(executed.statusCode()).isEqualTo(200);
+        String contractNumber =
+                objectMapper.readTree(executed.body()).path("generatedContractNumber").asText();
+
+        String increaseRef = "IT-OC-INC-MISMATCH-" + System.nanoTime();
+        LocalDate valueDate = LocalDate.now().plusDays(10);
+        String json =
+                """
+                {
+                  "externalOrderReference": "%s",
+                  "orderType": "ON_CALL",
+                  "orderOperation": "INCREASE",
+                  "portfolioNumber": "PF-IT",
+                  "currency": "EUR",
+                  "amount": 100000.00,
+                  "valueDate": "%s",
+                  "noticePeriod": "24H",
+                  "sourceContractNumber": "%s",
+                  "institutionCode": "%s"
+                }
+                """
+                        .formatted(
+                                increaseRef,
+                                valueDate,
+                                contractNumber,
+                                RestTestInstitutions.BANKCO_CODE);
+        HttpResponse<String> res = postJson("/api/v1/orders", json);
+        assertThat(res.statusCode()).isEqualTo(400);
+        assertThat(objectMapper.readTree(res.body()).path("message").asText())
+                .contains("must match the source contract institution");
+    }
+
+    @Test
     void postReceive_returns201_forNewOrder() throws Exception {
         String ref = "IT-NEW-" + System.nanoTime();
         HttpResponse<String> res = postJson("/api/v1/orders", termSubscribeJson(ref));

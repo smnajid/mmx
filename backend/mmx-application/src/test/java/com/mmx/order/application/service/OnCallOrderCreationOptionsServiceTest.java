@@ -158,14 +158,19 @@ class OnCallOrderCreationOptionsServiceTest {
     }
 
     @Test
-    void getContractInfo_returnsCurrencyAndNoticePeriodFromExecutedSubscription() {
+    void getContractInfo_returnsCurrencyNoticePeriodInstitutionAndCounterpartyFromExecutedSubscription() {
         when(orderRepository.findExecutedSubscriptionByContractNumber("CT-00042"))
-                .thenReturn(Optional.of(new ExecutedSubscriptionContractInfo("EUR", NoticePeriod._24H)));
+                .thenReturn(
+                        Optional.of(
+                                new ExecutedSubscriptionContractInfo(
+                                        "EUR", NoticePeriod._24H, "BNKCO", "BankCo")));
 
         ContractInfoResult result = subject.getContractInfo("CT-00042");
 
         assertThat(result.currency()).isEqualTo("EUR");
         assertThat(result.noticePeriod()).isEqualTo(NoticePeriod._24H);
+        assertThat(result.institutionCode()).isEqualTo("BNKCO");
+        assertThat(result.counterparty()).isEqualTo("BankCo");
     }
 
     @Test

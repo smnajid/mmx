@@ -142,7 +142,11 @@ public final class OnCallOrderCreationOptionsService
     public ContractInfoResult getContractInfo(String contractNumber) {
         return orderRepository
                 .findExecutedSubscriptionByContractNumber(contractNumber)
-                .map(info -> new ContractInfoResult(info.currency(), info.noticePeriod()))
+                .map(info -> new ContractInfoResult(
+                        info.currency(),
+                        info.noticePeriod(),
+                        info.institutionCode(),
+                        info.counterparty()))
                 .orElseThrow(() -> new ContractNotFoundException(contractNumber));
     }
 

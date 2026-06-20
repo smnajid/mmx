@@ -59,6 +59,8 @@ class OrderRepositoryContractLookupTest {
         assertThat(info).isPresent();
         assertThat(info.get().currency()).isEqualTo("EUR");
         assertThat(info.get().noticePeriod()).isEqualTo(NoticePeriod._24H);
+        assertThat(info.get().institutionCode()).isEqualTo("BNKCO");
+        assertThat(info.get().counterparty()).isEqualTo("BankCo");
     }
 
     @Test

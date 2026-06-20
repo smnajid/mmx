@@ -11,6 +11,7 @@ import com.mmx.order.application.port.in.OrderPage;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 public interface OrderRepository {
@@ -35,4 +36,9 @@ public interface OrderRepository {
 
     Optional<ExecutedSubscriptionContractInfo> findExecutedSubscriptionByContractNumber(
             String contractNumber);
+
+    List<ExecutedSubscriptionContract> findExecutedSubscriptionsByPortfolioAndOrderType(
+            String portfolioNumber, OrderType orderType);
+
+    Set<String> findContractNumbersWithNonCancelledRedemption(List<String> contractNumbers);
 }

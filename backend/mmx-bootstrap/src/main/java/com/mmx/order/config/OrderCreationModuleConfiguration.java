@@ -4,6 +4,7 @@ import com.mmx.order.application.port.in.GetContractInfoUseCase;
 import com.mmx.order.application.port.in.ListOnCallCounterpartiesUseCase;
 import com.mmx.order.application.port.in.ListOnCallCurrenciesUseCase;
 import com.mmx.order.application.port.in.ListOnCallNoticePeriodsUseCase;
+import com.mmx.order.application.port.in.ListLiveContractsUseCase;
 import com.mmx.order.application.port.in.ListOnCallOperationsUseCase;
 import com.mmx.order.application.port.in.ListTermCounterpartiesUseCase;
 import com.mmx.order.application.port.in.ListTermCurrenciesUseCase;
@@ -15,6 +16,7 @@ import com.mmx.order.application.port.out.ManagedCurrencyRepository;
 import com.mmx.order.application.port.out.OnCallRateRepository;
 import com.mmx.order.application.port.out.OrderRepository;
 import com.mmx.order.application.port.out.TermRateRepository;
+import com.mmx.order.application.service.ListLiveContractsService;
 import com.mmx.order.application.service.OnCallOrderCreationOptionsService;
 import com.mmx.order.application.service.TermOrderCreationOptionsService;
 import org.springframework.context.annotation.Bean;
@@ -95,5 +97,17 @@ public class OrderCreationModuleConfiguration {
     public GetContractInfoUseCase getContractInfoUseCase(
             OnCallOrderCreationOptionsService onCallOrderCreationOptionsService) {
         return onCallOrderCreationOptionsService;
+    }
+
+    @Bean
+    public ListLiveContractsService listLiveContractsService(
+            OrderRepository orderRepository, Clock clock) {
+        return new ListLiveContractsService(orderRepository, clock);
+    }
+
+    @Bean
+    public ListLiveContractsUseCase listLiveContractsUseCase(
+            ListLiveContractsService listLiveContractsService) {
+        return listLiveContractsService;
     }
 }

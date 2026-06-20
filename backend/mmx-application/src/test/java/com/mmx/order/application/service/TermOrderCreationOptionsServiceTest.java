@@ -51,7 +51,18 @@ class TermOrderCreationOptionsServiceTest {
 
     @BeforeEach
     void setUp() {
-        Clock clock = () -> NOW;
+        Clock clock =
+                new Clock() {
+                    @Override
+                    public Instant now() {
+                        return NOW;
+                    }
+
+                    @Override
+                    public LocalDate today() {
+                        return TODAY;
+                    }
+                };
         subject =
                 new TermOrderCreationOptionsService(
                         managedCurrencyRepository, termRateRepository, institutionRepository, clock);

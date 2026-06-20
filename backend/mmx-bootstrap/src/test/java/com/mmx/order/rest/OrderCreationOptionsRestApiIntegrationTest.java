@@ -137,6 +137,8 @@ class OrderCreationOptionsRestApiIntegrationTest {
         JsonNode body = objectMapper.readTree(info.body());
         assertThat(body.path("currency").asText()).isEqualTo("EUR");
         assertThat(body.path("noticePeriod").asText()).isEqualTo("24H");
+        assertThat(body.path("institutionCode").asText()).isEqualTo(RestTestInstitutions.CP_OC_CODE);
+        assertThat(body.path("counterparty").asText()).isNotBlank();
     }
 
     @Test

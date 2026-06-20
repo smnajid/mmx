@@ -3,15 +3,18 @@ package com.mmx.order.adapter.in.rest;
 import com.mmx.order.adapter.in.rest.generated.api.OrderCreationApi;
 import com.mmx.order.adapter.in.rest.generated.model.ContractInfoResponse;
 import com.mmx.order.adapter.in.rest.generated.model.CounterpartiesResponse;
+import com.mmx.order.adapter.in.rest.generated.model.LiveContractsResponse;
 import com.mmx.order.adapter.in.rest.generated.model.NoticePeriod;
 import com.mmx.order.adapter.in.rest.generated.model.NoticePeriodsResponse;
 import com.mmx.order.adapter.in.rest.generated.model.OnCallCurrenciesResponse;
 import com.mmx.order.adapter.in.rest.generated.model.OperationsResponse;
+import com.mmx.order.adapter.in.rest.generated.model.OrderType;
 import com.mmx.order.adapter.in.rest.generated.model.Tenor;
 import com.mmx.order.adapter.in.rest.generated.model.TenorsResponse;
 import com.mmx.order.adapter.in.rest.generated.model.TermCurrenciesResponse;
 import com.mmx.order.adapter.in.rest.mapper.OrderCreationRestMapper;
 import com.mmx.order.application.port.in.GetContractInfoUseCase;
+import com.mmx.order.application.port.in.ListLiveContractsUseCase;
 import com.mmx.order.application.port.in.ListOnCallCounterpartiesUseCase;
 import com.mmx.order.application.port.in.ListOnCallCurrenciesUseCase;
 import com.mmx.order.application.port.in.ListOnCallNoticePeriodsUseCase;
@@ -37,6 +40,7 @@ public class OrderCreationOptionsController implements OrderCreationApi {
     private final ListTermCounterpartiesUseCase listTermCounterpartiesUseCase;
     private final ListOnCallCounterpartiesUseCase listOnCallCounterpartiesUseCase;
     private final GetContractInfoUseCase getContractInfoUseCase;
+    private final ListLiveContractsUseCase listLiveContractsUseCase;
     private final OrderCreationRestMapper mapper;
 
     public OrderCreationOptionsController(
@@ -49,6 +53,7 @@ public class OrderCreationOptionsController implements OrderCreationApi {
             ListTermCounterpartiesUseCase listTermCounterpartiesUseCase,
             ListOnCallCounterpartiesUseCase listOnCallCounterpartiesUseCase,
             GetContractInfoUseCase getContractInfoUseCase,
+            ListLiveContractsUseCase listLiveContractsUseCase,
             OrderCreationRestMapper mapper) {
         this.listTermCurrenciesUseCase = listTermCurrenciesUseCase;
         this.listOnCallCurrenciesUseCase = listOnCallCurrenciesUseCase;
@@ -59,6 +64,7 @@ public class OrderCreationOptionsController implements OrderCreationApi {
         this.listTermCounterpartiesUseCase = listTermCounterpartiesUseCase;
         this.listOnCallCounterpartiesUseCase = listOnCallCounterpartiesUseCase;
         this.getContractInfoUseCase = getContractInfoUseCase;
+        this.listLiveContractsUseCase = listLiveContractsUseCase;
         this.mapper = mapper;
     }
 
@@ -117,5 +123,14 @@ public class OrderCreationOptionsController implements OrderCreationApi {
     public ResponseEntity<ContractInfoResponse> getOnCallContractInfo(String contractNumber) {
         return ResponseEntity.ok(
                 mapper.toContractInfoResponse(getContractInfoUseCase.getContractInfo(contractNumber)));
+    }
+
+    @Override
+    public ResponseEntity<LiveContractsResponse> listLiveContracts(
+            String portfolioNumber, OrderType orderType) {
+        return ResponseEntity.ok(
+                mapper.toLiveContractsResponse(
+                        listLiveContractsUseCase.listLiveContracts(
+                                portfolioNumber, mapper.toDomainOrderType(orderType))));
     }
 }

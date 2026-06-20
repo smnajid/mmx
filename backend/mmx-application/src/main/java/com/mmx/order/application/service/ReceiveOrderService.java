@@ -61,6 +61,7 @@ public final class ReceiveOrderService implements ReceiveOrderUseCase {
         }
 
         Institution institution = resolveActiveInstitution(command.institutionCode());
+        validateLifecycleInstitutionMatchesContract(command, institution.getInstitutionCode());
 
         var currencyOpt = managedCurrencyRepository.findByCode(command.currency());
         Optional<OpenContractPosition> openPosition =
@@ -107,6 +108,34 @@ public final class ReceiveOrderService implements ReceiveOrderUseCase {
         var institutionOpt = institutionRepository.findByInstitutionCode(institutionCode);
         institutionPolicy.validateExecute(institutionCode, institutionOpt);
         return institutionOpt.orElseThrow();
+    }
+
+    private void validateLifecycleInstitutionMatchesContract(
+            ReceiveOrderCommand command, String submittedInstitutionCode) {
+        if (command.sourceContractNumber() == null) {
+            return;
+        }
+        if (command.orderOperation() != OrderOperation.INCREASE
+                && command.orderOperation() != OrderOperation.DECREASE
+                && command.orderOperation() != OrderOperation.REDEMPTION) {
+            return;
+        }
+
+        var contractInfo =
+                orderRepository.findExecutedSubscriptionByContractNumber(
+                        command.sourceContractNumber().value());
+        if (contractInfo.isEmpty()) {
+            throw new InvalidOrderException(
+                    "No executed OnCall Subscription found for source contract number: "
+                            + command.sourceContractNumber().value());
+        }
+        String contractInstitutionCode = contractInfo.get().institutionCode();
+        if (!contractInstitutionCode.equals(submittedInstitutionCode)) {
+            throw new InvalidOrderException(
+                    "institutionCode must match the source contract institution ("
+                            + contractInstitutionCode
+                            + ")");
+        }
     }
 
     /** Subscription: ignore PM {@code sourceContractNumber} — not persisted. */

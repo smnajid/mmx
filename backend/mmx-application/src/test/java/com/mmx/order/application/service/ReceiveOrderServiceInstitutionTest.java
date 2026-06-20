@@ -3,11 +3,13 @@ package com.mmx.order.application.service;
 import com.mmx.order.application.command.ReceiveOrderCommand;
 import com.mmx.order.application.port.out.AuditLogger;
 import com.mmx.order.application.port.out.Clock;
+import com.mmx.order.application.port.out.ExecutedSubscriptionContractInfo;
 import com.mmx.order.application.port.out.InstitutionRepository;
 import com.mmx.order.application.port.out.ManagedCurrencyRepository;
 import com.mmx.order.application.port.out.OpenPositionPort;
 import com.mmx.order.application.port.out.OrderRepository;
 import com.mmx.order.domain.exception.InvalidOrderException;
+import com.mmx.order.domain.model.ContractNumber;
 import com.mmx.order.domain.model.ExternalOrderReference;
 import com.mmx.order.domain.model.Institution;
 import com.mmx.order.domain.model.ManagedCurrency;
@@ -29,6 +31,7 @@ import org.mockito.quality.Strictness;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.EnumSet;
 import java.util.EnumSet;
 import java.util.Optional;
 
@@ -142,6 +145,64 @@ class ReceiveOrderServiceInstitutionTest {
         verify(orderRepository, never()).save(any());
         verify(institutionRepository, never()).findByInstitutionCode(any());
         verifyNoInteractions(auditLogger);
+    }
+
+    @Test
+    void receive_onCallIncreaseWithMatchingContractInstitution_succeeds() {
+        var ref = new ExternalOrderReference("PM-lifecycle-match");
+        when(orderRepository.findByExternalOrderReference(ref)).thenReturn(Optional.empty());
+        when(institutionRepository.findByInstitutionCode("BNKCO"))
+                .thenReturn(Optional.of(new Institution("BNKCO", "BankCo", true)));
+        when(orderRepository.findExecutedSubscriptionByContractNumber("CT-00042"))
+                .thenReturn(
+                        Optional.of(
+                                new ExecutedSubscriptionContractInfo(
+                                        "EUR", NoticePeriod._24H, "BNKCO", "BankCo")));
+        when(orderRepository.save(any(MoneyMarketOrder.class))).then(returnsFirstArg());
+
+        subject.receive(onCallLifecycleCommand(ref, "BNKCO", "CT-00042", OrderOperation.INCREASE));
+
+        verify(orderRepository).save(any(MoneyMarketOrder.class));
+    }
+
+    @Test
+    void receive_onCallIncreaseWithMismatchedContractInstitution_isRejected() {
+        var ref = new ExternalOrderReference("PM-lifecycle-mismatch");
+        when(orderRepository.findByExternalOrderReference(ref)).thenReturn(Optional.empty());
+        when(institutionRepository.findByInstitutionCode("SGFR"))
+                .thenReturn(Optional.of(new Institution("SGFR", "Société Générale", true)));
+        when(orderRepository.findExecutedSubscriptionByContractNumber("CT-00042"))
+                .thenReturn(
+                        Optional.of(
+                                new ExecutedSubscriptionContractInfo(
+                                        "EUR", NoticePeriod._24H, "BNKCO", "BankCo")));
+
+        assertThatThrownBy(() -> subject.receive(onCallLifecycleCommand(ref, "SGFR", "CT-00042", OrderOperation.INCREASE)))
+                .isInstanceOf(InvalidOrderException.class)
+                .hasMessageContaining("must match the source contract institution");
+
+        verify(orderRepository, never()).save(any());
+        verifyNoInteractions(auditLogger);
+    }
+
+    private static ReceiveOrderCommand onCallLifecycleCommand(
+            ExternalOrderReference ref,
+            String institutionCode,
+            String sourceContractNumber,
+            OrderOperation operation) {
+        return new ReceiveOrderCommand(
+                ref,
+                OrderType.ON_CALL,
+                operation,
+                new PortfolioNumber("PF-1"),
+                "EUR",
+                new BigDecimal("100000.00"),
+                TODAY.plusDays(5),
+                null,
+                null,
+                NoticePeriod._24H,
+                new ContractNumber(sourceContractNumber),
+                institutionCode);
     }
 
     private static ManagedCurrency permissiveEur() {

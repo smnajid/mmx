@@ -2,6 +2,8 @@ package com.mmx.order.adapter.in.rest.mapper;
 
 import com.mmx.order.adapter.in.rest.generated.model.ContractInfoResponse;
 import com.mmx.order.adapter.in.rest.generated.model.CounterpartiesResponse;
+import com.mmx.order.adapter.in.rest.generated.model.LiveContract;
+import com.mmx.order.adapter.in.rest.generated.model.LiveContractsResponse;
 import com.mmx.order.adapter.in.rest.generated.model.CounterpartyOption;
 import com.mmx.order.adapter.in.rest.generated.model.NoticePeriod;
 import com.mmx.order.adapter.in.rest.generated.model.NoticePeriodsResponse;
@@ -13,6 +15,8 @@ import com.mmx.order.adapter.in.rest.generated.model.Tenor;
 import com.mmx.order.adapter.in.rest.generated.model.TenorsResponse;
 import com.mmx.order.adapter.in.rest.generated.model.TermCurrenciesResponse;
 import com.mmx.order.application.ordercreation.ContractInfoResult;
+import com.mmx.order.application.ordercreation.LiveContractResult;
+import com.mmx.order.application.ordercreation.LiveContractsResult;
 import com.mmx.order.application.ordercreation.CounterpartiesResult;
 import com.mmx.order.application.ordercreation.NoticePeriodsResult;
 import com.mmx.order.application.ordercreation.OnCallCurrenciesResult;
@@ -60,7 +64,22 @@ public class OrderCreationRestMapper {
     public ContractInfoResponse toContractInfoResponse(ContractInfoResult result) {
         return new ContractInfoResponse()
                 .currency(result.currency())
-                .noticePeriod(toApiNoticePeriod(result.noticePeriod()));
+                .noticePeriod(toApiNoticePeriod(result.noticePeriod()))
+                .institutionCode(result.institutionCode())
+                .counterparty(result.counterparty());
+    }
+
+    public LiveContractsResponse toLiveContractsResponse(LiveContractsResult result) {
+        return new LiveContractsResponse()
+                .contracts(result.contracts().stream().map(this::toLiveContract).toList());
+    }
+
+    public com.mmx.order.domain.model.OrderType toDomainOrderType(
+            com.mmx.order.adapter.in.rest.generated.model.OrderType orderType) {
+        if (orderType == null) {
+            return null;
+        }
+        return com.mmx.order.domain.model.OrderType.valueOf(orderType.getValue());
     }
 
     public com.mmx.order.domain.model.Tenor toDomainTenor(Tenor apiTenor) {
@@ -110,5 +129,27 @@ public class OrderCreationRestMapper {
             case _24H -> NoticePeriod._24_H;
             case _48H -> NoticePeriod._48_H;
         };
+    }
+
+    private LiveContract toLiveContract(LiveContractResult contract) {
+        LiveContract apiContract =
+                new LiveContract()
+                        .contractNumber(contract.contractNumber())
+                        .orderType(
+                                com.mmx.order.adapter.in.rest.generated.model.OrderType.fromValue(
+                                        contract.orderType().name()))
+                        .currency(contract.currency())
+                        .valueDate(contract.valueDate())
+                        .originalAmount(contract.originalAmount().doubleValue());
+        if (contract.noticePeriod() != null) {
+            apiContract.noticePeriod(toApiNoticePeriod(contract.noticePeriod()));
+        }
+        if (contract.tenor() != null) {
+            apiContract.tenor(toApiTenor(contract.tenor()));
+        }
+        if (contract.endDate() != null) {
+            apiContract.endDate(contract.endDate());
+        }
+        return apiContract;
     }
 }

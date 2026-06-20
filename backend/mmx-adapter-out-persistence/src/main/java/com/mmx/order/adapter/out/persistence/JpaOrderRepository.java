@@ -4,6 +4,7 @@ import com.mmx.order.adapter.out.persistence.entity.OrderEntity;
 import com.mmx.order.adapter.out.persistence.mapper.OrderPersistenceMapper;
 import com.mmx.order.adapter.out.persistence.repository.SpringDataOrderRepository;
 import com.mmx.order.application.port.in.OrderPage;
+import com.mmx.order.application.port.out.ExecutedSubscriptionContract;
 import com.mmx.order.application.port.out.ExecutedSubscriptionContractInfo;
 import com.mmx.order.application.port.out.OrderRepository;
 import com.mmx.order.domain.model.*;
@@ -12,8 +13,10 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 
 import java.time.LocalDate;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 public class JpaOrderRepository implements OrderRepository {
@@ -108,12 +111,62 @@ public class JpaOrderRepository implements OrderRepository {
                 .map(JpaOrderRepository::toExecutedSubscriptionContractInfo);
     }
 
+    @Override
+    public List<ExecutedSubscriptionContract> findExecutedSubscriptionsByPortfolioAndOrderType(
+            String portfolioNumber, OrderType orderType) {
+        return springDataRepository
+                .findByPortfolioNumberAndOrderTypeAndOrderOperationAndStatusOrderByValueDateAsc(
+                        portfolioNumber,
+                        orderType.name(),
+                        OrderOperation.SUBSCRIPTION.name(),
+                        OrderStatus.EXECUTED.name())
+                .stream()
+                .map(JpaOrderRepository::toExecutedSubscriptionContract)
+                .toList();
+    }
+
+    @Override
+    public Set<String> findContractNumbersWithNonCancelledRedemption(List<String> contractNumbers) {
+        if (contractNumbers.isEmpty()) {
+            return Collections.emptySet();
+        }
+        return springDataRepository.findRedeemedContractNumbers(
+                contractNumbers, OrderOperation.REDEMPTION.name(), OrderStatus.CANCELLED.name());
+    }
+
     private static ExecutedSubscriptionContractInfo toExecutedSubscriptionContractInfo(OrderEntity entity) {
         if (entity.getNoticePeriod() == null) {
             throw new IllegalStateException("Executed OnCall subscription missing notice period");
         }
+        if (entity.getInstitutionCode() == null || entity.getInstitutionCode().isBlank()) {
+            throw new IllegalStateException("Executed OnCall subscription missing institution code");
+        }
+        if (entity.getCounterparty() == null || entity.getCounterparty().isBlank()) {
+            throw new IllegalStateException("Executed OnCall subscription missing counterparty");
+        }
         return new ExecutedSubscriptionContractInfo(
-                entity.getCurrency(), NoticePeriod.valueOf(entity.getNoticePeriod()));
+                entity.getCurrency(),
+                NoticePeriod.valueOf(entity.getNoticePeriod()),
+                entity.getInstitutionCode(),
+                entity.getCounterparty());
+    }
+
+    private static ExecutedSubscriptionContract toExecutedSubscriptionContract(OrderEntity entity) {
+        if (entity.getGeneratedContractNumber() == null) {
+            throw new IllegalStateException("Executed subscription missing contract number");
+        }
+        OrderType orderType = OrderType.valueOf(entity.getOrderType());
+        NoticePeriod noticePeriod =
+                entity.getNoticePeriod() != null ? NoticePeriod.valueOf(entity.getNoticePeriod()) : null;
+        Tenor tenor = entity.getTenor() != null ? Tenor.valueOf(entity.getTenor()) : null;
+        return new ExecutedSubscriptionContract(
+                entity.getGeneratedContractNumber(),
+                orderType,
+                entity.getCurrency(),
+                noticePeriod,
+                tenor,
+                entity.getValueDate(),
+                entity.getAmount());
     }
 
 }
