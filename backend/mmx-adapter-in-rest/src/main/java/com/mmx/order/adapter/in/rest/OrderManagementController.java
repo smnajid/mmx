@@ -9,12 +9,13 @@ import com.mmx.order.adapter.in.rest.generated.model.UpdateOrderRequest;
 import com.mmx.order.adapter.in.rest.mapper.OrderRestMapper;
 import com.mmx.order.application.command.AssignOrderCommand;
 import com.mmx.order.application.command.UnassignOrderCommand;
+import com.mmx.order.application.port.in.AssignOrderUseCase;
 import com.mmx.order.application.port.in.CancelOrderUseCase;
 import com.mmx.order.application.port.in.DeskOrderQueries;
 import com.mmx.order.application.port.in.ExecuteOrderUseCase;
 import com.mmx.order.application.port.in.RejectOrderUseCase;
+import com.mmx.order.application.port.in.UnassignOrderUseCase;
 import com.mmx.order.application.port.in.UpdateAssignedOrderUseCase;
-import com.mmx.order.application.service.AssignmentService;
 import com.mmx.order.domain.exception.OrderNotFoundException;
 import com.mmx.order.domain.model.ReceivedListView;
 import com.mmx.order.domain.model.TraderId;
@@ -40,7 +41,8 @@ import java.util.UUID;
 public class OrderManagementController implements OrdersApi {
 
     private final DeskOrderQueries deskOrderQueries;
-    private final AssignmentService assignmentService;
+    private final AssignOrderUseCase assignOrderUseCase;
+    private final UnassignOrderUseCase unassignOrderUseCase;
     private final ExecuteOrderUseCase executeOrderUseCase;
     private final CancelOrderUseCase cancelOrderUseCase;
     private final RejectOrderUseCase rejectOrderUseCase;
@@ -49,14 +51,16 @@ public class OrderManagementController implements OrdersApi {
 
     public OrderManagementController(
             DeskOrderQueries deskOrderQueries,
-            AssignmentService assignmentService,
+            AssignOrderUseCase assignOrderUseCase,
+            UnassignOrderUseCase unassignOrderUseCase,
             ExecuteOrderUseCase executeOrderUseCase,
             CancelOrderUseCase cancelOrderUseCase,
             RejectOrderUseCase rejectOrderUseCase,
             UpdateAssignedOrderUseCase updateAssignedOrderUseCase,
             OrderRestMapper orderRestMapper) {
         this.deskOrderQueries = deskOrderQueries;
-        this.assignmentService = assignmentService;
+        this.assignOrderUseCase = assignOrderUseCase;
+        this.unassignOrderUseCase = unassignOrderUseCase;
         this.executeOrderUseCase = executeOrderUseCase;
         this.cancelOrderUseCase = cancelOrderUseCase;
         this.rejectOrderUseCase = rejectOrderUseCase;
@@ -168,7 +172,7 @@ public class OrderManagementController implements OrdersApi {
     public ResponseEntity<OrderDetailsResponse> assignOrder(
             @RequestHeader(value = "X-Trader-Id", required = true) String xTraderId,
             @PathVariable("orderId") UUID orderId) {
-        var order = assignmentService.assign(new AssignOrderCommand(orderId, new TraderId(xTraderId)));
+        var order = assignOrderUseCase.assign(new AssignOrderCommand(orderId, new TraderId(xTraderId)));
         return ResponseEntity.ok(orderRestMapper.toDetails(order));
     }
 
@@ -177,7 +181,7 @@ public class OrderManagementController implements OrdersApi {
     public ResponseEntity<OrderDetailsResponse> unassignOrder(
             @RequestHeader(value = "X-Trader-Id", required = true) String xTraderId,
             @PathVariable("orderId") UUID orderId) {
-        var order = assignmentService.unassign(new UnassignOrderCommand(orderId, new TraderId(xTraderId)));
+        var order = unassignOrderUseCase.unassign(new UnassignOrderCommand(orderId, new TraderId(xTraderId)));
         return ResponseEntity.ok(orderRestMapper.toDetails(order));
     }
 

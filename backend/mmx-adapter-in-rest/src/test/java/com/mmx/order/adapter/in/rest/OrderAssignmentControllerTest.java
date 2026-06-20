@@ -3,13 +3,14 @@ package com.mmx.order.adapter.in.rest;
 import com.mmx.order.adapter.in.rest.mapper.OrderRestMapper;
 import com.mmx.order.application.command.AssignOrderCommand;
 import com.mmx.order.application.command.UnassignOrderCommand;
+import com.mmx.order.application.port.in.AssignOrderUseCase;
 import com.mmx.order.application.port.in.CancelOrderUseCase;
+import com.mmx.order.application.port.in.DeskOrderQueries;
 import com.mmx.order.application.port.in.ExecuteOrderUseCase;
 import com.mmx.order.application.port.in.OrderPage;
 import com.mmx.order.application.port.in.RejectOrderUseCase;
+import com.mmx.order.application.port.in.UnassignOrderUseCase;
 import com.mmx.order.application.port.in.UpdateAssignedOrderUseCase;
-import com.mmx.order.application.port.in.DeskOrderQueries;
-import com.mmx.order.application.service.AssignmentService;
 import com.mmx.order.domain.exception.InvalidStatusTransitionException;
 import com.mmx.order.domain.exception.UnauthorizedTraderException;
 import com.mmx.order.domain.model.ExternalOrderReference;
@@ -53,7 +54,10 @@ class OrderAssignmentControllerTest {
     DeskOrderQueries deskOrderQueries;
 
     @Mock
-    AssignmentService assignmentService;
+    AssignOrderUseCase assignOrderUseCase;
+
+    @Mock
+    UnassignOrderUseCase unassignOrderUseCase;
 
     @Mock
     ExecuteOrderUseCase executeOrderUseCase;
@@ -76,7 +80,8 @@ class OrderAssignmentControllerTest {
                 standaloneSetup(
                                 new OrderManagementController(
                                         deskOrderQueries,
-                                        assignmentService,
+                                        assignOrderUseCase,
+                                        unassignOrderUseCase,
                                         executeOrderUseCase,
                                         cancelOrderUseCase,
                                         rejectOrderUseCase,
@@ -90,7 +95,7 @@ class OrderAssignmentControllerTest {
     void postAssign_returns200_whenSuccessful() throws Exception {
         MoneyMarketOrder order = receivedOrder();
         order.assign(new TraderId("trader-a"), NOW);
-        when(assignmentService.assign(org.mockito.ArgumentMatchers.any(AssignOrderCommand.class))).thenReturn(order);
+        when(assignOrderUseCase.assign(org.mockito.ArgumentMatchers.any(AssignOrderCommand.class))).thenReturn(order);
 
         mockMvc.perform(
                         post("/api/v1/orders/" + order.getId() + "/assign").header("X-Trader-Id", "trader-a"))
@@ -102,7 +107,7 @@ class OrderAssignmentControllerTest {
     @Test
     void postAssign_returns409_whenWrongStatus() throws Exception {
         UUID id = UUID.randomUUID();
-        when(assignmentService.assign(org.mockito.ArgumentMatchers.any(AssignOrderCommand.class)))
+        when(assignOrderUseCase.assign(org.mockito.ArgumentMatchers.any(AssignOrderCommand.class)))
                 .thenThrow(new InvalidStatusTransitionException(OrderStatus.ASSIGNED, OrderStatus.ASSIGNED));
 
         mockMvc.perform(post("/api/v1/orders/" + id + "/assign").header("X-Trader-Id", "trader-a"))
@@ -113,7 +118,7 @@ class OrderAssignmentControllerTest {
     @Test
     void postUnassign_returns403_whenWrongTrader() throws Exception {
         UUID id = UUID.randomUUID();
-        when(assignmentService.unassign(org.mockito.ArgumentMatchers.any(UnassignOrderCommand.class)))
+        when(unassignOrderUseCase.unassign(org.mockito.ArgumentMatchers.any(UnassignOrderCommand.class)))
                 .thenThrow(new UnauthorizedTraderException("Only the assigned Trader may unassign the order"));
 
         mockMvc.perform(post("/api/v1/orders/" + id + "/unassign").header("X-Trader-Id", "intruder"))

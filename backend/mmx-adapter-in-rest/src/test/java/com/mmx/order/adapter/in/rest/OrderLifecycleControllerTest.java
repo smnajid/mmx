@@ -3,12 +3,13 @@ package com.mmx.order.adapter.in.rest;
 import com.mmx.order.adapter.in.rest.mapper.OrderRestMapper;
 import com.mmx.order.application.command.CancelOrderCommand;
 import com.mmx.order.application.command.RejectOrderCommand;
+import com.mmx.order.application.port.in.AssignOrderUseCase;
 import com.mmx.order.application.port.in.CancelOrderUseCase;
+import com.mmx.order.application.port.in.DeskOrderQueries;
 import com.mmx.order.application.port.in.ExecuteOrderUseCase;
 import com.mmx.order.application.port.in.RejectOrderUseCase;
+import com.mmx.order.application.port.in.UnassignOrderUseCase;
 import com.mmx.order.application.port.in.UpdateAssignedOrderUseCase;
-import com.mmx.order.application.port.in.DeskOrderQueries;
-import com.mmx.order.application.service.AssignmentService;
 import com.mmx.order.domain.exception.InvalidStatusTransitionException;
 import com.mmx.order.domain.exception.UnauthorizedTraderException;
 import com.mmx.order.domain.model.ExternalOrderReference;
@@ -49,7 +50,10 @@ class OrderLifecycleControllerTest {
     DeskOrderQueries deskOrderQueries;
 
     @Mock
-    AssignmentService assignmentService;
+    AssignOrderUseCase assignOrderUseCase;
+
+    @Mock
+    UnassignOrderUseCase unassignOrderUseCase;
 
     @Mock
     ExecuteOrderUseCase executeOrderUseCase;
@@ -74,7 +78,8 @@ class OrderLifecycleControllerTest {
                 standaloneSetup(
                                 new OrderManagementController(
                                         deskOrderQueries,
-                                        assignmentService,
+                                        assignOrderUseCase,
+                                        unassignOrderUseCase,
                                         executeOrderUseCase,
                                         cancelOrderUseCase,
                                         rejectOrderUseCase,

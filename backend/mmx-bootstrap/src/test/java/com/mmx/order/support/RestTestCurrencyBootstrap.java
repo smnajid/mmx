@@ -1,7 +1,7 @@
 package com.mmx.order.support;
 
+import com.mmx.order.application.exception.CurrencyNotFoundException;
 import com.mmx.order.application.port.in.ManageCurrencySettingsUseCase;
-import com.mmx.order.application.service.ManageCurrencySettingsService;
 import com.mmx.order.domain.model.NoticePeriod;
 import com.mmx.order.domain.model.Tenor;
 import org.springframework.boot.ApplicationArguments;
@@ -34,7 +34,7 @@ public class RestTestCurrencyBootstrap implements ApplicationRunner {
     private void onboardIfMissing(String code) {
         try {
             manageCurrencySettingsUseCase.getByCode(code);
-        } catch (ManageCurrencySettingsService.CurrencyNotFoundException ex) {
+        } catch (CurrencyNotFoundException ex) {
             manageCurrencySettingsUseCase.onboard(
                     new ManageCurrencySettingsUseCase.OnboardCommand(
                             code,

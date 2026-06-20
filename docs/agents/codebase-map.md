@@ -52,6 +52,7 @@ Use when behaviour is specified as a **capability** rather than a single feature
 
 | Spec | Typical code touchpoints |
 |------|---------------------------|
+| `backend-hexagonal-architecture` | `ArchitectureRules`, `DomainArchitectureTest`, `HexagonalArchitectureTest` |
 | `trader-desk-navigation` | `frontend/…/app.routes.ts`, desk shell, header |
 | `trader-order-detail-actions` | `features/order-details/` |
 | `desk-order-queries` | `DeskOrderQueries`, `DeskOrderQueryService` |
@@ -89,6 +90,25 @@ mmx-bootstrap
 | `mmx-bootstrap` | `*ModuleConfiguration`, transactional use-case wrappers, `application.yml` | Wiring beans, Flyway migrations |
 
 **Package root:** `com.mmx.order` in all modules.
+
+### Architecture tests (ArchUnit)
+
+Executable hexagonal rules live in shared test sources and run in CI via `mvn test`.
+
+| Class | Module | Scope |
+|-------|--------|-------|
+| `ArchitectureRules` | `mmx-domain/src/test/java/com/mmx/order/architecture/` | Tier 1 + Tier 2 rule definitions (shared) |
+| `DomainArchitectureTest` | `mmx-domain` | Domain framework isolation (fast TDD loop) |
+| `HexagonalArchitectureTest` | `mmx-bootstrap` | Full cross-module rules (`@Tag("architecture")`) |
+
+Scoped commands during development:
+
+```bash
+cd backend && mvn test -pl mmx-domain -Dtest=DomainArchitectureTest
+cd backend && mvn test -pl mmx-bootstrap -am -Dtest=HexagonalArchitectureTest -Dsurefire.failIfNoSpecifiedTests=false
+```
+
+Tier 2 enforces REST adapters depend on `application.port.in` (not `application.service`) and `application.exception` (not nested service exceptions). OpenAPI-generated code under `adapter.in.rest.generated` is excluded from caller-side rules.
 
 ### REST controllers (`mmx-adapter-in-rest`)
 

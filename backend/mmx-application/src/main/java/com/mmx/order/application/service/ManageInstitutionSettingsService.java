@@ -1,5 +1,6 @@
 package com.mmx.order.application.service;
 
+import com.mmx.order.application.exception.InstitutionNotFoundException;
 import com.mmx.order.application.port.in.ManageInstitutionSettingsUseCase;
 import com.mmx.order.application.port.out.InstitutionRepository;
 import com.mmx.order.domain.exception.InstitutionSuffixOverflowException;
@@ -52,11 +53,5 @@ public final class ManageInstitutionSettingsService implements ManageInstitution
     public Institution activate(String institutionCode) {
         Institution existing = getByCode(institutionCode);
         return repository.save(existing.withActive(true));
-    }
-
-    public static final class InstitutionNotFoundException extends RuntimeException {
-        public InstitutionNotFoundException(String code) {
-            super("Institution not found: " + code);
-        }
     }
 }

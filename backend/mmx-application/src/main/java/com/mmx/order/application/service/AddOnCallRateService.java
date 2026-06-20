@@ -1,6 +1,7 @@
 package com.mmx.order.application.service;
 
 import com.mmx.order.application.command.AddOnCallRateCommand;
+import com.mmx.order.application.exception.InstitutionNotFoundException;
 import com.mmx.order.application.port.in.AddOnCallRateUseCase;
 import com.mmx.order.application.port.out.Clock;
 import com.mmx.order.application.port.out.InstitutionRepository;
@@ -67,9 +68,6 @@ public final class AddOnCallRateService implements AddOnCallRateUseCase {
     private void requireInstitution(String institutionCode) {
         institutionRepository
                 .findByInstitutionCode(institutionCode)
-                .orElseThrow(
-                        () ->
-                                new ManageInstitutionSettingsService.InstitutionNotFoundException(
-                                        institutionCode));
+                .orElseThrow(() -> new InstitutionNotFoundException(institutionCode));
     }
 }

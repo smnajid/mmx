@@ -1,5 +1,6 @@
 package com.mmx.order.application.service;
 
+import com.mmx.order.application.exception.ContractNotFoundException;
 import com.mmx.order.application.ordercreation.ContractInfoResult;
 import com.mmx.order.application.ordercreation.CounterpartiesResult;
 import com.mmx.order.application.ordercreation.NoticePeriodsResult;
@@ -178,7 +179,7 @@ class OnCallOrderCreationOptionsServiceTest {
         when(orderRepository.findExecutedSubscriptionByContractNumber("CT-99999")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> subject.getContractInfo("CT-99999"))
-                .isInstanceOf(OnCallOrderCreationOptionsService.ContractNotFoundException.class);
+                .isInstanceOf(ContractNotFoundException.class);
     }
 
     private static OnCallRateSegment openSegment(String institutionCode, NoticePeriod noticePeriod, String rate) {

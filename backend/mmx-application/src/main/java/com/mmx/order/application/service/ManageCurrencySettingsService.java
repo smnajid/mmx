@@ -1,5 +1,6 @@
 package com.mmx.order.application.service;
 
+import com.mmx.order.application.exception.CurrencyNotFoundException;
 import com.mmx.order.application.port.in.ManageCurrencySettingsUseCase;
 import com.mmx.order.application.port.out.ManagedCurrencyRepository;
 import com.mmx.order.domain.exception.DuplicateManagedCurrencyException;
@@ -67,11 +68,5 @@ public final class ManageCurrencySettingsService implements ManageCurrencySettin
     public ManagedCurrency enable(String code) {
         ManagedCurrency existing = getByCode(code);
         return repository.save(existing.withActive(true));
-    }
-
-    public static final class CurrencyNotFoundException extends RuntimeException {
-        public CurrencyNotFoundException(String code) {
-            super("Managed currency not found: " + code);
-        }
     }
 }

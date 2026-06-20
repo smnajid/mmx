@@ -98,6 +98,18 @@
             <artifactId>h2</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>com.mmx</groupId>
+            <artifactId>mmx-domain</artifactId>
+            <version>${project.version}</version>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.tngtech.archunit</groupId>
+            <artifactId>archunit-junit5</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <!-- Package canonical OpenAPI from contracts so Swagger UI loads the codegen source-of-truth. -->

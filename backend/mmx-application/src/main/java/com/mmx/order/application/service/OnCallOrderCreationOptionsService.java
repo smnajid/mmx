@@ -1,5 +1,6 @@
 package com.mmx.order.application.service;
 
+import com.mmx.order.application.exception.ContractNotFoundException;
 import com.mmx.order.application.ordercreation.ContractInfoResult;
 import com.mmx.order.application.ordercreation.CounterpartiesResult;
 import com.mmx.order.application.ordercreation.NoticePeriodsResult;
@@ -148,11 +149,5 @@ public final class OnCallOrderCreationOptionsService
                         info.institutionCode(),
                         info.counterparty()))
                 .orElseThrow(() -> new ContractNotFoundException(contractNumber));
-    }
-
-    public static final class ContractNotFoundException extends RuntimeException {
-        public ContractNotFoundException(String contractNumber) {
-            super("No executed OnCall Subscription found for contract number: " + contractNumber);
-        }
     }
 }

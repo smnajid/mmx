@@ -1,6 +1,7 @@
 package com.mmx.order.application.service;
 
 import com.mmx.order.application.command.CancelOnCallRateCommand;
+import com.mmx.order.application.exception.InstitutionNotFoundException;
 import com.mmx.order.application.port.in.CancelOnCallRateUseCase;
 import com.mmx.order.application.port.out.InstitutionRepository;
 import com.mmx.order.application.port.out.OnCallRateHandoffOutbox;
@@ -50,9 +51,6 @@ public final class CancelOnCallRateService implements CancelOnCallRateUseCase {
     private void requireInstitution(String institutionCode) {
         institutionRepository
                 .findByInstitutionCode(institutionCode)
-                .orElseThrow(
-                        () ->
-                                new ManageInstitutionSettingsService.InstitutionNotFoundException(
-                                        institutionCode));
+                .orElseThrow(() -> new InstitutionNotFoundException(institutionCode));
     }
 }

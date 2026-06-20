@@ -9,11 +9,11 @@ import com.mmx.order.adapter.in.rest.generated.institution.model.InstitutionSett
 import com.mmx.order.adapter.in.rest.generated.institution.model.InstitutionSettingsErrorResponse;
 import com.mmx.order.adapter.in.rest.generated.termrate.model.TermRateIngestErrorCode;
 import com.mmx.order.adapter.in.rest.generated.termrate.model.TermRateIngestErrorResponse;
-import com.mmx.order.application.service.ManageCurrencySettingsService;
-import com.mmx.order.application.service.OnCallOrderCreationOptionsService;
+import com.mmx.order.application.exception.ContractNotFoundException;
+import com.mmx.order.application.exception.CurrencyNotFoundException;
+import com.mmx.order.application.exception.InstitutionNotFoundException;
 import com.mmx.order.application.termrate.TermRateCsvStructuralException;
 import com.mmx.order.application.termrate.TermRateIngestFailedException;
-import com.mmx.order.application.service.ManageInstitutionSettingsService;
 import com.mmx.order.domain.exception.DuplicateManagedCurrencyException;
 import com.mmx.order.domain.exception.InstitutionSuffixOverflowException;
 import com.mmx.order.domain.exception.InvalidInstitutionException;
@@ -67,9 +67,8 @@ public class GlobalExceptionHandler {
                                 .message(ex.getMessage()));
     }
 
-    @ExceptionHandler(ManageCurrencySettingsService.CurrencyNotFoundException.class)
-    public ResponseEntity<SettingsErrorResponse> handleCurrencyNotFound(
-            ManageCurrencySettingsService.CurrencyNotFoundException ex) {
+    @ExceptionHandler(CurrencyNotFoundException.class)
+    public ResponseEntity<SettingsErrorResponse> handleCurrencyNotFound(CurrencyNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(
                         new SettingsErrorResponse()
@@ -96,9 +95,9 @@ public class GlobalExceptionHandler {
                                 .message(ex.getMessage()));
     }
 
-    @ExceptionHandler(ManageInstitutionSettingsService.InstitutionNotFoundException.class)
+    @ExceptionHandler(InstitutionNotFoundException.class)
     public ResponseEntity<InstitutionSettingsErrorResponse> handleInstitutionNotFound(
-            ManageInstitutionSettingsService.InstitutionNotFoundException ex) {
+            InstitutionNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(
                         new InstitutionSettingsErrorResponse()
@@ -190,9 +189,8 @@ public class GlobalExceptionHandler {
                                 .message(ex.getMessage()));
     }
 
-    @ExceptionHandler(OnCallOrderCreationOptionsService.ContractNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleContractNotFound(
-            OnCallOrderCreationOptionsService.ContractNotFoundException ex) {
+    @ExceptionHandler(ContractNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleContractNotFound(ContractNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(
                         new ErrorResponse()
