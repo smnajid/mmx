@@ -6,6 +6,12 @@ import com.mmx.order.adapter.in.rest.generated.settings.model.OnboardCurrencyReq
 import com.mmx.order.adapter.in.rest.generated.settings.model.UpdateCurrencyRulesRequest;
 import com.mmx.order.adapter.in.rest.mapper.CurrencySettingsRestMapper;
 import com.mmx.order.application.port.in.ManageCurrencySettingsUseCase;
+import com.mmx.order.application.port.in.ScopeContext;
+import com.mmx.order.application.port.out.ManagedCurrencyRepository;
+import com.mmx.order.application.port.out.ScopeContextProvider;
+import com.mmx.order.application.port.out.HubScopeResolver;
+import com.mmx.order.application.port.out.ReferenceDataMutationGuard;
+import com.mmx.order.domain.model.LegalEntityCode;
 import com.mmx.order.domain.model.ManagedCurrency;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,18 +23,34 @@ import java.util.List;
 public class CurrencySettingsController implements CurrencySettingsApi {
 
     private final ManageCurrencySettingsUseCase manageCurrencySettingsUseCase;
+    private final ManagedCurrencyRepository managedCurrencyRepository;
     private final CurrencySettingsRestMapper mapper;
+    private final ScopeContextProvider scopeContextProvider;
+    private final ReferenceDataMutationGuard mutationGuard;
+    private final HubScopeResolver hubScopeResolver;
 
     public CurrencySettingsController(
-            ManageCurrencySettingsUseCase manageCurrencySettingsUseCase, CurrencySettingsRestMapper mapper) {
+            ManageCurrencySettingsUseCase manageCurrencySettingsUseCase,
+            ManagedCurrencyRepository managedCurrencyRepository,
+            CurrencySettingsRestMapper mapper,
+            ScopeContextProvider scopeContextProvider,
+            ReferenceDataMutationGuard mutationGuard,
+            HubScopeResolver hubScopeResolver) {
         this.manageCurrencySettingsUseCase = manageCurrencySettingsUseCase;
+        this.managedCurrencyRepository = managedCurrencyRepository;
         this.mapper = mapper;
+        this.scopeContextProvider = scopeContextProvider;
+        this.mutationGuard = mutationGuard;
+        this.hubScopeResolver = hubScopeResolver;
     }
 
     @Override
     public ResponseEntity<List<ManagedCurrencyResponse>> listManagedCurrencies(String xTraderId) {
+        LegalEntityCode hub = hubScopeResolver.resolveHubLegalEntityCode(scopeContextProvider.requireActiveScope());
         List<ManagedCurrencyResponse> body =
-                manageCurrencySettingsUseCase.listAll().stream().map(mapper::toResponse).toList();
+                managedCurrencyRepository.findAllByLegalEntityCode(hub).stream()
+                        .map(mapper::toResponse)
+                        .toList();
         return ResponseEntity.ok(body);
     }
 
@@ -40,6 +62,8 @@ public class CurrencySettingsController implements CurrencySettingsApi {
     @Override
     public ResponseEntity<ManagedCurrencyResponse> onboardManagedCurrency(
             String xTraderId, OnboardCurrencyRequest onboardCurrencyRequest) {
+        ScopeContext scope = scopeContextProvider.requireActiveScope();
+        mutationGuard.ensureTrader(scope);
         ManagedCurrency created =
                 manageCurrencySettingsUseCase.onboard(mapper.toOnboardCommand(onboardCurrencyRequest));
         return ResponseEntity.status(HttpStatus.CREATED).body(mapper.toResponse(created));
@@ -48,6 +72,8 @@ public class CurrencySettingsController implements CurrencySettingsApi {
     @Override
     public ResponseEntity<ManagedCurrencyResponse> updateManagedCurrencyRules(
             String xTraderId, String code, UpdateCurrencyRulesRequest updateCurrencyRulesRequest) {
+        ScopeContext scope = scopeContextProvider.requireActiveScope();
+        mutationGuard.ensureTrader(scope);
         ManagedCurrency updated =
                 manageCurrencySettingsUseCase.updateRules(code, mapper.toUpdateCommand(updateCurrencyRulesRequest));
         return ResponseEntity.ok(mapper.toResponse(updated));
@@ -55,11 +81,15 @@ public class CurrencySettingsController implements CurrencySettingsApi {
 
     @Override
     public ResponseEntity<ManagedCurrencyResponse> disableManagedCurrency(String xTraderId, String code) {
+        ScopeContext scope = scopeContextProvider.requireActiveScope();
+        mutationGuard.ensureTrader(scope);
         return ResponseEntity.ok(mapper.toResponse(manageCurrencySettingsUseCase.disable(code)));
     }
 
     @Override
     public ResponseEntity<ManagedCurrencyResponse> enableManagedCurrency(String xTraderId, String code) {
+        ScopeContext scope = scopeContextProvider.requireActiveScope();
+        mutationGuard.ensureTrader(scope);
         return ResponseEntity.ok(mapper.toResponse(manageCurrencySettingsUseCase.enable(code)));
     }
 }

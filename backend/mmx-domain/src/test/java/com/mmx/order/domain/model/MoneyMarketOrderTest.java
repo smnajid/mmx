@@ -62,6 +62,7 @@ class MoneyMarketOrderTest {
     private static MoneyMarketOrder createReceived() {
         return MoneyMarketOrder.create(
                 new ExternalOrderReference("REF-MK-" + System.nanoTime()),
+                new LegalEntityCode("LOC"),
                 OrderType.TERM,
                 OrderOperation.SUBSCRIPTION,
                 new PortfolioNumber("PF-1"),

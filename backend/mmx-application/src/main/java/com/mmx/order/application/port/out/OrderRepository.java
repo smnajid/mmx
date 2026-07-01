@@ -1,6 +1,7 @@
 package com.mmx.order.application.port.out;
 
 import com.mmx.order.domain.model.ExternalOrderReference;
+import com.mmx.order.domain.model.LegalEntityCode;
 import com.mmx.order.domain.model.MoneyMarketOrder;
 import com.mmx.order.domain.model.OrderStatus;
 import com.mmx.order.domain.model.OrderType;
@@ -22,7 +23,11 @@ public interface OrderRepository {
 
     Optional<MoneyMarketOrder> findByExternalOrderReference(ExternalOrderReference reference);
 
-    List<MoneyMarketOrder> findByStatusAndOrderType(OrderStatus status, OrderType orderType);
+    Optional<MoneyMarketOrder> findByLegalEntityAndExternalReference(
+            LegalEntityCode legalEntityCode, ExternalOrderReference reference);
+
+    List<MoneyMarketOrder> findByStatusAndOrderType(
+            LegalEntityCode legalEntityCode, OrderStatus status, OrderType orderType);
 
     /**
      * Paged RECEIVED orders for a workspace type. When {@code valueDateFrom} and {@code valueDateTo}
@@ -30,9 +35,15 @@ public interface OrderRepository {
      * valueDate filter.
      */
     OrderPage findReceivedPageByOrderType(
-            OrderType orderType, Optional<LocalDate> valueDateFrom, Optional<LocalDate> valueDateTo, int page, int size);
+            LegalEntityCode legalEntityCode,
+            OrderType orderType,
+            Optional<LocalDate> valueDateFrom,
+            Optional<LocalDate> valueDateTo,
+            int page,
+            int size);
 
-    List<MoneyMarketOrder> findByAssignedTraderIdAndStatus(TraderId traderId, OrderStatus status);
+    List<MoneyMarketOrder> findByAssignedTraderIdAndStatus(
+            LegalEntityCode legalEntityCode, TraderId traderId, OrderStatus status);
 
     Optional<ExecutedSubscriptionContractInfo> findExecutedSubscriptionByContractNumber(
             String contractNumber);

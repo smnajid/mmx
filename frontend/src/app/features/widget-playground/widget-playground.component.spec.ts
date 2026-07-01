@@ -131,6 +131,7 @@ describe('WidgetPlaygroundComponent', () => {
   });
 
   const sampleOrderReadyPayload = {
+    legalEntityCode: 'LOC',
     portfolioNumber: 'PF-001',
     orderType: 'TERM' as const,
     currency: 'EUR',
@@ -158,6 +159,7 @@ describe('WidgetPlaygroundComponent', () => {
     expect(req.request.method).toBe('POST');
     expect(req.request.body.externalOrderReference).toMatch(/^PLAYGROUND-/);
     expect(req.request.body).toMatchObject({
+      legalEntityCode: 'LOC',
       orderType: 'TERM',
       orderOperation: 'SUBSCRIPTION',
       portfolioNumber: 'PF-001',

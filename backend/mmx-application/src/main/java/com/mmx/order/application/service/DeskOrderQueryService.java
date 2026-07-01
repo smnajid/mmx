@@ -2,8 +2,10 @@ package com.mmx.order.application.service;
 
 import com.mmx.order.application.port.in.DeskOrderQueries;
 import com.mmx.order.application.port.in.OrderPage;
+import com.mmx.order.application.port.in.ScopeContext;
 import com.mmx.order.application.port.out.Clock;
 import com.mmx.order.application.port.out.OrderRepository;
+import com.mmx.order.domain.model.LegalEntityCode;
 import com.mmx.order.domain.model.MoneyMarketOrder;
 import com.mmx.order.domain.model.OrderStatus;
 import com.mmx.order.domain.model.OrderType;
@@ -30,30 +32,48 @@ public final class DeskOrderQueryService implements DeskOrderQueries {
     }
 
     @Override
-    public OrderPage listReceivedTermOrders(int page, int size, ReceivedListView receivedView) {
-        return listReceivedByWorkspace(OrderType.TERM, page, size, receivedView);
+    public OrderPage listReceivedTermOrders(
+            ScopeContext scope, int page, int size, ReceivedListView receivedView) {
+        return listReceivedByWorkspace(scope, OrderType.TERM, page, size, receivedView);
     }
 
     @Override
-    public OrderPage listReceivedOnCallOrders(int page, int size, ReceivedListView receivedView) {
-        return listReceivedByWorkspace(OrderType.ON_CALL, page, size, receivedView);
+    public OrderPage listReceivedOnCallOrders(
+            ScopeContext scope, int page, int size, ReceivedListView receivedView) {
+        return listReceivedByWorkspace(scope, OrderType.ON_CALL, page, size, receivedView);
     }
 
-    private OrderPage listReceivedByWorkspace(OrderType orderType, int page, int size, ReceivedListView receivedView) {
+    private OrderPage listReceivedByWorkspace(
+            ScopeContext scope, OrderType orderType, int page, int size, ReceivedListView receivedView) {
         if (page < 0) {
             throw new IllegalArgumentException("page must be non-negative");
         }
         if (size <= 0) {
             throw new IllegalArgumentException("size must be positive");
         }
+        OrderPage pageResult;
         if (receivedView == ReceivedListView.ALL) {
-            return orderRepository.findReceivedPageByOrderType(
-                    orderType, Optional.empty(), Optional.empty(), page, size);
+            pageResult =
+                    orderRepository.findReceivedPageByOrderType(
+                            scope.legalEntityCode(),
+                            orderType,
+                            Optional.empty(),
+                            Optional.empty(),
+                            page,
+                            size);
+        } else {
+            LocalDate start = businessTodayInclusive();
+            LocalDate end = start.plusDays(2);
+            pageResult =
+                    orderRepository.findReceivedPageByOrderType(
+                            scope.legalEntityCode(),
+                            orderType,
+                            Optional.of(start),
+                            Optional.of(end),
+                            page,
+                            size);
         }
-        LocalDate start = businessTodayInclusive();
-        LocalDate end = start.plusDays(2);
-        return orderRepository.findReceivedPageByOrderType(
-                orderType, Optional.of(start), Optional.of(end), page, size);
+        return pageResult;
     }
 
     private LocalDate businessTodayInclusive() {
@@ -61,43 +81,50 @@ public final class DeskOrderQueryService implements DeskOrderQueries {
     }
 
     @Override
-    public OrderPage listAssignedOrders(TraderId traderId, int page, int size) {
+    public OrderPage listAssignedOrders(ScopeContext scope, TraderId traderId, int page, int size) {
         List<MoneyMarketOrder> all =
-                orderRepository.findByAssignedTraderIdAndStatus(traderId, OrderStatus.ASSIGNED);
+                orderRepository.findByAssignedTraderIdAndStatus(
+                        scope.legalEntityCode(), traderId, OrderStatus.ASSIGNED);
         return paginate(all, page, size);
     }
 
     @Override
-    public OrderPage listAssignedTermOrders(int page, int size) {
+    public OrderPage listAssignedTermOrders(ScopeContext scope, int page, int size) {
         List<MoneyMarketOrder> all =
-                orderRepository.findByStatusAndOrderType(OrderStatus.ASSIGNED, OrderType.TERM);
+                orderRepository.findByStatusAndOrderType(
+                        scope.legalEntityCode(), OrderStatus.ASSIGNED, OrderType.TERM);
         return paginate(all, page, size);
     }
 
     @Override
-    public OrderPage listAssignedOnCallOrders(int page, int size) {
+    public OrderPage listAssignedOnCallOrders(ScopeContext scope, int page, int size) {
         List<MoneyMarketOrder> all =
-                orderRepository.findByStatusAndOrderType(OrderStatus.ASSIGNED, OrderType.ON_CALL);
+                orderRepository.findByStatusAndOrderType(
+                        scope.legalEntityCode(), OrderStatus.ASSIGNED, OrderType.ON_CALL);
         return paginate(all, page, size);
     }
 
     @Override
-    public OrderPage listExecutedTermOrders(int page, int size) {
+    public OrderPage listExecutedTermOrders(ScopeContext scope, int page, int size) {
         List<MoneyMarketOrder> all =
-                orderRepository.findByStatusAndOrderType(OrderStatus.EXECUTED, OrderType.TERM);
+                orderRepository.findByStatusAndOrderType(
+                        scope.legalEntityCode(), OrderStatus.EXECUTED, OrderType.TERM);
         return paginate(all, page, size);
     }
 
     @Override
-    public OrderPage listExecutedOnCallOrders(int page, int size) {
+    public OrderPage listExecutedOnCallOrders(ScopeContext scope, int page, int size) {
         List<MoneyMarketOrder> all =
-                orderRepository.findByStatusAndOrderType(OrderStatus.EXECUTED, OrderType.ON_CALL);
+                orderRepository.findByStatusAndOrderType(
+                        scope.legalEntityCode(), OrderStatus.EXECUTED, OrderType.ON_CALL);
         return paginate(all, page, size);
     }
 
     @Override
-    public Optional<MoneyMarketOrder> getOrderDetails(UUID orderId) {
-        return orderRepository.findById(orderId);
+    public Optional<MoneyMarketOrder> getOrderDetails(ScopeContext scope, UUID orderId) {
+        return orderRepository
+                .findById(orderId)
+                .filter(order -> order.getLegalEntityCode().equals(scope.legalEntityCode()));
     }
 
     private static OrderPage paginate(List<MoneyMarketOrder> all, int page, int size) {

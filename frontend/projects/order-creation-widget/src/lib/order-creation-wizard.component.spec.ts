@@ -38,6 +38,7 @@ describe('OrderCreationWizardComponent', () => {
     inputs: {
       apiBaseUrl?: string;
       portfolioNumber?: string;
+      legalEntityCode?: string;
       orderType?: 'TERM' | 'ON_CALL';
       contractNumber?: string;
     } = {},
@@ -49,6 +50,11 @@ describe('OrderCreationWizardComponent', () => {
     }
     if (inputs.portfolioNumber !== undefined) {
       componentFixture.componentRef.setInput('portfolioNumber', inputs.portfolioNumber);
+    }
+    if (inputs.legalEntityCode !== undefined) {
+      componentFixture.componentRef.setInput('legalEntityCode', inputs.legalEntityCode);
+    } else if (inputs.portfolioNumber) {
+      componentFixture.componentRef.setInput('legalEntityCode', 'LOC');
     }
     if (inputs.orderType !== undefined) {
       componentFixture.componentRef.setInput('orderType', inputs.orderType);
@@ -78,9 +84,16 @@ describe('OrderCreationWizardComponent', () => {
   });
 
   it('shows configuration error when portfolioNumber is missing', () => {
-    fixture = createWizard({ apiBaseUrl, portfolioNumber: '' });
+    fixture = createWizard({ apiBaseUrl, portfolioNumber: '', legalEntityCode: 'LOC' });
     expect(fixture.nativeElement.querySelector('[data-testid="wizard-config-error"]')?.textContent).toContain(
       'portfolioNumber is required',
+    );
+  });
+
+  it('shows configuration error when legalEntityCode is missing', () => {
+    fixture = createWizard({ apiBaseUrl, portfolioNumber: 'PF-001', legalEntityCode: '' });
+    expect(fixture.nativeElement.querySelector('[data-testid="wizard-config-error"]')?.textContent).toContain(
+      'legalEntityCode is required',
     );
   });
 

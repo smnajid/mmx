@@ -5,15 +5,19 @@ import com.mmx.order.application.port.in.ReceiveOrderUseCase;
 import com.mmx.order.application.port.out.AuditLogger;
 import com.mmx.order.application.port.out.Clock;
 import com.mmx.order.application.port.out.InstitutionRepository;
+import com.mmx.order.application.port.out.LegalEntityRepository;
 import com.mmx.order.application.port.out.ManagedCurrencyRepository;
 import com.mmx.order.application.port.out.OpenPositionPort;
 import com.mmx.order.application.port.out.OrderRepository;
+import com.mmx.order.application.port.out.OrganisationRepository;
 import com.mmx.order.domain.exception.InvalidOrderException;
 import com.mmx.order.domain.model.ContractNumber;
 import com.mmx.order.domain.model.Institution;
+import com.mmx.order.domain.model.LegalEntityCode;
 import com.mmx.order.domain.model.MoneyMarketOrder;
 import com.mmx.order.domain.model.OpenContractPosition;
 import com.mmx.order.domain.model.OrderOperation;
+import com.mmx.order.domain.model.OrganisationCode;
 import com.mmx.order.domain.policy.OrderAgainstCurrencyPolicy;
 import com.mmx.order.domain.policy.OrderAgainstInstitutionPolicy;
 
@@ -29,6 +33,9 @@ public final class ReceiveOrderService implements ReceiveOrderUseCase {
     private final ManagedCurrencyRepository managedCurrencyRepository;
     private final InstitutionRepository institutionRepository;
     private final OpenPositionPort openPositionPort;
+    private final OrganisationRepository organisationRepository;
+    private final LegalEntityRepository legalEntityRepository;
+    private final OrganisationCode portfolioManagementOrganisation;
     private final OrderAgainstCurrencyPolicy currencyPolicy;
     private final OrderAgainstInstitutionPolicy institutionPolicy;
     private final AuditLogger auditLogger;
@@ -39,12 +46,18 @@ public final class ReceiveOrderService implements ReceiveOrderUseCase {
             ManagedCurrencyRepository managedCurrencyRepository,
             InstitutionRepository institutionRepository,
             OpenPositionPort openPositionPort,
+            OrganisationRepository organisationRepository,
+            LegalEntityRepository legalEntityRepository,
+            OrganisationCode portfolioManagementOrganisation,
             AuditLogger auditLogger,
             Clock clock) {
         this.orderRepository = orderRepository;
         this.managedCurrencyRepository = managedCurrencyRepository;
         this.institutionRepository = institutionRepository;
         this.openPositionPort = openPositionPort;
+        this.organisationRepository = organisationRepository;
+        this.legalEntityRepository = legalEntityRepository;
+        this.portfolioManagementOrganisation = portfolioManagementOrganisation;
         this.currencyPolicy = new OrderAgainstCurrencyPolicy();
         this.institutionPolicy = new OrderAgainstInstitutionPolicy();
         this.auditLogger = auditLogger;
@@ -53,7 +66,11 @@ public final class ReceiveOrderService implements ReceiveOrderUseCase {
 
     @Override
     public Result receive(ReceiveOrderCommand command) {
-        var existingOpt = orderRepository.findByExternalOrderReference(command.externalOrderReference());
+        validateLegalEntityForIntake(command.legalEntityCode());
+
+        var existingOpt =
+                orderRepository.findByLegalEntityAndExternalReference(
+                        command.legalEntityCode(), command.externalOrderReference());
         if (existingOpt.isPresent()) {
             MoneyMarketOrder existing = existingOpt.get();
             auditLogger.log(existing.getId(), EVENT_DUPLICATE_RECEIVE_IGNORED, AUDIT_ACTOR_SYSTEM, clock.now());
@@ -82,6 +99,7 @@ public final class ReceiveOrderService implements ReceiveOrderUseCase {
         MoneyMarketOrder created =
                 MoneyMarketOrder.create(
                         command.externalOrderReference(),
+                        command.legalEntityCode(),
                         command.orderType(),
                         command.orderOperation(),
                         command.portfolioNumber(),
@@ -99,6 +117,25 @@ public final class ReceiveOrderService implements ReceiveOrderUseCase {
         MoneyMarketOrder saved = orderRepository.save(created);
         auditLogger.log(saved.getId(), EVENT_ORDER_RECEIVED, AUDIT_ACTOR_SYSTEM, clock.now());
         return new Result(saved.getId(), saved.getStatus(), true);
+    }
+
+    private void validateLegalEntityForIntake(LegalEntityCode legalEntityCode) {
+        if (legalEntityCode == null) {
+            throw new InvalidOrderException("legalEntityCode is required");
+        }
+        organisationRepository
+                .findByCode(portfolioManagementOrganisation)
+                .orElseThrow(
+                        () ->
+                                new InvalidOrderException(
+                                        "Portfolio Management Organisation is not configured"));
+        if (legalEntityRepository.findByCode(legalEntityCode).isEmpty()) {
+            throw new InvalidOrderException("Unknown legalEntityCode: " + legalEntityCode);
+        }
+        if (!legalEntityRepository.belongsToOrganisation(legalEntityCode, portfolioManagementOrganisation)) {
+            throw new InvalidOrderException(
+                    "legalEntityCode is not a LegalEntity of the Portfolio Management Organisation");
+        }
     }
 
     private Institution resolveActiveInstitution(String institutionCode) {

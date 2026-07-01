@@ -37,7 +37,7 @@ describe('Trader workflow', () => {
       cy.request({
         method: 'POST',
         url: `${apiUrl()}/api/v1/settings/institutions`,
-        headers: { 'Content-Type': 'application/json', 'X-Trader-Id': TRADER },
+        headers: { 'Content-Type': 'application/json', 'X-User-Id': TRADER },
         body: { displayName: 'BankCo International' },
         failOnStatusCode: false,
       });

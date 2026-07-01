@@ -22,15 +22,20 @@ public class ManagedCurrencyPersistenceMapper {
                 enabledNotices(entity));
     }
 
-    public ManagedCurrencyEntity toEntity(ManagedCurrency currency) {
+    public ManagedCurrencyEntity toEntity(ManagedCurrency currency, String legalEntityCode) {
         ManagedCurrencyEntity entity = new ManagedCurrencyEntity();
         entity.setCode(currency.getCode());
         entity.setActive(currency.isActive());
         entity.setMinSubscriptionAmount(currency.getMinSubscriptionAmount());
         entity.setMinIncreaseDecreaseAmount(currency.getMinIncreaseDecreaseAmount());
+        entity.setLegalEntityCode(legalEntityCode);
         applyTenors(entity, currency.getEnabledTenors());
         applyNotices(entity, currency.getEnabledNoticePeriods());
         return entity;
+    }
+
+    public ManagedCurrencyEntity toEntity(ManagedCurrency currency) {
+        return toEntity(currency, "LOC");
     }
 
     private static Set<Tenor> enabledTenors(ManagedCurrencyEntity entity) {

@@ -20,7 +20,7 @@ paths:
       summary: List institutions
       operationId: listInstitutions
       parameters:
-        - $ref: "#/components/parameters/TraderIdHeader"
+        - $ref: "#/components/parameters/UserIdHeader"
         - name: activeOnly
           in: query
           required: false
@@ -41,7 +41,7 @@ paths:
       summary: Onboard an institution
       operationId: onboardInstitution
       parameters:
-        - $ref: "#/components/parameters/TraderIdHeader"
+        - $ref: "#/components/parameters/UserIdHeader"
       requestBody:
         required: true
         content:
@@ -66,7 +66,7 @@ paths:
       summary: Get institution by code
       operationId: getInstitution
       parameters:
-        - $ref: "#/components/parameters/TraderIdHeader"
+        - $ref: "#/components/parameters/UserIdHeader"
         - $ref: "#/components/parameters/InstitutionCode"
       responses:
         "200":
@@ -84,7 +84,7 @@ paths:
       summary: Deactivate an institution
       operationId: deactivateInstitution
       parameters:
-        - $ref: "#/components/parameters/TraderIdHeader"
+        - $ref: "#/components/parameters/UserIdHeader"
         - $ref: "#/components/parameters/InstitutionCode"
       responses:
         "200":
@@ -102,7 +102,7 @@ paths:
       summary: Reactivate an institution
       operationId: activateInstitution
       parameters:
-        - $ref: "#/components/parameters/TraderIdHeader"
+        - $ref: "#/components/parameters/UserIdHeader"
         - $ref: "#/components/parameters/InstitutionCode"
       responses:
         "200":
@@ -116,8 +116,8 @@ paths:
 
 components:
   parameters:
-    TraderIdHeader:
-      name: X-Trader-Id
+    UserIdHeader:
+      name: X-User-Id
       in: header
       required: true
       schema:
@@ -166,15 +166,29 @@ components:
           maxLength: 128
         active:
           type: boolean
+        hubInstitutionCode:
+          type: string
+          maxLength: 32
+          description: Present on thin-proxy institutions; the referenced hub native institution code.
+        hubLegalEntityCode:
+          type: string
+          pattern: "^[A-Z]{3}$"
+          description: Present on thin-proxy institutions; the hub TradingHub LegalEntity code.
 
     OnboardInstitutionRequest:
       type: object
-      required: [displayName]
       properties:
         displayName:
           type: string
           minLength: 1
           maxLength: 128
+        hubInstitutionCode:
+          type: string
+          minLength: 1
+          maxLength: 32
+          description: >
+            ClientRepresentative proxy onboard — hub native institution from an active grant.
+            Mutually exclusive with a Trader native onboard by displayName.
 
     InstitutionSettingsErrorCode:
       type: string

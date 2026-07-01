@@ -38,8 +38,12 @@ const NOTICE_PERIODS: OnCallNoticePeriod[] = ['24H', '48H'];
       </header>
 
       <p class="settings-lede">
-        Maintain value-dated OnCall rate curves per institution. Pending segments price new orders
-        immediately; back office confirmation refreshes in-life contracts.
+        @if (trader.isClientRepresentative()) {
+          Read-only view of hub OnCall rate curves for your proxy institutions.
+        } @else {
+          Maintain value-dated OnCall rate curves per institution. Pending segments price new orders
+          immediately; back office confirmation refreshes in-life contracts.
+        }
       </p>
 
       <section class="settings-card" aria-labelledby="institution-heading">
@@ -63,7 +67,7 @@ const NOTICE_PERIODS: OnCallNoticePeriod[] = ['24H', '48H'];
         </label>
       </section>
 
-      @if (selectedInstitutionCode()) {
+      @if (selectedInstitutionCode() && trader.isTrader()) {
         <section class="settings-card" aria-labelledby="add-heading">
           <h2 id="add-heading" class="settings-card__title">Add rate</h2>
           <form class="settings-form-grid" (ngSubmit)="submitAdd()">
@@ -167,7 +171,7 @@ const NOTICE_PERIODS: OnCallNoticePeriod[] = ['24H', '48H'];
                               </span>
                             </td>
                             <td>
-                              @if (s.status === 'PENDING_CONFIRMATION') {
+                              @if (s.status === 'PENDING_CONFIRMATION' && trader.isTrader()) {
                                 <button
                                   type="button"
                                   class="btn-secondary btn-compact"
@@ -268,7 +272,7 @@ export class OnCallRateSettingsComponent implements OnInit {
 
   private readonly api = inject(OnCallRateSettingsApiService);
   private readonly institutionApi = inject(InstitutionSettingsApiService);
-  private readonly trader = inject(TraderContextService);
+  protected readonly trader = inject(TraderContextService);
 
   readonly institutions = signal<Institution[]>([]);
   readonly selectedInstitutionCode = signal('');

@@ -29,6 +29,7 @@ class MoneyMarketOrderLifecycleTest {
     void setUp() {
         receivedOrder = MoneyMarketOrder.create(
                 new ExternalOrderReference("PM-LIFECYCLE-001"),
+                new LegalEntityCode("LOC"),
                 OrderType.TERM,
                 OrderOperation.SUBSCRIPTION,
                 new PortfolioNumber("PF-001"),
@@ -143,6 +144,7 @@ class MoneyMarketOrderLifecycleTest {
             MoneyMarketOrder increase =
                     MoneyMarketOrder.create(
                             new ExternalOrderReference("PM-LC-NULL-CN"),
+                            new LegalEntityCode("LOC"),
                             OrderType.ON_CALL,
                             OrderOperation.INCREASE,
                             new PortfolioNumber("PF-001"),
@@ -184,6 +186,7 @@ class MoneyMarketOrderLifecycleTest {
         void execute_succeeds_when_no_minimum_floor() {
             MoneyMarketOrder openFloor = MoneyMarketOrder.create(
                     new ExternalOrderReference("PM-NO-FLOOR"),
+                    new LegalEntityCode("LOC"),
                     OrderType.TERM,
                     OrderOperation.SUBSCRIPTION,
                     new PortfolioNumber("PF-001"),
@@ -207,6 +210,7 @@ class MoneyMarketOrderLifecycleTest {
         void execute_from_received_without_assign_throws_invalid_transition() {
             MoneyMarketOrder receivedOnly = MoneyMarketOrder.create(
                     new ExternalOrderReference("PM-EXEC-NO-ASSIGN"),
+                    new LegalEntityCode("LOC"),
                     OrderType.TERM,
                     OrderOperation.SUBSCRIPTION,
                     new PortfolioNumber("PF-001"),

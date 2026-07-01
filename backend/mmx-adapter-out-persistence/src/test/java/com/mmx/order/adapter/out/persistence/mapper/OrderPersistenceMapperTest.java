@@ -86,6 +86,7 @@ class OrderPersistenceMapperTest {
     private static MoneyMarketOrder receivedTerm(String extRef) {
         return MoneyMarketOrder.create(
                 new ExternalOrderReference(extRef),
+                new LegalEntityCode("LOC"),
                 OrderType.TERM,
                 OrderOperation.SUBSCRIPTION,
                 new PortfolioNumber("PF-001"),
@@ -100,6 +101,7 @@ class OrderPersistenceMapperTest {
     private static MoneyMarketOrder receivedOnCall(String extRef) {
         return MoneyMarketOrder.create(
                 new ExternalOrderReference(extRef),
+                new LegalEntityCode("LOC"),
                 OrderType.ON_CALL,
                 OrderOperation.SUBSCRIPTION,
                 new PortfolioNumber("PF-002"),

@@ -93,7 +93,45 @@
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
+}
+
+.session-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem 1rem;
   margin-left: auto;
+}
+
+.scope-switcher {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.scope-label {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--mmx-text-muted);
+}
+
+.scope-select {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  padding: 0.4rem 0.55rem;
+  min-width: 11rem;
+  border-radius: 4px;
+  border: 1px solid var(--mmx-border);
+  background: var(--mmx-bg);
+  color: var(--mmx-text);
+}
+
+.scope-select:focus {
+  outline: none;
+  border-color: var(--mmx-accent);
+  box-shadow: 0 0 0 1px rgba(232, 168, 56, 0.35);
 }
 
 .trader-label {
@@ -209,7 +247,7 @@
 }
 
 @media (max-width: 720px) {
-  .trader {
+  .session-controls {
     margin-left: 0;
   }
 

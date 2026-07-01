@@ -2,6 +2,7 @@ package com.mmx.order.application.command;
 
 import com.mmx.order.domain.model.ContractNumber;
 import com.mmx.order.domain.model.ExternalOrderReference;
+import com.mmx.order.domain.model.LegalEntityCode;
 import com.mmx.order.domain.model.NoticePeriod;
 import com.mmx.order.domain.model.OrderOperation;
 import com.mmx.order.domain.model.OrderType;
@@ -13,6 +14,7 @@ import java.time.LocalDate;
 
 public record ReceiveOrderCommand(
         ExternalOrderReference externalOrderReference,
+        LegalEntityCode legalEntityCode,
         OrderType orderType,
         OrderOperation orderOperation,
         PortfolioNumber portfolioNumber,

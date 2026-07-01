@@ -1,6 +1,6 @@
 # Term Rate Settings API v1
 
-Canonical OpenAPI: [openapi.yaml](./openapi.yaml). All trader operations require header `X-Trader-Id`.
+Canonical OpenAPI: [openapi.yaml](./openapi.yaml). All trader operations require header `X-User-Id`.
 
 ## Endpoints
 
@@ -45,3 +45,13 @@ UTF-8, comma-separated, header required:
 - `errors` — optional array of `{ line, field?, message }` for row-level failures
 
 No persistence occurs on 400.
+
+## Role-scoped semantics (per `delegated-institution-grants`)
+
+No new endpoints and no breaking schema changes; role scoping is an authorisation layer on the
+existing surface.
+
+- **Trader on a TradingHub**: full read/write — uploads and lists the hub's term rates.
+- **ClientRepresentative on a TradingClient**: Settings-only and **read-only**. `GET` operations
+  return the connected hub's term rates for granted institutions (resolved in-process, ADR-0001).
+  `POST /api/v1/settings/term-rates/upload` returns `403` — term rates are hub-owned.

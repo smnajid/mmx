@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { userHeaders } from './user-api-headers';
 import type { components } from './generated/institution-settings';
 
 type Schemas = components['schemas'];
@@ -48,7 +49,7 @@ export class InstitutionSettingsApiService {
     );
   }
 
-  private headers(traderId: string): HttpHeaders {
-    return new HttpHeaders({ 'X-Trader-Id': traderId });
+  private headers(userId: string) {
+    return userHeaders(userId);
   }
 }

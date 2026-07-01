@@ -48,6 +48,9 @@ public class ManagedCurrencyEntity {
     @Column(name = "notice_48h", nullable = false)
     private boolean notice48h;
 
+    @Column(name = "legal_entity_code", nullable = false, length = 3)
+    private String legalEntityCode;
+
     public String getCode() {
         return code;
     }
@@ -142,5 +145,13 @@ public class ManagedCurrencyEntity {
 
     public void setNotice48h(boolean notice48h) {
         this.notice48h = notice48h;
+    }
+
+    public String getLegalEntityCode() {
+        return legalEntityCode;
+    }
+
+    public void setLegalEntityCode(String legalEntityCode) {
+        this.legalEntityCode = legalEntityCode;
     }
 }

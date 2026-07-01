@@ -20,9 +20,11 @@ import com.mmx.order.application.command.UpdateOrderCommand;
 import com.mmx.order.application.port.in.OrderPage;
 import com.mmx.order.application.port.in.ReceiveOrderUseCase;
 import com.mmx.order.domain.model.Assignment;
+import com.mmx.order.domain.model.LegalEntityCode;
 import com.mmx.order.domain.model.ContractNumber;
 import com.mmx.order.domain.model.ExecutionDetails;
 import com.mmx.order.domain.model.ExternalOrderReference;
+import com.mmx.order.domain.model.LegalEntityCode;
 import com.mmx.order.domain.model.MoneyMarketOrder;
 import com.mmx.order.domain.model.NoticePeriod;
 import com.mmx.order.domain.model.PortfolioNumber;
@@ -137,8 +139,13 @@ public class OrderRestMapper {
     }
 
     public ReceiveOrderCommand toCommand(ReceiveOrderRequest request) {
+        String legalEntityCode = request.getLegalEntityCode();
+        if (legalEntityCode == null || legalEntityCode.isBlank()) {
+            throw new InvalidOrderException("legalEntityCode is required");
+        }
         return new ReceiveOrderCommand(
                 new ExternalOrderReference(request.getExternalOrderReference()),
+                new LegalEntityCode(legalEntityCode),
                 com.mmx.order.domain.model.OrderType.valueOf(request.getOrderType().name()),
                 com.mmx.order.domain.model.OrderOperation.valueOf(request.getOrderOperation().name()),
                 new PortfolioNumber(request.getPortfolioNumber()),
@@ -156,10 +163,12 @@ public class OrderRestMapper {
                 request.getInstitutionCode());
     }
 
-    public ReceiveOrderResponse toReceiveResponse(ReceiveOrderUseCase.Result result) {
+    public ReceiveOrderResponse toReceiveResponse(
+            ReceiveOrderUseCase.Result result, LegalEntityCode legalEntityCode) {
         return new ReceiveOrderResponse()
                 .orderId(result.orderId())
-                .status(OrderStatus.fromValue(result.status().name()));
+                .status(OrderStatus.fromValue(result.status().name()))
+                .legalEntityCode(legalEntityCode.value());
     }
 
     public OrderSummaryPage toSummaryPage(OrderPage page) {

@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import type { OrderCreationPayload } from '../models/order-creation-payload.model';
+import { WizardHostConfigService } from '../services/wizard-host-config.service';
 import { WizardStateService } from '../services/wizard-state.service';
 import { StepReviewComponent } from './step-review.component';
 
@@ -10,7 +11,10 @@ describe('StepReviewComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [StepReviewComponent],
-      providers: [WizardStateService],
+      providers: [
+        WizardStateService,
+        { provide: WizardHostConfigService, useValue: { legalEntityCode: 'LOC' } },
+      ],
     }).compileComponents();
 
     state = TestBed.inject(WizardStateService);
@@ -53,6 +57,7 @@ describe('StepReviewComponent', () => {
 
     expect(payloads).toEqual([
       {
+        legalEntityCode: 'LOC',
         portfolioNumber: 'PF-001',
         orderType: 'TERM',
         currency: 'EUR',

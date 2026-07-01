@@ -18,8 +18,10 @@ import { TraderContextService } from '../../core/trader/trader-context.service';
       </nav>
 
       <header class="settings-header">
-        <h1>Institutions</h1>
-        <a routerLink="/settings/institutions/new" class="btn-primary">Onboard institution</a>
+        <h1>{{ trader.isClientRepresentative() ? 'Proxy institutions' : 'Institutions' }}</h1>
+        <a routerLink="/settings/institutions/new" class="btn-primary">
+          {{ trader.isClientRepresentative() ? 'Onboard proxy' : 'Onboard institution' }}
+        </a>
       </header>
 
       @if (error()) {
@@ -30,7 +32,11 @@ import { TraderContextService } from '../../core/trader/trader-context.service';
         <p class="settings-state">Loading…</p>
       } @else if (institutions().length === 0) {
         <p class="settings-state">
-          No institutions onboarded. Execute is blocked until you add at least one.
+          @if (trader.isClientRepresentative()) {
+            No proxy institutions yet. Onboard one from an active hub grant.
+          } @else {
+            No institutions onboarded. Execute is blocked until you add at least one.
+          }
         </p>
       } @else {
         <div class="settings-table-wrap">
@@ -71,16 +77,16 @@ import { TraderContextService } from '../../core/trader/trader-context.service';
 })
 export class InstitutionSettingsListComponent implements OnInit {
   protected readonly deskReturn = inject(DeskReturnService);
+  protected readonly trader = inject(TraderContextService);
 
   private readonly api = inject(InstitutionSettingsApiService);
-  private readonly trader = inject(TraderContextService);
 
   readonly institutions = signal<Institution[]>([]);
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
 
   ngOnInit(): void {
-    this.api.list(this.trader.traderId()).subscribe({
+    this.api.list(this.trader.userId()).subscribe({
       next: (list) => {
         this.institutions.set(list);
         this.loading.set(false);

@@ -140,7 +140,7 @@ class TermRateRestApiIntegrationTest {
         HttpRequest request =
                 HttpRequest.newBuilder()
                         .uri(URI.create("http://localhost:" + port + path))
-                        .header("X-Trader-Id", TRADER)
+                        .header("X-User-Id", TRADER)
                         .GET()
                         .build();
         return httpClient.send(request, HttpResponse.BodyHandlers.ofString());
@@ -164,7 +164,7 @@ class TermRateRestApiIntegrationTest {
         HttpRequest request =
                 HttpRequest.newBuilder()
                         .uri(URI.create("http://localhost:" + port + path))
-                        .header("X-Trader-Id", TRADER)
+                        .header("X-User-Id", TRADER)
                         .header("Content-Type", "multipart/form-data; boundary=" + boundary)
                         .POST(HttpRequest.BodyPublishers.ofByteArray(body))
                         .build();

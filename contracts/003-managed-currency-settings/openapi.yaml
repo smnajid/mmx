@@ -20,7 +20,7 @@ paths:
       summary: List managed currencies
       operationId: listManagedCurrencies
       parameters:
-        - $ref: "#/components/parameters/TraderIdHeader"
+        - $ref: "#/components/parameters/UserIdHeader"
       responses:
         "200":
           description: Catalog entries (may be empty)
@@ -35,7 +35,7 @@ paths:
       summary: Onboard a currency
       operationId: onboardManagedCurrency
       parameters:
-        - $ref: "#/components/parameters/TraderIdHeader"
+        - $ref: "#/components/parameters/UserIdHeader"
       requestBody:
         required: true
         content:
@@ -60,7 +60,7 @@ paths:
       summary: Get managed currency by code
       operationId: getManagedCurrency
       parameters:
-        - $ref: "#/components/parameters/TraderIdHeader"
+        - $ref: "#/components/parameters/UserIdHeader"
         - $ref: "#/components/parameters/CurrencyCode"
       responses:
         "200":
@@ -76,7 +76,7 @@ paths:
       summary: Update currency rules
       operationId: updateManagedCurrencyRules
       parameters:
-        - $ref: "#/components/parameters/TraderIdHeader"
+        - $ref: "#/components/parameters/UserIdHeader"
         - $ref: "#/components/parameters/CurrencyCode"
       requestBody:
         required: true
@@ -102,7 +102,7 @@ paths:
       summary: Deactivate a managed currency
       operationId: disableManagedCurrency
       parameters:
-        - $ref: "#/components/parameters/TraderIdHeader"
+        - $ref: "#/components/parameters/UserIdHeader"
         - $ref: "#/components/parameters/CurrencyCode"
       responses:
         "200":
@@ -120,7 +120,7 @@ paths:
       summary: Reactivate a managed currency
       operationId: enableManagedCurrency
       parameters:
-        - $ref: "#/components/parameters/TraderIdHeader"
+        - $ref: "#/components/parameters/UserIdHeader"
         - $ref: "#/components/parameters/CurrencyCode"
       responses:
         "200":
@@ -134,8 +134,8 @@ paths:
 
 components:
   parameters:
-    TraderIdHeader:
-      name: X-Trader-Id
+    UserIdHeader:
+      name: X-User-Id
       in: header
       required: true
       schema:

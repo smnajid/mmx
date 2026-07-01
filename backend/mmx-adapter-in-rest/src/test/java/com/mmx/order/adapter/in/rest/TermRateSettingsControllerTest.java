@@ -3,8 +3,13 @@ package com.mmx.order.adapter.in.rest;
 import com.mmx.order.adapter.in.rest.mapper.TermRateSettingsRestMapper;
 import com.mmx.order.application.port.in.ListTermRateTradingDaysUseCase;
 import com.mmx.order.application.port.in.ListTermRatesForDayUseCase;
+import com.mmx.order.application.port.in.ScopeContext;
 import com.mmx.order.application.port.in.UploadTermRatesUseCase;
+import com.mmx.order.application.port.out.ScopeContextProvider;
+import com.mmx.order.application.port.out.ReferenceDataMutationGuard;
 import com.mmx.order.application.termrate.SampleTermRateCsvGenerator;
+import com.mmx.order.domain.model.LegalEntityCode;
+import com.mmx.order.domain.model.Role;
 import com.mmx.order.application.termrate.TermRateAuditRow;
 import com.mmx.order.application.termrate.TermRateCsvStructuralException;
 import com.mmx.order.application.termrate.TermRateIngestFailedException;
@@ -48,6 +53,9 @@ class TermRateSettingsControllerTest {
     @Mock
     SampleTermRateCsvGenerator sampleTermRateCsvGenerator;
 
+    @Mock
+    ScopeContextProvider scopeContextProvider;
+
     org.springframework.test.web.servlet.MockMvc mockMvc;
 
     @BeforeEach
@@ -59,13 +67,17 @@ class TermRateSettingsControllerTest {
                                         listTermRatesForDayUseCase,
                                         listTermRateTradingDaysUseCase,
                                         sampleTermRateCsvGenerator,
-                                        new TermRateSettingsRestMapper()))
+                                        new TermRateSettingsRestMapper(),
+                                        scopeContextProvider,
+                                        new ReferenceDataMutationGuard()))
                         .setControllerAdvice(new GlobalExceptionHandler())
                         .build();
     }
 
     @Test
     void uploadTermRates_returns200WithRowCount() throws Exception {
+        when(scopeContextProvider.requireActiveScope())
+                .thenReturn(new ScopeContext(new LegalEntityCode("LOC"), Role.TRADER));
         when(uploadTermRatesUseCase.upload(any()))
                 .thenReturn(
                         new UploadTermRatesUseCase.UploadResult(
@@ -81,7 +93,7 @@ class TermRateSettingsControllerTest {
         mockMvc.perform(
                         multipart("/api/v1/settings/term-rates/upload")
                                 .file(file)
-                                .header("X-Trader-Id", "trader-a"))
+                                .header("X-User-Id", "trader-a"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.tradingDate").value("2026-05-30"))
                 .andExpect(jsonPath("$.rowCount").value(2));
@@ -89,6 +101,8 @@ class TermRateSettingsControllerTest {
 
     @Test
     void uploadTermRates_returns400ForStructuralError() throws Exception {
+        when(scopeContextProvider.requireActiveScope())
+                .thenReturn(new ScopeContext(new LegalEntityCode("LOC"), Role.TRADER));
         when(uploadTermRatesUseCase.upload(any()))
                 .thenThrow(new TermRateCsvStructuralException("Mixed trading dates"));
 
@@ -102,13 +116,15 @@ class TermRateSettingsControllerTest {
         mockMvc.perform(
                         multipart("/api/v1/settings/term-rates/upload")
                                 .file(file)
-                                .header("X-Trader-Id", "trader-a"))
+                                .header("X-User-Id", "trader-a"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("TERM_RATE_STRUCTURAL_ERROR"));
     }
 
     @Test
     void uploadTermRates_returns400WithRowErrors() throws Exception {
+        when(scopeContextProvider.requireActiveScope())
+                .thenReturn(new ScopeContext(new LegalEntityCode("LOC"), Role.TRADER));
         when(uploadTermRatesUseCase.upload(any()))
                 .thenThrow(
                         new TermRateIngestFailedException(
@@ -125,7 +141,7 @@ class TermRateSettingsControllerTest {
         mockMvc.perform(
                         multipart("/api/v1/settings/term-rates/upload")
                                 .file(file)
-                                .header("X-Trader-Id", "trader-a"))
+                                .header("X-User-Id", "trader-a"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors[0].line").value(2))
                 .andExpect(jsonPath("$.errors[0].field").value("institutionCode"));
@@ -136,7 +152,7 @@ class TermRateSettingsControllerTest {
         when(sampleTermRateCsvGenerator.generate())
                 .thenReturn("tradingDate,institutionCode,currency,tenor,rate\n".getBytes(StandardCharsets.UTF_8));
 
-        mockMvc.perform(get("/api/v1/settings/term-rates/sample").header("X-Trader-Id", "trader-a"))
+        mockMvc.perform(get("/api/v1/settings/term-rates/sample").header("X-User-Id", "trader-a"))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Content-Disposition", "attachment; filename=\"term-rates-sample.csv\""));
     }
@@ -157,7 +173,7 @@ class TermRateSettingsControllerTest {
 
         mockMvc.perform(
                         get("/api/v1/settings/term-rates")
-                                .header("X-Trader-Id", "trader-a")
+                                .header("X-User-Id", "trader-a")
                                 .param("tradingDate", "2026-05-30"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].institutionCode").value("HSBC-01"))

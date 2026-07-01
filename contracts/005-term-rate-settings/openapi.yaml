@@ -20,7 +20,7 @@ paths:
       summary: Upload Term rates CSV
       operationId: uploadTermRates
       parameters:
-        - $ref: "#/components/parameters/TraderIdHeader"
+        - $ref: "#/components/parameters/UserIdHeader"
       requestBody:
         required: true
         content:
@@ -49,7 +49,7 @@ paths:
       summary: List Term rates for a trading day
       operationId: listTermRatesForDay
       parameters:
-        - $ref: "#/components/parameters/TraderIdHeader"
+        - $ref: "#/components/parameters/UserIdHeader"
         - name: tradingDate
           in: query
           required: true
@@ -74,7 +74,7 @@ paths:
       summary: List trading days with uploaded Term rates
       operationId: listTermRateTradingDays
       parameters:
-        - $ref: "#/components/parameters/TraderIdHeader"
+        - $ref: "#/components/parameters/UserIdHeader"
       responses:
         "200":
           description: Distinct trading dates, newest first
@@ -91,7 +91,7 @@ paths:
       summary: Download sample Term rate CSV
       operationId: downloadTermRateSample
       parameters:
-        - $ref: "#/components/parameters/TraderIdHeader"
+        - $ref: "#/components/parameters/UserIdHeader"
       responses:
         "200":
           description: Sample CSV template
@@ -108,8 +108,8 @@ paths:
 
 components:
   parameters:
-    TraderIdHeader:
-      name: X-Trader-Id
+    UserIdHeader:
+      name: X-User-Id
       in: header
       required: true
       schema:

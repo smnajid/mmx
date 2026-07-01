@@ -35,10 +35,15 @@ const REPLACE_DAY_CONFIRM =
       </header>
 
       <p class="settings-lede">
-        Morning reference sheet per trading day. Upload a CSV after editing the sample; re-upload
-        replaces the entire day for that date.
+        @if (trader.isClientRepresentative()) {
+          Read-only view of hub term rate reference data.
+        } @else {
+          Morning reference sheet per trading day. Upload a CSV after editing the sample; re-upload
+          replaces the entire day for that date.
+        }
       </p>
 
+      @if (trader.isTrader()) {
       <section class="settings-card" aria-labelledby="prepare-heading">
         <h2 id="prepare-heading" class="settings-card__title">Prepare</h2>
         <p class="settings-hint">
@@ -83,6 +88,7 @@ const REPLACE_DAY_CONFIRM =
           </ul>
         }
       </section>
+      }
 
       <section class="settings-card" aria-labelledby="review-heading">
         <h2 id="review-heading" class="settings-card__title">Review</h2>
@@ -183,7 +189,7 @@ export class TermRateSettingsComponent implements OnInit {
 
   private readonly api = inject(TermRateSettingsApiService);
   private readonly institutionApi = inject(InstitutionSettingsApiService);
-  private readonly trader = inject(TraderContextService);
+  protected readonly trader = inject(TraderContextService);
 
   readonly tradingDate = signal(todayIso());
   readonly tradingDays = signal<{ tradingDate: string }[]>([]);

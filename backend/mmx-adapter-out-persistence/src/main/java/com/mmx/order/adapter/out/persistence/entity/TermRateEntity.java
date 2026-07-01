@@ -40,6 +40,9 @@ public class TermRateEntity {
     @Column(name = "uploaded_by", nullable = false, length = 100)
     private String uploadedBy;
 
+    @Column(name = "legal_entity_code", nullable = false, length = 3)
+    private String legalEntityCode;
+
     public LocalDate getTradingDate() {
         return tradingDate;
     }
@@ -94,5 +97,13 @@ public class TermRateEntity {
 
     public void setUploadedBy(String uploadedBy) {
         this.uploadedBy = uploadedBy;
+    }
+
+    public String getLegalEntityCode() {
+        return legalEntityCode;
+    }
+
+    public void setLegalEntityCode(String legalEntityCode) {
+        this.legalEntityCode = legalEntityCode;
     }
 }

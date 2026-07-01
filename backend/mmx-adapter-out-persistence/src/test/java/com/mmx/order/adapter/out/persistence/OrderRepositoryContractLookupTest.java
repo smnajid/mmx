@@ -68,6 +68,7 @@ class OrderRepositoryContractLookupTest {
         MoneyMarketOrder order =
                 MoneyMarketOrder.create(
                         new ExternalOrderReference("LOOKUP-002"),
+                        new LegalEntityCode("LOC"),
                         OrderType.ON_CALL,
                         OrderOperation.INCREASE,
                         new PortfolioNumber("PF-001"),
@@ -104,6 +105,7 @@ class OrderRepositoryContractLookupTest {
     private MoneyMarketOrder createOnCallSubscription(String externalRef) {
         return MoneyMarketOrder.create(
                 new ExternalOrderReference(externalRef),
+                new LegalEntityCode("LOC"),
                 OrderType.ON_CALL,
                 OrderOperation.SUBSCRIPTION,
                 new PortfolioNumber("PF-001"),

@@ -287,6 +287,59 @@
                             </configOptions>
                         </configuration>
                     </execution>
+                    <execution>
+                        <id>generate-delegated-grants-api-models</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>generate</goal>
+                        </goals>
+                        <configuration>
+                            <inputSpec>${project.basedir}/../../contracts/006-delegated-institution-grants/openapi.yaml</inputSpec>
+                            <generatorName>java</generatorName>
+                            <output>${project.build.directory}/generated-sources/openapi-grants</output>
+                            <library>native</library>
+                            <generateApis>false</generateApis>
+                            <generateApiTests>false</generateApiTests>
+                            <generateModelTests>false</generateModelTests>
+                            <generateSupportingFiles>true</generateSupportingFiles>
+                            <modelPackage>com.mmx.order.adapter.in.rest.generated.grants.model</modelPackage>
+                            <invokerPackage>com.mmx.order.adapter.in.rest.generated.grants</invokerPackage>
+                            <configOptions>
+                                <serializationLibrary>jackson</serializationLibrary>
+                                <dateLibrary>java8</dateLibrary>
+                                <useJakartaEe>true</useJakartaEe>
+                                <openApiNullable>false</openApiNullable>
+                                <useBeanValidation>true</useBeanValidation>
+                                <performBeanValidation>true</performBeanValidation>
+                            </configOptions>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>generate-delegated-grants-spring-api</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>generate</goal>
+                        </goals>
+                        <configuration>
+                            <inputSpec>${project.basedir}/../../contracts/006-delegated-institution-grants/openapi.yaml</inputSpec>
+                            <generatorName>spring</generatorName>
+                            <output>${project.build.directory}/generated-sources/openapi-grants-spring</output>
+                            <generateApis>true</generateApis>
+                            <generateModels>false</generateModels>
+                            <generateSupportingFiles>false</generateSupportingFiles>
+                            <apiPackage>com.mmx.order.adapter.in.rest.generated.grants.api</apiPackage>
+                            <modelPackage>com.mmx.order.adapter.in.rest.generated.grants.model</modelPackage>
+                            <configOptions>
+                                <interfaceOnly>true</interfaceOnly>
+                                <useTags>true</useTags>
+                                <useJakartaEe>true</useJakartaEe>
+                                <useSpringBoot3>true</useSpringBoot3>
+                                <useBeanValidation>true</useBeanValidation>
+                                <documentationProvider>springdoc</documentationProvider>
+                                <skipDefaultInterface>true</skipDefaultInterface>
+                            </configOptions>
+                        </configuration>
+                    </execution>
                 </executions>
             </plugin>
             <plugin>
@@ -309,6 +362,8 @@
                                 <source>${project.build.directory}/generated-sources/openapi-institution-spring/src/main/java</source>
                                 <source>${project.build.directory}/generated-sources/openapi-term-rate/src/main/java</source>
                                 <source>${project.build.directory}/generated-sources/openapi-term-rate-spring/src/main/java</source>
+                                <source>${project.build.directory}/generated-sources/openapi-grants/src/main/java</source>
+                                <source>${project.build.directory}/generated-sources/openapi-grants-spring/src/main/java</source>
                             </sources>
                         </configuration>
                     </execution>

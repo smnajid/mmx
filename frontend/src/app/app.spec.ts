@@ -1,4 +1,5 @@
-import { signal } from '@angular/core';
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { App } from './app';
@@ -6,37 +7,52 @@ import { routes } from './app.routes';
 import { TraderContextService } from './core/trader/trader-context.service';
 
 describe('App', () => {
+  let httpMock: HttpTestingController;
+
   beforeEach(async () => {
     sessionStorage.clear();
     await TestBed.configureTestingModule({
       imports: [App],
       providers: [
         provideRouter(routes),
-        {
-          provide: TraderContextService,
-          useValue: { traderId: signal('test-trader'), setTraderId: (): void => {} },
-        },
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        TraderContextService,
       ],
     }).compileComponents();
+    httpMock = TestBed.inject(HttpTestingController);
   });
 
-  it('should create the app', () => {
+  afterEach(() => {
+    httpMock.match(() => true).forEach((req) => {
+      if (!req.cancelled) {
+        req.flush({ content: [], totalElements: 0, page: 0, size: 20 });
+      }
+    });
+    TestBed.resetTestingModule();
+  });
+
+  function createFixture(): ComponentFixture<App> {
     const fixture = TestBed.createComponent(App);
-    const app = fixture.componentInstance;
-    expect(app).toBeTruthy();
+    fixture.detectChanges();
+    return fixture;
+  }
+
+  it('should create the app', () => {
+    const fixture = createFixture();
+    expect(fixture.componentInstance).toBeTruthy();
   });
 
   it('should show MMx brand', async () => {
-    const fixture = TestBed.createComponent(App);
+    const fixture = createFixture();
     await fixture.whenStable();
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('.name')?.textContent).toContain('MMx');
   });
 
-  it('shows Desk and Settings links in header', async () => {
-    const fixture = TestBed.createComponent(App);
+  it('shows Desk and Settings links in header for Trader', async () => {
+    const fixture = createFixture();
     await fixture.whenStable();
-    fixture.detectChanges();
     const links = fixture.nativeElement.querySelectorAll('.header-link') as NodeListOf<HTMLAnchorElement>;
     expect(links.length).toBe(2);
     expect(links[0].textContent?.trim()).toBe('Desk');
@@ -44,8 +60,40 @@ describe('App', () => {
     expect(links[1].getAttribute('href')).toContain('/settings');
   });
 
+  it('hides Desk entry for ClientRepresentative', async () => {
+    const user = TestBed.inject(TraderContextService);
+    user.bindActiveScope({ legalEntityCode: 'PAR', role: 'CLIENT_REPRESENTATIVE' });
+    const fixture = createFixture();
+    await fixture.whenStable();
+    const links = fixture.nativeElement.querySelectorAll('.header-link');
+    expect(links.length).toBe(1);
+    expect(links[0].textContent?.trim()).toBe('Settings');
+  });
+
+  it('redirects ClientRepresentative from desk route to Settings', async () => {
+    const user = TestBed.inject(TraderContextService);
+    user.bindActiveScope({ legalEntityCode: 'PAR', role: 'CLIENT_REPRESENTATIVE' });
+    const fixture = createFixture();
+    const router = TestBed.inject(Router);
+    await router.navigateByUrl('/term/received');
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(router.url).toContain('/settings');
+  });
+
+  it('redirects ClientRepresentative from oncall desk route to Settings', async () => {
+    const user = TestBed.inject(TraderContextService);
+    user.bindActiveScope({ legalEntityCode: 'PAR', role: 'CLIENT_REPRESENTATIVE' });
+    const fixture = createFixture();
+    const router = TestBed.inject(Router);
+    await router.navigateByUrl('/oncall/assigned');
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(router.url).toContain('/settings');
+  });
+
   it('shows Desk link on settings route', async () => {
-    const fixture = TestBed.createComponent(App);
+    const fixture = createFixture();
     const router = TestBed.inject(Router);
     await router.navigateByUrl('/settings/currencies');
     fixture.detectChanges();
@@ -55,7 +103,7 @@ describe('App', () => {
   });
 
   it('marks Settings active on settings route', async () => {
-    const fixture = TestBed.createComponent(App);
+    const fixture = createFixture();
     const router = TestBed.inject(Router);
     await router.navigateByUrl('/settings/currencies');
     fixture.detectChanges();
@@ -65,7 +113,7 @@ describe('App', () => {
   });
 
   it('shows settings sub-nav on institutions route', async () => {
-    const fixture = TestBed.createComponent(App);
+    const fixture = createFixture();
     const router = TestBed.inject(Router);
     await router.navigateByUrl('/settings/institutions');
     fixture.detectChanges();
@@ -73,12 +121,12 @@ describe('App', () => {
     const hub = fixture.nativeElement.querySelector('.settings-hub-nav');
     expect(hub).toBeTruthy();
     const tabs = hub?.querySelectorAll('a') ?? [];
-    expect(tabs.length).toBe(4);
+    expect(tabs.length).toBe(5);
     expect(tabs[1].classList.contains('active')).toBe(true);
   });
 
   it('marks Desk active on desk queue route', async () => {
-    const fixture = TestBed.createComponent(App);
+    const fixture = createFixture();
     const router = TestBed.inject(Router);
     await router.navigateByUrl('/term/received');
     fixture.detectChanges();
@@ -88,7 +136,7 @@ describe('App', () => {
   });
 
   it('Desk link uses remembered return URL after desk then settings', async () => {
-    const fixture = TestBed.createComponent(App);
+    const fixture = createFixture();
     const router = TestBed.inject(Router);
     await router.navigateByUrl('/term/assigned');
     await fixture.whenStable();
@@ -99,7 +147,7 @@ describe('App', () => {
   });
 
   it('Desk link falls back to oncall received when no prior desk visit', async () => {
-    const fixture = TestBed.createComponent(App);
+    const fixture = createFixture();
     const router = TestBed.inject(Router);
     await router.navigateByUrl('/settings/currencies');
     fixture.detectChanges();
@@ -108,7 +156,7 @@ describe('App', () => {
   });
 
   it('hides desk nav on settings route', async () => {
-    const fixture = TestBed.createComponent(App);
+    const fixture = createFixture();
     const router = TestBed.inject(Router);
     await router.navigateByUrl('/settings/currencies');
     fixture.detectChanges();
@@ -117,7 +165,7 @@ describe('App', () => {
   });
 
   it('shows ON-CALL and Term primary tabs in main content', async () => {
-    const fixture = TestBed.createComponent(App);
+    const fixture = createFixture();
     await fixture.whenStable();
     fixture.detectChanges();
 
@@ -129,12 +177,93 @@ describe('App', () => {
     expect(fixture.nativeElement.querySelector('.workspace-nav')).toBeNull();
   });
 
+  describe('scope switcher', () => {
+    it('re-scopes to a held scope and navigates to Settings for ClientRepresentative', async () => {
+      const user = TestBed.inject(TraderContextService);
+      const fixture = createFixture();
+      const router = TestBed.inject(Router);
+      await router.navigateByUrl('/term/received');
+      fixture.detectChanges();
+
+      const select = fixture.nativeElement.querySelector(
+        '[data-testid="scope-switcher"]',
+      ) as HTMLSelectElement;
+      select.value = 'PAR:CLIENT_REPRESENTATIVE';
+      select.dispatchEvent(new Event('change'));
+      fixture.detectChanges();
+
+      const req = httpMock.expectOne('/api/v1/session/scope');
+      expect(req.request.headers.get('X-User-Id')).toBe('demo-trader');
+      expect(req.request.body).toEqual({
+        legalEntityCode: 'PAR',
+        role: 'CLIENT_REPRESENTATIVE',
+      });
+      req.flush({ legalEntityCode: 'PAR', role: 'CLIENT_REPRESENTATIVE' });
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(user.activeScope()).toEqual({
+        legalEntityCode: 'PAR',
+        role: 'CLIENT_REPRESENTATIVE',
+      });
+      expect(router.url).toContain('/settings');
+    });
+
+    it('re-scopes to another held Trader scope without leaving desk', async () => {
+      const user = TestBed.inject(TraderContextService);
+      user.bindActiveScope({ legalEntityCode: 'PAR', role: 'CLIENT_REPRESENTATIVE' });
+      const fixture = createFixture();
+      const router = TestBed.inject(Router);
+      await router.navigateByUrl('/settings/currencies');
+      fixture.detectChanges();
+
+      const select = fixture.nativeElement.querySelector(
+        '[data-testid="scope-switcher"]',
+      ) as HTMLSelectElement;
+      select.value = 'LOC:TRADER';
+      select.dispatchEvent(new Event('change'));
+      fixture.detectChanges();
+
+      const req = httpMock.expectOne('/api/v1/session/scope');
+      req.flush({ legalEntityCode: 'LOC', role: 'TRADER' });
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(user.activeScope()).toEqual({ legalEntityCode: 'LOC', role: 'TRADER' });
+      expect(router.url).toContain('/settings');
+    });
+
+    it('keeps active scope when re-scope to unheld scope is rejected', async () => {
+      const user = TestBed.inject(TraderContextService);
+      const fixture = createFixture();
+      const previous = user.activeScope();
+
+      const select = fixture.nativeElement.querySelector(
+        '[data-testid="scope-switcher"]',
+      ) as HTMLSelectElement;
+      select.value = 'PAR:CLIENT_REPRESENTATIVE';
+      select.dispatchEvent(new Event('change'));
+      fixture.detectChanges();
+
+      const req = httpMock.expectOne('/api/v1/session/scope');
+      req.flush(
+        { error: 'FORBIDDEN', message: 'Scope not held' },
+        { status: 403, statusText: 'Forbidden' },
+      );
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(user.activeScope()).toEqual(previous);
+      expect(select.value).toBe(user.scopeKey(previous));
+    });
+  });
+
   describe('desk navigation highlighting', () => {
     let fixture: ComponentFixture<App>;
     let router: Router;
 
     beforeEach(async () => {
-      fixture = TestBed.createComponent(App);
+      fixture = createFixture();
       router = TestBed.inject(Router);
       fixture.detectChanges();
     });
@@ -156,7 +285,7 @@ describe('App', () => {
 
     it('marks ON-CALL and Executed active from order-details URL query params', async () => {
       await router.navigateByUrl(
-        '/orders/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee?ws=oncall&queue=executed'
+        '/orders/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee?ws=oncall&queue=executed',
       );
       fixture.detectChanges();
 

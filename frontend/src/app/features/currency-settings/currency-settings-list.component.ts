@@ -17,7 +17,9 @@ import { TraderContextService } from '../../core/trader/trader-context.service';
 
       <header class="settings-header">
         <h1>Managed currencies</h1>
-        <a routerLink="/settings/currencies/new" class="btn-primary">Onboard currency</a>
+        @if (trader.isTrader()) {
+          <a routerLink="/settings/currencies/new" class="btn-primary">Onboard currency</a>
+        }
       </header>
 
       @if (error()) {
@@ -57,7 +59,11 @@ import { TraderContextService } from '../../core/trader/trader-context.service';
                   <td class="rules-summary">{{ rulesSummary(c) }}</td>
                   <td class="num mono">{{ c.minSubscriptionAmount | number: '1.2-2' }}</td>
                   <td class="num mono">{{ c.minIncreaseDecreaseAmount | number: '1.2-2' }}</td>
-                  <td><a [routerLink]="['/settings/currencies', c.code]">Edit</a></td>
+                  <td>
+                    <a [routerLink]="['/settings/currencies', c.code]">
+                      {{ trader.isClientRepresentative() ? 'View' : 'Edit' }}
+                    </a>
+                  </td>
                 </tr>
               }
             </tbody>
@@ -69,9 +75,9 @@ import { TraderContextService } from '../../core/trader/trader-context.service';
 })
 export class CurrencySettingsListComponent implements OnInit {
   protected readonly deskReturn = inject(DeskReturnService);
+  protected readonly trader = inject(TraderContextService);
 
   private readonly api = inject(CurrencySettingsApiService);
-  private readonly trader = inject(TraderContextService);
 
   readonly currencies = signal<ManagedCurrency[]>([]);
   readonly loading = signal(true);

@@ -9,6 +9,7 @@ export type Tenor = '1W' | '2W' | '1M' | '3M' | '6M' | '1Y';
 export type NoticePeriod = '24H' | '48H';
 
 export interface OrderCreationPayload {
+  legalEntityCode: string;
   portfolioNumber: string;
   orderType: OrderType;
   currency: string;

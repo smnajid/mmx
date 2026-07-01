@@ -22,6 +22,17 @@ log()  { echo -e "${GREEN}[mmx]${NC} $*"; }
 warn() { echo -e "${YELLOW}[mmx]${NC} $*"; }
 die()  { echo -e "${RED}[mmx] ERROR:${NC} $*" >&2; exit 1; }
 
+# Cursor/IDE shells may prepend a bundled Node (< v20.19) ahead of nvm on PATH.
+ensure_node() {
+  export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
+  [[ -s "$NVM_DIR/nvm.sh" ]] || die "nvm not found — install Node $(cat "$SCRIPT_DIR/.nvmrc") via https://github.com/nvm-sh/nvm"
+  # shellcheck source=/dev/null
+  source "$NVM_DIR/nvm.sh"
+  (cd "$SCRIPT_DIR" && nvm install && nvm use) || die "Failed to activate Node version from .nvmrc"
+  export PATH="$(dirname "$(nvm which current)"):$PATH"
+  log "Using Node $(node -v)"
+}
+
 cleanup() {
   warn "Shutting down..."
   kill "$BACKEND_PID" "$FRONTEND_PID" 2>/dev/null || true
@@ -69,6 +80,7 @@ done
 log "Backend is ready."
 
 # ── 3. Angular frontend ────────────────────────────────────────────────────────
+ensure_node
 log "Starting Angular frontend..."
 (
   cd "$FRONTEND_DIR"

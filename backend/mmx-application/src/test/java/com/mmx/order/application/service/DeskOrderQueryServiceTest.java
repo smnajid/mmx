@@ -1,9 +1,11 @@
 package com.mmx.order.application.service;
 
 import com.mmx.order.application.port.in.OrderPage;
+import com.mmx.order.application.port.in.ScopeContext;
 import com.mmx.order.application.port.out.Clock;
 import com.mmx.order.application.port.out.OrderRepository;
 import com.mmx.order.domain.model.ExternalOrderReference;
+import com.mmx.order.domain.model.LegalEntityCode;
 import com.mmx.order.domain.model.MoneyMarketOrder;
 import com.mmx.order.domain.model.NoticePeriod;
 import com.mmx.order.domain.model.OrderOperation;
@@ -11,6 +13,7 @@ import com.mmx.order.domain.model.OrderStatus;
 import com.mmx.order.domain.model.OrderType;
 import com.mmx.order.domain.model.PortfolioNumber;
 import com.mmx.order.domain.model.ReceivedListView;
+import com.mmx.order.domain.model.Role;
 import com.mmx.order.domain.model.Tenor;
 import com.mmx.order.domain.model.TraderId;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,6 +48,8 @@ class DeskOrderQueryServiceTest {
     private static final LocalDate NEAR_TERM_END = LocalDate.of(2026, 5, 3);
     private static final TraderId TRADER_A = new TraderId("trader-a");
     private static final TraderId TRADER_B = new TraderId("trader-b");
+    private static final LegalEntityCode LOC = new LegalEntityCode("LOC");
+    private static final ScopeContext LOC_TRADER = new ScopeContext(LOC, Role.TRADER);
 
     @Mock
     OrderRepository orderRepository;
@@ -68,6 +73,7 @@ class DeskOrderQueryServiceTest {
         MoneyMarketOrder a = newTermReceived("T-a");
         MoneyMarketOrder b = newTermReceived("T-b");
         when(orderRepository.findReceivedPageByOrderType(
+                        eq(LOC),
                         eq(OrderType.TERM),
                         eq(Optional.of(TODAY)),
                         eq(Optional.of(NEAR_TERM_END)),
@@ -75,32 +81,33 @@ class DeskOrderQueryServiceTest {
                         eq(2)))
                 .thenReturn(new OrderPage(List.of(a, b), 3, 0, 2));
 
-        OrderPage page = subject.listReceivedTermOrders(0, 2, ReceivedListView.NEAR_TERM);
+        OrderPage page = subject.listReceivedTermOrders(LOC_TRADER, 0, 2, ReceivedListView.NEAR_TERM);
 
         assertThat(page.totalElements()).isEqualTo(3);
         assertThat(page.content()).containsExactly(a, b);
         verify(orderRepository)
                 .findReceivedPageByOrderType(
-                        OrderType.TERM, Optional.of(TODAY), Optional.of(NEAR_TERM_END), 0, 2);
+                        LOC, OrderType.TERM, Optional.of(TODAY), Optional.of(NEAR_TERM_END), 0, 2);
     }
 
     @Test
     void listReceivedTermOrders_all_skipsValueDateFilter() {
         MoneyMarketOrder a = newTermReceived("T-a");
         when(orderRepository.findReceivedPageByOrderType(
-                        eq(OrderType.TERM), eq(Optional.empty()), eq(Optional.empty()), eq(0), eq(20)))
+                        eq(LOC), eq(OrderType.TERM), eq(Optional.empty()), eq(Optional.empty()), eq(0), eq(20)))
                 .thenReturn(new OrderPage(List.of(a), 1, 0, 20));
 
-        OrderPage page = subject.listReceivedTermOrders(0, 20, ReceivedListView.ALL);
+        OrderPage page = subject.listReceivedTermOrders(LOC_TRADER, 0, 20, ReceivedListView.ALL);
 
         assertThat(page.content()).containsExactly(a);
-        verify(orderRepository).findReceivedPageByOrderType(OrderType.TERM, Optional.empty(), Optional.empty(), 0, 20);
+        verify(orderRepository).findReceivedPageByOrderType(LOC, OrderType.TERM, Optional.empty(), Optional.empty(), 0, 20);
     }
 
     @Test
     void listReceivedOnCallOrders_secondPageUsesWindow() {
         MoneyMarketOrder o2 = newOnCallReceived("O-2");
         when(orderRepository.findReceivedPageByOrderType(
+                        eq(LOC),
                         eq(OrderType.ON_CALL),
                         eq(Optional.of(TODAY)),
                         eq(Optional.of(NEAR_TERM_END)),
@@ -108,17 +115,18 @@ class DeskOrderQueryServiceTest {
                         eq(1)))
                 .thenReturn(new OrderPage(List.of(o2), 2, 1, 1));
 
-        OrderPage page = subject.listReceivedOnCallOrders(1, 1, ReceivedListView.NEAR_TERM);
+        OrderPage page = subject.listReceivedOnCallOrders(LOC_TRADER, 1, 1, ReceivedListView.NEAR_TERM);
 
         assertThat(page.content()).containsExactly(o2);
         verify(orderRepository)
                 .findReceivedPageByOrderType(
-                        OrderType.ON_CALL, Optional.of(TODAY), Optional.of(NEAR_TERM_END), 1, 1);
+                        LOC, OrderType.ON_CALL, Optional.of(TODAY), Optional.of(NEAR_TERM_END), 1, 1);
     }
 
     @Test
     void listReceivedTermOrders_pageBeyondData_returnsEmptyContentWithTotal() {
         when(orderRepository.findReceivedPageByOrderType(
+                        eq(LOC),
                         eq(OrderType.TERM),
                         eq(Optional.of(TODAY)),
                         eq(Optional.of(NEAR_TERM_END)),
@@ -126,7 +134,7 @@ class DeskOrderQueryServiceTest {
                         eq(2)))
                 .thenReturn(new OrderPage(List.of(), 1, 3, 2));
 
-        OrderPage page = subject.listReceivedTermOrders(3, 2, ReceivedListView.NEAR_TERM);
+        OrderPage page = subject.listReceivedTermOrders(LOC_TRADER, 3, 2, ReceivedListView.NEAR_TERM);
 
         assertThat(page.content()).isEmpty();
         assertThat(page.totalElements()).isEqualTo(1);
@@ -138,7 +146,7 @@ class DeskOrderQueryServiceTest {
         MoneyMarketOrder order = newTermReceived("G-1");
         when(orderRepository.findById(eq(id))).thenReturn(Optional.of(order));
 
-        assertThat(subject.getOrderDetails(id)).contains(order);
+        assertThat(subject.getOrderDetails(LOC_TRADER, id)).contains(order);
         verify(orderRepository).findById(id);
     }
 
@@ -147,12 +155,12 @@ class DeskOrderQueryServiceTest {
         UUID id = UUID.fromString("22222222-2222-2222-2222-222222222222");
         when(orderRepository.findById(id)).thenReturn(Optional.empty());
 
-        assertThat(subject.getOrderDetails(id)).isEmpty();
+        assertThat(subject.getOrderDetails(LOC_TRADER, id)).isEmpty();
     }
 
     @Test
     void listReceivedTermOrders_rejectsNonPositiveSize() {
-        assertThatThrownBy(() -> subject.listReceivedTermOrders(0, 0, ReceivedListView.NEAR_TERM))
+        assertThatThrownBy(() -> subject.listReceivedTermOrders(LOC_TRADER, 0, 0, ReceivedListView.NEAR_TERM))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("size");
     }
@@ -160,25 +168,25 @@ class DeskOrderQueryServiceTest {
     @Test
     void listExecutedTermOrders_queriesExecutedTermOnly() {
         MoneyMarketOrder a = newTermReceived("E-T-a");
-        when(orderRepository.findByStatusAndOrderType(OrderStatus.EXECUTED, OrderType.TERM))
+        when(orderRepository.findByStatusAndOrderType(LOC, OrderStatus.EXECUTED, OrderType.TERM))
                 .thenReturn(List.of(a));
 
-        OrderPage page = subject.listExecutedTermOrders(0, 20);
+        OrderPage page = subject.listExecutedTermOrders(LOC_TRADER, 0, 20);
 
         assertThat(page.content()).containsExactly(a);
-        verify(orderRepository).findByStatusAndOrderType(OrderStatus.EXECUTED, OrderType.TERM);
+        verify(orderRepository).findByStatusAndOrderType(LOC, OrderStatus.EXECUTED, OrderType.TERM);
     }
 
     @Test
     void listExecutedOnCallOrders_queriesExecutedOnCallOnly() {
         MoneyMarketOrder o = newOnCallReceived("E-O-a");
-        when(orderRepository.findByStatusAndOrderType(OrderStatus.EXECUTED, OrderType.ON_CALL))
+        when(orderRepository.findByStatusAndOrderType(LOC, OrderStatus.EXECUTED, OrderType.ON_CALL))
                 .thenReturn(List.of(o));
 
-        OrderPage page = subject.listExecutedOnCallOrders(0, 20);
+        OrderPage page = subject.listExecutedOnCallOrders(LOC_TRADER, 0, 20);
 
         assertThat(page.content()).containsExactly(o);
-        verify(orderRepository).findByStatusAndOrderType(OrderStatus.EXECUTED, OrderType.ON_CALL);
+        verify(orderRepository).findByStatusAndOrderType(LOC, OrderStatus.EXECUTED, OrderType.ON_CALL);
     }
 
     @Test
@@ -186,16 +194,16 @@ class DeskOrderQueryServiceTest {
         MoneyMarketOrder forA = newTermReceived("A-1");
         forA.assign(TRADER_A, Instant.parse("2026-05-01T12:00:00Z"));
 
-        when(orderRepository.findByAssignedTraderIdAndStatus(TRADER_A, OrderStatus.ASSIGNED))
+        when(orderRepository.findByAssignedTraderIdAndStatus(LOC, TRADER_A, OrderStatus.ASSIGNED))
                 .thenReturn(List.of(forA));
 
-        OrderPage page = subject.listAssignedOrders(TRADER_A, 0, 20);
+        OrderPage page = subject.listAssignedOrders(LOC_TRADER, TRADER_A, 0, 20);
 
         assertThat(page.content()).containsExactly(forA);
         assertThat(page.totalElements()).isEqualTo(1);
 
         ArgumentCaptor<TraderId> traderCaptor = ArgumentCaptor.forClass(TraderId.class);
-        verify(orderRepository).findByAssignedTraderIdAndStatus(traderCaptor.capture(), eq(OrderStatus.ASSIGNED));
+        verify(orderRepository).findByAssignedTraderIdAndStatus(eq(LOC), traderCaptor.capture(), eq(OrderStatus.ASSIGNED));
         assertThat(traderCaptor.getValue()).isEqualTo(TRADER_A);
     }
 
@@ -205,13 +213,13 @@ class DeskOrderQueryServiceTest {
         termAssignedToA.assign(TRADER_A, Instant.parse("2026-05-01T12:00:00Z"));
         MoneyMarketOrder termAssignedToB = newTermReceived("T-B");
         termAssignedToB.assign(TRADER_B, Instant.parse("2026-05-01T12:00:00Z"));
-        when(orderRepository.findByStatusAndOrderType(OrderStatus.ASSIGNED, OrderType.TERM))
+        when(orderRepository.findByStatusAndOrderType(LOC, OrderStatus.ASSIGNED, OrderType.TERM))
                 .thenReturn(List.of(termAssignedToA, termAssignedToB));
 
-        OrderPage page = subject.listAssignedTermOrders(0, 20);
+        OrderPage page = subject.listAssignedTermOrders(LOC_TRADER, 0, 20);
 
         assertThat(page.content()).containsExactly(termAssignedToA, termAssignedToB);
-        verify(orderRepository).findByStatusAndOrderType(OrderStatus.ASSIGNED, OrderType.TERM);
+        verify(orderRepository).findByStatusAndOrderType(LOC, OrderStatus.ASSIGNED, OrderType.TERM);
         verifyNoMoreInteractions(orderRepository);
     }
 
@@ -219,18 +227,19 @@ class DeskOrderQueryServiceTest {
     void listAssignedOnCallOrders_deskWide_usesStatusAndOrderType() {
         MoneyMarketOrder onCall = newOnCallReceived("O-1");
         onCall.assign(TRADER_A, Instant.parse("2026-05-01T12:00:00Z"));
-        when(orderRepository.findByStatusAndOrderType(OrderStatus.ASSIGNED, OrderType.ON_CALL))
+        when(orderRepository.findByStatusAndOrderType(LOC, OrderStatus.ASSIGNED, OrderType.ON_CALL))
                 .thenReturn(List.of(onCall));
 
-        OrderPage page = subject.listAssignedOnCallOrders(0, 20);
+        OrderPage page = subject.listAssignedOnCallOrders(LOC_TRADER, 0, 20);
 
         assertThat(page.content()).containsExactly(onCall);
-        verify(orderRepository).findByStatusAndOrderType(OrderStatus.ASSIGNED, OrderType.ON_CALL);
+        verify(orderRepository).findByStatusAndOrderType(LOC, OrderStatus.ASSIGNED, OrderType.ON_CALL);
     }
 
     private static MoneyMarketOrder newTermReceived(String extRef) {
         return MoneyMarketOrder.create(
                 new ExternalOrderReference(extRef),
+                LOC,
                 OrderType.TERM,
                 OrderOperation.SUBSCRIPTION,
                 new PortfolioNumber("PF-1"),
@@ -245,6 +254,7 @@ class DeskOrderQueryServiceTest {
     private static MoneyMarketOrder newOnCallReceived(String extRef) {
         return MoneyMarketOrder.create(
                 new ExternalOrderReference(extRef),
+                LOC,
                 OrderType.ON_CALL,
                 OrderOperation.SUBSCRIPTION,
                 new PortfolioNumber("PF-1"),

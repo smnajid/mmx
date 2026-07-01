@@ -104,6 +104,7 @@ class OrderRepositoryLiveContractsTest {
         MoneyMarketOrder increase =
                 MoneyMarketOrder.create(
                         new ExternalOrderReference("INC-001"),
+                        new LegalEntityCode("LOC"),
                         OrderType.ON_CALL,
                         OrderOperation.INCREASE,
                         new PortfolioNumber(PORTFOLIO),
@@ -197,6 +198,7 @@ class OrderRepositoryLiveContractsTest {
     private MoneyMarketOrder createOnCallSubscription(String externalRef) {
         return MoneyMarketOrder.create(
                 new ExternalOrderReference(externalRef),
+                new LegalEntityCode("LOC"),
                 OrderType.ON_CALL,
                 OrderOperation.SUBSCRIPTION,
                 new PortfolioNumber(PORTFOLIO),
@@ -215,6 +217,7 @@ class OrderRepositoryLiveContractsTest {
     private MoneyMarketOrder createTermSubscription(String externalRef) {
         return MoneyMarketOrder.create(
                 new ExternalOrderReference(externalRef),
+                new LegalEntityCode("LOC"),
                 OrderType.TERM,
                 OrderOperation.SUBSCRIPTION,
                 new PortfolioNumber(PORTFOLIO),
@@ -234,6 +237,7 @@ class OrderRepositoryLiveContractsTest {
         MoneyMarketOrder redemption =
                 MoneyMarketOrder.create(
                         new ExternalOrderReference(externalRef),
+                        new LegalEntityCode("LOC"),
                         OrderType.ON_CALL,
                         OrderOperation.REDEMPTION,
                         new PortfolioNumber(PORTFOLIO),

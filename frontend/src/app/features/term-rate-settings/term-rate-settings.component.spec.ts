@@ -30,7 +30,14 @@ describe('TermRateSettingsComponent', () => {
         provideHttpClient(),
         provideHttpClientTesting(),
         provideRouter([]),
-        { provide: TraderContextService, useValue: { traderId: () => 'trader-test' } },
+        {
+          provide: TraderContextService,
+          useValue: {
+            traderId: () => 'trader-test',
+            isTrader: () => true,
+            isClientRepresentative: () => false,
+          },
+        },
       ],
     }).compileComponents();
 
@@ -486,5 +493,54 @@ describe('TermRateSettingsComponent', () => {
     fixture.detectChanges();
     expect(fixture.componentInstance.rowErrors()).toHaveLength(1);
     expect(fixture.nativeElement.textContent).toContain('Institution not found');
+  });
+});
+
+describe('TermRateSettingsComponent ClientRepresentative', () => {
+  it('hides upload controls for ClientRepresentative', async () => {
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:mock');
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+
+    await TestBed.configureTestingModule({
+      imports: [TermRateSettingsComponent],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideRouter([]),
+        {
+          provide: TraderContextService,
+          useValue: {
+            traderId: () => 'trader-test',
+            isTrader: () => false,
+            isClientRepresentative: () => true,
+          },
+        },
+      ],
+    }).compileComponents();
+
+    const clientHttp = TestBed.inject(HttpTestingController);
+    const clientFixture = TestBed.createComponent(TermRateSettingsComponent);
+    clientFixture.detectChanges();
+    clientHttp.match((r) => r.url === '/api/v1/settings/term-rates/days').forEach((r) => r.flush([]));
+    clientHttp.match((r) => r.url === '/api/v1/settings/institutions').forEach((r) => r.flush([]));
+    clientHttp
+      .match(
+        (r) =>
+          r.method === 'GET' &&
+          r.url.startsWith('/api/v1/settings/term-rates') &&
+          !r.url.includes('/sample') &&
+          !r.url.includes('/days') &&
+          !r.url.includes('/upload')
+      )
+      .forEach((r) => r.flush([]));
+    await clientFixture.whenStable();
+    clientFixture.detectChanges();
+
+    const el = clientFixture.nativeElement as HTMLElement;
+    expect(el.textContent).toContain('Read-only view');
+    expect(el.querySelector('button.btn-primary')).toBeNull();
+    expect(el.querySelector('input[type="file"]')).toBeNull();
+    clientHttp.verify();
+    vi.restoreAllMocks();
   });
 });

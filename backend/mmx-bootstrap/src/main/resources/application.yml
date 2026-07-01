@@ -45,6 +45,8 @@ springdoc:
     url: /openapi.yaml
 
 mmx:
+  organisation:
+    code: LODH
   backoffice:
     kafka:
       topic: mmx.order.executed

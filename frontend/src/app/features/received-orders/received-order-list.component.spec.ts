@@ -43,7 +43,7 @@ describe('ReceivedOrderListComponent', () => {
         r.params.get('page') === '0' &&
         r.params.get('size') === '100'
     );
-    expect(req.request.headers.get('X-Trader-Id')).toBe('trader-unit');
+    expect(req.request.headers.get('X-User-Id')).toBe('trader-unit');
     req.flush({ content: [], totalElements: 0, page: 0, size: 100 });
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('No orders in this queue.');

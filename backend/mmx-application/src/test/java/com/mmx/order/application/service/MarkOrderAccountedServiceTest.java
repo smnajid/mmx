@@ -8,6 +8,7 @@ import com.mmx.order.domain.exception.OrderNotFoundException;
 import com.mmx.order.domain.model.ContractNumber;
 import com.mmx.order.domain.model.DealingReference;
 import com.mmx.order.domain.model.ExternalOrderReference;
+import com.mmx.order.domain.model.LegalEntityCode;
 import com.mmx.order.domain.model.MoneyMarketOrder;
 import com.mmx.order.domain.model.OrderOperation;
 import com.mmx.order.domain.model.OrderType;
@@ -106,6 +107,7 @@ class MarkOrderAccountedServiceTest {
     void markAccounted_nonExecuted_throws() {
         MoneyMarketOrder received = MoneyMarketOrder.create(
                 new ExternalOrderReference("REF-BO-" + System.nanoTime()),
+                new LegalEntityCode("LOC"),
                 OrderType.TERM,
                 OrderOperation.SUBSCRIPTION,
                 new PortfolioNumber("PF-1"),
@@ -128,6 +130,7 @@ class MarkOrderAccountedServiceTest {
         MoneyMarketOrder order =
                 MoneyMarketOrder.create(
                         new ExternalOrderReference("REF-BO-X-" + System.nanoTime()),
+                        new LegalEntityCode("LOC"),
                         OrderType.TERM,
                         OrderOperation.SUBSCRIPTION,
                         new PortfolioNumber("PF-1"),

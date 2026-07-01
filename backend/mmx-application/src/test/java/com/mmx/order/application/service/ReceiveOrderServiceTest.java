@@ -5,19 +5,25 @@ import com.mmx.order.application.port.in.ReceiveOrderUseCase;
 import com.mmx.order.application.port.out.AuditLogger;
 import com.mmx.order.application.port.out.Clock;
 import com.mmx.order.application.port.out.InstitutionRepository;
+import com.mmx.order.application.port.out.LegalEntityRepository;
 import com.mmx.order.application.port.out.ManagedCurrencyRepository;
 import com.mmx.order.application.port.out.OpenPositionPort;
 import com.mmx.order.application.port.out.OrderRepository;
-import com.mmx.order.domain.model.Institution;
-import com.mmx.order.domain.model.ManagedCurrency;
-import com.mmx.order.domain.model.NoticePeriod;
+import com.mmx.order.application.port.out.OrganisationRepository;
 import com.mmx.order.domain.exception.InvalidOrderException;
 import com.mmx.order.domain.model.ContractNumber;
 import com.mmx.order.domain.model.ExternalOrderReference;
+import com.mmx.order.domain.model.Institution;
+import com.mmx.order.domain.model.LegalEntity;
+import com.mmx.order.domain.model.LegalEntityCode;
+import com.mmx.order.domain.model.ManagedCurrency;
 import com.mmx.order.domain.model.MoneyMarketOrder;
+import com.mmx.order.domain.model.NoticePeriod;
 import com.mmx.order.domain.model.OrderOperation;
 import com.mmx.order.domain.model.OrderStatus;
 import com.mmx.order.domain.model.OrderType;
+import com.mmx.order.domain.model.Organisation;
+import com.mmx.order.domain.model.OrganisationCode;
 import com.mmx.order.domain.model.PortfolioNumber;
 import com.mmx.order.domain.model.Tenor;
 import org.junit.jupiter.api.BeforeEach;
@@ -51,6 +57,8 @@ class ReceiveOrderServiceTest {
 
     private static final Instant FIXED_NOW = Instant.parse("2026-05-01T12:00:00Z");
     private static final LocalDate TODAY = LocalDate.of(2026, 5, 1);
+    private static final OrganisationCode PM_ORG = new OrganisationCode("BNKG");
+    private static final LegalEntityCode LOC = new LegalEntityCode("LOC");
 
     @Mock
     OrderRepository orderRepository;
@@ -70,6 +78,12 @@ class ReceiveOrderServiceTest {
     @Mock
     OpenPositionPort openPositionPort;
 
+    @Mock
+    OrganisationRepository organisationRepository;
+
+    @Mock
+    LegalEntityRepository legalEntityRepository;
+
     ReceiveOrderService subject;
 
     @BeforeEach
@@ -82,12 +96,19 @@ class ReceiveOrderServiceTest {
                         managedCurrencyRepository,
                         institutionRepository,
                         openPositionPort,
+                        organisationRepository,
+                        legalEntityRepository,
+                        PM_ORG,
                         auditLogger,
                         clock);
         when(managedCurrencyRepository.findByCode("EUR")).thenReturn(Optional.of(permissiveEur()));
         when(managedCurrencyRepository.findByCode("USD")).thenReturn(Optional.of(permissiveUsd()));
         when(institutionRepository.findByInstitutionCode("BNKCO"))
                 .thenReturn(Optional.of(new Institution("BNKCO", "BankCo", true)));
+        when(organisationRepository.findByCode(PM_ORG)).thenReturn(Optional.of(new Organisation(PM_ORG)));
+        when(legalEntityRepository.findByCode(LOC))
+                .thenReturn(Optional.of(LegalEntity.tradingHub(LOC, PM_ORG)));
+        when(legalEntityRepository.belongsToOrganisation(LOC, PM_ORG)).thenReturn(true);
     }
 
     private static ManagedCurrency permissiveUsd() {
@@ -114,7 +135,7 @@ class ReceiveOrderServiceTest {
     void receive_newOrder_isPersistedWithReceivedStatus() {
         var ref = new ExternalOrderReference("PM-recv-001");
         ReceiveOrderCommand command = validTermSubscribeCommand(ref);
-        when(orderRepository.findByExternalOrderReference(ref)).thenReturn(Optional.empty());
+        when(orderRepository.findByLegalEntityAndExternalReference(LOC, ref)).thenReturn(Optional.empty());
         when(orderRepository.save(any(MoneyMarketOrder.class))).then(returnsFirstArg());
 
         ReceiveOrderUseCase.Result result = subject.receive(command);
@@ -137,6 +158,7 @@ class ReceiveOrderServiceTest {
         ReceiveOrderCommand command =
                 new ReceiveOrderCommand(
                         ref,
+                        LOC,
                         OrderType.TERM,
                         OrderOperation.SUBSCRIPTION,
                         new PortfolioNumber("PF-1"),
@@ -149,7 +171,7 @@ class ReceiveOrderServiceTest {
                         new ContractNumber("CN-should-not-stick"),
                         "BNKCO");
 
-        when(orderRepository.findByExternalOrderReference(ref)).thenReturn(Optional.empty());
+        when(orderRepository.findByLegalEntityAndExternalReference(LOC, ref)).thenReturn(Optional.empty());
         when(orderRepository.save(any(MoneyMarketOrder.class))).then(returnsFirstArg());
 
         subject.receive(command);
@@ -163,7 +185,7 @@ class ReceiveOrderServiceTest {
     void receive_newOrder_logsOrderReceivedAudit() {
         var ref = new ExternalOrderReference("PM-audit-001");
         ReceiveOrderCommand command = validTermSubscribeCommand(ref);
-        when(orderRepository.findByExternalOrderReference(ref)).thenReturn(Optional.empty());
+        when(orderRepository.findByLegalEntityAndExternalReference(LOC, ref)).thenReturn(Optional.empty());
         when(orderRepository.save(any(MoneyMarketOrder.class))).then(returnsFirstArg());
 
         ReceiveOrderUseCase.Result result = subject.receive(command);
@@ -181,6 +203,7 @@ class ReceiveOrderServiceTest {
         MoneyMarketOrder existing =
                 MoneyMarketOrder.create(
                         ref,
+                        LOC,
                         OrderType.TERM,
                         OrderOperation.SUBSCRIPTION,
                         new PortfolioNumber("PF-dup"),
@@ -198,6 +221,7 @@ class ReceiveOrderServiceTest {
         ReceiveOrderCommand differentPayload =
                 new ReceiveOrderCommand(
                         ref,
+                        LOC,
                         OrderType.TERM,
                         OrderOperation.SUBSCRIPTION,
                         new PortfolioNumber("PF-other"),
@@ -210,7 +234,7 @@ class ReceiveOrderServiceTest {
                         null,
                         "BNKCO");
 
-        when(orderRepository.findByExternalOrderReference(ref)).thenReturn(Optional.of(existing));
+        when(orderRepository.findByLegalEntityAndExternalReference(LOC, ref)).thenReturn(Optional.of(existing));
 
         ReceiveOrderUseCase.Result result = subject.receive(differentPayload);
 
@@ -236,6 +260,7 @@ class ReceiveOrderServiceTest {
         ReceiveOrderCommand invalidValueDate =
                 new ReceiveOrderCommand(
                         ref,
+                        LOC,
                         OrderType.TERM,
                         OrderOperation.SUBSCRIPTION,
                         new PortfolioNumber("PF-1"),
@@ -248,7 +273,7 @@ class ReceiveOrderServiceTest {
                         null,
                         "BNKCO");
 
-        when(orderRepository.findByExternalOrderReference(ref)).thenReturn(Optional.empty());
+        when(orderRepository.findByLegalEntityAndExternalReference(LOC, ref)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> subject.receive(invalidValueDate)).isInstanceOf(InvalidOrderException.class);
 
@@ -259,6 +284,7 @@ class ReceiveOrderServiceTest {
     private static ReceiveOrderCommand validTermSubscribeCommand(ExternalOrderReference ref) {
         return new ReceiveOrderCommand(
                 ref,
+                LOC,
                 OrderType.TERM,
                 OrderOperation.SUBSCRIPTION,
                 new PortfolioNumber("PF-1"),

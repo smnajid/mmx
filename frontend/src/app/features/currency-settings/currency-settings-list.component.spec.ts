@@ -16,7 +16,7 @@ describe('CurrencySettingsListComponent', () => {
         provideRouter([]),
         {
           provide: TraderContextService,
-          useValue: { traderId: signal('trader-a'), setTraderId: (): void => {} },
+          useValue: { traderId: signal('trader-a'), userId: signal('trader-a'), setTraderId: (): void => {}, isTrader: () => true, isClientRepresentative: () => false },
         },
       ],
     }).compileComponents();
@@ -32,7 +32,7 @@ describe('CurrencySettingsListComponent', () => {
   it('renders currencies from API with status badge and rules summary', async () => {
     fixture.detectChanges();
     const req = httpMock.expectOne('/api/v1/settings/currencies');
-    expect(req.request.headers.get('X-Trader-Id')).toBe('trader-a');
+    expect(req.request.headers.get('X-User-Id')).toBe('trader-a');
     req.flush([
       {
         code: 'EUR',
@@ -74,5 +74,42 @@ describe('CurrencySettingsListComponent', () => {
     const el = fixture.nativeElement as HTMLElement;
     expect(el.querySelector('.status-badge--inactive')).toBeTruthy();
     expect(el.textContent).toContain('Inactive');
+  });
+
+  it('hides onboard button for ClientRepresentative', async () => {
+    TestBed.resetTestingModule();
+    await TestBed.configureTestingModule({
+      imports: [CurrencySettingsListComponent, HttpClientTestingModule],
+      providers: [
+        provideRouter([]),
+        {
+          provide: TraderContextService,
+          useValue: {
+            userId: signal('trader-a'),
+            traderId: signal('trader-a'),
+            isTrader: () => false,
+            isClientRepresentative: () => true,
+          },
+        },
+      ],
+    }).compileComponents();
+    httpMock = TestBed.inject(HttpTestingController);
+    fixture = TestBed.createComponent(CurrencySettingsListComponent);
+    fixture.detectChanges();
+    httpMock.expectOne('/api/v1/settings/currencies').flush([
+      {
+        code: 'EUR',
+        active: true,
+        minSubscriptionAmount: 1000000,
+        minIncreaseDecreaseAmount: 250000,
+        enabledTenors: ['3M'],
+        enabledNoticePeriods: ['24H'],
+      },
+    ]);
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.textContent).not.toContain('Onboard currency');
+    expect(el.textContent).toContain('View');
   });
 });

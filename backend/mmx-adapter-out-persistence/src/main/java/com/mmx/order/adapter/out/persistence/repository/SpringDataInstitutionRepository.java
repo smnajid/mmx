@@ -11,6 +11,12 @@ public interface SpringDataInstitutionRepository extends JpaRepository<Instituti
 
     List<InstitutionEntity> findByActiveTrueOrderByInstitutionCodeAsc();
 
+    List<InstitutionEntity> findByLegalEntityCodeAndHubInstitutionCodeIsNullOrderByInstitutionCodeAsc(
+            String legalEntityCode);
+
+    List<InstitutionEntity> findByLegalEntityCodeAndHubInstitutionCodeIsNotNullOrderByInstitutionCodeAsc(
+            String legalEntityCode);
+
     @Query(
             """
             SELECT COALESCE(MAX(CAST(SUBSTRING(i.institutionCode, LENGTH(:base) + 2) AS int)), 0)

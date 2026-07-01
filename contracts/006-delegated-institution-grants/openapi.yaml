@@ -1,0 +1,364 @@
+openapi: 3.0.3
+info:
+  title: MMX Delegated Institution Grants API
+  description: |
+    TradingHub Trader-facing surface for delegating a native institution to a TradingClient per
+    currency, with an enabled subset of Term tenors and OnCall notice periods bounded by the hub's
+    managed currency. Grants are prospective and keyed by
+    `(hubInstitutionCode, clientLegalEntityCode, currency)`. Mirror: [api-v1.md](./api-v1.md).
+
+    ## Authorisation
+    All operations require header `X-User-Id` (umbrella identity) and an active
+    `(LegalEntity, role)` scope. Grant CRUD is **Trader-only on the TradingHub**: the active scope's
+    LegalEntity is the granting hub, and the role MUST be `Trader`. A `ClientRepresentative` receives
+    `403` on every operation below. The hub institution MUST be active, and the enabled tenor/notice
+    sets MUST be subsets of the hub's managed-currency enabled sets for the currency.
+  version: 1.0.0
+
+servers:
+  - url: /
+    description: Relative to deployment base
+
+tags:
+  - name: DelegatedGrants
+    description: TradingHub → TradingClient institution delegation grants
+
+paths:
+  /api/v1/settings/delegated-grants:
+    get:
+      tags: [DelegatedGrants]
+      summary: List delegated institution grants
+      description: Returns all grants for the caller's active hub LegalEntity. Trader-only.
+      operationId: listDelegatedGrants
+      parameters:
+        - $ref: "#/components/parameters/UserIdHeader"
+      responses:
+        "200":
+          description: Grants (may be empty)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DelegatedGrantResponse"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+    post:
+      tags: [DelegatedGrants]
+      summary: Create a delegated institution grant
+      description: |
+        Delegates a hub native institution to a TradingClient for a currency with an enabled subset
+        of tenors/notice periods. The hub institution MUST be active; the enabled sets MUST be subsets
+        of the hub's managed-currency enabled sets. Trader-only; prospective (does not alter
+        already-routed or executed orders).
+      operationId: createDelegatedGrant
+      parameters:
+        - $ref: "#/components/parameters/UserIdHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDelegatedGrantRequest"
+      responses:
+        "201":
+          description: Grant created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DelegatedGrantResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "409":
+          $ref: "#/components/responses/ConflictError"
+
+  /api/v1/settings/delegated-grants/client:
+    get:
+      tags: [DelegatedGrants]
+      summary: List grants visible to the active TradingClient
+      description: |
+        Returns active and inactive grants where `clientLegalEntityCode` matches the caller's active
+        TradingClient scope. **ClientRepresentative-only**; a Trader receives `403`.
+      operationId: listClientDelegatedGrants
+      parameters:
+        - $ref: "#/components/parameters/UserIdHeader"
+      responses:
+        "200":
+          description: Grants for the active client (may be empty)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DelegatedGrantResponse"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+
+  /api/v1/settings/delegated-grants/{hubInstitutionCode}/{clientLegalEntityCode}/{currency}:
+    get:
+      tags: [DelegatedGrants]
+      summary: Get a grant by key
+      operationId: getDelegatedGrant
+      parameters:
+        - $ref: "#/components/parameters/UserIdHeader"
+        - $ref: "#/components/parameters/HubInstitutionCode"
+        - $ref: "#/components/parameters/ClientLegalEntityCode"
+        - $ref: "#/components/parameters/GrantCurrency"
+      responses:
+        "200":
+          description: Grant
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DelegatedGrantResponse"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+    patch:
+      tags: [DelegatedGrants]
+      summary: Update a grant's enabled sets
+      description: |
+        Replaces the enabled tenors and/or notice periods. The new sets MUST remain subsets of the
+        hub's managed-currency enabled sets. Trader-only; prospective (does not alter already-routed
+        or executed orders).
+      operationId: updateDelegatedGrant
+      parameters:
+        - $ref: "#/components/parameters/UserIdHeader"
+        - $ref: "#/components/parameters/HubInstitutionCode"
+        - $ref: "#/components/parameters/ClientLegalEntityCode"
+        - $ref: "#/components/parameters/GrantCurrency"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateDelegatedGrantRequest"
+      responses:
+        "200":
+          description: Updated grant
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DelegatedGrantResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+
+  /api/v1/settings/delegated-grants/{hubInstitutionCode}/{clientLegalEntityCode}/{currency}/deactivate:
+    post:
+      tags: [DelegatedGrants]
+      summary: Deactivate a grant (blocks new client intake; no hard-delete)
+      description: |
+        Sets `active` false without deleting the row. Deactivation is prospective: it blocks new
+        TradingClient intake for the `(hubInstitution, client, currency)` and enabled set but leaves
+        already-`RECEIVED` or `ROUTED` client-side orders and linked hub-side orders untouched.
+        Trader-only.
+      operationId: deactivateDelegatedGrant
+      parameters:
+        - $ref: "#/components/parameters/UserIdHeader"
+        - $ref: "#/components/parameters/HubInstitutionCode"
+        - $ref: "#/components/parameters/ClientLegalEntityCode"
+        - $ref: "#/components/parameters/GrantCurrency"
+      responses:
+        "200":
+          description: Grant deactivated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DelegatedGrantResponse"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+
+  /api/v1/settings/delegated-grants/{hubInstitutionCode}/{clientLegalEntityCode}/{currency}/reactivate:
+    post:
+      tags: [DelegatedGrants]
+      summary: Reactivate a grant (sets `active` true)
+      description: Trader-only. The hub institution and managed currency must still be active.
+      operationId: reactivateDelegatedGrant
+      parameters:
+        - $ref: "#/components/parameters/UserIdHeader"
+        - $ref: "#/components/parameters/HubInstitutionCode"
+        - $ref: "#/components/parameters/ClientLegalEntityCode"
+        - $ref: "#/components/parameters/GrantCurrency"
+      responses:
+        "200":
+          description: Grant reactivated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DelegatedGrantResponse"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+
+components:
+  parameters:
+    UserIdHeader:
+      name: X-User-Id
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 100
+    HubInstitutionCode:
+      name: hubInstitutionCode
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 32
+    ClientLegalEntityCode:
+      name: clientLegalEntityCode
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: "^[A-Z]{3}$"
+    GrantCurrency:
+      name: currency
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: "^[A-Z]{3}$"
+
+  responses:
+    ValidationError:
+      description: Validation error (e.g. unknown/inactive hub institution, subset violation, invalid codes)
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/GrantErrorResponse"
+    ConflictError:
+      description: Conflict (e.g. duplicate grant key)
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/GrantErrorResponse"
+    NotFoundError:
+      description: Grant not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/GrantErrorResponse"
+    ForbiddenError:
+      description: Authorisation error — the caller is not a Trader on the TradingHub (active scope).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/GrantErrorResponse"
+
+  schemas:
+    TenorCode:
+      type: string
+      enum: [1W, 2W, 1M, 3M, 6M, 1Y]
+    NoticePeriodCode:
+      type: string
+      enum: [24H, 48H]
+
+    DelegatedGrantResponse:
+      type: object
+      required:
+        - hubInstitutionCode
+        - clientLegalEntityCode
+        - currency
+        - enabledTenors
+        - enabledNoticePeriods
+        - active
+      properties:
+        hubInstitutionCode:
+          type: string
+        clientLegalEntityCode:
+          type: string
+          pattern: "^[A-Z]{3}$"
+        currency:
+          type: string
+          pattern: "^[A-Z]{3}$"
+        enabledTenors:
+          type: array
+          items:
+            $ref: "#/components/schemas/TenorCode"
+          minItems: 0
+        enabledNoticePeriods:
+          type: array
+          items:
+            $ref: "#/components/schemas/NoticePeriodCode"
+          minItems: 0
+        active:
+          type: boolean
+
+    CreateDelegatedGrantRequest:
+      type: object
+      required:
+        - hubInstitutionCode
+        - clientLegalEntityCode
+        - currency
+        - enabledTenors
+        - enabledNoticePeriods
+      properties:
+        hubInstitutionCode:
+          type: string
+          minLength: 1
+          maxLength: 32
+        clientLegalEntityCode:
+          type: string
+          pattern: "^[A-Z]{3}$"
+        currency:
+          type: string
+          pattern: "^[A-Z]{3}$"
+        enabledTenors:
+          type: array
+          description: Subset of the hub managed-currency enabled tenors; may be empty.
+          items:
+            $ref: "#/components/schemas/TenorCode"
+          minItems: 0
+        enabledNoticePeriods:
+          type: array
+          description: Subset of the hub managed-currency enabled notice periods; may be empty.
+          items:
+            $ref: "#/components/schemas/NoticePeriodCode"
+          minItems: 0
+
+    UpdateDelegatedGrantRequest:
+      type: object
+      properties:
+        enabledTenors:
+          type: array
+          description: Replaces enabled Term tenors when present; use [] to clear the Term workspace.
+          items:
+            $ref: "#/components/schemas/TenorCode"
+          minItems: 0
+        enabledNoticePeriods:
+          type: array
+          description: Replaces enabled OnCall notices when present; use [] to clear the OnCall workspace.
+          items:
+            $ref: "#/components/schemas/NoticePeriodCode"
+          minItems: 0
+
+    GrantErrorCode:
+      type: string
+      enum:
+        - VALIDATION_ERROR
+        - GRANT_NOT_FOUND
+        - DUPLICATE_GRANT
+        - UNAUTHORIZED
+
+    GrantErrorResponse:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          $ref: "#/components/schemas/GrantErrorCode"
+        message:
+          type: string

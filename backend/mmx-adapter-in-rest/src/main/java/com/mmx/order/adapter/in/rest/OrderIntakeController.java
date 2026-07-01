@@ -4,6 +4,7 @@ import com.mmx.order.adapter.in.rest.generated.api.IntakeApi;
 import com.mmx.order.adapter.in.rest.generated.model.ReceiveOrderRequest;
 import com.mmx.order.adapter.in.rest.generated.model.ReceiveOrderResponse;
 import com.mmx.order.adapter.in.rest.mapper.OrderRestMapper;
+import com.mmx.order.application.command.ReceiveOrderCommand;
 import com.mmx.order.application.port.in.ReceiveOrderUseCase;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -26,8 +27,9 @@ public class OrderIntakeController implements IntakeApi {
      */
     @Override
     public ResponseEntity<ReceiveOrderResponse> receiveOrder(ReceiveOrderRequest receiveOrderRequest) {
-        ReceiveOrderUseCase.Result result = receiveOrderUseCase.receive(orderRestMapper.toCommand(receiveOrderRequest));
-        ReceiveOrderResponse body = orderRestMapper.toReceiveResponse(result);
+        ReceiveOrderCommand command = orderRestMapper.toCommand(receiveOrderRequest);
+        ReceiveOrderUseCase.Result result = receiveOrderUseCase.receive(command);
+        ReceiveOrderResponse body = orderRestMapper.toReceiveResponse(result, command.legalEntityCode());
         if (result.newlyCreated()) {
             return ResponseEntity.status(HttpStatus.CREATED).body(body);
         }

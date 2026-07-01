@@ -55,7 +55,14 @@ describe('OnCallRateSettingsComponent', () => {
         provideHttpClient(),
         provideHttpClientTesting(),
         provideRouter([]),
-        { provide: TraderContextService, useValue: { traderId: () => 'trader-test' } },
+        {
+          provide: TraderContextService,
+          useValue: {
+            traderId: () => 'trader-test',
+            isTrader: () => true,
+            isClientRepresentative: () => false,
+          },
+        },
       ],
     }).compileComponents();
 
@@ -251,5 +258,54 @@ describe('OnCallRateSettingsComponent', () => {
     reload.flush([]);
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('Pending rate canceled');
+  });
+});
+
+describe('OnCallRateSettingsComponent ClientRepresentative', () => {
+  it('hides add and cancel controls for ClientRepresentative', async () => {
+    await TestBed.configureTestingModule({
+      imports: [OnCallRateSettingsComponent],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideRouter([]),
+        {
+          provide: TraderContextService,
+          useValue: {
+            traderId: () => 'trader-test',
+            isTrader: () => false,
+            isClientRepresentative: () => true,
+          },
+        },
+      ],
+    }).compileComponents();
+
+    const HSBC: Institution = { institutionCode: 'HSBC-01', displayName: 'HSBC', active: true };
+    const pendingSegment: OnCallRateSegment = {
+      segmentId: '11111111-1111-1111-1111-111111111111',
+      institutionCode: 'HSBC-01',
+      currency: 'EUR',
+      noticePeriod: '24H',
+      rate: 3.25,
+      valueDate: '2026-05-31',
+      endDate: OPEN_END_SENTINEL,
+      status: 'PENDING_CONFIRMATION',
+    };
+
+    const clientHttp = TestBed.inject(HttpTestingController);
+    const clientFixture = TestBed.createComponent(OnCallRateSettingsComponent);
+    clientFixture.detectChanges();
+    clientHttp.match((r) => r.url === '/api/v1/settings/institutions').forEach((r) => r.flush([HSBC]));
+    clientHttp
+      .match((r) => r.url.includes('/oncall-rates') && r.method === 'GET')
+      .forEach((r) => r.flush([pendingSegment]));
+    await clientFixture.whenStable();
+    clientFixture.detectChanges();
+
+    const el = clientFixture.nativeElement as HTMLElement;
+    expect(el.textContent).toContain('Read-only view');
+    expect(el.textContent).not.toContain('Add rate');
+    expect(el.querySelector('button.btn-primary')).toBeNull();
+    clientHttp.verify();
   });
 });

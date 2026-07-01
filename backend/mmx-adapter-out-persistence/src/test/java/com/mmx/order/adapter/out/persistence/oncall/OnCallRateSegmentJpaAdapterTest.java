@@ -1,9 +1,11 @@
 package com.mmx.order.adapter.out.persistence.oncall;
 
 import com.mmx.order.adapter.out.persistence.JpaOnCallRateRepository;
+import com.mmx.order.adapter.out.persistence.PersistenceTestCleanup;
 import com.mmx.order.adapter.out.persistence.entity.InstitutionEntity;
 import com.mmx.order.adapter.out.persistence.mapper.InstitutionPersistenceMapper;
 import com.mmx.order.adapter.out.persistence.mapper.OnCallRateSegmentPersistenceMapper;
+import com.mmx.order.adapter.out.persistence.repository.SpringDataDelegatedGrantRepository;
 import com.mmx.order.adapter.out.persistence.repository.SpringDataInstitutionRepository;
 import com.mmx.order.adapter.out.persistence.repository.SpringDataOnCallRateSegmentRepository;
 import com.mmx.order.domain.model.Institution;
@@ -39,6 +41,9 @@ class OnCallRateSegmentJpaAdapterTest {
     SpringDataInstitutionRepository springDataInstitutionRepository;
 
     @Autowired
+    SpringDataDelegatedGrantRepository grantRepository;
+
+    @Autowired
     InstitutionPersistenceMapper institutionMapper;
 
     JpaOnCallRateRepository repository;
@@ -48,8 +53,8 @@ class OnCallRateSegmentJpaAdapterTest {
         repository =
                 new JpaOnCallRateRepository(
                         springDataRepository, new OnCallRateSegmentPersistenceMapper());
-        springDataRepository.deleteAll();
-        springDataInstitutionRepository.deleteAll();
+        PersistenceTestCleanup.clearInstitutionsAndOnCall(
+                grantRepository, springDataRepository, springDataInstitutionRepository);
         seedInstitution("HSBC-01");
     }
 

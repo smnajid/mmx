@@ -14,8 +14,11 @@ public class OrderEntity {
     @Column(name = "id", nullable = false, updatable = false)
     private UUID id;
 
-    @Column(name = "external_order_reference", nullable = false, unique = true, length = 100)
+    @Column(name = "external_order_reference", nullable = false, length = 100)
     private String externalOrderReference;
+
+    @Column(name = "legal_entity_code", nullable = false, length = 3)
+    private String legalEntityCode;
 
     @Column(name = "order_type", nullable = false, length = 20)
     private String orderType;
@@ -98,6 +101,9 @@ public class OrderEntity {
 
     public String getExternalOrderReference() { return externalOrderReference; }
     public void setExternalOrderReference(String v) { this.externalOrderReference = v; }
+
+    public String getLegalEntityCode() { return legalEntityCode; }
+    public void setLegalEntityCode(String v) { this.legalEntityCode = v; }
 
     public String getOrderType() { return orderType; }
     public void setOrderType(String v) { this.orderType = v; }

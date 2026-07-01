@@ -1,13 +1,1 @@
-Orders View
-- in the assigned orders screen, orders are visible to all traders but only the only the trader who has the 
-assignation of an order could execute it.
-- By default in the Received orders screen traders visualize only orders that 
-are at max two days in the future. If a trader wants to see all received orders he has to explicitly toggle a button.
-- a new status accounted, when the execution is booked and has impacted the portfolio position
-- a new screen to see the executed orders (but not yet accounted), the counterparty of the execution should be visible
--an executed order is transmitted to the back-office application, the backoffice application 
-will notify back the mmx application when te execution of an  order  is accounted
-- the orders screen should be organized in two tabs:Term and OnCall. in each screen,
-there will be 3 sub-tabs: Received, assigned, executed.
-- in each sub tab (Received, assigned, executed), the information tenor for Term and noticePeriod for OnCall should be visible.
-
+in the current system in production, not mmx here is how it works. The equivalent of MMX is called FiduTrader, it 's a two tier application with no backend but only a UI and a database. when order is created in PAR with BNP via LOC with a status NEW. The Deposits application (backoffice) detects it via a quartz then route it to LOC database. When the order is executed in LOC. A quartz in the Deposits application detect it and create a contract in the Deposits database in LOC, the contract is enriched with the fees and taxes. When the back-officer in LOC validate the contract. Deposits application generates the booking transaction to the booking system named "Transactions 2" then update order status in FiduTrader database to executed then boradcast the executed contract to "Deposits" PAR

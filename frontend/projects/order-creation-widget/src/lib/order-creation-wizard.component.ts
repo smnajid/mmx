@@ -78,6 +78,7 @@ export class OrderCreationWizardComponent implements OnInit {
 
   readonly apiBaseUrl = input<string>('');
   readonly portfolioNumber = input<string>('');
+  readonly legalEntityCode = input<string>('');
   readonly orderType = input<OrderType | undefined>(undefined);
   readonly contractNumber = input<string | undefined>(undefined);
   readonly theme = input<'light' | 'dark'>('light');
@@ -97,7 +98,17 @@ export class OrderCreationWizardComponent implements OnInit {
       this.configError.set('portfolioNumber is required.');
       return;
     }
+    const entityCode = this.legalEntityCode().trim();
+    if (!entityCode) {
+      this.configError.set('legalEntityCode is required.');
+      return;
+    }
+    if (entityCode.length !== 3) {
+      this.configError.set('legalEntityCode must be exactly 3 characters.');
+      return;
+    }
     this.hostConfig.apiBaseUrl = this.apiBaseUrl().trim();
+    this.hostConfig.legalEntityCode = entityCode;
     this.initializeWizard();
   }
 

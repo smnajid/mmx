@@ -26,7 +26,12 @@ describe('CurrencySettingsEditComponent', () => {
         },
         {
           provide: TraderContextService,
-          useValue: { traderId: signal('trader-a'), setTraderId: (): void => {} },
+          useValue: {
+            traderId: signal('trader-a'),
+            userId: signal('trader-a'),
+            isTrader: () => true,
+            isClientRepresentative: () => false,
+          },
         },
       ],
     }).compileComponents();
@@ -88,5 +93,54 @@ describe('CurrencySettingsEditComponent', () => {
     const component = fixture.componentInstance;
     fixture.detectChanges();
     expect(component.noticeDisableBlocked('24H')).toBe(false);
+  });
+});
+
+describe('CurrencySettingsEditComponent ClientRepresentative', () => {
+  it('renders read-only without save controls for ClientRepresentative', async () => {
+    await TestBed.configureTestingModule({
+      imports: [CurrencySettingsEditComponent, HttpClientTestingModule],
+      providers: [
+        provideRouter([]),
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            snapshot: {
+              paramMap: {
+                get: (key: string) => (key === 'code' ? 'EUR' : null),
+              },
+            },
+          },
+        },
+        {
+          provide: TraderContextService,
+          useValue: {
+            userId: signal('trader-a'),
+            traderId: signal('trader-a'),
+            isTrader: () => false,
+            isClientRepresentative: () => true,
+          },
+        },
+      ],
+    }).compileComponents();
+    const httpMock = TestBed.inject(HttpTestingController);
+    const fixture = TestBed.createComponent(CurrencySettingsEditComponent);
+    fixture.detectChanges();
+    httpMock.expectOne('/api/v1/settings/currencies/EUR').flush({
+      code: 'EUR',
+      active: true,
+      minSubscriptionAmount: 1000000,
+      minIncreaseDecreaseAmount: 250000,
+      enabledTenors: ['3M'],
+      enabledNoticePeriods: ['24H'],
+    });
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.textContent).toContain('Read-only');
+    expect(el.querySelector('button[type="submit"]')).toBeNull();
+    const checkbox = el.querySelector('input[type="checkbox"]') as HTMLInputElement | null;
+    expect(checkbox?.disabled).toBe(true);
+    httpMock.verify();
   });
 });

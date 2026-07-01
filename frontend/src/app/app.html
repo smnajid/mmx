@@ -9,13 +9,15 @@
     </div>
 
     <nav class="header-nav" aria-label="Application">
-      <a
-        [routerLink]="deskReturnUrl()"
-        class="header-link"
-        [class.active]="deskLinkActive()"
-      >
-        Desk
-      </a>
+      @if (showDeskEntry()) {
+        <a
+          [routerLink]="deskReturnUrl()"
+          class="header-link"
+          [class.active]="deskLinkActive()"
+        >
+          Desk
+        </a>
+      }
       <a
         routerLink="/settings"
         class="header-link"
@@ -25,18 +27,36 @@
       </a>
     </nav>
 
-    <label class="trader">
-      <span class="trader-label">Trader</span>
-      <input
-        type="text"
-        class="trader-input"
-        [value]="trader.traderId()"
-        (blur)="onTraderBlur($event)"
-        autocomplete="username"
-        spellcheck="false"
-        aria-label="Trader identifier for API requests"
-      />
-    </label>
+    <div class="session-controls">
+      <label class="scope-switcher">
+        <span class="scope-label">Scope</span>
+        <select
+          class="scope-select"
+          [value]="activeScopeKey()"
+          (change)="onScopeChange($event)"
+          aria-label="Active legal entity and role"
+          data-testid="scope-switcher"
+        >
+          @for (scope of user.heldScopes(); track user.scopeKey(scope)) {
+            <option [value]="user.scopeKey(scope)">{{ scopeLabel(scope) }}</option>
+          }
+        </select>
+      </label>
+
+      <label class="trader">
+        <span class="trader-label">User</span>
+        <input
+          type="text"
+          class="trader-input"
+          [value]="user.userId()"
+          (blur)="onUserBlur($event)"
+          autocomplete="username"
+          spellcheck="false"
+          aria-label="User identifier for API requests"
+          data-testid="user-id-input"
+        />
+      </label>
+    </div>
   </header>
 
   <main class="main">

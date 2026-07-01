@@ -4,7 +4,12 @@ import com.mmx.order.adapter.in.rest.mapper.OnCallRateRestMapper;
 import com.mmx.order.application.port.in.AddOnCallRateUseCase;
 import com.mmx.order.application.port.in.CancelOnCallRateUseCase;
 import com.mmx.order.application.port.in.ListOnCallRateSegmentsUseCase;
+import com.mmx.order.application.port.in.ScopeContext;
+import com.mmx.order.application.port.out.ScopeContextProvider;
+import com.mmx.order.application.port.out.ReferenceDataMutationGuard;
 import com.mmx.order.domain.exception.OnCallBackdatedValueDateException;
+import com.mmx.order.domain.model.LegalEntityCode;
+import com.mmx.order.domain.model.Role;
 import com.mmx.order.domain.exception.OnCallPendingExistsException;
 import com.mmx.order.domain.model.NoticePeriod;
 import com.mmx.order.domain.model.OnCallCurveKey;
@@ -40,6 +45,9 @@ class OnCallRateTraderControllerTest {
     @Mock
     ListOnCallRateSegmentsUseCase listOnCallRateSegmentsUseCase;
 
+    @Mock
+    ScopeContextProvider scopeContextProvider;
+
     org.springframework.test.web.servlet.MockMvc mockMvc;
 
     @BeforeEach
@@ -50,13 +58,17 @@ class OnCallRateTraderControllerTest {
                                         addOnCallRateUseCase,
                                         cancelOnCallRateUseCase,
                                         listOnCallRateSegmentsUseCase,
-                                        new OnCallRateRestMapper()))
+                                        new OnCallRateRestMapper(),
+                                        scopeContextProvider,
+                                        new ReferenceDataMutationGuard()))
                         .setControllerAdvice(new GlobalExceptionHandler())
                         .build();
     }
 
     @Test
     void addOnCallRate_returns201() throws Exception {
+        when(scopeContextProvider.requireActiveScope())
+                .thenReturn(new ScopeContext(new LegalEntityCode("LOC"), Role.TRADER));
         UUID id = UUID.randomUUID();
         OnCallRateSegment segment =
                 OnCallRateSegment.createPending(
@@ -68,7 +80,7 @@ class OnCallRateTraderControllerTest {
 
         mockMvc.perform(
                         post("/api/v1/settings/institutions/HSBC-01/oncall-rates")
-                                .header("X-Trader-Id", "trader-a")
+                                .header("X-User-Id", "trader-a")
                                 .contentType("application/json")
                                 .content(
                                         """
@@ -86,12 +98,14 @@ class OnCallRateTraderControllerTest {
 
     @Test
     void addOnCallRate_backdated_returns400() throws Exception {
+        when(scopeContextProvider.requireActiveScope())
+                .thenReturn(new ScopeContext(new LegalEntityCode("LOC"), Role.TRADER));
         when(addOnCallRateUseCase.add(any()))
                 .thenThrow(new OnCallBackdatedValueDateException(LocalDate.of(2026, 5, 30), LocalDate.of(2026, 5, 31)));
 
         mockMvc.perform(
                         post("/api/v1/settings/institutions/HSBC-01/oncall-rates")
-                                .header("X-Trader-Id", "trader-a")
+                                .header("X-User-Id", "trader-a")
                                 .contentType("application/json")
                                 .content(
                                         """
@@ -108,6 +122,8 @@ class OnCallRateTraderControllerTest {
 
     @Test
     void addOnCallRate_pendingExists_returns409() throws Exception {
+        when(scopeContextProvider.requireActiveScope())
+                .thenReturn(new ScopeContext(new LegalEntityCode("LOC"), Role.TRADER));
         when(addOnCallRateUseCase.add(any()))
                 .thenThrow(
                         new OnCallPendingExistsException(
@@ -115,7 +131,7 @@ class OnCallRateTraderControllerTest {
 
         mockMvc.perform(
                         post("/api/v1/settings/institutions/HSBC-01/oncall-rates")
-                                .header("X-Trader-Id", "trader-a")
+                                .header("X-User-Id", "trader-a")
                                 .contentType("application/json")
                                 .content(
                                         """
@@ -132,6 +148,8 @@ class OnCallRateTraderControllerTest {
 
     @Test
     void cancelOnCallRate_returns200() throws Exception {
+        when(scopeContextProvider.requireActiveScope())
+                .thenReturn(new ScopeContext(new LegalEntityCode("LOC"), Role.TRADER));
         UUID id = UUID.randomUUID();
         when(cancelOnCallRateUseCase.cancel(any()))
                 .thenReturn(
@@ -144,7 +162,7 @@ class OnCallRateTraderControllerTest {
 
         mockMvc.perform(
                         post("/api/v1/settings/institutions/HSBC-01/oncall-rates/" + id + "/cancel")
-                                .header("X-Trader-Id", "trader-a"))
+                                .header("X-User-Id", "trader-a"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("CANCELED"));
     }
@@ -155,7 +173,7 @@ class OnCallRateTraderControllerTest {
 
         mockMvc.perform(
                         get("/api/v1/settings/institutions/HSBC-01/oncall-rates")
-                                .header("X-Trader-Id", "trader-a"))
+                                .header("X-User-Id", "trader-a"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray());
     }

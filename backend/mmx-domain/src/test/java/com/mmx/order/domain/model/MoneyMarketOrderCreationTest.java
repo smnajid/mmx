@@ -27,6 +27,7 @@ class MoneyMarketOrderCreationTest {
         void term_subscription_with_tenor() {
             MoneyMarketOrder order = MoneyMarketOrder.create(
                     new ExternalOrderReference("PM-001"),
+                    new LegalEntityCode("LOC"),
                     OrderType.TERM,
                     OrderOperation.SUBSCRIPTION,
                     new PortfolioNumber("PF-001"),
@@ -59,6 +60,7 @@ class MoneyMarketOrderCreationTest {
         void oncall_subscription_with_notice_period() {
             MoneyMarketOrder order = MoneyMarketOrder.create(
                     new ExternalOrderReference("PM-002"),
+                    new LegalEntityCode("LOC"),
                     OrderType.ON_CALL,
                     OrderOperation.SUBSCRIPTION,
                     new PortfolioNumber("PF-001"),
@@ -80,6 +82,7 @@ class MoneyMarketOrderCreationTest {
         void oncall_increase_with_source_contract() {
             MoneyMarketOrder order = MoneyMarketOrder.create(
                     new ExternalOrderReference("PM-003"),
+                    new LegalEntityCode("LOC"),
                     OrderType.ON_CALL,
                     OrderOperation.INCREASE,
                     new PortfolioNumber("PF-001"),
@@ -107,6 +110,7 @@ class MoneyMarketOrderCreationTest {
         void term_increase_rejected() {
             assertThatThrownBy(() -> MoneyMarketOrder.create(
                     new ExternalOrderReference("PM-X"),
+                    new LegalEntityCode("LOC"),
                     OrderType.TERM, OrderOperation.INCREASE,
                     new PortfolioNumber("PF-001"), "EUR",
                     new BigDecimal("1000000.00"), VALID_VALUE_DATE,
@@ -120,6 +124,7 @@ class MoneyMarketOrderCreationTest {
         void term_decrease_rejected() {
             assertThatThrownBy(() -> MoneyMarketOrder.create(
                     new ExternalOrderReference("PM-X"),
+                    new LegalEntityCode("LOC"),
                     OrderType.TERM, OrderOperation.DECREASE,
                     new PortfolioNumber("PF-001"), "EUR",
                     new BigDecimal("1000000.00"), VALID_VALUE_DATE,
@@ -133,6 +138,7 @@ class MoneyMarketOrderCreationTest {
         void term_redemption_rejected() {
             assertThatThrownBy(() -> MoneyMarketOrder.create(
                     new ExternalOrderReference("PM-X"),
+                    new LegalEntityCode("LOC"),
                     OrderType.TERM, OrderOperation.REDEMPTION,
                     new PortfolioNumber("PF-001"), "EUR",
                     new BigDecimal("1000000.00"), VALID_VALUE_DATE,
@@ -153,6 +159,7 @@ class MoneyMarketOrderCreationTest {
         void term_without_tenor_rejected() {
             assertThatThrownBy(() -> MoneyMarketOrder.create(
                     new ExternalOrderReference("PM-X"),
+                    new LegalEntityCode("LOC"),
                     OrderType.TERM, OrderOperation.SUBSCRIPTION,
                     new PortfolioNumber("PF-001"), "EUR",
                     new BigDecimal("1000000.00"), VALID_VALUE_DATE,
@@ -167,6 +174,7 @@ class MoneyMarketOrderCreationTest {
         void term_with_notice_period_rejected() {
             assertThatThrownBy(() -> MoneyMarketOrder.create(
                     new ExternalOrderReference("PM-X"),
+                    new LegalEntityCode("LOC"),
                     OrderType.TERM, OrderOperation.SUBSCRIPTION,
                     new PortfolioNumber("PF-001"), "EUR",
                     new BigDecimal("1000000.00"), VALID_VALUE_DATE,
@@ -180,6 +188,7 @@ class MoneyMarketOrderCreationTest {
         void oncall_without_notice_period_rejected() {
             assertThatThrownBy(() -> MoneyMarketOrder.create(
                     new ExternalOrderReference("PM-X"),
+                    new LegalEntityCode("LOC"),
                     OrderType.ON_CALL, OrderOperation.SUBSCRIPTION,
                     new PortfolioNumber("PF-001"), "EUR",
                     new BigDecimal("1000000.00"), VALID_VALUE_DATE,
@@ -194,6 +203,7 @@ class MoneyMarketOrderCreationTest {
         void oncall_with_tenor_rejected() {
             assertThatThrownBy(() -> MoneyMarketOrder.create(
                     new ExternalOrderReference("PM-X"),
+                    new LegalEntityCode("LOC"),
                     OrderType.ON_CALL, OrderOperation.SUBSCRIPTION,
                     new PortfolioNumber("PF-001"), "EUR",
                     new BigDecimal("1000000.00"), VALID_VALUE_DATE,
@@ -212,6 +222,7 @@ class MoneyMarketOrderCreationTest {
         void increase_without_source_contract_rejected() {
             assertThatThrownBy(() -> MoneyMarketOrder.create(
                     new ExternalOrderReference("PM-X"),
+                    new LegalEntityCode("LOC"),
                     OrderType.ON_CALL, OrderOperation.INCREASE,
                     new PortfolioNumber("PF-001"), "EUR",
                     new BigDecimal("500000.00"), VALID_VALUE_DATE,
@@ -233,6 +244,7 @@ class MoneyMarketOrderCreationTest {
         void zero_amount_rejected() {
             assertThatThrownBy(() -> MoneyMarketOrder.create(
                     new ExternalOrderReference("PM-X"),
+                    new LegalEntityCode("LOC"),
                     OrderType.TERM, OrderOperation.SUBSCRIPTION,
                     new PortfolioNumber("PF-001"), "EUR",
                     BigDecimal.ZERO, VALID_VALUE_DATE,
@@ -247,6 +259,7 @@ class MoneyMarketOrderCreationTest {
         void negative_amount_rejected() {
             assertThatThrownBy(() -> MoneyMarketOrder.create(
                     new ExternalOrderReference("PM-X"),
+                    new LegalEntityCode("LOC"),
                     OrderType.TERM, OrderOperation.SUBSCRIPTION,
                     new PortfolioNumber("PF-001"), "EUR",
                     new BigDecimal("-1.00"), VALID_VALUE_DATE,
@@ -260,6 +273,7 @@ class MoneyMarketOrderCreationTest {
         void negative_minimum_rate_rejected() {
             assertThatThrownBy(() -> MoneyMarketOrder.create(
                     new ExternalOrderReference("PM-X"),
+                    new LegalEntityCode("LOC"),
                     OrderType.TERM, OrderOperation.SUBSCRIPTION,
                     new PortfolioNumber("PF-001"), "EUR",
                     new BigDecimal("1000000.00"), VALID_VALUE_DATE,
@@ -274,6 +288,7 @@ class MoneyMarketOrderCreationTest {
         void zero_minimum_rate_is_valid() {
             MoneyMarketOrder order = MoneyMarketOrder.create(
                     new ExternalOrderReference("PM-X"),
+                    new LegalEntityCode("LOC"),
                     OrderType.TERM, OrderOperation.SUBSCRIPTION,
                     new PortfolioNumber("PF-001"), "EUR",
                     new BigDecimal("1000000.00"), VALID_VALUE_DATE,
@@ -288,6 +303,7 @@ class MoneyMarketOrderCreationTest {
         void null_minimum_rate_allowed() {
             MoneyMarketOrder order = MoneyMarketOrder.create(
                     new ExternalOrderReference("PM-X"),
+                    new LegalEntityCode("LOC"),
                     OrderType.TERM, OrderOperation.SUBSCRIPTION,
                     new PortfolioNumber("PF-001"), "EUR",
                     new BigDecimal("1000000.00"), VALID_VALUE_DATE,
@@ -302,6 +318,7 @@ class MoneyMarketOrderCreationTest {
         void bigdecimal_precision_preserved() {
             MoneyMarketOrder order = MoneyMarketOrder.create(
                     new ExternalOrderReference("PM-X"),
+                    new LegalEntityCode("LOC"),
                     OrderType.TERM, OrderOperation.SUBSCRIPTION,
                     new PortfolioNumber("PF-001"), "EUR",
                     new BigDecimal("5000000.00"), VALID_VALUE_DATE,
@@ -322,6 +339,7 @@ class MoneyMarketOrderCreationTest {
         void value_date_today_rejected() {
             assertThatThrownBy(() -> MoneyMarketOrder.create(
                     new ExternalOrderReference("PM-X"),
+                    new LegalEntityCode("LOC"),
                     OrderType.TERM, OrderOperation.SUBSCRIPTION,
                     new PortfolioNumber("PF-001"), "EUR",
                     new BigDecimal("1000000.00"), TODAY,
@@ -336,6 +354,7 @@ class MoneyMarketOrderCreationTest {
         void value_date_tomorrow_rejected() {
             assertThatThrownBy(() -> MoneyMarketOrder.create(
                     new ExternalOrderReference("PM-X"),
+                    new LegalEntityCode("LOC"),
                     OrderType.TERM, OrderOperation.SUBSCRIPTION,
                     new PortfolioNumber("PF-001"), "EUR",
                     new BigDecimal("1000000.00"), TODAY.plusDays(1),
@@ -349,6 +368,7 @@ class MoneyMarketOrderCreationTest {
         void value_date_today_plus_two_is_valid() {
             MoneyMarketOrder order = MoneyMarketOrder.create(
                     new ExternalOrderReference("PM-X"),
+                    new LegalEntityCode("LOC"),
                     OrderType.TERM, OrderOperation.SUBSCRIPTION,
                     new PortfolioNumber("PF-001"), "EUR",
                     new BigDecimal("1000000.00"), TODAY.plusDays(2),

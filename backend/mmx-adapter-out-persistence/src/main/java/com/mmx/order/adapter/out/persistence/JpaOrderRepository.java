@@ -50,9 +50,20 @@ public class JpaOrderRepository implements OrderRepository {
     }
 
     @Override
-    public List<MoneyMarketOrder> findByStatusAndOrderType(OrderStatus status, OrderType orderType) {
+    public Optional<MoneyMarketOrder> findByLegalEntityAndExternalReference(
+            LegalEntityCode legalEntityCode, ExternalOrderReference reference) {
         return springDataRepository
-                .findByStatusAndOrderType(status.name(), orderType.name())
+                .findByLegalEntityCodeAndExternalOrderReference(
+                        legalEntityCode.value(), reference.value())
+                .map(mapper::toDomain);
+    }
+
+    @Override
+    public List<MoneyMarketOrder> findByStatusAndOrderType(
+            LegalEntityCode legalEntityCode, OrderStatus status, OrderType orderType) {
+        return springDataRepository
+                .findByLegalEntityCodeAndStatusAndOrderType(
+                        legalEntityCode.value(), status.name(), orderType.name())
                 .stream()
                 .map(mapper::toDomain)
                 .toList();
@@ -60,6 +71,7 @@ public class JpaOrderRepository implements OrderRepository {
 
     @Override
     public OrderPage findReceivedPageByOrderType(
+            LegalEntityCode legalEntityCode,
             OrderType orderType,
             Optional<LocalDate> valueDateFrom,
             Optional<LocalDate> valueDateTo,
@@ -77,12 +89,19 @@ public class JpaOrderRepository implements OrderRepository {
         var pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "valueDate"));
         String status = OrderStatus.RECEIVED.name();
         String type = orderType.name();
+        String entityCode = legalEntityCode.value();
         Page<OrderEntity> slice =
                 valueDateFrom.isPresent()
-                        ? springDataRepository.findByStatusAndOrderTypeAndValueDateBetweenOrderByValueDateAsc(
-                                status, type, valueDateFrom.get(), valueDateTo.get(), pageable)
-                        : springDataRepository.findByStatusAndOrderTypeOrderByValueDateAsc(
-                                status, type, pageable);
+                        ? springDataRepository
+                                .findByLegalEntityCodeAndStatusAndOrderTypeAndValueDateBetweenOrderByValueDateAsc(
+                                        entityCode,
+                                        status,
+                                        type,
+                                        valueDateFrom.get(),
+                                        valueDateTo.get(),
+                                        pageable)
+                        : springDataRepository.findByLegalEntityCodeAndStatusAndOrderTypeOrderByValueDateAsc(
+                                entityCode, status, type, pageable);
         return new OrderPage(
                 slice.getContent().stream().map(mapper::toDomain).toList(),
                 slice.getTotalElements(),
@@ -91,9 +110,11 @@ public class JpaOrderRepository implements OrderRepository {
     }
 
     @Override
-    public List<MoneyMarketOrder> findByAssignedTraderIdAndStatus(TraderId traderId, OrderStatus status) {
+    public List<MoneyMarketOrder> findByAssignedTraderIdAndStatus(
+            LegalEntityCode legalEntityCode, TraderId traderId, OrderStatus status) {
         return springDataRepository
-                .findByAssignedTraderIdAndStatus(traderId.value(), status.name())
+                .findByLegalEntityCodeAndAssignedTraderIdAndStatus(
+                        legalEntityCode.value(), traderId.value(), status.name())
                 .stream()
                 .map(mapper::toDomain)
                 .toList();
@@ -168,5 +189,4 @@ public class JpaOrderRepository implements OrderRepository {
                 entity.getValueDate(),
                 entity.getAmount());
     }
-
 }

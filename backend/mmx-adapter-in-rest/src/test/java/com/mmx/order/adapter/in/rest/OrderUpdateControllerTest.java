@@ -7,11 +7,13 @@ import com.mmx.order.application.port.in.CancelOrderUseCase;
 import com.mmx.order.application.port.in.DeskOrderQueries;
 import com.mmx.order.application.port.in.ExecuteOrderUseCase;
 import com.mmx.order.application.port.in.RejectOrderUseCase;
+import com.mmx.order.application.port.in.ResolveUserScopeUseCase;
 import com.mmx.order.application.port.in.UnassignOrderUseCase;
 import com.mmx.order.application.port.in.UpdateAssignedOrderUseCase;
 import com.mmx.order.domain.exception.InvalidOrderException;
 import com.mmx.order.domain.exception.InvalidStatusTransitionException;
 import com.mmx.order.domain.exception.UnauthorizedTraderException;
+import com.mmx.order.domain.model.LegalEntityCode;
 import com.mmx.order.domain.model.ExternalOrderReference;
 import com.mmx.order.domain.model.MoneyMarketOrder;
 import com.mmx.order.domain.model.OrderOperation;
@@ -48,6 +50,9 @@ class OrderUpdateControllerTest {
     DeskOrderQueries deskOrderQueries;
 
     @Mock
+    ResolveUserScopeUseCase resolveUserScopeUseCase;
+
+    @Mock
     AssignOrderUseCase assignOrderUseCase;
 
     @Mock
@@ -69,11 +74,13 @@ class OrderUpdateControllerTest {
 
     @BeforeEach
     void setUp() {
+        OrderControllerTestSupport.stubDefaultScope(resolveUserScopeUseCase);
         OrderRestMapper mapper = new OrderRestMapper();
         mockMvc =
                 standaloneSetup(
                                 new OrderManagementController(
                                         deskOrderQueries,
+                                        resolveUserScopeUseCase,
                                         assignOrderUseCase,
                                         unassignOrderUseCase,
                                         executeOrderUseCase,
@@ -93,7 +100,7 @@ class OrderUpdateControllerTest {
 
         mockMvc.perform(
                         put("/api/v1/orders/" + order.getId())
-                                .header("X-Trader-Id", "trader-a")
+                                .header("X-User-Id", "trader-a")
                                 .contentType(APPLICATION_JSON)
                                 .content("{\"amount\":6000000}"))
                 .andExpect(status().isOk())
@@ -111,7 +118,7 @@ class OrderUpdateControllerTest {
 
         mockMvc.perform(
                         put("/api/v1/orders/" + id)
-                                .header("X-Trader-Id", "trader-a")
+                                .header("X-User-Id", "trader-a")
                                 .contentType(APPLICATION_JSON)
                                 .content("{}"))
                 .andExpect(status().isBadRequest())
@@ -126,7 +133,7 @@ class OrderUpdateControllerTest {
 
         mockMvc.perform(
                         put("/api/v1/orders/" + id)
-                                .header("X-Trader-Id", "intruder")
+                                .header("X-User-Id", "intruder")
                                 .contentType(APPLICATION_JSON)
                                 .content("{\"amount\":6000000}"))
                 .andExpect(status().isForbidden())
@@ -141,7 +148,7 @@ class OrderUpdateControllerTest {
 
         mockMvc.perform(
                         put("/api/v1/orders/" + id)
-                                .header("X-Trader-Id", "trader-a")
+                                .header("X-User-Id", "trader-a")
                                 .contentType(APPLICATION_JSON)
                                 .content("{\"amount\":6000000}"))
                 .andExpect(status().isConflict())
@@ -156,7 +163,7 @@ class OrderUpdateControllerTest {
 
         mockMvc.perform(
                         put("/api/v1/orders/" + id)
-                                .header("X-Trader-Id", "trader-a")
+                                .header("X-User-Id", "trader-a")
                                 .contentType(APPLICATION_JSON)
                                 .content("{\"valueDate\":\"2026-05-02\"}"))
                 .andExpect(status().isBadRequest())
@@ -167,6 +174,7 @@ class OrderUpdateControllerTest {
         MoneyMarketOrder order =
                 MoneyMarketOrder.create(
                         new ExternalOrderReference("REF-UPD-" + UUID.randomUUID()),
+                        new LegalEntityCode("LOC"),
                         OrderType.TERM,
                         OrderOperation.SUBSCRIPTION,
                         new PortfolioNumber("PF-1"),

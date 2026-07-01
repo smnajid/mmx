@@ -7,6 +7,7 @@ import {
 
 describe('mapOrderCreationPayloadToReceiveRequest', () => {
   const termPayload: OrderCreationPayload = {
+    legalEntityCode: 'LOC',
     portfolioNumber: 'PF-001',
     orderType: 'TERM',
     currency: 'EUR',
@@ -26,6 +27,7 @@ describe('mapOrderCreationPayloadToReceiveRequest', () => {
     );
 
     expect(request).toEqual({
+      legalEntityCode: 'LOC',
       externalOrderReference: 'PLAYGROUND-REF-001',
       orderType: 'TERM',
       orderOperation: 'SUBSCRIPTION',
@@ -63,6 +65,7 @@ describe('mapOrderCreationPayloadToReceiveRequest', () => {
 
   it('omits optional fields when absent', () => {
     const minimal: OrderCreationPayload = {
+      legalEntityCode: 'PAR',
       portfolioNumber: 'PF-001',
       orderType: 'ON_CALL',
       currency: 'EUR',

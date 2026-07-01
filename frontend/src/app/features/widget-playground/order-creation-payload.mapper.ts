@@ -8,6 +8,7 @@ export function mapOrderCreationPayloadToReceiveRequest(
   externalOrderReference: string,
 ): ReceiveOrderRequest {
   const request: ReceiveOrderRequest = {
+    legalEntityCode: payload.legalEntityCode,
     externalOrderReference,
     orderType: payload.orderType as OrderType,
     orderOperation: payload.operation as OrderOperation,

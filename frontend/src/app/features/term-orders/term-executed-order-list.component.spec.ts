@@ -67,12 +67,12 @@ describe('TermExecutedOrderListComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('BankCo International');
   });
 
-  it('sends X-Trader-Id header', () => {
+  it('sends X-User-Id header', () => {
     fixture.detectChanges();
     const req = httpMock.expectOne((r) =>
       r.method === 'GET' && r.url.startsWith('/api/v1/orders/term/executed'),
     );
-    expect(req.request.headers.get('X-Trader-Id')).toBe('trader-te');
+    expect(req.request.headers.get('X-User-Id')).toBe('trader-te');
     req.flush({ content: [], totalElements: 0, page: 0, size: 100 });
   });
 

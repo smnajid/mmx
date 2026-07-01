@@ -8,10 +8,12 @@ import com.mmx.order.application.port.in.CancelOrderUseCase;
 import com.mmx.order.application.port.in.DeskOrderQueries;
 import com.mmx.order.application.port.in.ExecuteOrderUseCase;
 import com.mmx.order.application.port.in.RejectOrderUseCase;
+import com.mmx.order.application.port.in.ResolveUserScopeUseCase;
 import com.mmx.order.application.port.in.UnassignOrderUseCase;
 import com.mmx.order.application.port.in.UpdateAssignedOrderUseCase;
 import com.mmx.order.domain.exception.InvalidStatusTransitionException;
 import com.mmx.order.domain.exception.UnauthorizedTraderException;
+import com.mmx.order.domain.model.LegalEntityCode;
 import com.mmx.order.domain.model.ExternalOrderReference;
 import com.mmx.order.domain.model.MoneyMarketOrder;
 import com.mmx.order.domain.model.OrderOperation;
@@ -50,6 +52,9 @@ class OrderLifecycleControllerTest {
     DeskOrderQueries deskOrderQueries;
 
     @Mock
+    ResolveUserScopeUseCase resolveUserScopeUseCase;
+
+    @Mock
     AssignOrderUseCase assignOrderUseCase;
 
     @Mock
@@ -71,6 +76,7 @@ class OrderLifecycleControllerTest {
 
     @BeforeEach
     void setUp() {
+        OrderControllerTestSupport.stubDefaultScope(resolveUserScopeUseCase);
         OrderRestMapper mapper = new OrderRestMapper();
         LocalValidatorFactoryBean validator = new LocalValidatorFactoryBean();
         validator.afterPropertiesSet();
@@ -78,6 +84,7 @@ class OrderLifecycleControllerTest {
                 standaloneSetup(
                                 new OrderManagementController(
                                         deskOrderQueries,
+                                        resolveUserScopeUseCase,
                                         assignOrderUseCase,
                                         unassignOrderUseCase,
                                         executeOrderUseCase,
@@ -96,7 +103,7 @@ class OrderLifecycleControllerTest {
         order.cancel(NOW);
         when(cancelOrderUseCase.cancel(any(CancelOrderCommand.class))).thenReturn(order);
 
-        mockMvc.perform(post("/api/v1/orders/" + order.getId() + "/cancel").header("X-Trader-Id", "trader-a"))
+        mockMvc.perform(post("/api/v1/orders/" + order.getId() + "/cancel").header("X-User-Id", "trader-a"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("CANCELLED"))
                 .andExpect(jsonPath("$.orderId").value(order.getId().toString()));
@@ -110,7 +117,7 @@ class OrderLifecycleControllerTest {
 
         mockMvc.perform(
                         post("/api/v1/orders/" + order.getId() + "/reject")
-                                .header("X-Trader-Id", "trader-a")
+                                .header("X-User-Id", "trader-a")
                                 .contentType(APPLICATION_JSON)
                                 .content("{\"reason\":\"Below desk minimum\"}"))
                 .andExpect(status().isOk())
@@ -124,7 +131,7 @@ class OrderLifecycleControllerTest {
         when(cancelOrderUseCase.cancel(any(CancelOrderCommand.class)))
                 .thenThrow(new InvalidStatusTransitionException(OrderStatus.ASSIGNED, OrderStatus.CANCELLED));
 
-        mockMvc.perform(post("/api/v1/orders/" + id + "/cancel").header("X-Trader-Id", "trader-a"))
+        mockMvc.perform(post("/api/v1/orders/" + id + "/cancel").header("X-User-Id", "trader-a"))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.error").value("INVALID_STATUS_TRANSITION"));
     }
@@ -137,7 +144,7 @@ class OrderLifecycleControllerTest {
 
         mockMvc.perform(
                         post("/api/v1/orders/" + id + "/reject")
-                                .header("X-Trader-Id", "trader-a")
+                                .header("X-User-Id", "trader-a")
                                 .contentType(APPLICATION_JSON)
                                 .content("{\"reason\":\"No capacity\"}"))
                 .andExpect(status().isConflict())
@@ -153,7 +160,7 @@ class OrderLifecycleControllerTest {
 
         mockMvc.perform(
                         post("/api/v1/orders/" + id + "/reject")
-                                .header("X-Trader-Id", "intruder")
+                                .header("X-User-Id", "intruder")
                                 .contentType(APPLICATION_JSON)
                                 .content("{\"reason\":\"No capacity\"}"))
                 .andExpect(status().isForbidden())
@@ -166,7 +173,7 @@ class OrderLifecycleControllerTest {
 
         mockMvc.perform(
                         post("/api/v1/orders/" + id + "/reject")
-                                .header("X-Trader-Id", "trader-a")
+                                .header("X-User-Id", "trader-a")
                                 .contentType(APPLICATION_JSON)
                                 .content("{}"))
                 .andExpect(status().isBadRequest())
@@ -176,6 +183,7 @@ class OrderLifecycleControllerTest {
     private static MoneyMarketOrder receivedOrder() {
         return MoneyMarketOrder.create(
                 new ExternalOrderReference("REF-LIFE-" + UUID.randomUUID()),
+                new LegalEntityCode("LOC"),
                 OrderType.TERM,
                 OrderOperation.SUBSCRIPTION,
                 new PortfolioNumber("PF-1"),

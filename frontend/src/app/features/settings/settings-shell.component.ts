@@ -1,5 +1,6 @@
 import { Component, inject } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { TraderContextService } from '../../core/trader/trader-context.service';
 
 @Component({
   selector: 'app-settings-shell',
@@ -13,6 +14,15 @@ import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/rou
       <a routerLink="/settings/institutions" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: false }">
         Institutions
       </a>
+      @if (trader.isTrader()) {
+        <a
+          routerLink="/settings/delegated-grants"
+          routerLinkActive="active"
+          [routerLinkActiveOptions]="{ exact: false }"
+        >
+          Delegated grants
+        </a>
+      }
       <a routerLink="/settings/term-rates" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: false }">
         Term rates
       </a>
@@ -59,4 +69,5 @@ import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/rou
 })
 export class SettingsShellComponent {
   readonly router = inject(Router);
+  protected readonly trader = inject(TraderContextService);
 }

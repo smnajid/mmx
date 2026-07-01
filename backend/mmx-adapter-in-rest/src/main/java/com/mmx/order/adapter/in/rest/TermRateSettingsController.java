@@ -7,7 +7,10 @@ import com.mmx.order.adapter.in.rest.generated.termrate.model.TermRateUploadResp
 import com.mmx.order.adapter.in.rest.mapper.TermRateSettingsRestMapper;
 import com.mmx.order.application.port.in.ListTermRateTradingDaysUseCase;
 import com.mmx.order.application.port.in.ListTermRatesForDayUseCase;
+import com.mmx.order.application.port.in.ScopeContext;
 import com.mmx.order.application.port.in.UploadTermRatesUseCase;
+import com.mmx.order.application.port.out.ScopeContextProvider;
+import com.mmx.order.application.port.out.ReferenceDataMutationGuard;
 import com.mmx.order.application.termrate.SampleTermRateCsvGenerator;
 import com.mmx.order.application.termrate.TermRateCsvStructuralException;
 import org.springframework.core.io.ByteArrayResource;
@@ -30,22 +33,30 @@ public class TermRateSettingsController implements TermRateSettingsApi {
     private final ListTermRateTradingDaysUseCase listTermRateTradingDaysUseCase;
     private final SampleTermRateCsvGenerator sampleTermRateCsvGenerator;
     private final TermRateSettingsRestMapper mapper;
+    private final ScopeContextProvider scopeContextProvider;
+    private final ReferenceDataMutationGuard mutationGuard;
 
     public TermRateSettingsController(
             UploadTermRatesUseCase uploadTermRatesUseCase,
             ListTermRatesForDayUseCase listTermRatesForDayUseCase,
             ListTermRateTradingDaysUseCase listTermRateTradingDaysUseCase,
             SampleTermRateCsvGenerator sampleTermRateCsvGenerator,
-            TermRateSettingsRestMapper mapper) {
+            TermRateSettingsRestMapper mapper,
+            ScopeContextProvider scopeContextProvider,
+            ReferenceDataMutationGuard mutationGuard) {
         this.uploadTermRatesUseCase = uploadTermRatesUseCase;
         this.listTermRatesForDayUseCase = listTermRatesForDayUseCase;
         this.listTermRateTradingDaysUseCase = listTermRateTradingDaysUseCase;
         this.sampleTermRateCsvGenerator = sampleTermRateCsvGenerator;
         this.mapper = mapper;
+        this.scopeContextProvider = scopeContextProvider;
+        this.mutationGuard = mutationGuard;
     }
 
     @Override
     public ResponseEntity<TermRateUploadResponse> uploadTermRates(String xTraderId, MultipartFile file) {
+        ScopeContext scope = scopeContextProvider.requireActiveScope();
+        mutationGuard.ensureTrader(scope);
         try {
             UploadTermRatesUseCase.UploadResult result =
                     uploadTermRatesUseCase.upload(

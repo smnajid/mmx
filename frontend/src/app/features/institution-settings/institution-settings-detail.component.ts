@@ -1,16 +1,21 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { Observable } from 'rxjs';
+import {
+  DelegatedGrant,
+  DelegatedGrantsApiService,
+} from '../../core/api/delegated-grants-api.service';
 import {
   Institution,
   InstitutionSettingsApiService,
 } from '../../core/api/institution-settings-api.service';
 import { TraderContextService } from '../../core/trader/trader-context.service';
+import { WorkspaceToggleFieldsetComponent } from '../../shared/workspace-toggle-fieldset.component';
 
 @Component({
   selector: 'app-institution-settings-detail',
   standalone: true,
-  imports: [RouterLink],
+  imports: [RouterLink, WorkspaceToggleFieldsetComponent],
   template: `
     <section class="settings-panel">
       <a routerLink="/settings/institutions" class="settings-back">← Back to list</a>
@@ -35,19 +40,47 @@ import { TraderContextService } from '../../core/trader/trader-context.service';
               {{ i.active ? 'Active' : 'Inactive' }}
             </span>
           </dd>
+          @if (i.hubInstitutionCode) {
+            <dt>Hub institution</dt>
+            <dd class="mono">{{ i.hubInstitutionCode }} via {{ i.hubLegalEntityCode }}</dd>
+          }
         </dl>
+
+        @if (trader.isClientRepresentative() && selectedGrant(); as grant) {
+          <section class="settings-card" data-testid="grant-intake-panel">
+            <h2 class="settings-card__title">Granted intake · {{ grant.currency }}</h2>
+            <p class="settings-hint">
+              Tenors and notice periods available for intake are bounded by your active delegation
+              grant.
+            </p>
+            <app-workspace-toggle-fieldset
+              [grantBounded]="true"
+              [readOnly]="true"
+              [grantTenors]="grant.enabledTenors"
+              [grantNotices]="grant.enabledNoticePeriods"
+              [selectedTenors]="grant.enabledTenors"
+              [selectedNotices]="grant.enabledNoticePeriods"
+            />
+          </section>
+        }
 
         @if (error()) {
           <p class="settings-error" role="alert">{{ error() }}</p>
         }
 
-        <div class="actions">
-          @if (i.active) {
-            <button type="button" class="warn" (click)="deactivate()" [disabled]="acting()">Deactivate</button>
-          } @else {
-            <button type="button" class="activate" (click)="activate()" [disabled]="acting()">Reactivate</button>
-          }
-        </div>
+        @if (trader.isTrader()) {
+          <div class="actions">
+            @if (i.active) {
+              <button type="button" class="warn" (click)="deactivate()" [disabled]="acting()">
+                Deactivate
+              </button>
+            } @else {
+              <button type="button" class="activate" (click)="activate()" [disabled]="acting()">
+                Reactivate
+              </button>
+            }
+          </div>
+        }
       }
     </section>
   `,
@@ -107,21 +140,39 @@ import { TraderContextService } from '../../core/trader/trader-context.service';
   `,
 })
 export class InstitutionSettingsDetailComponent implements OnInit {
+  protected readonly trader = inject(TraderContextService);
+
   private readonly api = inject(InstitutionSettingsApiService);
-  private readonly trader = inject(TraderContextService);
+  private readonly grantsApi = inject(DelegatedGrantsApiService);
   private readonly route = inject(ActivatedRoute);
 
   readonly institution = signal<Institution | null>(null);
+  readonly clientGrants = signal<DelegatedGrant[]>([]);
   readonly loading = signal(true);
   readonly acting = signal(false);
   readonly error = signal<string | null>(null);
 
+  readonly selectedGrant = computed(() => {
+    const inst = this.institution();
+    if (!inst?.hubInstitutionCode) {
+      return null;
+    }
+    return (
+      this.clientGrants().find(
+        (g) => g.active && g.hubInstitutionCode === inst.hubInstitutionCode
+      ) ?? null
+    );
+  });
+
   ngOnInit(): void {
     const code = this.route.snapshot.paramMap.get('institutionCode') ?? '';
-    this.api.get(this.trader.traderId(), code).subscribe({
+    this.api.get(this.trader.userId(), code).subscribe({
       next: (inst) => {
         this.institution.set(inst);
         this.loading.set(false);
+        if (this.trader.isClientRepresentative() && inst.hubInstitutionCode) {
+          this.loadClientGrants();
+        }
       },
       error: (err) => {
         this.error.set(err?.message ?? 'Failed to load institution');
@@ -135,7 +186,7 @@ export class InstitutionSettingsDetailComponent implements OnInit {
     if (!i) {
       return;
     }
-    this.runToggle(() => this.api.deactivate(this.trader.traderId(), i.institutionCode));
+    this.runToggle(() => this.api.deactivate(this.trader.userId(), i.institutionCode));
   }
 
   activate(): void {
@@ -143,7 +194,14 @@ export class InstitutionSettingsDetailComponent implements OnInit {
     if (!i) {
       return;
     }
-    this.runToggle(() => this.api.activate(this.trader.traderId(), i.institutionCode));
+    this.runToggle(() => this.api.activate(this.trader.userId(), i.institutionCode));
+  }
+
+  private loadClientGrants(): void {
+    this.grantsApi.listClientGrants(this.trader.userId()).subscribe({
+      next: (grants) => this.clientGrants.set(grants),
+      error: () => this.clientGrants.set([]),
+    });
   }
 
   private runToggle(call: () => Observable<Institution>): void {

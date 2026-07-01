@@ -8,12 +8,14 @@ import com.mmx.order.application.port.in.DeskOrderQueries;
 import com.mmx.order.application.port.in.ExecuteOrderUseCase;
 import com.mmx.order.application.port.in.OrderPage;
 import com.mmx.order.application.port.in.RejectOrderUseCase;
+import com.mmx.order.application.port.in.ResolveUserScopeUseCase;
 import com.mmx.order.application.port.in.UnassignOrderUseCase;
 import com.mmx.order.application.port.in.UpdateAssignedOrderUseCase;
 import com.mmx.order.domain.exception.InvalidStatusTransitionException;
 import com.mmx.order.domain.exception.UnauthorizedTraderException;
 import com.mmx.order.domain.model.ContractNumber;
 import com.mmx.order.domain.model.DealingReference;
+import com.mmx.order.domain.model.LegalEntityCode;
 import com.mmx.order.domain.model.ExternalOrderReference;
 import com.mmx.order.domain.model.HandoffStatus;
 import com.mmx.order.domain.model.MoneyMarketOrder;
@@ -57,6 +59,9 @@ class OrderExecutionControllerTest {
     DeskOrderQueries deskOrderQueries;
 
     @Mock
+    ResolveUserScopeUseCase resolveUserScopeUseCase;
+
+    @Mock
     AssignOrderUseCase assignOrderUseCase;
 
     @Mock
@@ -78,11 +83,13 @@ class OrderExecutionControllerTest {
 
     @BeforeEach
     void setUp() {
+        OrderControllerTestSupport.stubDefaultScope(resolveUserScopeUseCase);
         OrderRestMapper mapper = new OrderRestMapper();
         mockMvc =
                 standaloneSetup(
                                 new OrderManagementController(
                                         deskOrderQueries,
+                                        resolveUserScopeUseCase,
                                         assignOrderUseCase,
                                         unassignOrderUseCase,
                                         executeOrderUseCase,
@@ -101,7 +108,7 @@ class OrderExecutionControllerTest {
 
         mockMvc.perform(
                         post("/api/v1/orders/" + order.getId() + "/execute")
-                                .header("X-Trader-Id", "trader-a")
+                                .header("X-User-Id", "trader-a")
                                 .contentType(APPLICATION_JSON)
                                 .content("{\"executedRate\":3.55}"))
                 .andExpect(status().isOk())
@@ -120,7 +127,7 @@ class OrderExecutionControllerTest {
         UUID id = UUID.randomUUID();
         mockMvc.perform(
                         post("/api/v1/orders/" + id + "/execute")
-                                .header("X-Trader-Id", "trader-a")
+                                .header("X-User-Id", "trader-a")
                                 .contentType(APPLICATION_JSON)
                                 .content("{}"))
                 .andExpect(status().isBadRequest())
@@ -135,7 +142,7 @@ class OrderExecutionControllerTest {
 
         mockMvc.perform(
                         post("/api/v1/orders/" + id + "/execute")
-                                .header("X-Trader-Id", "intruder")
+                                .header("X-User-Id", "intruder")
                                 .contentType(APPLICATION_JSON)
                                 .content("{\"executedRate\":3.5}"))
                 .andExpect(status().isForbidden())
@@ -150,7 +157,7 @@ class OrderExecutionControllerTest {
 
         mockMvc.perform(
                         post("/api/v1/orders/" + id + "/execute")
-                                .header("X-Trader-Id", "trader-a")
+                                .header("X-User-Id", "trader-a")
                                 .contentType(APPLICATION_JSON)
                                 .content("{\"executedRate\":3.5}"))
                 .andExpect(status().isConflict())
@@ -159,46 +166,47 @@ class OrderExecutionControllerTest {
 
     @Test
     void getExecutedTerm_delegatesToDeskOrderQueries() throws Exception {
-        when(deskOrderQueries.listExecutedTermOrders(eq(0), eq(20)))
+        when(deskOrderQueries.listExecutedTermOrders(eq(OrderControllerTestSupport.DEFAULT_SCOPE), eq(0), eq(20)))
                 .thenReturn(new OrderPage(List.of(), 0, 0, 20));
 
-        mockMvc.perform(get("/api/v1/orders/term/executed").header("X-Trader-Id", "alice"))
+        mockMvc.perform(get("/api/v1/orders/term/executed").header("X-User-Id", "alice"))
                 .andExpect(status().isOk());
 
-        verify(deskOrderQueries).listExecutedTermOrders(0, 20);
+        verify(deskOrderQueries).listExecutedTermOrders(OrderControllerTestSupport.DEFAULT_SCOPE, 0, 20);
     }
 
     @Test
     void getExecutedTerm_includesHandoffStatusOnSummaries() throws Exception {
         MoneyMarketOrder order = assignedOrderExecuted();
         assertThat(order.getHandoffStatus()).isEqualTo(HandoffStatus.PENDING);
-        when(deskOrderQueries.listExecutedTermOrders(eq(0), eq(20)))
+        when(deskOrderQueries.listExecutedTermOrders(eq(OrderControllerTestSupport.DEFAULT_SCOPE), eq(0), eq(20)))
                 .thenReturn(new OrderPage(List.of(order), 1, 0, 20));
 
-        mockMvc.perform(get("/api/v1/orders/term/executed").header("X-Trader-Id", "alice"))
+        mockMvc.perform(get("/api/v1/orders/term/executed").header("X-User-Id", "alice"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].handoffStatus").value("PENDING"));
     }
 
     @Test
     void getExecutedOnCall_delegatesToDeskOrderQueries() throws Exception {
-        when(deskOrderQueries.listExecutedOnCallOrders(eq(0), eq(25)))
+        when(deskOrderQueries.listExecutedOnCallOrders(eq(OrderControllerTestSupport.DEFAULT_SCOPE), eq(0), eq(25)))
                 .thenReturn(new OrderPage(List.of(), 0, 0, 25));
 
         mockMvc.perform(
                         get("/api/v1/orders/oncall/executed")
-                                .header("X-Trader-Id", "bob")
+                                .header("X-User-Id", "bob")
                                 .queryParam("page", "0")
                                 .queryParam("size", "25"))
                 .andExpect(status().isOk());
 
-        verify(deskOrderQueries).listExecutedOnCallOrders(0, 25);
+        verify(deskOrderQueries).listExecutedOnCallOrders(OrderControllerTestSupport.DEFAULT_SCOPE, 0, 25);
     }
 
     private static MoneyMarketOrder assignedOrderExecuted() {
         MoneyMarketOrder order =
                 MoneyMarketOrder.create(
                         new ExternalOrderReference("REF-EXEC-" + UUID.randomUUID()),
+                        new LegalEntityCode("LOC"),
                         OrderType.TERM,
                         OrderOperation.SUBSCRIPTION,
                         new PortfolioNumber("PF-1"),

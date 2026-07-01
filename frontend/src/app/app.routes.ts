@@ -1,10 +1,12 @@
 import { isDevMode } from '@angular/core';
 import { Routes } from '@angular/router';
+import { traderDeskGuard } from './core/trader/trader-desk.guard';
 
 export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'oncall/received' },
   {
     path: 'term',
+    canActivate: [traderDeskGuard],
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'received' },
       {
@@ -31,6 +33,7 @@ export const routes: Routes = [
   },
   {
     path: 'oncall',
+    canActivate: [traderDeskGuard],
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'received' },
       {

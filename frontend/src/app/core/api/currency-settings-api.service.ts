@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { userHeaders } from './user-api-headers';
 import type { components } from './generated/currency-settings';
 
 type Schemas = components['schemas'];
@@ -57,7 +58,7 @@ export class CurrencySettingsApiService {
     );
   }
 
-  private headers(traderId: string): HttpHeaders {
-    return new HttpHeaders({ 'X-Trader-Id': traderId });
+  private headers(userId: string) {
+    return userHeaders(userId);
   }
 }

@@ -11,6 +11,7 @@ import com.mmx.order.domain.exception.InvalidOrderException;
 import com.mmx.order.domain.model.ContractNumber;
 import com.mmx.order.domain.model.DealingReference;
 import com.mmx.order.domain.model.ExternalOrderReference;
+import com.mmx.order.domain.model.LegalEntityCode;
 import com.mmx.order.domain.model.Institution;
 import com.mmx.order.domain.model.MoneyMarketOrder;
 import com.mmx.order.domain.model.OrderOperation;
@@ -148,6 +149,7 @@ class ExecuteOrderServiceRateOnlyTest {
     private static MoneyMarketOrder orderWithInstitution(String institutionCode, String counterparty) {
         return MoneyMarketOrder.create(
                 new ExternalOrderReference("PM-RATE-" + UUID.randomUUID()),
+                new LegalEntityCode("LOC"),
                 OrderType.TERM,
                 OrderOperation.SUBSCRIPTION,
                 new PortfolioNumber("PF-001"),

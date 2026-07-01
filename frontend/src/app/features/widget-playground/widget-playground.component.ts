@@ -63,6 +63,18 @@ type LiveContract = {
             </label>
 
             <label class="field">
+              <span>Legal entity code</span>
+              <input
+                type="text"
+                name="legalEntityCode"
+                [(ngModel)]="legalEntityCode"
+                required
+                maxlength="3"
+                data-testid="playground-legal-entity-code"
+              />
+            </label>
+
+            <label class="field">
               <span>Portfolio number</span>
               <input
                 type="text"
@@ -160,6 +172,7 @@ type LiveContract = {
           @if (widgetMounted()) {
             <mmx-order-creation-wizard
               [apiBaseUrl]="activeApiBaseUrl()"
+              [legalEntityCode]="activeLegalEntityCode()"
               [portfolioNumber]="activePortfolioNumber()"
               [orderType]="activeOrderType()"
               [contractNumber]="activeContractNumber()"
@@ -454,6 +467,7 @@ export class WidgetPlaygroundComponent implements OnInit {
   private readonly http = inject(HttpClient);
 
   apiBaseUrl = '';
+  legalEntityCode = 'LOC';
   portfolioNumber = 'PF-PLAYGROUND';
   orderType: '' | 'TERM' | 'ON_CALL' = '';
 
@@ -467,6 +481,7 @@ export class WidgetPlaygroundComponent implements OnInit {
   readonly showContractPicker = signal(false);
 
   readonly activeApiBaseUrl = signal('');
+  readonly activeLegalEntityCode = signal('');
   readonly activePortfolioNumber = signal('');
   readonly activeOrderType = signal<'TERM' | 'ON_CALL' | undefined>(undefined);
   readonly activeContractNumber = signal<string | undefined>(undefined);
@@ -477,8 +492,15 @@ export class WidgetPlaygroundComponent implements OnInit {
 
   applyConfig(): void {
     const portfolio = this.portfolioNumber.trim();
+    const entityCode = this.legalEntityCode.trim();
     if (!portfolio) {
       this.configFormError.set('Portfolio number is required.');
+      this.widgetMounted.set(false);
+      this.showContractPicker.set(false);
+      return;
+    }
+    if (!entityCode || entityCode.length !== 3) {
+      this.configFormError.set('Legal entity code must be exactly 3 characters.');
       this.widgetMounted.set(false);
       this.showContractPicker.set(false);
       return;
@@ -486,6 +508,7 @@ export class WidgetPlaygroundComponent implements OnInit {
 
     this.configFormError.set(null);
     this.activeApiBaseUrl.set(this.apiBaseUrl.trim());
+    this.activeLegalEntityCode.set(entityCode);
     this.activePortfolioNumber.set(portfolio);
     this.activeOrderType.set(this.orderType || undefined);
     this.activeContractNumber.set(undefined);

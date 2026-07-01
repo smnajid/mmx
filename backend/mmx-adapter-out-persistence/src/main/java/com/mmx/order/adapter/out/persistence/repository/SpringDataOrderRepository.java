@@ -18,18 +18,25 @@ public interface SpringDataOrderRepository extends JpaRepository<OrderEntity, UU
 
     Optional<OrderEntity> findByExternalOrderReference(String externalOrderReference);
 
-    List<OrderEntity> findByStatusAndOrderType(String status, String orderType);
+    Optional<OrderEntity> findByLegalEntityCodeAndExternalOrderReference(
+            String legalEntityCode, String externalOrderReference);
 
-    Page<OrderEntity> findByStatusAndOrderTypeOrderByValueDateAsc(String status, String orderType, Pageable pageable);
+    List<OrderEntity> findByLegalEntityCodeAndStatusAndOrderType(
+            String legalEntityCode, String status, String orderType);
 
-    Page<OrderEntity> findByStatusAndOrderTypeAndValueDateBetweenOrderByValueDateAsc(
+    Page<OrderEntity> findByLegalEntityCodeAndStatusAndOrderTypeOrderByValueDateAsc(
+            String legalEntityCode, String status, String orderType, Pageable pageable);
+
+    Page<OrderEntity> findByLegalEntityCodeAndStatusAndOrderTypeAndValueDateBetweenOrderByValueDateAsc(
+            String legalEntityCode,
             String status,
             String orderType,
             LocalDate valueDateStartInclusive,
             LocalDate valueDateEndInclusive,
             Pageable pageable);
 
-    List<OrderEntity> findByAssignedTraderIdAndStatus(String assignedTraderId, String status);
+    List<OrderEntity> findByLegalEntityCodeAndAssignedTraderIdAndStatus(
+            String legalEntityCode, String assignedTraderId, String status);
 
     Optional<OrderEntity> findByGeneratedContractNumberAndOrderTypeAndOrderOperationAndStatus(
             String generatedContractNumber,

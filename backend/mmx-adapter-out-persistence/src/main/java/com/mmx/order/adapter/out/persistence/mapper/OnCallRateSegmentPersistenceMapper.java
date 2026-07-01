@@ -20,7 +20,8 @@ public class OnCallRateSegmentPersistenceMapper {
                 segment.getValueDate(),
                 segment.getEndDate(),
                 segment.getStatus().name(),
-                segment.getValidatedAt());
+                segment.getValidatedAt(),
+                "LOC");
     }
 
     public OnCallRateSegment toDomain(OnCallRateSegmentEntity entity) {

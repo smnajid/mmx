@@ -230,7 +230,7 @@ class ExecutionHandoffKafkaIntegrationTest {
                 HttpRequest.newBuilder(baseUri(path))
                         .timeout(Duration.ofSeconds(30))
                         .header("Content-Type", "application/json")
-                        .header("X-Trader-Id", traderId)
+                        .header("X-User-Id", traderId)
                         .POST(HttpRequest.BodyPublishers.ofString(json, StandardCharsets.UTF_8))
                         .build();
         return httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
@@ -240,7 +240,7 @@ class ExecutionHandoffKafkaIntegrationTest {
         HttpRequest request =
                 HttpRequest.newBuilder(baseUri(path))
                         .timeout(Duration.ofSeconds(30))
-                        .header("X-Trader-Id", TRADER)
+                        .header("X-User-Id", TRADER)
                         .POST(HttpRequest.BodyPublishers.noBody())
                         .build();
         return httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
@@ -255,6 +255,7 @@ class ExecutionHandoffKafkaIntegrationTest {
         return """
                 {
                   "externalOrderReference": "%s",
+                  "legalEntityCode": "LOC",
                   "orderType": "TERM",
                   "orderOperation": "SUBSCRIPTION",
                   "portfolioNumber": "PF-HANDOFF-IT",

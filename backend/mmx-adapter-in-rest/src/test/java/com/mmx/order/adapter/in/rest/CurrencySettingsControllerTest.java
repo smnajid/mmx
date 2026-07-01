@@ -2,9 +2,16 @@ package com.mmx.order.adapter.in.rest;
 
 import com.mmx.order.adapter.in.rest.mapper.CurrencySettingsRestMapper;
 import com.mmx.order.application.port.in.ManageCurrencySettingsUseCase;
+import com.mmx.order.application.port.in.ScopeContext;
+import com.mmx.order.application.port.out.ManagedCurrencyRepository;
+import com.mmx.order.application.port.out.ScopeContextProvider;
+import com.mmx.order.application.port.out.HubScopeResolver;
+import com.mmx.order.application.port.out.ReferenceDataMutationGuard;
 import com.mmx.order.domain.exception.DuplicateManagedCurrencyException;
+import com.mmx.order.domain.model.LegalEntityCode;
 import com.mmx.order.domain.model.ManagedCurrency;
 import com.mmx.order.domain.model.NoticePeriod;
+import com.mmx.order.domain.model.Role;
 import com.mmx.order.domain.model.Tenor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,26 +38,45 @@ import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standal
 @ExtendWith(MockitoExtension.class)
 class CurrencySettingsControllerTest {
 
+    private static final ScopeContext TRADER_LOC = new ScopeContext(new LegalEntityCode("LOC"), Role.TRADER);
+
     @Mock
     ManageCurrencySettingsUseCase manageCurrencySettingsUseCase;
+
+    @Mock
+    ManagedCurrencyRepository managedCurrencyRepository;
+
+    @Mock
+    ScopeContextProvider scopeContextProvider;
+
+    @Mock
+    HubScopeResolver hubScopeResolver;
 
     org.springframework.test.web.servlet.MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
+        when(scopeContextProvider.requireActiveScope()).thenReturn(TRADER_LOC);
         mockMvc =
                 standaloneSetup(
                                 new CurrencySettingsController(
-                                        manageCurrencySettingsUseCase, new CurrencySettingsRestMapper()))
+                                        manageCurrencySettingsUseCase,
+                                        managedCurrencyRepository,
+                                        new CurrencySettingsRestMapper(),
+                                        scopeContextProvider,
+                                        new ReferenceDataMutationGuard(),
+                                        hubScopeResolver))
                         .setControllerAdvice(new GlobalExceptionHandler())
                         .build();
     }
 
     @Test
     void listManagedCurrencies_returns200() throws Exception {
-        when(manageCurrencySettingsUseCase.listAll()).thenReturn(List.of(sampleEur()));
+        when(hubScopeResolver.resolveHubLegalEntityCode(TRADER_LOC)).thenReturn(new LegalEntityCode("LOC"));
+        when(managedCurrencyRepository.findAllByLegalEntityCode(new LegalEntityCode("LOC")))
+                .thenReturn(List.of(sampleEur()));
 
-        mockMvc.perform(get("/api/v1/settings/currencies").header("X-Trader-Id", "trader-a"))
+        mockMvc.perform(get("/api/v1/settings/currencies").header("X-User-Id", "trader-a"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].code").value("EUR"))
                 .andExpect(jsonPath("$[0].active").value(true));
@@ -62,7 +88,7 @@ class CurrencySettingsControllerTest {
 
         mockMvc.perform(
                         post("/api/v1/settings/currencies")
-                                .header("X-Trader-Id", "trader-a")
+                                .header("X-User-Id", "trader-a")
                                 .contentType(APPLICATION_JSON)
                                 .content(
                                         """
@@ -84,7 +110,7 @@ class CurrencySettingsControllerTest {
 
         mockMvc.perform(
                         post("/api/v1/settings/currencies")
-                                .header("X-Trader-Id", "trader-a")
+                                .header("X-User-Id", "trader-a")
                                 .contentType(APPLICATION_JSON)
                                 .content(
                                         """
@@ -108,7 +134,7 @@ class CurrencySettingsControllerTest {
 
         mockMvc.perform(
                         patch("/api/v1/settings/currencies/EUR")
-                                .header("X-Trader-Id", "trader-a")
+                                .header("X-User-Id", "trader-a")
                                 .contentType(APPLICATION_JSON)
                                 .content(
                                         """
@@ -131,7 +157,7 @@ class CurrencySettingsControllerTest {
 
         mockMvc.perform(
                         patch("/api/v1/settings/currencies/EUR")
-                                .header("X-Trader-Id", "trader-a")
+                                .header("X-User-Id", "trader-a")
                                 .contentType(APPLICATION_JSON)
                                 .content(
                                         """
@@ -148,7 +174,7 @@ class CurrencySettingsControllerTest {
         when(manageCurrencySettingsUseCase.disable("EUR")).thenReturn(sampleEur().withActive(false));
 
         mockMvc.perform(
-                        post("/api/v1/settings/currencies/EUR/disable").header("X-Trader-Id", "trader-a"))
+                        post("/api/v1/settings/currencies/EUR/disable").header("X-User-Id", "trader-a"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.active").value(false));
 
@@ -160,7 +186,7 @@ class CurrencySettingsControllerTest {
         when(manageCurrencySettingsUseCase.enable("EUR")).thenReturn(sampleEur().withActive(true));
 
         mockMvc.perform(
-                        post("/api/v1/settings/currencies/EUR/enable").header("X-Trader-Id", "trader-a"))
+                        post("/api/v1/settings/currencies/EUR/enable").header("X-User-Id", "trader-a"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.active").value(true));
 

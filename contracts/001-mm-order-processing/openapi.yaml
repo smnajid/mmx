@@ -441,6 +441,7 @@ components:
       type: object
       required:
         - externalOrderReference
+        - legalEntityCode
         - orderType
         - orderOperation
         - portfolioNumber
@@ -448,6 +449,11 @@ components:
         - amount
         - valueDate
       properties:
+        legalEntityCode:
+          type: string
+          minLength: 3
+          maxLength: 3
+          description: Owning LegalEntity code (3 characters, e.g. LOC, PAR).
         externalOrderReference:
           type: string
           maxLength: 100
@@ -493,13 +499,18 @@ components:
 
     ReceiveOrderResponse:
       type: object
-      required: [orderId, status]
+      required: [orderId, status, legalEntityCode]
       properties:
         orderId:
           type: string
           format: uuid
         status:
           $ref: "#/components/schemas/OrderStatus"
+        legalEntityCode:
+          type: string
+          minLength: 3
+          maxLength: 3
+          description: Owning LegalEntity code persisted on the order.
 
     OrderSummaryResponse:
       type: object

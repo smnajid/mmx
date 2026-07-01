@@ -1,6 +1,6 @@
 # Institution Settings API v1
 
-Canonical OpenAPI: [openapi.yaml](./openapi.yaml). All trader operations require header `X-Trader-Id`.
+Canonical OpenAPI: [openapi.yaml](./openapi.yaml). All trader operations require header `X-User-Id`.
 
 ## Endpoints
 
@@ -29,3 +29,20 @@ Canonical OpenAPI: [openapi.yaml](./openapi.yaml). All trader operations require
 | `VALIDATION_ERROR` | 400 | Blank display name |
 | `INSTITUTION_NOT_FOUND` | 404 | Unknown `institutionCode` |
 | `INSTITUTION_SUFFIX_OVERFLOW` | 409 | Suffix would exceed `99` for acronym base |
+
+## Role-scoped semantics (per `delegated-institution-grants`)
+
+No new endpoints and no breaking schema changes; role scoping is an authorisation/behaviour layer on
+the existing surface.
+
+- **Trader on a TradingHub**: full native access — lists the hub's native institutions and onboards
+  native institutions by `displayName` as above.
+- **ClientRepresentative on a TradingClient**: Settings-only. The institution list (`GET
+  /api/v1/settings/institutions`) returns **only** that client's thin-proxy institutions (derived
+  name `{hubInstitution.displayName} via {hubLegalEntityCode}`); native hub institutions are excluded.
+  Onboard (`POST /api/v1/settings/institutions`) is **role-qualified**: a ClientRepresentative
+  onboards a **proxy** by selecting an active delegated grant (`hubInstitutionCode` in
+  `OnboardInstitutionRequest`); the proxy `displayName` is derived and a free-form `displayName` is
+  rejected. A proxy is not created unless an active grant exists for `(hubInstitution, client)` for at
+  least one currency. Deactivate/activate on a proxy follow the same role scoping. See
+  `contracts/006-delegated-institution-grants/api-v1.md` for the grant surface.

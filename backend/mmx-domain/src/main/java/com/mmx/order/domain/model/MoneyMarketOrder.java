@@ -25,6 +25,7 @@ public class MoneyMarketOrder {
 
     private final UUID id;
     private final ExternalOrderReference externalOrderReference;
+    private final LegalEntityCode legalEntityCode;
     private final OrderType orderType;
     private final OrderOperation orderOperation;
     private final PortfolioNumber portfolioNumber;
@@ -49,6 +50,7 @@ public class MoneyMarketOrder {
     private MoneyMarketOrder(
             UUID id,
             ExternalOrderReference externalOrderReference,
+            LegalEntityCode legalEntityCode,
             OrderType orderType,
             OrderOperation orderOperation,
             PortfolioNumber portfolioNumber,
@@ -67,6 +69,7 @@ public class MoneyMarketOrder {
     ) {
         this.id = id;
         this.externalOrderReference = externalOrderReference;
+        this.legalEntityCode = Objects.requireNonNull(legalEntityCode, "legalEntityCode must not be null");
         this.orderType = orderType;
         this.orderOperation = orderOperation;
         this.portfolioNumber = portfolioNumber;
@@ -89,6 +92,7 @@ public class MoneyMarketOrder {
 
     public static MoneyMarketOrder create(
             ExternalOrderReference externalOrderReference,
+            LegalEntityCode legalEntityCode,
             OrderType orderType,
             OrderOperation orderOperation,
             PortfolioNumber portfolioNumber,
@@ -119,6 +123,7 @@ public class MoneyMarketOrder {
         return new MoneyMarketOrder(
                 UUID.randomUUID(),
                 Objects.requireNonNull(externalOrderReference),
+                legalEntityCode,
                 orderType,
                 orderOperation,
                 Objects.requireNonNull(portfolioNumber),
@@ -142,6 +147,7 @@ public class MoneyMarketOrder {
     public static MoneyMarketOrder reconstitute(
             java.util.UUID id,
             ExternalOrderReference externalOrderReference,
+            LegalEntityCode legalEntityCode,
             OrderType orderType,
             OrderOperation orderOperation,
             PortfolioNumber portfolioNumber,
@@ -163,7 +169,7 @@ public class MoneyMarketOrder {
             Instant updatedAt
     ) {
         MoneyMarketOrder order = new MoneyMarketOrder(
-                id, externalOrderReference, orderType, orderOperation,
+                id, externalOrderReference, legalEntityCode, orderType, orderOperation,
                 portfolioNumber, currency, amount, valueDate, minimumRate,
                 tenor, noticePeriod, sourceContractNumber, institutionCode, counterparty,
                 status, handoffStatus, createdAt
@@ -388,6 +394,7 @@ public class MoneyMarketOrder {
 
     public UUID getId() { return id; }
     public ExternalOrderReference getExternalOrderReference() { return externalOrderReference; }
+    public LegalEntityCode getLegalEntityCode() { return legalEntityCode; }
     public OrderType getOrderType() { return orderType; }
     public OrderOperation getOrderOperation() { return orderOperation; }
     public PortfolioNumber getPortfolioNumber() { return portfolioNumber; }

@@ -32,6 +32,7 @@ public final class TermRatePersistenceMapper {
         entity.setRate(row.rate());
         entity.setUploadedAt(row.uploadedAt());
         entity.setUploadedBy(row.uploadedBy());
+        entity.setLegalEntityCode("LOC");
         return entity;
     }
 }

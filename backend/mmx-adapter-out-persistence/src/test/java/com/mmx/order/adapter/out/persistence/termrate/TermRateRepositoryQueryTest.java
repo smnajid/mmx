@@ -1,9 +1,11 @@
 package com.mmx.order.adapter.out.persistence.termrate;
 
 import com.mmx.order.adapter.out.persistence.JpaTermRateRepository;
+import com.mmx.order.adapter.out.persistence.PersistenceTestCleanup;
 import com.mmx.order.adapter.out.persistence.entity.InstitutionEntity;
 import com.mmx.order.adapter.out.persistence.mapper.InstitutionPersistenceMapper;
 import com.mmx.order.adapter.out.persistence.mapper.TermRatePersistenceMapper;
+import com.mmx.order.adapter.out.persistence.repository.SpringDataDelegatedGrantRepository;
 import com.mmx.order.adapter.out.persistence.repository.SpringDataInstitutionRepository;
 import com.mmx.order.adapter.out.persistence.repository.SpringDataOnCallRateSegmentRepository;
 import com.mmx.order.adapter.out.persistence.repository.SpringDataTermRateRepository;
@@ -39,6 +41,9 @@ class TermRateRepositoryQueryTest {
     SpringDataOnCallRateSegmentRepository onCallRateSegmentRepository;
 
     @Autowired
+    SpringDataDelegatedGrantRepository grantRepository;
+
+    @Autowired
     InstitutionPersistenceMapper institutionMapper;
 
     @Autowired
@@ -55,9 +60,11 @@ class TermRateRepositoryQueryTest {
                         springDataTermRateRepository,
                         new TermRatePersistenceMapper(),
                         new TransactionTemplate(transactionManager));
-        springDataTermRateRepository.deleteAll();
-        onCallRateSegmentRepository.deleteAll();
-        springDataInstitutionRepository.deleteAll();
+        PersistenceTestCleanup.clearInstitutionsAndRates(
+                grantRepository,
+                onCallRateSegmentRepository,
+                springDataTermRateRepository,
+                springDataInstitutionRepository);
     }
 
     @Test

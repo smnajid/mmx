@@ -67,6 +67,7 @@ class OrderRestApiIntegrationTest {
                 """
                 {
                   "externalOrderReference": "%s",
+                  "legalEntityCode": "LOC",
                   "orderType": "ON_CALL",
                   "orderOperation": "INCREASE",
                   "portfolioNumber": "PF-IT",
@@ -123,6 +124,7 @@ class OrderRestApiIntegrationTest {
                 """
                 {
                   "externalOrderReference": "%s",
+                  "legalEntityCode": "LOC",
                   "orderType": "TERM",
                   "orderOperation": "SUBSCRIPTION",
                   "portfolioNumber": "PF-IT",
@@ -146,6 +148,7 @@ class OrderRestApiIntegrationTest {
                 """
                 {
                   "externalOrderReference": "%s",
+                  "legalEntityCode": "LOC",
                   "orderType": "TERM",
                   "orderOperation": "SUBSCRIPTION",
                   "portfolioNumber": "PF-IT",
@@ -185,6 +188,7 @@ class OrderRestApiIntegrationTest {
                 """
                 {
                   "externalOrderReference": "%s",
+                  "legalEntityCode": "LOC",
                   "orderType": "TERM",
                   "orderOperation": "SUBSCRIPTION",
                   "portfolioNumber": "PF-IT",
@@ -210,6 +214,7 @@ class OrderRestApiIntegrationTest {
                 """
                 {
                   "externalOrderReference": "%s",
+                  "legalEntityCode": "LOC",
                   "orderType": "ON_CALL",
                   "orderOperation": "DECREASE",
                   "portfolioNumber": "PF-IT",
@@ -569,7 +574,7 @@ class OrderRestApiIntegrationTest {
                 HttpRequest.newBuilder(baseUri(path))
                         .timeout(Duration.ofSeconds(30))
                         .header("Content-Type", "application/json")
-                        .header("X-Trader-Id", traderId)
+                        .header("X-User-Id", traderId)
                         .method("PATCH", HttpRequest.BodyPublishers.ofString(json, StandardCharsets.UTF_8))
                         .build();
         return httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
@@ -580,7 +585,7 @@ class OrderRestApiIntegrationTest {
                 HttpRequest.newBuilder(baseUri(path))
                         .timeout(Duration.ofSeconds(30))
                         .header("Content-Type", "application/json")
-                        .header("X-Trader-Id", traderId)
+                        .header("X-User-Id", traderId)
                         .POST(HttpRequest.BodyPublishers.ofString(json, StandardCharsets.UTF_8))
                         .build();
         return httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
@@ -590,7 +595,7 @@ class OrderRestApiIntegrationTest {
         HttpRequest request =
                 HttpRequest.newBuilder(baseUri(path))
                         .timeout(Duration.ofSeconds(30))
-                        .header("X-Trader-Id", traderId)
+                        .header("X-User-Id", traderId)
                         .POST(HttpRequest.BodyPublishers.noBody())
                         .build();
         return httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
@@ -600,7 +605,7 @@ class OrderRestApiIntegrationTest {
         HttpRequest request =
                 HttpRequest.newBuilder(baseUri(path))
                         .timeout(Duration.ofSeconds(30))
-                        .header("X-Trader-Id", traderId)
+                        .header("X-User-Id", traderId)
                         .GET()
                         .build();
         return httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
@@ -624,6 +629,7 @@ class OrderRestApiIntegrationTest {
         return """
                 {
                   "externalOrderReference": "%s",
+                  "legalEntityCode": "LOC",
                   "orderType": "TERM",
                   "orderOperation": "SUBSCRIPTION",
                   "portfolioNumber": "PF-IT",
@@ -643,6 +649,7 @@ class OrderRestApiIntegrationTest {
         return """
                 {
                   "externalOrderReference": "%s",
+                  "legalEntityCode": "LOC",
                   "orderType": "ON_CALL",
                   "orderOperation": "SUBSCRIPTION",
                   "portfolioNumber": "PF-IT",
@@ -662,6 +669,7 @@ class OrderRestApiIntegrationTest {
         return """
                 {
                   "externalOrderReference": "%s",
+                  "legalEntityCode": "LOC",
                   "orderType": "TERM",
                   "orderOperation": "SUBSCRIPTION",
                   "portfolioNumber": "PF-IT",

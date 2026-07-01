@@ -1,8 +1,11 @@
 package com.mmx.order.adapter.out.persistence.currency;
 
+import com.mmx.order.adapter.out.persistence.FixedScopeContextProvider;
 import com.mmx.order.adapter.out.persistence.JpaManagedCurrencyRepository;
 import com.mmx.order.adapter.out.persistence.mapper.ManagedCurrencyPersistenceMapper;
 import com.mmx.order.adapter.out.persistence.repository.SpringDataManagedCurrencyRepository;
+import com.mmx.order.application.port.out.ScopeContextProvider;
+import com.mmx.order.domain.model.LegalEntityCode;
 import com.mmx.order.domain.model.ManagedCurrency;
 import com.mmx.order.domain.model.NoticePeriod;
 import com.mmx.order.domain.model.Tenor;
@@ -32,7 +35,8 @@ class JpaManagedCurrencyRepositoryTest {
 
     @BeforeEach
     void setUp() {
-        repository = new JpaManagedCurrencyRepository(springDataRepository, mapper);
+        ScopeContextProvider scopeContextProvider = new FixedScopeContextProvider();
+        repository = new JpaManagedCurrencyRepository(springDataRepository, mapper, scopeContextProvider);
         springDataRepository.deleteAll();
     }
 
@@ -64,6 +68,13 @@ class JpaManagedCurrencyRepositoryTest {
         repository.save(sampleEur());
         assertThat(repository.existsByCode("EUR")).isTrue();
         assertThat(repository.existsByCode("CHF")).isFalse();
+    }
+
+    @Test
+    void findAllByLegalEntityCode_returnsHubScopedRows() {
+        repository.save(sampleEur());
+        assertThat(repository.findAllByLegalEntityCode(new LegalEntityCode("LOC"))).hasSize(1);
+        assertThat(repository.findAllByLegalEntityCode(new LegalEntityCode("PAR"))).isEmpty();
     }
 
     @Test

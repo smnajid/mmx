@@ -73,6 +73,7 @@ class OrderRestMapperTest {
     void toCommand_mapsReceiveRequestNoticePeriod() {
         var request = new ReceiveOrderRequest();
         request.setExternalOrderReference("PM-IN-1");
+        request.setLegalEntityCode("LOC");
         request.setOrderType(com.mmx.order.adapter.in.rest.generated.model.OrderType.TERM);
         request.setOrderOperation(com.mmx.order.adapter.in.rest.generated.model.OrderOperation.SUBSCRIPTION);
         request.setPortfolioNumber("PF-1");
@@ -80,10 +81,12 @@ class OrderRestMapperTest {
         request.setAmount(1_000_000.0);
         request.setValueDate(TODAY.plusDays(2));
         request.setNoticePeriod(com.mmx.order.adapter.in.rest.generated.model.NoticePeriod._24_H);
+        request.setInstitutionCode("BNKCO");
 
         var command = mapper.toCommand(request);
 
         assertThat(command.noticePeriod()).isEqualTo(NoticePeriod._24H);
+        assertThat(command.legalEntityCode()).isEqualTo(new LegalEntityCode("LOC"));
     }
 
     @Test
@@ -102,6 +105,7 @@ class OrderRestMapperTest {
     private static MoneyMarketOrder receivedTerm() {
         return MoneyMarketOrder.create(
                 new ExternalOrderReference("PM-T-1"),
+                new LegalEntityCode("LOC"),
                 OrderType.TERM,
                 OrderOperation.SUBSCRIPTION,
                 new PortfolioNumber("PF-1"),

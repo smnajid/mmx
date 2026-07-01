@@ -1,6 +1,7 @@
 import { DecimalPipe } from '@angular/common';
 import { Component, inject, input, output } from '@angular/core';
 import type { OrderCreationPayload } from '../models/order-creation-payload.model';
+import { WizardHostConfigService } from '../services/wizard-host-config.service';
 import { WizardStateService } from '../services/wizard-state.service';
 
 @Component({
@@ -115,6 +116,7 @@ import { WizardStateService } from '../services/wizard-state.service';
 })
 export class StepReviewComponent {
   private readonly wizardState = inject(WizardStateService);
+  private readonly hostConfig = inject(WizardHostConfigService);
 
   readonly portfolioNumber = input.required<string>();
 
@@ -138,6 +140,7 @@ export class StepReviewComponent {
     }
 
     const payload: OrderCreationPayload = {
+      legalEntityCode: this.hostConfig.legalEntityCode,
       portfolioNumber: this.portfolioNumber(),
       orderType: current.orderType,
       currency: current.currency,

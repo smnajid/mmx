@@ -7,6 +7,7 @@ import com.mmx.order.adapter.out.persistence.mapper.ManagedCurrencyPersistenceMa
 import com.mmx.order.adapter.out.persistence.repository.SpringDataManagedCurrencyRepository;
 import com.mmx.order.application.port.in.ManageCurrencySettingsUseCase;
 import com.mmx.order.application.port.out.ManagedCurrencyRepository;
+import com.mmx.order.application.port.out.ScopeContextProvider;
 import com.mmx.order.application.port.out.OpenPositionPort;
 import com.mmx.order.application.service.ManageCurrencySettingsService;
 import org.springframework.beans.factory.annotation.Value;
@@ -21,8 +22,9 @@ public class CurrencySettingsModuleConfiguration {
     @Bean
     public ManagedCurrencyRepository managedCurrencyRepository(
             SpringDataManagedCurrencyRepository springDataManagedCurrencyRepository,
-            ManagedCurrencyPersistenceMapper mapper) {
-        return new JpaManagedCurrencyRepository(springDataManagedCurrencyRepository, mapper);
+            ManagedCurrencyPersistenceMapper mapper,
+            ScopeContextProvider scopeContextProvider) {
+        return new JpaManagedCurrencyRepository(springDataManagedCurrencyRepository, mapper, scopeContextProvider);
     }
 
     @Bean

@@ -5,18 +5,24 @@ import com.mmx.order.application.port.out.AuditLogger;
 import com.mmx.order.application.port.out.Clock;
 import com.mmx.order.application.port.out.ExecutedSubscriptionContractInfo;
 import com.mmx.order.application.port.out.InstitutionRepository;
+import com.mmx.order.application.port.out.LegalEntityRepository;
 import com.mmx.order.application.port.out.ManagedCurrencyRepository;
 import com.mmx.order.application.port.out.OpenPositionPort;
 import com.mmx.order.application.port.out.OrderRepository;
+import com.mmx.order.application.port.out.OrganisationRepository;
 import com.mmx.order.domain.exception.InvalidOrderException;
 import com.mmx.order.domain.model.ContractNumber;
 import com.mmx.order.domain.model.ExternalOrderReference;
 import com.mmx.order.domain.model.Institution;
+import com.mmx.order.domain.model.LegalEntity;
+import com.mmx.order.domain.model.LegalEntityCode;
 import com.mmx.order.domain.model.ManagedCurrency;
 import com.mmx.order.domain.model.MoneyMarketOrder;
 import com.mmx.order.domain.model.NoticePeriod;
 import com.mmx.order.domain.model.OrderOperation;
 import com.mmx.order.domain.model.OrderType;
+import com.mmx.order.domain.model.Organisation;
+import com.mmx.order.domain.model.OrganisationCode;
 import com.mmx.order.domain.model.PortfolioNumber;
 import com.mmx.order.domain.model.Tenor;
 import org.junit.jupiter.api.BeforeEach;
@@ -50,6 +56,8 @@ class ReceiveOrderServiceInstitutionTest {
 
     private static final Instant FIXED_NOW = Instant.parse("2026-05-01T12:00:00Z");
     private static final LocalDate TODAY = LocalDate.of(2026, 5, 1);
+    private static final OrganisationCode PM_ORG = new OrganisationCode("BNKG");
+    private static final LegalEntityCode LOC = new LegalEntityCode("LOC");
 
     @Mock
     OrderRepository orderRepository;
@@ -69,6 +77,12 @@ class ReceiveOrderServiceInstitutionTest {
     @Mock
     OpenPositionPort openPositionPort;
 
+    @Mock
+    OrganisationRepository organisationRepository;
+
+    @Mock
+    LegalEntityRepository legalEntityRepository;
+
     ReceiveOrderService subject;
 
     @BeforeEach
@@ -81,15 +95,22 @@ class ReceiveOrderServiceInstitutionTest {
                         managedCurrencyRepository,
                         institutionRepository,
                         openPositionPort,
+                        organisationRepository,
+                        legalEntityRepository,
+                        PM_ORG,
                         auditLogger,
                         clock);
         when(managedCurrencyRepository.findByCode("EUR")).thenReturn(Optional.of(permissiveEur()));
+        when(organisationRepository.findByCode(PM_ORG)).thenReturn(Optional.of(new Organisation(PM_ORG)));
+        when(legalEntityRepository.findByCode(LOC))
+                .thenReturn(Optional.of(LegalEntity.tradingHub(LOC, PM_ORG)));
+        when(legalEntityRepository.belongsToOrganisation(LOC, PM_ORG)).thenReturn(true);
     }
 
     @Test
     void receive_withValidActiveInstitutionCode_setsCounterpartyFromDisplayName() {
         var ref = new ExternalOrderReference("PM-inst-001");
-        when(orderRepository.findByExternalOrderReference(ref)).thenReturn(Optional.empty());
+        when(orderRepository.findByLegalEntityAndExternalReference(LOC, ref)).thenReturn(Optional.empty());
         when(institutionRepository.findByInstitutionCode("BNKCO"))
                 .thenReturn(Optional.of(new Institution("BNKCO", "BankCo", true)));
         when(orderRepository.save(any(MoneyMarketOrder.class))).then(returnsFirstArg());
@@ -107,7 +128,7 @@ class ReceiveOrderServiceInstitutionTest {
     @Test
     void receive_withUnknownInstitutionCode_isRejected() {
         var ref = new ExternalOrderReference("PM-inst-unknown");
-        when(orderRepository.findByExternalOrderReference(ref)).thenReturn(Optional.empty());
+        when(orderRepository.findByLegalEntityAndExternalReference(LOC, ref)).thenReturn(Optional.empty());
         when(institutionRepository.findByInstitutionCode("NOPE-01")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> subject.receive(validCommand(ref, "NOPE-01")))
@@ -121,7 +142,7 @@ class ReceiveOrderServiceInstitutionTest {
     @Test
     void receive_withInactiveInstitutionCode_isRejected() {
         var ref = new ExternalOrderReference("PM-inst-inactive");
-        when(orderRepository.findByExternalOrderReference(ref)).thenReturn(Optional.empty());
+        when(orderRepository.findByLegalEntityAndExternalReference(LOC, ref)).thenReturn(Optional.empty());
         when(institutionRepository.findByInstitutionCode("DEAD-01"))
                 .thenReturn(Optional.of(new Institution("DEAD-01", "Dead Bank", false)));
 
@@ -136,7 +157,7 @@ class ReceiveOrderServiceInstitutionTest {
     @Test
     void receive_withoutInstitutionCode_isRejected() {
         var ref = new ExternalOrderReference("PM-inst-missing");
-        when(orderRepository.findByExternalOrderReference(ref)).thenReturn(Optional.empty());
+        when(orderRepository.findByLegalEntityAndExternalReference(LOC, ref)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> subject.receive(validCommand(ref, null)))
                 .isInstanceOf(InvalidOrderException.class)
@@ -150,7 +171,7 @@ class ReceiveOrderServiceInstitutionTest {
     @Test
     void receive_onCallIncreaseWithMatchingContractInstitution_succeeds() {
         var ref = new ExternalOrderReference("PM-lifecycle-match");
-        when(orderRepository.findByExternalOrderReference(ref)).thenReturn(Optional.empty());
+        when(orderRepository.findByLegalEntityAndExternalReference(LOC, ref)).thenReturn(Optional.empty());
         when(institutionRepository.findByInstitutionCode("BNKCO"))
                 .thenReturn(Optional.of(new Institution("BNKCO", "BankCo", true)));
         when(orderRepository.findExecutedSubscriptionByContractNumber("CT-00042"))
@@ -168,7 +189,7 @@ class ReceiveOrderServiceInstitutionTest {
     @Test
     void receive_onCallIncreaseWithMismatchedContractInstitution_isRejected() {
         var ref = new ExternalOrderReference("PM-lifecycle-mismatch");
-        when(orderRepository.findByExternalOrderReference(ref)).thenReturn(Optional.empty());
+        when(orderRepository.findByLegalEntityAndExternalReference(LOC, ref)).thenReturn(Optional.empty());
         when(institutionRepository.findByInstitutionCode("SGFR"))
                 .thenReturn(Optional.of(new Institution("SGFR", "Société Générale", true)));
         when(orderRepository.findExecutedSubscriptionByContractNumber("CT-00042"))
@@ -192,6 +213,7 @@ class ReceiveOrderServiceInstitutionTest {
             OrderOperation operation) {
         return new ReceiveOrderCommand(
                 ref,
+                LOC,
                 OrderType.ON_CALL,
                 operation,
                 new PortfolioNumber("PF-1"),
@@ -218,6 +240,7 @@ class ReceiveOrderServiceInstitutionTest {
     private static ReceiveOrderCommand validCommand(ExternalOrderReference ref, String institutionCode) {
         return new ReceiveOrderCommand(
                 ref,
+                LOC,
                 OrderType.TERM,
                 OrderOperation.SUBSCRIPTION,
                 new PortfolioNumber("PF-1"),

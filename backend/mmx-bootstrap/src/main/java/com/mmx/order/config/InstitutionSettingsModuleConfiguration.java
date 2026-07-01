@@ -5,6 +5,7 @@ import com.mmx.order.adapter.out.persistence.mapper.InstitutionPersistenceMapper
 import com.mmx.order.adapter.out.persistence.repository.SpringDataInstitutionRepository;
 import com.mmx.order.application.port.in.ManageInstitutionSettingsUseCase;
 import com.mmx.order.application.port.out.InstitutionRepository;
+import com.mmx.order.application.port.out.ScopeContextProvider;
 import com.mmx.order.application.service.ManageInstitutionSettingsService;
 import com.mmx.order.domain.policy.OrderAgainstInstitutionPolicy;
 import org.springframework.context.annotation.Bean;
@@ -16,8 +17,9 @@ public class InstitutionSettingsModuleConfiguration {
     @Bean
     public InstitutionRepository institutionRepository(
             SpringDataInstitutionRepository springDataInstitutionRepository,
-            InstitutionPersistenceMapper mapper) {
-        return new JpaInstitutionRepository(springDataInstitutionRepository, mapper);
+            InstitutionPersistenceMapper mapper,
+            ScopeContextProvider scopeContextProvider) {
+        return new JpaInstitutionRepository(springDataInstitutionRepository, mapper, scopeContextProvider);
     }
 
     @Bean

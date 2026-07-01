@@ -18,7 +18,11 @@ const ALL_NOTICES: NoticePeriodCode[] = ['24H', '48H'];
   template: `
     <section class="settings-panel">
       <a routerLink="/settings/currencies" class="settings-back">← Back to list</a>
-      <h1>{{ isNew() ? 'Onboard currency' : 'Edit ' + code() }}</h1>
+      <h1>{{ isNew() ? 'Onboard currency' : (trader.isClientRepresentative() ? 'View ' + code() : 'Edit ' + code()) }}</h1>
+
+      @if (trader.isClientRepresentative()) {
+        <p class="settings-state">Read-only view of hub-managed currency rules.</p>
+      }
 
       @if (error()) {
         <p class="settings-error" role="alert">{{ error() }}</p>
@@ -34,11 +38,11 @@ const ALL_NOTICES: NoticePeriodCode[] = ['24H', '48H'];
 
         <label>
           Min subscription
-          <input type="number" formControlName="minSubscriptionAmount" step="0.01" />
+          <input type="number" formControlName="minSubscriptionAmount" step="0.01" [readonly]="trader.isClientRepresentative()" />
         </label>
         <label>
           Min increase/decrease
-          <input type="number" formControlName="minIncreaseDecreaseAmount" step="0.01" />
+          <input type="number" formControlName="minIncreaseDecreaseAmount" step="0.01" [readonly]="trader.isClientRepresentative()" />
         </label>
 
         <fieldset>
@@ -48,7 +52,7 @@ const ALL_NOTICES: NoticePeriodCode[] = ['24H', '48H'];
               <input
                 type="checkbox"
                 [checked]="tenorSelected(t)"
-                [disabled]="tenorDisableBlocked(t)"
+                [disabled]="trader.isClientRepresentative() || tenorDisableBlocked(t)"
                 (change)="toggleTenor(t, $event)"
               />
               {{ t }}
@@ -63,7 +67,7 @@ const ALL_NOTICES: NoticePeriodCode[] = ['24H', '48H'];
               <input
                 type="checkbox"
                 [checked]="noticeSelected(n)"
-                [disabled]="noticeDisableBlocked(n)"
+                [disabled]="trader.isClientRepresentative() || noticeDisableBlocked(n)"
                 (change)="toggleNotice(n, $event)"
               />
               {{ n }}
@@ -71,15 +75,17 @@ const ALL_NOTICES: NoticePeriodCode[] = ['24H', '48H'];
           }
         </fieldset>
 
-        <div class="actions">
-          <button type="submit" [disabled]="form.invalid || saving()">Save</button>
-          @if (!isNew() && active()) {
-            <button type="button" class="warn" (click)="disable()" [disabled]="saving()">Deactivate</button>
-          }
-          @if (!isNew() && !active()) {
-            <button type="button" class="activate" (click)="enable()" [disabled]="saving()">Reactivate</button>
-          }
-        </div>
+        @if (trader.isTrader()) {
+          <div class="actions">
+            <button type="submit" [disabled]="form.invalid || saving()">Save</button>
+            @if (!isNew() && active()) {
+              <button type="button" class="warn" (click)="disable()" [disabled]="saving()">Deactivate</button>
+            }
+            @if (!isNew() && !active()) {
+              <button type="button" class="activate" (click)="enable()" [disabled]="saving()">Reactivate</button>
+            }
+          </div>
+        }
       </form>
     </section>
   `,
@@ -87,9 +93,9 @@ const ALL_NOTICES: NoticePeriodCode[] = ['24H', '48H'];
 export class CurrencySettingsEditComponent implements OnInit {
   protected readonly ALL_TENORS = ALL_TENORS;
   protected readonly ALL_NOTICES = ALL_NOTICES;
+  protected readonly trader = inject(TraderContextService);
 
   private readonly api = inject(CurrencySettingsApiService);
-  private readonly trader = inject(TraderContextService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly fb = inject(FormBuilder);
@@ -112,6 +118,10 @@ export class CurrencySettingsEditComponent implements OnInit {
   ngOnInit(): void {
     const param = this.route.snapshot.paramMap.get('code');
     if (param === 'new') {
+      if (this.trader.isClientRepresentative()) {
+        void this.router.navigate(['/settings/currencies']);
+        return;
+      }
       this.isNew.set(true);
       return;
     }

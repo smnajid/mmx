@@ -9,15 +9,21 @@ import com.mmx.order.adapter.in.rest.generated.institution.model.InstitutionSett
 import com.mmx.order.adapter.in.rest.generated.institution.model.InstitutionSettingsErrorResponse;
 import com.mmx.order.adapter.in.rest.generated.termrate.model.TermRateIngestErrorCode;
 import com.mmx.order.adapter.in.rest.generated.termrate.model.TermRateIngestErrorResponse;
+import com.mmx.order.adapter.in.rest.generated.grants.model.GrantErrorCode;
+import com.mmx.order.adapter.in.rest.generated.grants.model.GrantErrorResponse;
 import com.mmx.order.application.exception.ContractNotFoundException;
 import com.mmx.order.application.exception.CurrencyNotFoundException;
+import com.mmx.order.application.exception.GrantNotFoundException;
 import com.mmx.order.application.exception.InstitutionNotFoundException;
 import com.mmx.order.application.termrate.TermRateCsvStructuralException;
 import com.mmx.order.application.termrate.TermRateIngestFailedException;
+import com.mmx.order.domain.exception.DuplicateDelegatedGrantException;
 import com.mmx.order.domain.exception.DuplicateManagedCurrencyException;
 import com.mmx.order.domain.exception.InstitutionSuffixOverflowException;
+import com.mmx.order.domain.exception.InvalidDelegatedGrantException;
 import com.mmx.order.domain.exception.InvalidInstitutionException;
 import com.mmx.order.domain.exception.InvalidManagedCurrencyException;
+import com.mmx.order.domain.exception.InvalidLegalEntityException;
 import com.mmx.order.domain.exception.InvalidOrderException;
 import com.mmx.order.domain.exception.InvalidStatusTransitionException;
 import com.mmx.order.domain.exception.OnCallBackdatedValueDateException;
@@ -27,6 +33,7 @@ import com.mmx.order.domain.exception.OnCallSegmentCanceledException;
 import com.mmx.order.domain.exception.OnCallSegmentNotFoundException;
 import com.mmx.order.domain.exception.OrderNotFoundException;
 import com.mmx.order.domain.exception.UnauthorizedTraderException;
+import com.mmx.order.domain.exception.UnauthorizedUserException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -39,6 +46,15 @@ import java.util.stream.Collectors;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(InvalidLegalEntityException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidLegalEntity(InvalidLegalEntityException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(
+                        new ErrorResponse()
+                                .error(ErrorCode.VALIDATION_ERROR)
+                                .message(ex.getMessage()));
+    }
 
     @ExceptionHandler(InvalidOrderException.class)
     public ResponseEntity<ErrorResponse> handleInvalidOrder(InvalidOrderException ex) {
@@ -204,6 +220,42 @@ public class GlobalExceptionHandler {
                 .body(
                         new ErrorResponse()
                                 .error(ErrorCode.INVALID_STATUS_TRANSITION)
+                                .message(ex.getMessage()));
+    }
+
+    @ExceptionHandler(UnauthorizedUserException.class)
+    public ResponseEntity<ErrorResponse> handleUnauthorizedUser(UnauthorizedUserException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(
+                        new ErrorResponse()
+                                .error(ErrorCode.UNAUTHORIZED_TRADER)
+                                .message(ex.getMessage()));
+    }
+
+    @ExceptionHandler(InvalidDelegatedGrantException.class)
+    public ResponseEntity<GrantErrorResponse> handleInvalidDelegatedGrant(InvalidDelegatedGrantException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(
+                        new GrantErrorResponse()
+                                .error(GrantErrorCode.VALIDATION_ERROR)
+                                .message(ex.getMessage()));
+    }
+
+    @ExceptionHandler(DuplicateDelegatedGrantException.class)
+    public ResponseEntity<GrantErrorResponse> handleDuplicateDelegatedGrant(DuplicateDelegatedGrantException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(
+                        new GrantErrorResponse()
+                                .error(GrantErrorCode.DUPLICATE_GRANT)
+                                .message(ex.getMessage()));
+    }
+
+    @ExceptionHandler(GrantNotFoundException.class)
+    public ResponseEntity<GrantErrorResponse> handleGrantNotFound(GrantNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(
+                        new GrantErrorResponse()
+                                .error(GrantErrorCode.GRANT_NOT_FOUND)
                                 .message(ex.getMessage()));
     }
 

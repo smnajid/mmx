@@ -9,6 +9,7 @@ import com.mmx.order.domain.model.DealingReference;
 import com.mmx.order.domain.model.ExecutionDetails;
 import com.mmx.order.domain.model.ExternalOrderReference;
 import com.mmx.order.domain.model.HandoffStatus;
+import com.mmx.order.domain.model.LegalEntityCode;
 import com.mmx.order.domain.model.MoneyMarketOrder;
 import com.mmx.order.domain.model.NoticePeriod;
 import com.mmx.order.domain.model.OrderOperation;
@@ -25,6 +26,7 @@ public class OrderPersistenceMapper {
         OrderEntity e = new OrderEntity();
         e.setId(order.getId());
         e.setExternalOrderReference(order.getExternalOrderReference().value());
+        e.setLegalEntityCode(order.getLegalEntityCode().value());
         e.setOrderType(order.getOrderType().name());
         e.setOrderOperation(order.getOrderOperation().name());
         e.setPortfolioNumber(order.getPortfolioNumber().value());
@@ -74,6 +76,7 @@ public class OrderPersistenceMapper {
         MoneyMarketOrder order = MoneyMarketOrder.reconstitute(
                 e.getId(),
                 new ExternalOrderReference(e.getExternalOrderReference()),
+                legalEntityCodeFromEntity(e),
                 OrderType.valueOf(e.getOrderType()),
                 OrderOperation.valueOf(e.getOrderOperation()),
                 new PortfolioNumber(e.getPortfolioNumber()),
@@ -95,6 +98,11 @@ public class OrderPersistenceMapper {
                 e.getUpdatedAt()
         );
         return order;
+    }
+
+    private static LegalEntityCode legalEntityCodeFromEntity(OrderEntity e) {
+        String code = e.getLegalEntityCode();
+        return code != null ? new LegalEntityCode(code) : new LegalEntityCode("LOC");
     }
 
     private Assignment buildAssignment(OrderEntity e) {

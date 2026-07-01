@@ -17,6 +17,7 @@ import com.mmx.order.domain.model.ContractNumber;
 import com.mmx.order.domain.model.DealingReference;
 import com.mmx.order.domain.model.Assignment;
 import com.mmx.order.domain.model.ExternalOrderReference;
+import com.mmx.order.domain.model.LegalEntityCode;
 import com.mmx.order.domain.model.MoneyMarketOrder;
 import com.mmx.order.domain.model.NoticePeriod;
 import com.mmx.order.domain.model.OrderOperation;
@@ -159,6 +160,7 @@ class ExecuteOrderServiceTest {
                 MoneyMarketOrder.reconstitute(
                         id,
                         new ExternalOrderReference("PM-NO-INST"),
+                        new LegalEntityCode("LOC"),
                         OrderType.TERM,
                         OrderOperation.SUBSCRIPTION,
                         new PortfolioNumber("PF-1"),
@@ -346,6 +348,7 @@ class ExecuteOrderServiceTest {
                 MoneyMarketOrder.reconstitute(
                         id,
                         new ExternalOrderReference("PM-BAD-SRC"),
+                        new LegalEntityCode("LOC"),
                         OrderType.ON_CALL,
                         OrderOperation.INCREASE,
                         new PortfolioNumber("PF-1"),
@@ -401,6 +404,7 @@ class ExecuteOrderServiceTest {
     private static MoneyMarketOrder receivedOrder() {
         return MoneyMarketOrder.create(
                 new ExternalOrderReference("PM-EXEC-" + UUID.randomUUID()),
+                new LegalEntityCode("LOC"),
                 OrderType.TERM,
                 OrderOperation.SUBSCRIPTION,
                 new PortfolioNumber("PF-001"),
@@ -415,6 +419,7 @@ class ExecuteOrderServiceTest {
     private static MoneyMarketOrder receivedOrderWithInstitution(String institutionCode, String counterparty) {
         return MoneyMarketOrder.create(
                 new ExternalOrderReference("PM-EXEC-" + UUID.randomUUID()),
+                new LegalEntityCode("LOC"),
                 OrderType.TERM,
                 OrderOperation.SUBSCRIPTION,
                 new PortfolioNumber("PF-001"),
@@ -434,6 +439,7 @@ class ExecuteOrderServiceTest {
         MoneyMarketOrder order =
                 MoneyMarketOrder.create(
                         new ExternalOrderReference("PM-LIFE-" + UUID.randomUUID()),
+                        new LegalEntityCode("LOC"),
                         OrderType.ON_CALL,
                         OrderOperation.INCREASE,
                         new PortfolioNumber("PF-L"),
@@ -454,6 +460,7 @@ class ExecuteOrderServiceTest {
     private static MoneyMarketOrder receivedOrderWithoutMinimum() {
         return MoneyMarketOrder.create(
                 new ExternalOrderReference("PM-EXEC-OPEN-" + UUID.randomUUID()),
+                new LegalEntityCode("LOC"),
                 OrderType.TERM,
                 OrderOperation.SUBSCRIPTION,
                 new PortfolioNumber("PF-001"),

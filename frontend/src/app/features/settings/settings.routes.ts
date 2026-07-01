@@ -24,4 +24,9 @@ export const SETTINGS_ROUTES: Routes = [
     loadChildren: () =>
       import('../oncall-rate-settings/oncall-rate-settings.routes').then((m) => m.ONCALL_RATE_SETTINGS_ROUTES),
   },
+  {
+    path: 'delegated-grants',
+    loadChildren: () =>
+      import('../delegated-grants/delegated-grants.routes').then((m) => m.DELEGATED_GRANTS_ROUTES),
+  },
 ];

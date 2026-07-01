@@ -7,8 +7,8 @@ info:
     list surfaces (`/term/*`, `/oncall/*`) so Term and OnCall orders are never mixed on the same
     list response. Workspace **Assigned** lists are **desk-wide** (all assignees) per User Story 2.
     Human-readable mirror: [api-v1.md](./api-v1.md). Trader-facing operations require header
-    `X-Trader-Id` (actor identity; Assigned workspace lists are not filtered by assignee).
-  version: 1.9.0
+    `X-User-Id` (actor identity; Assigned workspace lists are not filtered by assignee).
+  version: 2.0.0
 
 servers:
   - url: /
@@ -22,11 +22,46 @@ tags:
   - name: Orders
     description: Trader-facing order operations
   - name: BackOffice
-    description: Portfolio accounting callbacks (no X-Trader-Id; unauthenticated baseline)
+    description: Portfolio accounting callbacks (no X-User-Id; unauthenticated baseline)
   - name: OnCallRateSettings
     description: Trader-facing OnCall rate curve maintenance (institution-scoped)
+  - name: Session
+    description: MMXUser session scope binding
 
 paths:
+  /api/v1/session/scope:
+    post:
+      tags: [Session]
+      summary: Re-bind session to a held (LegalEntity, role) scope
+      operationId: reScopeSession
+      parameters:
+        - $ref: "#/components/parameters/UserIdHeader"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReScopeRequest"
+      responses:
+        "200":
+          description: Session rebound to the requested scope
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReScopeResponse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: User does not hold the requested scope
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /api/v1/orders:
     post:
       tags: [Intake]
@@ -66,7 +101,7 @@ paths:
         By default (`receivedView=NEAR_TERM`) returns only orders whose `valueDate` falls within **today and the next two calendar days** inclusive in the business calendar (**Europe/Paris**). Use `receivedView=ALL` for the full RECEIVED cohort for this workspace type (session UX may pass this from a trader “show all” control).
       operationId: listReceivedTermOrders
       parameters:
-        - $ref: "#/components/parameters/TraderIdHeader"
+        - $ref: "#/components/parameters/UserIdHeader"
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/Size"
         - $ref: "#/components/parameters/ReceivedListView"
@@ -86,7 +121,7 @@ paths:
         Same near-term window behaviour as Term Received; see `GET /api/v1/orders/term/received`.
       operationId: listReceivedOnCallOrders
       parameters:
-        - $ref: "#/components/parameters/TraderIdHeader"
+        - $ref: "#/components/parameters/UserIdHeader"
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/Size"
         - $ref: "#/components/parameters/ReceivedListView"
@@ -104,12 +139,12 @@ paths:
       summary: List all assigned Term orders (desk-wide)
       description: |
         Returns every order in **ASSIGNED** status with `orderType` **TERM** (all assignees).
-        `X-Trader-Id` identifies the caller and is required for consistency with other Trader
+        `X-User-Id` identifies the caller and is required for consistency with other Trader
         operations; the response is **not** restricted to orders assigned to that trader.
         Execute and unassign remain assignee-gated on their respective operations.
       operationId: listAssignedTermOrders
       parameters:
-        - $ref: "#/components/parameters/TraderIdHeader"
+        - $ref: "#/components/parameters/UserIdHeader"
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/Size"
       responses:
@@ -126,11 +161,11 @@ paths:
       summary: List all assigned OnCall orders (desk-wide)
       description: |
         Returns every order in **ASSIGNED** status with `orderType` **ON_CALL** (all assignees).
-        `X-Trader-Id` identifies the caller and is required for consistency; the response is **not**
+        `X-User-Id` identifies the caller and is required for consistency; the response is **not**
         restricted to orders assigned to that trader.
       operationId: listAssignedOnCallOrders
       parameters:
-        - $ref: "#/components/parameters/TraderIdHeader"
+        - $ref: "#/components/parameters/UserIdHeader"
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/Size"
       responses:
@@ -147,7 +182,7 @@ paths:
       summary: List executed Term orders (workspace Executed view)
       operationId: listExecutedTermOrders
       parameters:
-        - $ref: "#/components/parameters/TraderIdHeader"
+        - $ref: "#/components/parameters/UserIdHeader"
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/Size"
       responses:
@@ -164,7 +199,7 @@ paths:
       summary: List executed OnCall orders (workspace Executed view)
       operationId: listExecutedOnCallOrders
       parameters:
-        - $ref: "#/components/parameters/TraderIdHeader"
+        - $ref: "#/components/parameters/UserIdHeader"
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/Size"
       responses:
@@ -181,7 +216,7 @@ paths:
       summary: Confirm execution accounted (portfolio position updated)
       description: |
         Idempotent callback from back-office. Transitions EXECUTED → ACCOUNTED. Does **not**
-        require `X-Trader-Id` or any other caller authentication for this baseline.
+        require `X-User-Id` or any other caller authentication for this baseline.
       operationId: markOrderAccounted
       security: []
       parameters:
@@ -214,7 +249,7 @@ paths:
       summary: Confirm OnCall rate segment validated by back office
       description: |
         Idempotent callback from back-office. Transitions `PENDING_CONFIRMATION` → `VALID`.
-        Does **not** require `X-Trader-Id` or any other caller authentication for this baseline.
+        Does **not** require `X-User-Id` or any other caller authentication for this baseline.
         Returns **409** when the segment was canceled; **404** when unknown.
       operationId: confirmOnCallRateSegment
       security: []
@@ -248,7 +283,7 @@ paths:
       summary: List OnCall rate segments for an institution
       operationId: listOnCallRateSegments
       parameters:
-        - $ref: "#/components/parameters/TraderIdHeader"
+        - $ref: "#/components/parameters/UserIdHeader"
         - $ref: "#/components/parameters/InstitutionCodePath"
       responses:
         "200":
@@ -270,7 +305,7 @@ paths:
       summary: Add an OnCall rate to a curve point
       operationId: addOnCallRate
       parameters:
-        - $ref: "#/components/parameters/TraderIdHeader"
+        - $ref: "#/components/parameters/UserIdHeader"
         - $ref: "#/components/parameters/InstitutionCodePath"
       requestBody:
         required: true
@@ -310,7 +345,7 @@ paths:
       summary: Cancel a pending OnCall rate segment
       operationId: cancelOnCallRate
       parameters:
-        - $ref: "#/components/parameters/TraderIdHeader"
+        - $ref: "#/components/parameters/UserIdHeader"
         - $ref: "#/components/parameters/InstitutionCodePath"
         - $ref: "#/components/parameters/SegmentIdPath"
       responses:
@@ -339,7 +374,7 @@ paths:
       summary: Get order details
       operationId: getOrderDetails
       parameters:
-        - $ref: "#/components/parameters/TraderIdHeader"
+        - $ref: "#/components/parameters/UserIdHeader"
         - $ref: "#/components/parameters/OrderIdPath"
       responses:
         "200":
@@ -360,7 +395,7 @@ paths:
       summary: Update assigned order
       operationId: updateAssignedOrder
       parameters:
-        - $ref: "#/components/parameters/TraderIdHeader"
+        - $ref: "#/components/parameters/UserIdHeader"
         - $ref: "#/components/parameters/OrderIdPath"
       requestBody:
         required: true
@@ -406,7 +441,7 @@ paths:
       summary: Assign order to requesting Trader
       operationId: assignOrder
       parameters:
-        - $ref: "#/components/parameters/TraderIdHeader"
+        - $ref: "#/components/parameters/UserIdHeader"
         - $ref: "#/components/parameters/OrderIdPath"
       responses:
         "200":
@@ -434,7 +469,7 @@ paths:
       summary: Unassign order
       operationId: unassignOrder
       parameters:
-        - $ref: "#/components/parameters/TraderIdHeader"
+        - $ref: "#/components/parameters/UserIdHeader"
         - $ref: "#/components/parameters/OrderIdPath"
       responses:
         "200":
@@ -472,7 +507,7 @@ paths:
         `GET /api/v1/orders/oncall/assigned` (002-trader-orders-views).
       operationId: listAssignedOrders
       parameters:
-        - $ref: "#/components/parameters/TraderIdHeader"
+        - $ref: "#/components/parameters/UserIdHeader"
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/Size"
       responses:
@@ -489,7 +524,7 @@ paths:
       summary: Record order execution
       operationId: executeOrder
       parameters:
-        - $ref: "#/components/parameters/TraderIdHeader"
+        - $ref: "#/components/parameters/UserIdHeader"
         - $ref: "#/components/parameters/OrderIdPath"
       requestBody:
         required: true
@@ -535,7 +570,7 @@ paths:
       summary: Cancel received order
       operationId: cancelOrder
       parameters:
-        - $ref: "#/components/parameters/TraderIdHeader"
+        - $ref: "#/components/parameters/UserIdHeader"
         - $ref: "#/components/parameters/OrderIdPath"
       responses:
         "200":
@@ -563,7 +598,7 @@ paths:
       summary: Reject received or assigned order
       operationId: rejectOrder
       parameters:
-        - $ref: "#/components/parameters/TraderIdHeader"
+        - $ref: "#/components/parameters/UserIdHeader"
         - $ref: "#/components/parameters/OrderIdPath"
       requestBody:
         required: true
@@ -820,11 +855,11 @@ paths:
 
 components:
   parameters:
-    TraderIdHeader:
-      name: X-Trader-Id
+    UserIdHeader:
+      name: X-User-Id
       in: header
       required: true
-      description: Trader identity for Trader-facing endpoints
+      description: MMXUser identity for Trader-facing and settings endpoints
       schema:
         type: string
         minLength: 1
@@ -955,6 +990,7 @@ components:
       type: object
       required:
         - externalOrderReference
+        - legalEntityCode
         - orderType
         - orderOperation
         - portfolioNumber
@@ -963,6 +999,11 @@ components:
         - valueDate
         - institutionCode
       properties:
+        legalEntityCode:
+          type: string
+          minLength: 3
+          maxLength: 3
+          description: Owning LegalEntity code (3 characters, e.g. LOC, PAR).
         externalOrderReference:
           type: string
           maxLength: 100
@@ -1009,13 +1050,44 @@ components:
 
     ReceiveOrderResponse:
       type: object
-      required: [orderId, status]
+      required: [orderId, status, legalEntityCode]
       properties:
         orderId:
           type: string
           format: uuid
         status:
           $ref: "#/components/schemas/OrderStatus"
+        legalEntityCode:
+          type: string
+          minLength: 3
+          maxLength: 3
+          description: Owning LegalEntity code persisted on the order.
+
+    UserRole:
+      type: string
+      enum: [TRADER, CLIENT_REPRESENTATIVE]
+
+    ReScopeRequest:
+      type: object
+      required: [legalEntityCode, role]
+      properties:
+        legalEntityCode:
+          type: string
+          minLength: 3
+          maxLength: 3
+        role:
+          $ref: "#/components/schemas/UserRole"
+
+    ReScopeResponse:
+      type: object
+      required: [legalEntityCode, role]
+      properties:
+        legalEntityCode:
+          type: string
+          minLength: 3
+          maxLength: 3
+        role:
+          $ref: "#/components/schemas/UserRole"
 
     OrderSummaryResponse:
       type: object

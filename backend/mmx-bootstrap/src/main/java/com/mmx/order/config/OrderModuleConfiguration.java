@@ -21,6 +21,7 @@ import com.mmx.order.application.service.OrderLifecycleService;
 import com.mmx.order.application.service.DeskOrderQueryService;
 import com.mmx.order.application.service.ReceiveOrderService;
 import com.mmx.order.application.service.UpdateOrderService;
+import com.mmx.order.domain.model.OrganisationCode;
 import com.mmx.order.domain.policy.OrderAgainstInstitutionPolicy;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -84,6 +85,9 @@ public class OrderModuleConfiguration {
             ManagedCurrencyRepository managedCurrencyRepository,
             InstitutionRepository institutionRepository,
             OpenPositionPort openPositionPort,
+            OrganisationRepository organisationRepository,
+            LegalEntityRepository legalEntityRepository,
+            OrganisationCode portfolioManagementOrganisation,
             AuditLogger auditLogger,
             Clock clock) {
         return new ReceiveOrderService(
@@ -91,6 +95,9 @@ public class OrderModuleConfiguration {
                 managedCurrencyRepository,
                 institutionRepository,
                 openPositionPort,
+                organisationRepository,
+                legalEntityRepository,
+                portfolioManagementOrganisation,
                 auditLogger,
                 clock);
     }

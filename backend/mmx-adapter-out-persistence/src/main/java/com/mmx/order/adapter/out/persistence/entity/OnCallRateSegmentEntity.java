@@ -42,6 +42,9 @@ public class OnCallRateSegmentEntity {
     @Column(name = "validated_at")
     private Instant validatedAt;
 
+    @Column(name = "legal_entity_code", nullable = false, length = 3)
+    private String legalEntityCode;
+
     protected OnCallRateSegmentEntity() {}
 
     public OnCallRateSegmentEntity(
@@ -53,7 +56,8 @@ public class OnCallRateSegmentEntity {
             LocalDate valueDate,
             LocalDate endDate,
             String status,
-            Instant validatedAt) {
+            Instant validatedAt,
+            String legalEntityCode) {
         this.segmentId = segmentId;
         this.institutionCode = institutionCode;
         this.currency = currency;
@@ -63,6 +67,7 @@ public class OnCallRateSegmentEntity {
         this.endDate = endDate;
         this.status = status;
         this.validatedAt = validatedAt;
+        this.legalEntityCode = legalEntityCode;
     }
 
     public UUID getSegmentId() {

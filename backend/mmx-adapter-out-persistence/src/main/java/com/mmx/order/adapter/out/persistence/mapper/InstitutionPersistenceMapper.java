@@ -13,14 +13,19 @@ public class InstitutionPersistenceMapper {
         return new Institution(entity.getInstitutionCode(), entity.getDisplayName(), entity.isActive());
     }
 
-    public InstitutionEntity toEntity(Institution institution, Instant now) {
+    public InstitutionEntity toEntity(Institution institution, String legalEntityCode, Instant now) {
         InstitutionEntity entity = new InstitutionEntity();
         entity.setInstitutionCode(institution.getInstitutionCode());
         entity.setDisplayName(institution.getDisplayName());
         entity.setActive(institution.isActive());
+        entity.setLegalEntityCode(legalEntityCode);
         entity.setCreatedAt(now);
         entity.setUpdatedAt(now);
         return entity;
+    }
+
+    public InstitutionEntity toEntity(Institution institution, Instant now) {
+        return toEntity(institution, "LOC", now);
     }
 
     public void updateEntity(InstitutionEntity entity, Institution institution, Instant now) {

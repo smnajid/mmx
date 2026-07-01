@@ -32,7 +32,7 @@ export type OrderDetails = WithAppOrderEnums<Schemas['OrderDetailsResponse']>;
 export type ErrorDetail = Schemas['FieldError'];
 export type ApiError = Schemas['ErrorResponse'];
 
-/** Not in 002 contract; assign uses `X-Trader-Id` header. */
+/** Not in 002 contract; assign uses `X-User-Id` header. */
 export interface AssignOrderRequest {
   traderId: string;
 }

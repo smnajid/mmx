@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
-    "generate:api": "openapi-typescript ../contracts/002-trader-orders-views/openapi.yaml -o src/app/core/api/generated/trader-orders-views.ts && openapi-typescript ../contracts/003-managed-currency-settings/openapi.yaml -o src/app/core/api/generated/currency-settings.ts && openapi-typescript ../contracts/004-institution-settings/openapi.yaml -o src/app/core/api/generated/institution-settings.ts && openapi-typescript ../contracts/005-term-rate-settings/openapi.yaml -o src/app/core/api/generated/term-rate-settings.ts",
+    "generate:api": "openapi-typescript ../contracts/002-trader-orders-views/openapi.yaml -o src/app/core/api/generated/trader-orders-views.ts && openapi-typescript ../contracts/003-managed-currency-settings/openapi.yaml -o src/app/core/api/generated/currency-settings.ts && openapi-typescript ../contracts/004-institution-settings/openapi.yaml -o src/app/core/api/generated/institution-settings.ts && openapi-typescript ../contracts/005-term-rate-settings/openapi.yaml -o src/app/core/api/generated/term-rate-settings.ts && openapi-typescript ../contracts/006-delegated-institution-grants/openapi.yaml -o src/app/core/api/generated/delegated-grants.ts",
     "generate:api:widget": "openapi-typescript ../contracts/002-trader-orders-views/openapi.yaml -o projects/order-creation-widget/src/lib/generated/trader-orders-views.ts",
     "prebuild:widget": "npm run generate:api:widget",
     "build:widget": "ng build order-creation-widget",

@@ -4,7 +4,7 @@
 
 **Base URL**: `/api/v1`
 **Content-Type**: `application/json`
-**Trader Identity**: `X-Trader-Id` request header (required for Trader-facing endpoints)
+**MMXUser Identity**: `X-User-Id` request header (required for Trader-facing endpoints)
 
 ## Common Response Models
 
@@ -104,6 +104,7 @@ Intake endpoint called by the external Portfolio Management system.
 ```json
 {
   "externalOrderReference": "PM-2026-00123",
+  "legalEntityCode": "LOC",
   "orderType": "TERM",
   "orderOperation": "SUBSCRIPTION",
   "portfolioNumber": "PF-001",
@@ -121,6 +122,7 @@ Intake endpoint called by the external Portfolio Management system.
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
 | externalOrderReference | string | Yes | Idempotency key; max 100 chars |
+| legalEntityCode | string | Yes | Owning LegalEntity code; exactly 3 characters (e.g. LOC, PAR) |
 | orderType | string | Yes | `TERM` or `ON_CALL` |
 | orderOperation | string | Yes | `SUBSCRIPTION`, `INCREASE`, `DECREASE`, `REDEMPTION` |
 | portfolioNumber | string | Yes | Max 50 chars |
@@ -139,9 +141,39 @@ Intake endpoint called by the external Portfolio Management system.
 
 | Status | Condition | Body |
 |--------|-----------|------|
-| `201 Created` | New order created | `{ "orderId": "uuid", "status": "RECEIVED" }` |
-| `200 OK` | Duplicate externalOrderReference (idempotent) | `{ "orderId": "uuid", "status": "RECEIVED" }` |
+| `201 Created` | New order created | `{ "orderId": "uuid", "status": "RECEIVED", "legalEntityCode": "LOC" }` |
+| `200 OK` | Duplicate `(legalEntityCode, externalOrderReference)` (idempotent) | `{ "orderId": "uuid", "status": "RECEIVED", "legalEntityCode": "LOC" }` |
 | `400 Bad Request` | Validation errors | ErrorResponse with details |
+
+---
+
+### 1b. Re-scope session
+
+**POST** `/api/v1/session/scope`
+
+Re-binds the caller's session to a held `(legalEntityCode, role)` scope. Requires header `X-User-Id`. Role is session-carried (not a separate header).
+
+#### Request
+
+```json
+{
+  "legalEntityCode": "PAR",
+  "role": "CLIENT_REPRESENTATIVE"
+}
+```
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| legalEntityCode | string | Yes | Exactly 3 characters |
+| role | string | Yes | `TRADER` or `CLIENT_REPRESENTATIVE` |
+
+#### Responses
+
+| Status | Condition | Body |
+|--------|-----------|------|
+| `200 OK` | Scope rebound | `{ "legalEntityCode": "PAR", "role": "CLIENT_REPRESENTATIVE" }` |
+| `400 Bad Request` | Validation errors | ErrorResponse |
+| `403 Forbidden` | User does not hold the requested scope | ErrorResponse |
 
 ---
 
@@ -149,7 +181,7 @@ Intake endpoint called by the external Portfolio Management system.
 
 **GET** `/api/v1/orders/term/received`
 
-**Headers**: `X-Trader-Id` required.
+**Headers**: `X-User-Id` required.
 
 #### Query Parameters
 
@@ -171,7 +203,7 @@ Intake endpoint called by the external Portfolio Management system.
 
 **GET** `/api/v1/orders/oncall/received`
 
-**Headers**: `X-Trader-Id` required.
+**Headers**: `X-User-Id` required.
 
 #### Query Parameters
 
@@ -191,12 +223,12 @@ These endpoints ensure **Term** and **OnCall** orders are not mixed on the same 
 
 | Method | Path | Summary |
 |--------|------|---------|
-| GET | `/api/v1/orders/term/assigned` | **Desk-wide** assigned **Term** orders (all assignees; `X-Trader-Id` is actor only, not an assignee filter) |
+| GET | `/api/v1/orders/term/assigned` | **Desk-wide** assigned **Term** orders (all assignees; `X-User-Id` is actor only, not an assignee filter) |
 | GET | `/api/v1/orders/oncall/assigned` | **Desk-wide** assigned **OnCall** orders (all assignees) |
 | GET | `/api/v1/orders/term/executed` | **Term** orders in `EXECUTED` status ( **`ACCOUNTED`** excluded; workspace executed-not-accounted view) |
 | GET | `/api/v1/orders/oncall/executed` | **OnCall** orders in `EXECUTED` status ( **`ACCOUNTED`** orders excluded ) |
 
-**Headers**: `X-Trader-Id` required. **Query**: `page`, `size` — same as received list endpoints.
+**Headers**: `X-User-Id` required. **Query**: `page`, `size` — same as received list endpoints.
 
 **Deprecated**: `GET /api/v1/orders/assigned` (mixes order types) — clients MUST migrate to the workspace-scoped paths above.
 
@@ -206,7 +238,7 @@ List rows include **counterparty** when execution exists (omit-null).
 
 ### Back-office accounted callback
 
-This path is intentionally **outside** Trader header rules: callers MUST NOT send `X-Trader-Id` for authentication baseline (endpoint remains reachable with no Trader identity header).
+This path is intentionally **outside** Trader header rules: callers MUST NOT send `X-User-Id` for authentication baseline (endpoint remains reachable with no Trader identity header).
 
 #### Request
 
@@ -240,7 +272,7 @@ or
 
 ### Back-office OnCall rate confirmation callback
 
-Unauthenticated baseline (no `X-Trader-Id`).
+Unauthenticated baseline (no `X-User-Id`).
 
 #### Request
 
@@ -260,7 +292,7 @@ Optional empty JSON body; mmx stamps `validatedAt` server-side.
 
 ### OnCall rate settings (institution-scoped)
 
-Trader operations require `X-Trader-Id`.
+Trader operations require `X-User-Id`.
 
 #### List segments
 
@@ -322,7 +354,7 @@ Returns all rate segments for the institution (all curve points).
 
 **GET** `/api/v1/orders/{orderId}`
 
-**Headers**: `X-Trader-Id` required.
+**Headers**: `X-User-Id` required.
 
 #### Path Parameters
 
@@ -343,11 +375,11 @@ Returns all rate segments for the institution (all curve points).
 
 **POST** `/api/v1/orders/{orderId}/assign`
 
-**Headers**: `X-Trader-Id` required (used as the assignee).
+**Headers**: `X-User-Id` required (used as the assignee).
 
 #### Request
 
-No request body. The Trader identity comes from the `X-Trader-Id` header.
+No request body. The Trader identity comes from the `X-User-Id` header.
 
 #### Responses
 
@@ -363,7 +395,7 @@ No request body. The Trader identity comes from the `X-Trader-Id` header.
 
 **POST** `/api/v1/orders/{orderId}/unassign`
 
-**Headers**: `X-Trader-Id` required (must match assigned Trader).
+**Headers**: `X-User-Id` required (must match assigned Trader).
 
 #### Request
 
@@ -384,7 +416,7 @@ No request body.
 
 **GET** `/api/v1/orders/assigned`
 
-**Headers**: `X-Trader-Id` required (filters to this Trader's assignments).
+**Headers**: `X-User-Id` required (filters to this Trader's assignments).
 
 #### Query Parameters
 
@@ -405,7 +437,7 @@ No request body.
 
 **PUT** `/api/v1/orders/{orderId}`
 
-**Headers**: `X-Trader-Id` required (must match assigned Trader).
+**Headers**: `X-User-Id` required (must match assigned Trader).
 
 #### Request
 
@@ -441,7 +473,7 @@ All fields are optional; only provided fields are updated.
 
 **POST** `/api/v1/orders/{orderId}/execute`
 
-**Headers**: `X-Trader-Id` required (must match assigned Trader).
+**Headers**: `X-User-Id` required (must match assigned Trader).
 
 #### Request
 
@@ -473,7 +505,7 @@ All fields are optional; only provided fields are updated.
 
 **POST** `/api/v1/orders/{orderId}/cancel`
 
-**Headers**: `X-Trader-Id` required.
+**Headers**: `X-User-Id` required.
 
 #### Request
 
@@ -493,7 +525,7 @@ No request body.
 
 **POST** `/api/v1/orders/{orderId}/reject`
 
-**Headers**: `X-Trader-Id` required.
+**Headers**: `X-User-Id` required.
 
 #### Request
 
@@ -535,7 +567,7 @@ All list endpoints use Spring's page-based pagination:
 
 ### Order Creation Options (PM wizard)
 
-Read-only endpoints consumed by the external Portfolio Management application to build a step-by-step order creation wizard. **No `X-Trader-Id` header** required. The surface comprises **ten** GET operations (currencies, operations, tenors, notice-periods, counterparties, contract-info, and live contracts).
+Read-only endpoints consumed by the external Portfolio Management application to build a step-by-step order creation wizard. **No `X-User-Id` header** required. The surface comprises **ten** GET operations (currencies, operations, tenors, notice-periods, counterparties, contract-info, and live contracts).
 
 #### Term currencies
 
