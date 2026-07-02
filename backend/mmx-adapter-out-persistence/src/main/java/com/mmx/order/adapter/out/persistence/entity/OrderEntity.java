@@ -86,6 +86,15 @@ public class OrderEntity {
     @Column(name = "handoff_status", length = 20)
     private String handoffStatus;
 
+    @Column(name = "routing_id")
+    private UUID routingId;
+
+    @Column(name = "originating_legal_entity_code", length = 3)
+    private String originatingLegalEntityCode;
+
+    @Column(name = "originating_external_order_reference", length = 100)
+    private String originatingExternalOrderReference;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -170,6 +179,15 @@ public class OrderEntity {
 
     public String getHandoffStatus() { return handoffStatus; }
     public void setHandoffStatus(String handoffStatus) { this.handoffStatus = handoffStatus; }
+
+    public UUID getRoutingId() { return routingId; }
+    public void setRoutingId(UUID routingId) { this.routingId = routingId; }
+
+    public String getOriginatingLegalEntityCode() { return originatingLegalEntityCode; }
+    public void setOriginatingLegalEntityCode(String v) { this.originatingLegalEntityCode = v; }
+
+    public String getOriginatingExternalOrderReference() { return originatingExternalOrderReference; }
+    public void setOriginatingExternalOrderReference(String v) { this.originatingExternalOrderReference = v; }
 
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant v) { this.createdAt = v; }

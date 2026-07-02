@@ -11,10 +11,13 @@ import com.mmx.order.application.port.in.ListTermCurrenciesUseCase;
 import com.mmx.order.application.port.in.ListTermOperationsUseCase;
 import com.mmx.order.application.port.in.ListTermTenorsUseCase;
 import com.mmx.order.application.port.out.Clock;
+import com.mmx.order.application.port.out.DelegatedGrantRepository;
 import com.mmx.order.application.port.out.InstitutionRepository;
+import com.mmx.order.application.port.out.LegalEntityRepository;
 import com.mmx.order.application.port.out.ManagedCurrencyRepository;
 import com.mmx.order.application.port.out.OnCallRateRepository;
 import com.mmx.order.application.port.out.OrderRepository;
+import com.mmx.order.application.port.out.ProxyInstitutionRepository;
 import com.mmx.order.application.port.out.TermRateRepository;
 import com.mmx.order.application.service.ListLiveContractsService;
 import com.mmx.order.application.service.OnCallOrderCreationOptionsService;
@@ -30,9 +33,18 @@ public class OrderCreationModuleConfiguration {
             ManagedCurrencyRepository managedCurrencyRepository,
             TermRateRepository termRateRepository,
             InstitutionRepository institutionRepository,
+            LegalEntityRepository legalEntityRepository,
+            DelegatedGrantRepository delegatedGrantRepository,
+            ProxyInstitutionRepository proxyInstitutionRepository,
             Clock clock) {
         return new TermOrderCreationOptionsService(
-                managedCurrencyRepository, termRateRepository, institutionRepository, clock);
+                managedCurrencyRepository,
+                termRateRepository,
+                institutionRepository,
+                legalEntityRepository,
+                delegatedGrantRepository,
+                proxyInstitutionRepository,
+                clock);
     }
 
     @Bean
@@ -64,9 +76,18 @@ public class OrderCreationModuleConfiguration {
             ManagedCurrencyRepository managedCurrencyRepository,
             OnCallRateRepository onCallRateRepository,
             InstitutionRepository institutionRepository,
-            OrderRepository orderRepository) {
+            OrderRepository orderRepository,
+            LegalEntityRepository legalEntityRepository,
+            DelegatedGrantRepository delegatedGrantRepository,
+            ProxyInstitutionRepository proxyInstitutionRepository) {
         return new OnCallOrderCreationOptionsService(
-                managedCurrencyRepository, onCallRateRepository, institutionRepository, orderRepository);
+                managedCurrencyRepository,
+                onCallRateRepository,
+                institutionRepository,
+                orderRepository,
+                legalEntityRepository,
+                delegatedGrantRepository,
+                proxyInstitutionRepository);
     }
 
     @Bean

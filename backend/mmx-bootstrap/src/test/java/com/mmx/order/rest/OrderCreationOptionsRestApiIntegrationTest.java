@@ -80,7 +80,7 @@ class OrderCreationOptionsRestApiIntegrationTest {
 
         HttpResponse<String> res =
                 getWithoutTraderHeader(
-                        "/api/v1/order-creation/term/counterparties?currency=EUR&tenor=3M");
+                        "/api/v1/order-creation/term/counterparties?legalEntityCode=LOC&currency=EUR&tenor=3M");
         assertThat(res.statusCode()).isEqualTo(200);
         JsonNode counterparties = objectMapper.readTree(res.body()).path("counterparties");
         assertThat(counterparties).hasSize(2);
@@ -99,7 +99,7 @@ class OrderCreationOptionsRestApiIntegrationTest {
 
         HttpResponse<String> res =
                 getWithoutTraderHeader(
-                        "/api/v1/order-creation/oncall/counterparties?currency=EUR&noticePeriod=24H&valueDate="
+                        "/api/v1/order-creation/oncall/counterparties?legalEntityCode=LOC&currency=EUR&noticePeriod=24H&valueDate="
                                 + valueDate);
         assertThat(res.statusCode()).isEqualTo(200);
         JsonNode counterparties = objectMapper.readTree(res.body()).path("counterparties");

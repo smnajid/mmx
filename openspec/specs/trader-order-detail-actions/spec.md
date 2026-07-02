@@ -65,12 +65,12 @@ The order details grid SHALL display **counterparty** and **institutionCode** fo
 
 ### Requirement: Execute form proposes indicative executed rate
 
-When the execute form is shown for an ASSIGNED order, the UI SHALL fetch the appropriate order-creation counterparties endpoint for the order's type and dimensions, locate the row matching the order's intake `institutionCode`, and pre-fill the executed rate input with that row's `rate`. The form SHALL display `rateDate` and an **Indicative** indicator when `indicative` is true (same semantics as the PM order-creation wizard). The trader SHALL be able to edit the rate before submit.
+When the execute form is shown for an ASSIGNED order, the UI SHALL fetch the appropriate order-creation counterparties endpoint for the order's type and dimensions, passing the trader's active session `legalEntityCode`, locate the row matching the order's intake `institutionCode`, and pre-fill the executed rate input with that row's `rate`. The form SHALL display `rateDate` and an **Indicative** indicator when `indicative` is true (same semantics as the PM order-creation wizard). The trader SHALL be able to edit the rate before submit.
 
 #### Scenario: OnCall order pre-fills segment rate
 
-- **WHEN** an ASSIGNED OnCall order has `currency` CHF, `noticePeriod` 48H, `valueDate` 2026-06-30, and `institutionCode` QNB-01, and the oncall counterparties endpoint returns QNB-01 with rate 2.15, rateDate 2026-06-20, indicative false
-- **THEN** the execute form pre-fills executed rate `2.15`, shows rate date 2026-06-20, and does not show an Indicative badge
+- **WHEN** an ASSIGNED OnCall order has `currency` CHF, `noticePeriod` 48H, `valueDate` 2026-06-30, and `institutionCode` QNB-01, the trader's active scope is legal entity LOC, and the oncall counterparties endpoint returns QNB-01 with rate 2.15, rateDate 2026-06-20, indicative false
+- **THEN** the execute form calls `GET /api/v1/order-creation/oncall/counterparties?legalEntityCode=LOC&currency=CHF&noticePeriod=48H&valueDate=2026-06-30`, pre-fills executed rate `2.15`, shows rate date 2026-06-20, and does not show an Indicative badge
 
 #### Scenario: Stale rate shows indicative warning
 
@@ -84,8 +84,8 @@ When the execute form is shown for an ASSIGNED order, the UI SHALL fetch the app
 
 #### Scenario: Term order uses term counterparties endpoint
 
-- **WHEN** an ASSIGNED Term order has `currency` EUR, `tenor` 3M, and `institutionCode` BNKCO
-- **THEN** the execute form calls `GET /api/v1/order-creation/term/counterparties` with those parameters and pre-fills from the matching institution row when present
+- **WHEN** an ASSIGNED Term order has `currency` EUR, `tenor` 3M, and `institutionCode` BNKCO, and the trader's active scope is legal entity LOC
+- **THEN** the execute form calls `GET /api/v1/order-creation/term/counterparties?legalEntityCode=LOC&currency=EUR&tenor=3M` and pre-fills from the matching institution row when present
 
 ---
 

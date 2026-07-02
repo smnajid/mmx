@@ -7,5 +7,9 @@ import com.mmx.order.domain.model.MoneyMarketOrder;
  */
 public interface ExecutionHandoffOutbox {
 
-    void schedule(MoneyMarketOrder executedOrder);
+    void schedule(MoneyMarketOrder executedOrder, ExecutionHandoffRoutingContext routingContext);
+
+    default void schedule(MoneyMarketOrder executedOrder) {
+        schedule(executedOrder, ExecutionHandoffRoutingContext.none());
+    }
 }

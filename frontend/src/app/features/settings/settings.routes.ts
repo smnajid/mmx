@@ -29,4 +29,9 @@ export const SETTINGS_ROUTES: Routes = [
     loadChildren: () =>
       import('../delegated-grants/delegated-grants.routes').then((m) => m.DELEGATED_GRANTS_ROUTES),
   },
+  {
+    path: 'global-accounts',
+    loadChildren: () =>
+      import('../global-accounts/global-accounts.routes').then((m) => m.GLOBAL_ACCOUNTS_ROUTES),
+  },
 ];

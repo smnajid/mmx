@@ -390,4 +390,21 @@ describe('OrderCreationWizardComponent', () => {
     const hostConfig = fixture.debugElement.injector.get(WizardHostConfigService);
     expect(hostConfig.apiBaseUrl).toBe(apiBaseUrl);
   });
+
+  it('syncs hostConfig.legalEntityCode when legalEntityCode input changes', () => {
+    fixture = createWizard({
+      apiBaseUrl,
+      portfolioNumber: 'PF-001',
+      orderType: 'TERM',
+      legalEntityCode: 'LOC',
+    });
+
+    const hostConfig = fixture.debugElement.injector.get(WizardHostConfigService);
+    expect(hostConfig.legalEntityCode).toBe('LOC');
+
+    fixture.componentRef.setInput('legalEntityCode', 'PAR');
+    fixture.detectChanges();
+
+    expect(hostConfig.legalEntityCode).toBe('PAR');
+  });
 });

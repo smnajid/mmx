@@ -3,6 +3,7 @@ package com.mmx.order.adapter.out.messaging;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import com.mmx.order.application.port.out.ExecutionHandoffRoutingContext;
 import com.mmx.order.domain.model.ExecutionDetails;
 import com.mmx.order.domain.model.MoneyMarketOrder;
 
@@ -23,6 +24,10 @@ public class OrderExecutedV1PayloadMapper {
     }
 
     public String toJsonPayload(MoneyMarketOrder order) {
+        return toJsonPayload(order, ExecutionHandoffRoutingContext.none());
+    }
+
+    public String toJsonPayload(MoneyMarketOrder order, ExecutionHandoffRoutingContext routingContext) {
         ExecutionDetails ex = order.getExecutionDetails();
         if (ex == null) {
             throw new IllegalStateException("Order must have execution details for handoff payload");
@@ -46,6 +51,15 @@ public class OrderExecutedV1PayloadMapper {
         map.put(
                 "noticePeriod",
                 order.getNoticePeriod() != null ? order.getNoticePeriod().getCode() : null);
+        if (routingContext != null) {
+            map.put("routingId", routingContext.routingId().value().toString());
+            map.put(
+                    "originatingLegalEntityCode",
+                    routingContext.originatingLegalEntityCode().value());
+            map.put("clientOrderId", routingContext.clientOrderId().toString());
+            map.put("clientPortfolioNumber", routingContext.clientPortfolioNumber());
+            map.put("clientCounterparty", routingContext.clientCounterparty());
+        }
 
         try {
             return objectMapper.writeValueAsString(map);

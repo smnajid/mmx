@@ -21,6 +21,10 @@ public interface SpringDataOrderRepository extends JpaRepository<OrderEntity, UU
     Optional<OrderEntity> findByLegalEntityCodeAndExternalOrderReference(
             String legalEntityCode, String externalOrderReference);
 
+    Optional<OrderEntity> findByRoutingIdAndOriginatingLegalEntityCodeIsNull(UUID routingId);
+
+    Optional<OrderEntity> findByRoutingIdAndOriginatingLegalEntityCodeIsNotNull(UUID routingId);
+
     List<OrderEntity> findByLegalEntityCodeAndStatusAndOrderType(
             String legalEntityCode, String status, String orderType);
 

@@ -5,6 +5,7 @@ import com.mmx.order.domain.model.LegalEntityCode;
 import com.mmx.order.domain.model.MoneyMarketOrder;
 import com.mmx.order.domain.model.OrderStatus;
 import com.mmx.order.domain.model.OrderType;
+import com.mmx.order.domain.model.RoutingId;
 import com.mmx.order.domain.model.TraderId;
 
 import com.mmx.order.application.port.in.OrderPage;
@@ -25,6 +26,10 @@ public interface OrderRepository {
 
     Optional<MoneyMarketOrder> findByLegalEntityAndExternalReference(
             LegalEntityCode legalEntityCode, ExternalOrderReference reference);
+
+    Optional<MoneyMarketOrder> findRoutedClientOrderByRoutingId(RoutingId routingId);
+
+    Optional<MoneyMarketOrder> findHubOrderByRoutingId(RoutingId routingId);
 
     List<MoneyMarketOrder> findByStatusAndOrderType(
             LegalEntityCode legalEntityCode, OrderStatus status, OrderType orderType);

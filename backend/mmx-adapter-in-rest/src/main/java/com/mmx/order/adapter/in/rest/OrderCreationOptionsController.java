@@ -23,6 +23,7 @@ import com.mmx.order.application.port.in.ListTermCounterpartiesUseCase;
 import com.mmx.order.application.port.in.ListTermCurrenciesUseCase;
 import com.mmx.order.application.port.in.ListTermOperationsUseCase;
 import com.mmx.order.application.port.in.ListTermTenorsUseCase;
+import com.mmx.order.domain.model.LegalEntityCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -103,20 +104,29 @@ public class OrderCreationOptionsController implements OrderCreationApi {
     }
 
     @Override
-    public ResponseEntity<CounterpartiesResponse> listTermCounterparties(String currency, Tenor tenor) {
+    public ResponseEntity<CounterpartiesResponse> listTermCounterparties(
+            String legalEntityCode, String currency, Tenor tenor) {
         return ResponseEntity.ok(
                 mapper.toCounterpartiesResponse(
                         listTermCounterpartiesUseCase.listCounterparties(
-                                currency, mapper.toDomainTenor(tenor))));
+                                new LegalEntityCode(legalEntityCode),
+                                currency,
+                                mapper.toDomainTenor(tenor))));
     }
 
     @Override
     public ResponseEntity<CounterpartiesResponse> listOnCallCounterparties(
-            String currency, NoticePeriod noticePeriod, LocalDate valueDate) {
+            String legalEntityCode,
+            String currency,
+            NoticePeriod noticePeriod,
+            LocalDate valueDate) {
         return ResponseEntity.ok(
                 mapper.toCounterpartiesResponse(
                         listOnCallCounterpartiesUseCase.listCounterparties(
-                                currency, mapper.toDomainNoticePeriod(noticePeriod), valueDate)));
+                                new LegalEntityCode(legalEntityCode),
+                                currency,
+                                mapper.toDomainNoticePeriod(noticePeriod),
+                                valueDate)));
     }
 
     @Override

@@ -60,8 +60,15 @@ export class WizardApiService {
     );
   }
 
-  listTermCounterparties(currency: string, tenor: Tenor): Observable<CounterpartiesResponse> {
-    const params = new HttpParams().set('currency', currency).set('tenor', tenor);
+  listTermCounterparties(
+    currency: string,
+    tenor: Tenor,
+    legalEntityCode: string,
+  ): Observable<CounterpartiesResponse> {
+    const params = new HttpParams()
+      .set('legalEntityCode', legalEntityCode)
+      .set('currency', currency)
+      .set('tenor', tenor);
     return this.http.get<CounterpartiesResponse>(
       this.url('/api/v1/order-creation/term/counterparties'),
       { params },
@@ -72,8 +79,10 @@ export class WizardApiService {
     currency: string,
     noticePeriod: NoticePeriod,
     valueDate: string,
+    legalEntityCode: string,
   ): Observable<CounterpartiesResponse> {
     const params = new HttpParams()
+      .set('legalEntityCode', legalEntityCode)
       .set('currency', currency)
       .set('noticePeriod', noticePeriod)
       .set('valueDate', valueDate);

@@ -748,6 +748,13 @@ paths:
       summary: List Term counterparties with latest rates
       operationId: listTermCounterparties
       parameters:
+        - name: legalEntityCode
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 3
+            maxLength: 3
         - name: currency
           in: query
           required: true
@@ -774,6 +781,13 @@ paths:
       summary: List OnCall counterparties with segment rates for a value date
       operationId: listOnCallCounterparties
       parameters:
+        - name: legalEntityCode
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 3
+            maxLength: 3
         - name: currency
           in: query
           required: true
@@ -975,7 +989,7 @@ components:
 
     OrderStatus:
       type: string
-      enum: [RECEIVED, ASSIGNED, EXECUTED, ACCOUNTED, CANCELLED, REJECTED]
+      enum: [RECEIVED, ROUTED, ASSIGNED, EXECUTED, ACCOUNTED, CANCELLED, REJECTED]
 
     Tenor:
       type: string

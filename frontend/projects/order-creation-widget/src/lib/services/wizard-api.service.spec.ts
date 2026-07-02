@@ -103,9 +103,9 @@ describe('WizardApiService', () => {
   });
 
   it('listTermCounterparties calls GET with currency and tenor query params', async () => {
-    const promise = firstValueFrom(service.listTermCounterparties('EUR', '3M'));
+    const promise = firstValueFrom(service.listTermCounterparties('EUR', '3M', 'LOC'));
     const req = http.expectOne(
-      `${apiBaseUrl}/api/v1/order-creation/term/counterparties?currency=EUR&tenor=3M`,
+      `${apiBaseUrl}/api/v1/order-creation/term/counterparties?legalEntityCode=LOC&currency=EUR&tenor=3M`,
     );
     expect(req.request.method).toBe('GET');
     req.flush({
@@ -134,10 +134,10 @@ describe('WizardApiService', () => {
 
   it('listOnCallCounterparties calls GET with currency, noticePeriod, and valueDate', async () => {
     const promise = firstValueFrom(
-      service.listOnCallCounterparties('EUR', '24H', '2026-06-10'),
+      service.listOnCallCounterparties('EUR', '24H', '2026-06-10', 'LOC'),
     );
     const req = http.expectOne(
-      `${apiBaseUrl}/api/v1/order-creation/oncall/counterparties?currency=EUR&noticePeriod=24H&valueDate=2026-06-10`,
+      `${apiBaseUrl}/api/v1/order-creation/oncall/counterparties?legalEntityCode=LOC&currency=EUR&noticePeriod=24H&valueDate=2026-06-10`,
     );
     expect(req.request.method).toBe('GET');
     req.flush({ counterparties: [] });

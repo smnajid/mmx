@@ -59,6 +59,20 @@ public class JpaOrderRepository implements OrderRepository {
     }
 
     @Override
+    public Optional<MoneyMarketOrder> findRoutedClientOrderByRoutingId(RoutingId routingId) {
+        return springDataRepository
+                .findByRoutingIdAndOriginatingLegalEntityCodeIsNull(routingId.value())
+                .map(mapper::toDomain);
+    }
+
+    @Override
+    public Optional<MoneyMarketOrder> findHubOrderByRoutingId(RoutingId routingId) {
+        return springDataRepository
+                .findByRoutingIdAndOriginatingLegalEntityCodeIsNotNull(routingId.value())
+                .map(mapper::toDomain);
+    }
+
+    @Override
     public List<MoneyMarketOrder> findByStatusAndOrderType(
             LegalEntityCode legalEntityCode, OrderStatus status, OrderType orderType) {
         return springDataRepository

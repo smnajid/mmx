@@ -426,7 +426,7 @@ components:
 
     OrderStatus:
       type: string
-      enum: [RECEIVED, ASSIGNED, EXECUTED, CANCELLED, REJECTED]
+      enum: [RECEIVED, ROUTED, ASSIGNED, EXECUTED, CANCELLED, REJECTED]
 
     Tenor:
       type: string

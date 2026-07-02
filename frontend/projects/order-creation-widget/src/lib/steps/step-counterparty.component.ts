@@ -2,6 +2,7 @@ import { DecimalPipe } from '@angular/common';
 import { Component, computed, inject, OnInit, output, signal } from '@angular/core';
 import type { CounterpartyOption } from '../models/api-responses.model';
 import { WizardApiService } from '../services/wizard-api.service';
+import { WizardHostConfigService } from '../services/wizard-host-config.service';
 import { WizardStateService } from '../services/wizard-state.service';
 
 @Component({
@@ -198,6 +199,7 @@ import { WizardStateService } from '../services/wizard-state.service';
 export class StepCounterpartyComponent implements OnInit {
   protected readonly wizardState = inject(WizardStateService);
   private readonly api = inject(WizardApiService);
+  private readonly hostConfig = inject(WizardHostConfigService);
 
   readonly stepComplete = output<void>();
 
@@ -242,6 +244,12 @@ export class StepCounterpartyComponent implements OnInit {
       return;
     }
 
+    const legalEntityCode = this.hostConfig.legalEntityCode;
+    if (!legalEntityCode) {
+      this.error.set('Legal entity must be configured before choosing a counterparty.');
+      return;
+    }
+
     this.loading.set(true);
     this.error.set(null);
     this.counterparties.set([]);
@@ -249,8 +257,8 @@ export class StepCounterpartyComponent implements OnInit {
 
     const request$ =
       orderType === 'TERM'
-        ? this.api.listTermCounterparties(currency, tenor!)
-        : this.api.listOnCallCounterparties(currency, noticePeriod!, valueDate!);
+        ? this.api.listTermCounterparties(currency, tenor!, legalEntityCode)
+        : this.api.listOnCallCounterparties(currency, noticePeriod!, valueDate!, legalEntityCode);
 
     request$.subscribe({
       next: (response) => {

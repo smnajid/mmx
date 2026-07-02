@@ -8,12 +8,18 @@ import com.mmx.order.application.ordercreation.OnCallCurrenciesResult;
 import com.mmx.order.application.ordercreation.OperationsResult;
 import com.mmx.order.application.ordercreation.OrderCreationCounterparty;
 import com.mmx.order.application.ordercreation.OrderCreationOperation;
+import com.mmx.order.application.port.out.DelegatedGrantRepository;
 import com.mmx.order.application.port.out.ExecutedSubscriptionContractInfo;
 import com.mmx.order.application.port.out.InstitutionRepository;
+import com.mmx.order.application.port.out.LegalEntityRepository;
 import com.mmx.order.application.port.out.ManagedCurrencyRepository;
 import com.mmx.order.application.port.out.OnCallRateRepository;
 import com.mmx.order.application.port.out.OrderRepository;
+import com.mmx.order.application.port.out.ProxyInstitutionRepository;
+import com.mmx.order.domain.model.DelegatedInstitutionGrant;
 import com.mmx.order.domain.model.Institution;
+import com.mmx.order.domain.model.LegalEntity;
+import com.mmx.order.domain.model.LegalEntityCode;
 import com.mmx.order.domain.model.ManagedCurrency;
 import com.mmx.order.domain.model.NoticePeriod;
 import com.mmx.order.domain.model.OnCallCurveKey;
@@ -21,6 +27,7 @@ import com.mmx.order.domain.model.OnCallRateSegment;
 import com.mmx.order.domain.model.OnCallRateSegmentStatus;
 import com.mmx.order.domain.model.OrderOperation;
 import com.mmx.order.domain.model.Tenor;
+import com.mmx.order.domain.model.ThinProxyInstitution;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -44,6 +51,9 @@ class OnCallOrderCreationOptionsServiceTest {
     private static final LocalDate TODAY = LocalDate.of(2026, 6, 6);
     private static final LocalDate VALUE_DATE = LocalDate.of(2026, 6, 9);
 
+    private static final LegalEntityCode LOC = new LegalEntityCode("LOC");
+    private static final LegalEntityCode PAR = new LegalEntityCode("PAR");
+
     @Mock
     ManagedCurrencyRepository managedCurrencyRepository;
 
@@ -56,6 +66,15 @@ class OnCallOrderCreationOptionsServiceTest {
     @Mock
     OrderRepository orderRepository;
 
+    @Mock
+    LegalEntityRepository legalEntityRepository;
+
+    @Mock
+    DelegatedGrantRepository delegatedGrantRepository;
+
+    @Mock
+    ProxyInstitutionRepository proxyInstitutionRepository;
+
     OnCallOrderCreationOptionsService subject;
 
     @BeforeEach
@@ -65,7 +84,10 @@ class OnCallOrderCreationOptionsServiceTest {
                         managedCurrencyRepository,
                         onCallRateRepository,
                         institutionRepository,
-                        orderRepository);
+                        orderRepository,
+                        legalEntityRepository,
+                        delegatedGrantRepository,
+                        proxyInstitutionRepository);
     }
 
     @Test
@@ -117,6 +139,8 @@ class OnCallOrderCreationOptionsServiceTest {
 
     @Test
     void listCounterparties_returnsSegmentRatesForValueDateSortedByRateDesc() {
+        when(legalEntityRepository.findByCode(LOC))
+                .thenReturn(Optional.of(LegalEntity.tradingHub(LOC, new com.mmx.order.domain.model.OrganisationCode("LODH"))));
         when(onCallRateRepository.findSegmentsCoveringDate("EUR", NoticePeriod._24H, VALUE_DATE))
                 .thenReturn(
                         List.of(
@@ -127,7 +151,8 @@ class OnCallOrderCreationOptionsServiceTest {
         when(institutionRepository.findByInstitutionCode("CDNRD"))
                 .thenReturn(Optional.of(new Institution("CDNRD", "Canada Rd", true)));
 
-        CounterpartiesResult result = subject.listCounterparties("EUR", NoticePeriod._24H, VALUE_DATE);
+        CounterpartiesResult result =
+                subject.listCounterparties(LOC, "EUR", NoticePeriod._24H, VALUE_DATE);
 
         assertThat(result.counterparties())
                 .extracting(OrderCreationCounterparty::institutionCode)

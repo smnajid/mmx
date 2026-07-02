@@ -4,6 +4,7 @@ import com.mmx.order.adapter.out.messaging.entity.BackOfficeOutboxEntity;
 import com.mmx.order.adapter.out.messaging.entity.BackOfficeOutboxRowStatus;
 import com.mmx.order.adapter.out.messaging.repository.SpringDataBackOfficeOutboxRepository;
 import com.mmx.order.application.port.out.ExecutionHandoffOutbox;
+import com.mmx.order.application.port.out.ExecutionHandoffRoutingContext;
 import com.mmx.order.domain.model.MoneyMarketOrder;
 
 import org.springframework.stereotype.Component;
@@ -28,8 +29,8 @@ public class ExecutionHandoffOutboxAdapter implements ExecutionHandoffOutbox {
 
     @Override
     @Transactional(propagation = Propagation.MANDATORY)
-    public void schedule(MoneyMarketOrder executedOrder) {
-        String payload = payloadMapper.toJsonPayload(executedOrder);
+    public void schedule(MoneyMarketOrder executedOrder, ExecutionHandoffRoutingContext routingContext) {
+        String payload = payloadMapper.toJsonPayload(executedOrder, routingContext);
         BackOfficeOutboxEntity row =
                 new BackOfficeOutboxEntity(
                         UUID.randomUUID(),

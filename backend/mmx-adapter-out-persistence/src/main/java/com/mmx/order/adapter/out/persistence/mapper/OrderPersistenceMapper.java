@@ -16,6 +16,7 @@ import com.mmx.order.domain.model.OrderOperation;
 import com.mmx.order.domain.model.OrderStatus;
 import com.mmx.order.domain.model.OrderType;
 import com.mmx.order.domain.model.PortfolioNumber;
+import com.mmx.order.domain.model.RoutingId;
 import com.mmx.order.domain.model.Tenor;
 import com.mmx.order.domain.model.TraderId;
 
@@ -45,6 +46,15 @@ public class OrderPersistenceMapper {
         e.setUpdatedAt(order.getUpdatedAt());
         e.setRejectionReason(order.getRejectionReason());
         e.setHandoffStatus(order.getHandoffStatus() != null ? order.getHandoffStatus().name() : null);
+        if (order.getRoutingId() != null) {
+            e.setRoutingId(order.getRoutingId().value());
+        }
+        if (order.getOriginatingLegalEntityCode() != null) {
+            e.setOriginatingLegalEntityCode(order.getOriginatingLegalEntityCode().value());
+        }
+        if (order.getOriginatingExternalOrderReference() != null) {
+            e.setOriginatingExternalOrderReference(order.getOriginatingExternalOrderReference().value());
+        }
 
         if (order.getAssignment() != null) {
             e.setAssignedTraderId(order.getAssignment().traderId().value());
@@ -72,8 +82,17 @@ public class OrderPersistenceMapper {
 
         HandoffStatus handoff =
                 e.getHandoffStatus() != null ? HandoffStatus.valueOf(e.getHandoffStatus()) : null;
+        RoutingId routingId = e.getRoutingId() != null ? new RoutingId(e.getRoutingId()) : null;
+        LegalEntityCode originatingLegalEntity =
+                e.getOriginatingLegalEntityCode() != null
+                        ? new LegalEntityCode(e.getOriginatingLegalEntityCode())
+                        : null;
+        ExternalOrderReference originatingExternalRef =
+                e.getOriginatingExternalOrderReference() != null
+                        ? new ExternalOrderReference(e.getOriginatingExternalOrderReference())
+                        : null;
 
-        MoneyMarketOrder order = MoneyMarketOrder.reconstitute(
+        return MoneyMarketOrder.reconstitute(
                 e.getId(),
                 new ExternalOrderReference(e.getExternalOrderReference()),
                 legalEntityCodeFromEntity(e),
@@ -94,10 +113,11 @@ public class OrderPersistenceMapper {
                 buildExecutionDetails(e),
                 e.getRejectionReason(),
                 handoff,
+                routingId,
+                originatingLegalEntity,
+                originatingExternalRef,
                 e.getCreatedAt(),
-                e.getUpdatedAt()
-        );
-        return order;
+                e.getUpdatedAt());
     }
 
     private static LegalEntityCode legalEntityCodeFromEntity(OrderEntity e) {

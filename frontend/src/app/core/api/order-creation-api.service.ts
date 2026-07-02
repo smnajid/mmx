@@ -13,10 +13,14 @@ export class OrderCreationApiService {
   private readonly http = inject(HttpClient);
 
   listTermCounterparties(
+    legalEntityCode: string,
     currency: string,
     tenor: string,
   ): Observable<CounterpartiesResponse> {
-    const params = new HttpParams().set('currency', currency).set('tenor', tenor);
+    const params = new HttpParams()
+      .set('legalEntityCode', legalEntityCode)
+      .set('currency', currency)
+      .set('tenor', tenor);
     return this.http.get<CounterpartiesResponse>(
       '/api/v1/order-creation/term/counterparties',
       { params },
@@ -24,11 +28,13 @@ export class OrderCreationApiService {
   }
 
   listOnCallCounterparties(
+    legalEntityCode: string,
     currency: string,
     noticePeriod: string,
     valueDate: string,
   ): Observable<CounterpartiesResponse> {
     const params = new HttpParams()
+      .set('legalEntityCode', legalEntityCode)
       .set('currency', currency)
       .set('noticePeriod', noticePeriod)
       .set('valueDate', valueDate);

@@ -13,10 +13,15 @@ import com.mmx.order.application.port.in.ListOnCallCounterpartiesUseCase;
 import com.mmx.order.application.port.in.ListOnCallCurrenciesUseCase;
 import com.mmx.order.application.port.in.ListOnCallNoticePeriodsUseCase;
 import com.mmx.order.application.port.in.ListOnCallOperationsUseCase;
+import com.mmx.order.application.port.out.DelegatedGrantRepository;
 import com.mmx.order.application.port.out.InstitutionRepository;
+import com.mmx.order.application.port.out.LegalEntityRepository;
 import com.mmx.order.application.port.out.ManagedCurrencyRepository;
 import com.mmx.order.application.port.out.OnCallRateRepository;
 import com.mmx.order.application.port.out.OrderRepository;
+import com.mmx.order.application.port.out.ProxyInstitutionRepository;
+import com.mmx.order.domain.model.LegalEntity;
+import com.mmx.order.domain.model.LegalEntityCode;
 import com.mmx.order.domain.model.ManagedCurrency;
 import com.mmx.order.domain.model.NoticePeriod;
 import com.mmx.order.domain.model.OnCallRateSegment;
@@ -27,6 +32,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 public final class OnCallOrderCreationOptionsService
@@ -40,16 +46,25 @@ public final class OnCallOrderCreationOptionsService
     private final OnCallRateRepository onCallRateRepository;
     private final InstitutionRepository institutionRepository;
     private final OrderRepository orderRepository;
+    private final LegalEntityRepository legalEntityRepository;
+    private final DelegatedGrantRepository delegatedGrantRepository;
+    private final ProxyInstitutionRepository proxyInstitutionRepository;
 
     public OnCallOrderCreationOptionsService(
             ManagedCurrencyRepository managedCurrencyRepository,
             OnCallRateRepository onCallRateRepository,
             InstitutionRepository institutionRepository,
-            OrderRepository orderRepository) {
+            OrderRepository orderRepository,
+            LegalEntityRepository legalEntityRepository,
+            DelegatedGrantRepository delegatedGrantRepository,
+            ProxyInstitutionRepository proxyInstitutionRepository) {
         this.managedCurrencyRepository = managedCurrencyRepository;
         this.onCallRateRepository = onCallRateRepository;
         this.institutionRepository = institutionRepository;
         this.orderRepository = orderRepository;
+        this.legalEntityRepository = legalEntityRepository;
+        this.delegatedGrantRepository = delegatedGrantRepository;
+        this.proxyInstitutionRepository = proxyInstitutionRepository;
     }
 
     @Override
@@ -112,11 +127,29 @@ public final class OnCallOrderCreationOptionsService
 
     @Override
     public CounterpartiesResult listCounterparties(
-            String currency, NoticePeriod noticePeriod, LocalDate valueDate) {
+            LegalEntityCode legalEntityCode,
+            String currency,
+            NoticePeriod noticePeriod,
+            LocalDate valueDate) {
+        Optional<LegalEntity> legalEntity = legalEntityRepository.findByCode(legalEntityCode);
+        if (legalEntity.isEmpty()) {
+            return new CounterpartiesResult(List.of());
+        }
+        List<OnCallRateSegment> hubSegments =
+                onCallRateRepository.findSegmentsCoveringDate(currency, noticePeriod, valueDate);
+        if (legalEntity.get().isTradingClient()) {
+            return new CounterpartiesResult(
+                    OrderCreationDelegatedCounterpartySupport.onCallCounterpartiesForClient(
+                            legalEntityCode,
+                            currency,
+                            noticePeriod,
+                            delegatedGrantRepository,
+                            proxyInstitutionRepository,
+                            hubSegments,
+                            LocalDate.now()));
+        }
         List<OrderCreationCounterparty> counterparties =
-                onCallRateRepository
-                        .findSegmentsCoveringDate(currency, noticePeriod, valueDate)
-                        .stream()
+                hubSegments.stream()
                         .map(this::toCounterparty)
                         .sorted(Comparator.comparing(OrderCreationCounterparty::rate).reversed())
                         .toList();

@@ -32,6 +32,22 @@ Required fields: `eventType` (const `OrderExecutedV1`), `orderId`, `executedAt`,
 
 Optional: `tenor`, `noticePeriod` (nullable).
 
+### Routing context (routed trades only)
+
+For a **routed** trade (TradingClient intake executed at the hub), mmx emits **exactly one** `OrderExecutedV1` from the **hub-side** `orderId`. The payload includes the hub booking facts plus an optional **routing-context block** so the back office can build both hub-side and originating client-side contracts without reading MMX routing tables:
+
+| Field | Description |
+|-------|-------------|
+| `routingId` | Deterministic correlation id (UUID) shared by client-side and hub-side order rows |
+| `originatingLegalEntityCode` | TradingClient `LegalEntityCode` |
+| `clientOrderId` | Client-side order UUID |
+| `clientPortfolioNumber` | Client PM portfolio at routing time |
+| `clientCounterparty` | Client delegated-institution display name (e.g. `BNP via LOC`) |
+
+Native (non-routed) hub desk orders **omit** the routing-context block; behaviour is unchanged from v1.
+
+The propagated client-side `EXECUTED` transition does **not** emit a separate back-office event — a scoped exception to the one-outbox-row-per-`EXECUTED` rule.
+
 ## Consumer idempotency
 
 Duplicate deliveries with the same `orderId` MUST be handled idempotently by the back-office consumer (at-least-once Kafka semantics).

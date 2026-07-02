@@ -1,4 +1,4 @@
-import { Component, inject, input, OnInit, output, signal } from '@angular/core';
+import { Component, effect, inject, input, OnInit, output, signal } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import type { OrderCreationPayload, OrderType } from './models/order-creation-payload.model';
 import { WizardApiService } from './services/wizard-api.service';
@@ -92,6 +92,16 @@ export class OrderCreationWizardComponent implements OnInit {
 
   private skipContractResolution = false;
   private initialized = false;
+
+  constructor() {
+    effect(() => {
+      const entityCode = this.legalEntityCode().trim();
+      this.hostConfig.apiBaseUrl = this.apiBaseUrl().trim();
+      if (entityCode.length === 3) {
+        this.hostConfig.legalEntityCode = entityCode;
+      }
+    });
+  }
 
   ngOnInit(): void {
     if (!this.portfolioNumber().trim()) {

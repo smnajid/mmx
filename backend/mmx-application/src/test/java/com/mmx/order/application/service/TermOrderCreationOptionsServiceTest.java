@@ -7,15 +7,22 @@ import com.mmx.order.application.ordercreation.OrderCreationOperation;
 import com.mmx.order.application.ordercreation.TermCurrenciesResult;
 import com.mmx.order.application.ordercreation.TenorsResult;
 import com.mmx.order.application.port.out.Clock;
+import com.mmx.order.application.port.out.DelegatedGrantRepository;
 import com.mmx.order.application.port.out.InstitutionRepository;
+import com.mmx.order.application.port.out.LegalEntityRepository;
 import com.mmx.order.application.port.out.ManagedCurrencyRepository;
+import com.mmx.order.application.port.out.ProxyInstitutionRepository;
 import com.mmx.order.application.port.out.TermRateRepository;
 import com.mmx.order.application.termrate.TermRateAuditRow;
+import com.mmx.order.domain.model.DelegatedInstitutionGrant;
 import com.mmx.order.domain.model.Institution;
+import com.mmx.order.domain.model.LegalEntity;
+import com.mmx.order.domain.model.LegalEntityCode;
 import com.mmx.order.domain.model.ManagedCurrency;
 import com.mmx.order.domain.model.NoticePeriod;
 import com.mmx.order.domain.model.OrderOperation;
 import com.mmx.order.domain.model.Tenor;
+import com.mmx.order.domain.model.ThinProxyInstitution;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -38,6 +45,9 @@ class TermOrderCreationOptionsServiceTest {
     private static final LocalDate TODAY = LocalDate.of(2026, 6, 6);
     private static final Instant NOW = Instant.parse("2026-06-06T10:00:00Z");
 
+    private static final LegalEntityCode LOC = new LegalEntityCode("LOC");
+    private static final LegalEntityCode PAR = new LegalEntityCode("PAR");
+
     @Mock
     ManagedCurrencyRepository managedCurrencyRepository;
 
@@ -46,6 +56,15 @@ class TermOrderCreationOptionsServiceTest {
 
     @Mock
     InstitutionRepository institutionRepository;
+
+    @Mock
+    LegalEntityRepository legalEntityRepository;
+
+    @Mock
+    DelegatedGrantRepository delegatedGrantRepository;
+
+    @Mock
+    ProxyInstitutionRepository proxyInstitutionRepository;
 
     TermOrderCreationOptionsService subject;
 
@@ -65,7 +84,13 @@ class TermOrderCreationOptionsServiceTest {
                 };
         subject =
                 new TermOrderCreationOptionsService(
-                        managedCurrencyRepository, termRateRepository, institutionRepository, clock);
+                        managedCurrencyRepository,
+                        termRateRepository,
+                        institutionRepository,
+                        legalEntityRepository,
+                        delegatedGrantRepository,
+                        proxyInstitutionRepository,
+                        clock);
     }
 
     @Test
@@ -137,6 +162,8 @@ class TermOrderCreationOptionsServiceTest {
     @Test
     void listCounterparties_returnsLatestRatesWithIndicativeFlagSortedByRateDesc() {
         LocalDate yesterday = TODAY.minusDays(1);
+        when(legalEntityRepository.findByCode(LOC))
+                .thenReturn(Optional.of(LegalEntity.tradingHub(LOC, new com.mmx.order.domain.model.OrganisationCode("LODH"))));
         when(termRateRepository.findLatestRatePerInstitution("EUR", Tenor._3M))
                 .thenReturn(
                         List.of(
@@ -147,7 +174,7 @@ class TermOrderCreationOptionsServiceTest {
         when(institutionRepository.findByInstitutionCode("CDNRD"))
                 .thenReturn(Optional.of(new Institution("CDNRD", "Canada Rd", true)));
 
-        CounterpartiesResult result = subject.listCounterparties("EUR", Tenor._3M);
+        CounterpartiesResult result = subject.listCounterparties(LOC, "EUR", Tenor._3M);
 
         assertThat(result.counterparties())
                 .extracting(OrderCreationCounterparty::institutionCode)
@@ -168,6 +195,39 @@ class TermOrderCreationOptionsServiceTest {
                             assertThat(cp.rateDate()).isEqualTo(yesterday);
                             assertThat(cp.indicative()).isTrue();
                         });
+    }
+
+    @Test
+    void listCounterparties_forTradingClient_returnsOnlyGrantedProxyInstitutions() {
+        LegalEntity loc = LegalEntity.tradingHub(LOC, new com.mmx.order.domain.model.OrganisationCode("LODH"));
+        LegalEntity par = LegalEntity.tradingClient(PAR, new com.mmx.order.domain.model.OrganisationCode("LODH"), loc);
+        when(legalEntityRepository.findByCode(PAR)).thenReturn(Optional.of(par));
+        when(termRateRepository.findLatestRatePerInstitution("EUR", Tenor._3M))
+                .thenReturn(
+                        List.of(
+                                rateRow("BNP", Tenor._3M, TODAY, "3.50"),
+                                rateRow("BNKCO", Tenor._3M, TODAY, "3.45")));
+        when(delegatedGrantRepository.findByClientLegalEntityCode(PAR))
+                .thenReturn(
+                        List.of(
+                                new DelegatedInstitutionGrant(
+                                        "BNP",
+                                        PAR,
+                                        "EUR",
+                                        EnumSet.of(Tenor._3M),
+                                        EnumSet.noneOf(NoticePeriod.class),
+                                        true)));
+        ThinProxyInstitution bnpProxy =
+                ThinProxyInstitution.forHubInstitution(
+                        "BNPLOC", new Institution("BNP", "BNP Paribas", true), LOC);
+        when(proxyInstitutionRepository.findByClientLegalEntity(PAR)).thenReturn(List.of(bnpProxy));
+
+        CounterpartiesResult result = subject.listCounterparties(PAR, "EUR", Tenor._3M);
+
+        assertThat(result.counterparties())
+                .extracting(OrderCreationCounterparty::institutionCode)
+                .containsExactly("BNPLOC");
+        assertThat(result.counterparties().getFirst().displayName()).isEqualTo("BNP Paribas via LOC");
     }
 
     @Test

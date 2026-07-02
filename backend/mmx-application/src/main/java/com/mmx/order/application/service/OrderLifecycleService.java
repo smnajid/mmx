@@ -9,6 +9,8 @@ import com.mmx.order.application.port.out.Clock;
 import com.mmx.order.application.port.out.OrderRepository;
 import com.mmx.order.domain.exception.InvalidOrderException;
 import com.mmx.order.domain.exception.OrderNotFoundException;
+import com.mmx.order.domain.model.OrderStatus;
+import com.mmx.order.domain.model.RoutingId;
 import com.mmx.order.domain.model.MoneyMarketOrder;
 
 public final class OrderLifecycleService implements CancelOrderUseCase, RejectOrderUseCase {
@@ -36,6 +38,7 @@ public final class OrderLifecycleService implements CancelOrderUseCase, RejectOr
         var now = clock.now();
         order.cancel(now);
         MoneyMarketOrder saved = orderRepository.save(order);
+        propagateHubCancelOrReject(saved, now, null);
         auditLogger.log(saved.getId(), EVENT_ORDER_CANCELLED, command.traderId().value(), now);
         return saved;
     }
@@ -51,8 +54,30 @@ public final class OrderLifecycleService implements CancelOrderUseCase, RejectOr
         var now = clock.now();
         order.reject(command.traderId(), command.reason(), now);
         MoneyMarketOrder saved = orderRepository.save(order);
+        propagateHubCancelOrReject(saved, now, saved.getRejectionReason());
         auditLogger.log(saved.getId(), EVENT_ORDER_REJECTED, command.traderId().value(), now);
         return saved;
+    }
+
+    private void propagateHubCancelOrReject(MoneyMarketOrder hubOrder, java.time.Instant now, String rejectReason) {
+        if (!hubOrder.isHubSideRoutedLink() || hubOrder.getRoutingId() == null) {
+            return;
+        }
+        if (hubOrder.getStatus() != OrderStatus.REJECTED && hubOrder.getStatus() != OrderStatus.CANCELLED) {
+            return;
+        }
+        orderRepository
+                .findRoutedClientOrderByRoutingId(hubOrder.getRoutingId())
+                .ifPresent(
+                        client -> {
+                            if (hubOrder.getStatus() == OrderStatus.REJECTED) {
+                                client.propagateRejectFromHub(
+                                        rejectReason != null ? rejectReason : "Rejected at hub", now);
+                            } else {
+                                client.propagateCancelFromHub(now);
+                            }
+                            orderRepository.save(client);
+                        });
     }
 
     private static void validateReject(RejectOrderCommand command) {

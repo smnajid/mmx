@@ -104,7 +104,7 @@ Read-only REST API exposing available order creation options for the Portfolio M
 
 ### Requirement: Term counterparties with latest rates sorted by best rate
 
-`GET /api/v1/order-creation/term/counterparties?currency={currency}&tenor={tenor}` SHALL return active institutions that have at least one term rate for the given currency and tenor. For each institution, the system SHALL return the **latest** available rate (most recent trading date). Each entry SHALL include `institutionCode`, `displayName`, `rate`, `rateDate` (the trading date of the rate), and `indicative` (true when `rateDate` is before today). Results SHALL be sorted by rate descending (best rate first).
+`GET /api/v1/order-creation/term/counterparties?legalEntityCode={legalEntityCode}&currency={currency}&tenor={tenor}` SHALL return institutions with term rates for the given currency and tenor, scoped by `legalEntityCode`. For a **TradingHub**, the response SHALL include active hub-native institutions that have at least one term rate. For a **TradingClient**, the response SHALL include only active thin-proxy institutions with an active delegated grant for the currency and tenor (rates sourced from the connected hub's native institution). For each institution, the system SHALL return the **latest** available rate (most recent trading date). Each entry SHALL include `institutionCode`, `displayName`, `rate`, `rateDate` (the trading date of the rate), and `indicative` (true when `rateDate` is before today). Results SHALL be sorted by rate descending (best rate first).
 
 #### Scenario: Counterparty with today's rate is not indicative
 
@@ -126,11 +126,26 @@ Read-only REST API exposing available order creation options for the Portfolio M
 - **WHEN** institution DEAD is inactive but has term rates for EUR/3M
 - **THEN** the response does not include DEAD
 
+#### Scenario: TradingClient returns only granted thin-proxy institutions
+
+- **WHEN** `legalEntityCode` is PAR (a TradingClient), hub institutions BNKCO and SGFR have EUR/3M rates, and only BNP has an active delegated grant with tenor 3M enabled and a matching onboarded thin-proxy `BNPLOC`
+- **THEN** the response includes only `BNPLOC` with displayName `BNP Paribas via LOC` and the hub rate for BNP; BNKCO and SGFR are excluded
+
+#### Scenario: TradingClient excludes hub institution without grant
+
+- **WHEN** `legalEntityCode` is PAR and institution BNKCO has a term rate for EUR/3M but no active delegated grant exists for PAR/EUR with tenor 3M enabled
+- **THEN** the response does not include BNKCO or any proxy for BNKCO
+
+#### Scenario: Missing legalEntityCode is rejected
+
+- **WHEN** the PM requests term counterparties without `legalEntityCode`
+- **THEN** the system returns `400 Bad Request`
+
 ---
 
 ### Requirement: OnCall counterparties with segment rates for PM's valueDate
 
-`GET /api/v1/order-creation/oncall/counterparties?currency={currency}&noticePeriod={noticePeriod}&valueDate={valueDate}` SHALL return active institutions that have an on-call rate segment covering the given `valueDate` (segment `valueDate <= requested valueDate <= segment endDate`) with status `VALID` or `PENDING_CONFIRMATION` for the given currency and notice period. Each entry SHALL include `institutionCode`, `displayName`, `rate`, `rateDate` (the segment's value date), and `indicative` (contextual). Results SHALL be sorted by rate descending (best rate first).
+`GET /api/v1/order-creation/oncall/counterparties?legalEntityCode={legalEntityCode}&currency={currency}&noticePeriod={noticePeriod}&valueDate={valueDate}` SHALL return institutions with on-call rate segments covering the given `valueDate`, scoped by `legalEntityCode`. For a **TradingHub**, the response SHALL include active hub-native institutions with a segment covering the date. For a **TradingClient**, the response SHALL include only active thin-proxy institutions with an active delegated grant for the currency and notice period (rates sourced from the connected hub's native institution). Segment coverage: `valueDate <= requested valueDate <= segment endDate` with status `VALID` or `PENDING_CONFIRMATION`. Each entry SHALL include `institutionCode`, `displayName`, `rate`, `rateDate` (the segment's value date), and `indicative` (contextual). Results SHALL be sorted by rate descending (best rate first).
 
 #### Scenario: Institution with VALID segment covering valueDate is included
 
@@ -147,6 +162,16 @@ Read-only REST API exposing available order creation options for the Portfolio M
 
 - **WHEN** institution SGFR has no segment covering the requested valueDate for EUR/24H
 - **THEN** the response does not include SGFR
+
+#### Scenario: TradingClient returns only granted thin-proxy institutions
+
+- **WHEN** `legalEntityCode` is PAR (a TradingClient), hub institutions BNKCO and SGFR have EUR/24H segments covering the requested valueDate, and only BNP has an active delegated grant with notice period 24H enabled and a matching onboarded thin-proxy `BNPLOC`
+- **THEN** the response includes only `BNPLOC` with the hub segment rate for BNP; BNKCO and SGFR are excluded
+
+#### Scenario: Missing legalEntityCode is rejected
+
+- **WHEN** the PM requests oncall counterparties without `legalEntityCode`
+- **THEN** the system returns `400 Bad Request`
 
 ---
 

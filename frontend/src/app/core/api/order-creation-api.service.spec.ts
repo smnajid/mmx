@@ -25,9 +25,9 @@ describe('OrderCreationApiService', () => {
   });
 
   it('listTermCounterparties calls GET with currency and tenor query params', async () => {
-    const promise = firstValueFrom(service.listTermCounterparties('EUR', '3M'));
+    const promise = firstValueFrom(service.listTermCounterparties('LOC', 'EUR', '3M'));
     const req = http.expectOne(
-      '/api/v1/order-creation/term/counterparties?currency=EUR&tenor=3M',
+      '/api/v1/order-creation/term/counterparties?legalEntityCode=LOC&currency=EUR&tenor=3M',
     );
     expect(req.request.method).toBe('GET');
     req.flush({
@@ -56,10 +56,10 @@ describe('OrderCreationApiService', () => {
 
   it('listOnCallCounterparties calls GET with currency, noticePeriod, and valueDate', async () => {
     const promise = firstValueFrom(
-      service.listOnCallCounterparties('CHF', '48H', '2026-06-30'),
+      service.listOnCallCounterparties('LOC', 'CHF', '48H', '2026-06-30'),
     );
     const req = http.expectOne(
-      '/api/v1/order-creation/oncall/counterparties?currency=CHF&noticePeriod=48H&valueDate=2026-06-30',
+      '/api/v1/order-creation/oncall/counterparties?legalEntityCode=LOC&currency=CHF&noticePeriod=48H&valueDate=2026-06-30',
     );
     expect(req.request.method).toBe('GET');
     req.flush({

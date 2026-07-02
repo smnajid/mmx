@@ -82,6 +82,29 @@
     "noticePeriod": {
       "type": ["string", "null"],
       "description": "OnCall orders only; null for Term when not applicable."
+    },
+    "routingId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Present on routed hub-side executions; correlates client and hub bookings."
+    },
+    "originatingLegalEntityCode": {
+      "type": "string",
+      "minLength": 1,
+      "description": "TradingClient LegalEntityCode for routed trades."
+    },
+    "clientOrderId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Client-side order id for routed trades."
+    },
+    "clientPortfolioNumber": {
+      "type": "string",
+      "description": "Client PM portfolio number at routing time."
+    },
+    "clientCounterparty": {
+      "type": "string",
+      "description": "Client delegated-institution display name (via hub)."
     }
   }
 }

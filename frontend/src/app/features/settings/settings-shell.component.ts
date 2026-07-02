@@ -22,6 +22,13 @@ import { TraderContextService } from '../../core/trader/trader-context.service';
         >
           Delegated grants
         </a>
+        <a
+          routerLink="/settings/global-accounts"
+          routerLinkActive="active"
+          [routerLinkActiveOptions]="{ exact: false }"
+        >
+          Global accounts
+        </a>
       }
       <a routerLink="/settings/term-rates" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: false }">
         Term rates

@@ -14,6 +14,7 @@ import {
 } from '../../core/api/order-creation-api.service';
 import type { ExecuteOrderRequest, OrderDetails } from '../../core/models/order.model';
 import { OrderType } from '../../core/models/order-type.enum';
+import { TraderContextService } from '../../core/trader/trader-context.service';
 
 @Component({
   selector: 'mmx-order-execution-form',
@@ -224,6 +225,7 @@ export class OrderExecutionFormComponent {
   readonly submitExecute = output<ExecuteOrderRequest>();
 
   private readonly orderCreationApi = inject(OrderCreationApiService);
+  private readonly traderContext = inject(TraderContextService);
 
   readonly localError = signal<string | null>(null);
   readonly rateLoading = signal(true);
@@ -286,8 +288,10 @@ export class OrderExecutionFormComponent {
       this.rateLoading.set(false);
     };
 
+    const legalEntityCode = this.traderContext.activeScope().legalEntityCode;
+
     if (order.orderType === OrderType.TERM && order.tenor) {
-      this.orderCreationApi.listTermCounterparties(order.currency, order.tenor).subscribe({
+      this.orderCreationApi.listTermCounterparties(legalEntityCode, order.currency, order.tenor).subscribe({
         next: (res) => onSuccess(res.counterparties),
         error: onError,
       });
@@ -296,7 +300,12 @@ export class OrderExecutionFormComponent {
 
     if (order.orderType === OrderType.ON_CALL && order.noticePeriod) {
       this.orderCreationApi
-        .listOnCallCounterparties(order.currency, order.noticePeriod, order.valueDate)
+        .listOnCallCounterparties(
+          legalEntityCode,
+          order.currency,
+          order.noticePeriod,
+          order.valueDate,
+        )
         .subscribe({
           next: (res) => onSuccess(res.counterparties),
           error: onError,

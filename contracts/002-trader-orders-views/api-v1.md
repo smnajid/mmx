@@ -37,7 +37,7 @@ Error codes: `VALIDATION_ERROR`, `ORDER_NOT_FOUND`, `INVALID_STATUS_TRANSITION`,
   "minimumRate": 3.25000000,
   "tenor": "1W | 2W | 1M | 3M | 6M | 1Y | null",
   "noticePeriod": "24H | 48H | null",
-  "status": "RECEIVED | ASSIGNED | EXECUTED | ACCOUNTED | CANCELLED | REJECTED",
+  "status": "RECEIVED | ROUTED | ASSIGNED | EXECUTED | ACCOUNTED | CANCELLED | REJECTED",
   "counterparty": "string | null",
   "institutionCode": "string | null",
   "handoffStatus": "PENDING | PUBLISHED | FAILED | omitted",
@@ -73,7 +73,7 @@ Error codes: `VALIDATION_ERROR`, `ORDER_NOT_FOUND`, `INVALID_STATUS_TRANSITION`,
   "noticePeriod": "24H | 48H | null",
   "sourceContractNumber": "string | null",
   "institutionCode": "BNKCO",
-  "status": "RECEIVED | ASSIGNED | EXECUTED | ACCOUNTED | CANCELLED | REJECTED",
+  "status": "RECEIVED | ROUTED | ASSIGNED | EXECUTED | ACCOUNTED | CANCELLED | REJECTED",
   "assignedTraderId": "string | null",
   "assignedAt": "2026-04-28T21:30:00Z | null",
   "executedRate": 3.50000000,
@@ -640,9 +640,15 @@ Returns enabled notice periods with at least one open counterparty segment.
 
 #### Term counterparties
 
-**GET** `/api/v1/order-creation/term/counterparties?currency=EUR&tenor=3M`
+**GET** `/api/v1/order-creation/term/counterparties?legalEntityCode=LOC&currency=EUR&tenor=3M`
 
-Returns active institutions with the latest term rate per institution, sorted by best rate first.
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `legalEntityCode` | Yes | Owning LegalEntity (3 chars). TradingHub → hub-native institutions; TradingClient → granted thin-proxies only |
+| `currency` | Yes | ISO currency code |
+| `tenor` | Yes | Term tenor (e.g. `3M`) |
+
+Returns active institutions with the latest term rate per institution, sorted by best rate first. For a **TradingClient** `legalEntityCode`, only thin-proxy institutions with an active delegated grant for the currency and tenor are returned (using hub rates). For a **TradingHub**, all hub institutions with rates are returned.
 
 ```json
 {
@@ -660,9 +666,16 @@ Returns active institutions with the latest term rate per institution, sorted by
 
 #### OnCall counterparties
 
-**GET** `/api/v1/order-creation/oncall/counterparties?currency=EUR&noticePeriod=24H&valueDate=2026-06-09`
+**GET** `/api/v1/order-creation/oncall/counterparties?legalEntityCode=LOC&currency=EUR&noticePeriod=24H&valueDate=2026-06-09`
 
-Returns active institutions with a segment covering `valueDate`, sorted by best rate first. Same `CounterpartyOption` shape as Term counterparties.
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `legalEntityCode` | Yes | Owning LegalEntity (3 chars). TradingHub → hub-native institutions; TradingClient → granted thin-proxies only |
+| `currency` | Yes | ISO currency code |
+| `noticePeriod` | Yes | OnCall notice period (e.g. `24H`) |
+| `valueDate` | Yes | Settlement date (`YYYY-MM-DD`) |
+
+Returns active institutions with a segment covering `valueDate`, sorted by best rate first. For a **TradingClient** `legalEntityCode`, only thin-proxy institutions with an active delegated grant for the currency and notice period are returned. Same `CounterpartyOption` shape as Term counterparties.
 
 #### OnCall contract info
 

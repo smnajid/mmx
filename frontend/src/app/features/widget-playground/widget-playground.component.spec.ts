@@ -21,7 +21,6 @@ describe('WidgetPlaygroundComponent', () => {
 
     httpMock = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(WidgetPlaygroundComponent);
-    vi.spyOn(fixture.componentInstance, 'ngOnInit').mockImplementation(() => {});
     fixture.detectChanges();
   });
 
@@ -61,7 +60,7 @@ describe('WidgetPlaygroundComponent', () => {
     fixture.componentInstance.selectContract(onCallContract);
     await fixture.whenStable();
     fixture.detectChanges();
-    await new Promise<void>((resolve) => queueMicrotask(() => resolve()));
+    await new Promise<void>((resolve) => setTimeout(() => resolve(), 0));
     fixture.detectChanges();
     await fixture.whenStable();
 
@@ -211,6 +210,31 @@ describe('WidgetPlaygroundComponent', () => {
 
     expect(fixture.nativeElement.querySelector('[data-testid="playground-submit-success"]')?.textContent)
       .toContain('order-retry');
+  });
+
+  it('remounts the widget with the applied legal entity code', async () => {
+    fixture.componentInstance.legalEntityCode = 'PAR';
+    fixture.componentInstance.portfolioNumber = 'PF-001';
+    fixture.componentInstance.orderType = 'TERM';
+    fixture.componentInstance.applyConfig();
+    fixture.detectChanges();
+
+    httpMock
+      .expectOne((req) => req.url.includes('/api/v1/order-creation/contracts'))
+      .flush({ contracts: [] });
+    await fixture.whenStable();
+
+    await new Promise<void>((resolve) => setTimeout(() => resolve(), 0));
+    fixture.detectChanges();
+
+    const wizard = fixture.debugElement.query(By.directive(OrderCreationWizardComponent));
+    expect(wizard).toBeTruthy();
+    expect(wizard.componentInstance.legalEntityCode()).toBe('PAR');
+
+    httpMock
+      .expectOne((req) => req.url.includes('/api/v1/order-creation/term/currencies'))
+      .flush({ tradingDate: '2026-06-07', currencies: ['EUR'] });
+    await fixture.whenStable();
   });
 
   it('lists Term contracts as non-actionable', async () => {

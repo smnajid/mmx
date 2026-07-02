@@ -1,6 +1,6 @@
 import { DatePipe, JsonPipe } from '@angular/common';
 import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
   OrderCreationWizardComponent,
@@ -155,6 +155,7 @@ type LiveContract = {
           @if (lastAppliedAt(); as appliedAt) {
             <p class="playground-applied" data-testid="playground-applied-summary">
               Active since {{ appliedAt | date: 'mediumTime' }} —
+              legal entity <strong>{{ activeLegalEntityCode() }}</strong>,
               portfolio <strong>{{ activePortfolioNumber() }}</strong>,
               API base <strong>{{ activeApiBaseUrl() || '(dev proxy)' }}</strong>
               @if (activeOrderType(); as type) {
@@ -463,7 +464,7 @@ type LiveContract = {
     }
   `,
 })
-export class WidgetPlaygroundComponent implements OnInit {
+export class WidgetPlaygroundComponent {
   private readonly http = inject(HttpClient);
 
   apiBaseUrl = '';
@@ -485,10 +486,6 @@ export class WidgetPlaygroundComponent implements OnInit {
   readonly activePortfolioNumber = signal('');
   readonly activeOrderType = signal<'TERM' | 'ON_CALL' | undefined>(undefined);
   readonly activeContractNumber = signal<string | undefined>(undefined);
-
-  ngOnInit(): void {
-    this.applyConfig();
-  }
 
   applyConfig(): void {
     const portfolio = this.portfolioNumber.trim();
@@ -659,6 +656,8 @@ export class WidgetPlaygroundComponent implements OnInit {
 
   private remountWidget(): void {
     this.widgetMounted.set(false);
-    queueMicrotask(() => this.widgetMounted.set(true));
+    // Defer remount to the next macrotask so @if sees false and destroys the wizard
+    // before recreating it (queueMicrotask can coalesce with the same CD cycle).
+    setTimeout(() => this.widgetMounted.set(true), 0);
   }
 }

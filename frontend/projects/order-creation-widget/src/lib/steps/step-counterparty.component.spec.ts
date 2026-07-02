@@ -6,6 +6,7 @@ import {
 } from '@angular/common/http/testing';
 import { WizardStepId } from '../models/wizard-state.model';
 import { WizardApiService } from '../services/wizard-api.service';
+import { WizardHostConfigService } from '../services/wizard-host-config.service';
 import { WizardStateService } from '../services/wizard-state.service';
 import { ORDER_CREATION_API_BASE_URL } from '../tokens/order-creation-api-base-url.token';
 import { StepCounterpartyComponent } from './step-counterparty.component';
@@ -25,6 +26,7 @@ describe('StepCounterpartyComponent', () => {
         { provide: ORDER_CREATION_API_BASE_URL, useValue: apiBaseUrl },
         WizardApiService,
         WizardStateService,
+        { provide: WizardHostConfigService, useValue: { legalEntityCode: 'LOC', apiBaseUrl: '' } },
       ],
     }).compileComponents();
 
@@ -48,7 +50,7 @@ describe('StepCounterpartyComponent', () => {
     fixture.detectChanges();
 
     http
-      .expectOne(`${apiBaseUrl}/api/v1/order-creation/term/counterparties?currency=EUR&tenor=3M`)
+      .expectOne(`${apiBaseUrl}/api/v1/order-creation/term/counterparties?legalEntityCode=LOC&currency=EUR&tenor=3M`)
       .flush({
         counterparties: [
           {
@@ -86,7 +88,7 @@ describe('StepCounterpartyComponent', () => {
     fixture.detectChanges();
 
     http
-      .expectOne(`${apiBaseUrl}/api/v1/order-creation/term/counterparties?currency=EUR&tenor=3M`)
+      .expectOne(`${apiBaseUrl}/api/v1/order-creation/term/counterparties?legalEntityCode=LOC&currency=EUR&tenor=3M`)
       .flush({
         counterparties: [
           {
@@ -118,7 +120,7 @@ describe('StepCounterpartyComponent', () => {
 
     http
       .expectOne(
-        `${apiBaseUrl}/api/v1/order-creation/oncall/counterparties?currency=EUR&noticePeriod=48H&valueDate=2026-06-30`,
+        `${apiBaseUrl}/api/v1/order-creation/oncall/counterparties?legalEntityCode=LOC&currency=EUR&noticePeriod=48H&valueDate=2026-06-30`,
       )
       .flush({ counterparties: [] });
     fixture.detectChanges();
@@ -141,7 +143,7 @@ describe('StepCounterpartyComponent', () => {
 
     http
       .expectOne(
-        `${apiBaseUrl}/api/v1/order-creation/oncall/counterparties?currency=EUR&noticePeriod=48H&valueDate=2026-06-30`,
+        `${apiBaseUrl}/api/v1/order-creation/oncall/counterparties?legalEntityCode=LOC&currency=EUR&noticePeriod=48H&valueDate=2026-06-30`,
       )
       .flush({
         counterparties: [
@@ -171,7 +173,7 @@ describe('StepCounterpartyComponent', () => {
     fixture.detectChanges();
 
     http
-      .expectOne(`${apiBaseUrl}/api/v1/order-creation/term/counterparties?currency=EUR&tenor=3M`)
+      .expectOne(`${apiBaseUrl}/api/v1/order-creation/term/counterparties?legalEntityCode=LOC&currency=EUR&tenor=3M`)
       .flush({
         counterparties: [
           {
@@ -207,7 +209,7 @@ describe('StepCounterpartyComponent', () => {
 
     http
       .expectOne(
-        `${apiBaseUrl}/api/v1/order-creation/oncall/counterparties?currency=EUR&noticePeriod=24H&valueDate=2026-06-30`,
+        `${apiBaseUrl}/api/v1/order-creation/oncall/counterparties?legalEntityCode=LOC&currency=EUR&noticePeriod=24H&valueDate=2026-06-30`,
       )
       .flush({
         counterparties: [
@@ -238,7 +240,7 @@ describe('StepCounterpartyComponent', () => {
 
     http
       .expectOne(
-        `${apiBaseUrl}/api/v1/order-creation/oncall/counterparties?currency=EUR&noticePeriod=24H&valueDate=2026-06-30`,
+        `${apiBaseUrl}/api/v1/order-creation/oncall/counterparties?legalEntityCode=LOC&currency=EUR&noticePeriod=24H&valueDate=2026-06-30`,
       )
       .flush({ counterparties: [] });
     fixture.detectChanges();
@@ -270,7 +272,7 @@ describe('StepCounterpartyComponent', () => {
 
     http
       .expectOne(
-        `${apiBaseUrl}/api/v1/order-creation/oncall/counterparties?currency=EUR&noticePeriod=24H&valueDate=2026-06-30`,
+        `${apiBaseUrl}/api/v1/order-creation/oncall/counterparties?legalEntityCode=LOC&currency=EUR&noticePeriod=24H&valueDate=2026-06-30`,
       )
       .flush({ counterparties: [] });
     fixture.detectChanges();

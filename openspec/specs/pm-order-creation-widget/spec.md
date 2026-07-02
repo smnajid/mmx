@@ -8,14 +8,27 @@ TBD - created by archiving change pm-order-creation-widget. Update Purpose after
 The `OrderCreationWizardComponent` SHALL accept the following Angular inputs:
 - `apiBaseUrl` (required, string): base URL of the mmx backend
 - `portfolioNumber` (required, string): portfolio identifier from the PM application — included in the output payload and displayed in the review step
+- `legalEntityCode` (required, string): exactly 3 characters — the LegalEntity the order belongs to; included in the output payload and passed to counterparty option APIs
 - `orderType` (optional, `'TERM' | 'ON_CALL'`): pre-selects the order type and skips step 1
 - `contractNumber` (optional, string): triggers the OnCall lifecycle shortcut
 - `theme` (optional, `'light' | 'dark'`, default `'light'`): controls widget color scheme
 
+The widget SHALL keep `legalEntityCode` in sync with the input for the lifetime of the component instance (including when the host changes the binding without remounting).
+
 #### Scenario: Widget renders with required inputs
 
-- **WHEN** the host renders `<mmx-order-creation-wizard [apiBaseUrl]="'http://localhost:8080'" [portfolioNumber]="'PF-001'">`
+- **WHEN** the host renders `<mmx-order-creation-wizard [apiBaseUrl]="'http://localhost:8080'" [portfolioNumber]="'PF-001'" [legalEntityCode]="'LOC'">`
 - **THEN** the widget initializes and displays the first wizard step (order type selection)
+
+#### Scenario: Widget without legalEntityCode shows configuration error
+
+- **WHEN** the host renders the widget without providing `legalEntityCode` or with a value that is not exactly 3 characters
+- **THEN** the widget displays an error indicating `legalEntityCode` is required or invalid
+
+#### Scenario: legalEntityCode input change updates host config without remount
+
+- **WHEN** the host changes the bound `legalEntityCode` from LOC to PAR while the wizard instance remains mounted
+- **THEN** subsequent counterparty API calls and the emitted `orderReady` payload use `legalEntityCode` PAR
 
 #### Scenario: Widget with pre-selected orderType skips step 1
 
@@ -31,12 +44,12 @@ The `OrderCreationWizardComponent` SHALL accept the following Angular inputs:
 
 ### Requirement: Widget emits structured order payload on completion
 
-The widget SHALL emit an `orderReady` output event containing an `OrderCreationPayload` when the user confirms the order in the review step. The payload SHALL include: `portfolioNumber`, `orderType`, `currency`, `operation`, `tenor` (Term only), `noticePeriod` (OnCall only), `institutionCode`, `counterparty` (display name), `amount`, `valueDate`, and optionally `minimumRate`. `sourceContractNumber` SHALL be included only when the wizard was entered via the contract-number shortcut, and SHALL equal the resolved contract number.
+The widget SHALL emit an `orderReady` output event containing an `OrderCreationPayload` when the user confirms the order in the review step. The payload SHALL include: `legalEntityCode`, `portfolioNumber`, `orderType`, `currency`, `operation`, `tenor` (Term only), `noticePeriod` (OnCall only), `institutionCode`, `counterparty` (display name), `amount`, `valueDate`, and optionally `minimumRate`. `sourceContractNumber` SHALL be included only when the wizard was entered via the contract-number shortcut, and SHALL equal the resolved contract number. `legalEntityCode` SHALL match the host's configured `legalEntityCode` input at confirm time.
 
 #### Scenario: Completing a Term Subscription emits full payload
 
-- **WHEN** the user completes all wizard steps for a Term Subscription with portfolioNumber PF-001, currency EUR, tenor 3M, institution BNKCO, amount 1000000, valueDate 2026-06-10
-- **THEN** the widget emits `orderReady` with `{ portfolioNumber: 'PF-001', orderType: 'TERM', currency: 'EUR', operation: 'SUBSCRIPTION', tenor: '3M', institutionCode: 'BNKCO', counterparty: 'BankCo', amount: 1000000, valueDate: '2026-06-10' }` and no `sourceContractNumber`
+- **WHEN** the user completes all wizard steps for a Term Subscription with legalEntityCode LOC, portfolioNumber PF-001, currency EUR, tenor 3M, institution BNKCO, amount 1000000, valueDate 2026-06-10
+- **THEN** the widget emits `orderReady` with `{ legalEntityCode: 'LOC', portfolioNumber: 'PF-001', orderType: 'TERM', currency: 'EUR', operation: 'SUBSCRIPTION', tenor: '3M', institutionCode: 'BNKCO', counterparty: 'BankCo', amount: 1000000, valueDate: '2026-06-10' }` and no `sourceContractNumber`
 
 #### Scenario: Completing an OnCall Increase emits payload with shortcut-derived sourceContractNumber
 
@@ -157,7 +170,9 @@ For OnCall orders (full flow and contract-number shortcut), the wizard SHALL inc
 
 ### Requirement: Wizard step 5 — Counterparty selection with rates
 
-The counterparty step SHALL call the appropriate counterparties endpoint and display institutions sorted by best rate. Each entry SHALL show institution display name, rate, rate date, and an indicative warning when the rate is stale. For OnCall, the endpoint SHALL be called with the `valueDate` already collected on the preceding value date step. The counterparty step SHALL NOT prompt for or collect value date.
+The counterparty step SHALL call the appropriate counterparties endpoint and display institutions sorted by best rate. Each call SHALL include the host's `legalEntityCode`. Each entry SHALL show institution display name, rate, rate date, and an indicative warning when the rate is stale. For OnCall, the endpoint SHALL be called with the `valueDate` already collected on the preceding value date step. The counterparty step SHALL NOT prompt for or collect value date.
+
+For a **TradingClient** `legalEntityCode`, the API returns only thin-proxy institutions with an active delegated grant (see `pm-order-creation-options`). The widget SHALL display exactly what the API returns (no additional hub-native institutions).
 
 When the wizard is in **contract-number shortcut mode**, the step SHALL display **only** the institution resolved from contract-info (`institutionCode` / `counterparty` from `GET .../oncall/contract-info`). The widget SHALL filter the counterparties API response to that `institutionCode`. Other institutions with rates for the same currency, notice period, and value date SHALL NOT be offered.
 
@@ -167,13 +182,13 @@ For **DECREASE** and **REDEMPTION** in shortcut mode, the user SHALL always be a
 
 #### Scenario: Term counterparties with fresh rates
 
-- **WHEN** the wizard calls `GET .../term/counterparties?currency=EUR&tenor=3M`
+- **WHEN** the wizard calls `GET .../term/counterparties?legalEntityCode=LOC&currency=EUR&tenor=3M`
 - **THEN** it displays institutions sorted by rate descending, with today's rates marked as not indicative
 
 #### Scenario: OnCall counterparties use prior value date
 
 - **WHEN** the wizard reaches counterparty selection for OnCall with currency EUR, noticePeriod 48H, and valueDate 2026-06-30 already set
-- **THEN** it calls `GET .../oncall/counterparties?currency=EUR&noticePeriod=48H&valueDate=2026-06-30` and displays sorted institutions
+- **THEN** it calls `GET .../oncall/counterparties?legalEntityCode={legalEntityCode}&currency=EUR&noticePeriod=48H&valueDate=2026-06-30` and displays sorted institutions
 
 #### Scenario: OnCall counterparties with stale rate warning
 
@@ -204,6 +219,11 @@ For **DECREASE** and **REDEMPTION** in shortcut mode, the user SHALL always be a
 
 - **WHEN** the wizard is in contract shortcut mode, operation REDEMPTION, locked institution BNKCO, and the counterparties API returns no row for BNKCO on the chosen value date
 - **THEN** the step displays BNKCO as the locked counterparty without a rate and allows the user to continue
+
+#### Scenario: TradingClient counterparty list is grant-scoped
+
+- **WHEN** the host provides `legalEntityCode` PAR (a TradingClient), only BNP has an active delegated grant and onboarded thin-proxy for EUR/3M, and hub institutions BNKCO and SGFR also have EUR/3M rates
+- **THEN** the counterparty step displays only the BNP thin-proxy (e.g. institutionCode `BNPLOC`, displayName `BNP Paribas via LOC`) and does not offer BNKCO or SGFR
 
 ---
 
@@ -319,7 +339,7 @@ When any API call fails (network error, 5xx, timeout), the widget SHALL display 
 
 ### Requirement: Widget Playground for development and demo
 
-The mmx trader frontend SHALL include a route at `/dev/widget-playground` (available only in dev mode) that embeds the `OrderCreationWizardComponent` with a configuration panel and event log. The configuration panel SHALL offer a **live-contract picker** instead of a free-text contract field: the user selects an order type, the playground calls `GET /api/v1/order-creation/contracts?portfolioNumber={pf}&orderType={type}`, and selecting a contract sets the widget's `contractNumber` input (driving the OnCall lifecycle shortcut). Term contracts MAY be listed but are not selectable into the shortcut until Term lifecycle operations exist.
+The mmx trader frontend SHALL include a route at `/dev/widget-playground` (available only in dev mode) that embeds the `OrderCreationWizardComponent` with a configuration panel and event log. The configuration panel SHALL include a **legal entity code** field (exactly 3 characters), portfolio number, optional API base URL, and order type. The widget SHALL mount only after the user clicks **Apply configuration** (no automatic apply on page load). The applied-configuration summary SHALL show the active legal entity code alongside portfolio, API base, order type, and contract (when set). The playground SHALL offer a **live-contract picker** instead of a free-text contract field: the user selects an order type, the playground calls `GET /api/v1/order-creation/contracts?portfolioNumber={pf}&orderType={type}`, and selecting a contract sets the widget's `contractNumber` input (driving the OnCall lifecycle shortcut). Term contracts MAY be listed but are not selectable into the shortcut until Term lifecycle operations exist. Applying configuration SHALL remount the widget so `legalEntityCode` and other inputs take effect.
 
 #### Scenario: Playground is accessible in dev mode
 
@@ -338,8 +358,13 @@ The mmx trader frontend SHALL include a route at `/dev/widget-playground` (avail
 
 #### Scenario: Configuration panel changes propagate to widget
 
-- **WHEN** the user changes the order type selector in the playground configuration panel
-- **THEN** the embedded widget re-initializes with the new orderType input
+- **WHEN** the user changes the legal entity code or order type in the playground configuration panel and clicks Apply configuration
+- **THEN** the embedded widget remounts with the new `legalEntityCode` and `orderType` inputs
+
+#### Scenario: Playground shows active legal entity in applied summary
+
+- **WHEN** the user sets legal entity code PAR and clicks Apply configuration
+- **THEN** the applied-configuration summary includes `legal entity PAR`
 
 #### Scenario: Events are logged in the playground
 
@@ -350,12 +375,17 @@ The mmx trader frontend SHALL include a route at `/dev/widget-playground` (avail
 
 ### Requirement: Playground submits orderReady payloads to mmx intake
 
-The widget playground SHALL act as a development PM host: for each logged `orderReady` event, the user SHALL be able to submit the payload to mmx intake via `POST /api/v1/orders` using the playground's configured API base URL (same base as the embedded widget). The playground SHALL map `OrderCreationPayload` to `ReceiveOrderRequest` per the canonical intake contract (`operation` → `orderOperation`, include `institutionCode`, omit display-only `counterparty`). The playground SHALL generate an `externalOrderReference` at submit time. The widget library itself SHALL NOT perform submission.
+The widget playground SHALL act as a development PM host: for each logged `orderReady` event, the user SHALL be able to submit the payload to mmx intake via `POST /api/v1/orders` using the playground's configured API base URL (same base as the embedded widget). The playground SHALL map `OrderCreationPayload` to `ReceiveOrderRequest` per the canonical intake contract (`legalEntityCode`, `operation` → `orderOperation`, include `institutionCode`, omit display-only `counterparty`). The playground SHALL generate an `externalOrderReference` at submit time. The widget library itself SHALL NOT perform submission.
 
 #### Scenario: User sends a completed order to intake
 
 - **WHEN** the widget emits `orderReady` in the playground and the user clicks Send to mmx
 - **THEN** the playground POSTs a `ReceiveOrderRequest` to `{apiBaseUrl}/api/v1/orders` (or `/api/v1/orders` via dev proxy when api base is empty) and displays the returned `orderId` and HTTP status on success
+
+#### Scenario: Submit preserves legalEntityCode from payload
+
+- **WHEN** the user sends an `orderReady` payload that includes `legalEntityCode: 'PAR'`
+- **THEN** the POST body includes `legalEntityCode: 'PAR'`
 
 #### Scenario: Submit uses institutionCode from the payload
 
