@@ -120,9 +120,9 @@ import { WIZARD_STEP_LABELS } from './wizard-step-labels';
       gap: 0.125rem;
       min-width: 5.5rem;
       padding: 0.5rem 0.75rem;
-      border: 1px solid #d0d5dd;
+      border: 1px solid var(--wizard-border, #d0d5dd);
       border-radius: 0.5rem;
-      background: #fff;
+      background: var(--wizard-surface-hover, #fff);
       cursor: pointer;
       text-align: left;
     }
@@ -133,23 +133,23 @@ import { WIZARD_STEP_LABELS } from './wizard-step-labels';
     }
 
     .step-indicator-item--active {
-      border-color: #155eef;
-      background: #eff4ff;
+      border-color: var(--wizard-primary, #155eef);
+      background: var(--wizard-primary-surface, #eff4ff);
     }
 
     .step-indicator-item--completed:not(.step-indicator-item--active) {
-      border-color: #98a2b3;
+      border-color: var(--wizard-border-strong, #98a2b3);
     }
 
     .step-indicator-index {
       font-size: 0.75rem;
-      color: #667085;
+      color: var(--wizard-text-muted, #667085);
       font-weight: 600;
     }
 
     .step-indicator-label {
       font-size: 0.8125rem;
-      color: #101828;
+      color: var(--wizard-text, #101828);
       font-weight: 600;
       white-space: nowrap;
     }
@@ -179,15 +179,15 @@ import { WIZARD_STEP_LABELS } from './wizard-step-labels';
     }
 
     .wizard-nav button[data-testid='wizard-back'] {
-      border: 1px solid #d0d5dd;
-      background: #fff;
-      color: #344054;
+      border: 1px solid var(--wizard-border, #d0d5dd);
+      background: var(--wizard-surface-hover, #fff);
+      color: var(--wizard-text-secondary, #344054);
     }
 
     .wizard-nav button[data-testid='wizard-next'] {
       border: none;
-      background: #155eef;
-      color: #fff;
+      background: var(--wizard-primary, #155eef);
+      color: var(--wizard-on-primary, #fff);
     }
   `,
 })

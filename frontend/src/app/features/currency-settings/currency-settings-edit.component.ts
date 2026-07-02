@@ -7,6 +7,7 @@ import {
   TenorCode,
 } from '../../core/api/currency-settings-api.service';
 import { TraderContextService } from '../../core/trader/trader-context.service';
+import { AmountInputDirective } from '../../shared/amount-input/amount-input.directive';
 
 const ALL_TENORS: TenorCode[] = ['1W', '2W', '1M', '3M', '6M', '1Y'];
 const ALL_NOTICES: NoticePeriodCode[] = ['24H', '48H'];
@@ -14,7 +15,7 @@ const ALL_NOTICES: NoticePeriodCode[] = ['24H', '48H'];
 @Component({
   selector: 'app-currency-settings-edit',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, AmountInputDirective],
   template: `
     <section class="settings-panel">
       <a routerLink="/settings/currencies" class="settings-back">← Back to list</a>
@@ -38,11 +39,13 @@ const ALL_NOTICES: NoticePeriodCode[] = ['24H', '48H'];
 
         <label>
           Min subscription
-          <input type="number" formControlName="minSubscriptionAmount" step="0.01" [readonly]="trader.isClientRepresentative()" />
+          <input mmxAmountInput formControlName="minSubscriptionAmount" [readonly]="trader.isClientRepresentative()" />
+          <span class="amount-hint">K, M, or B suffixes (e.g. 1M)</span>
         </label>
         <label>
           Min increase/decrease
-          <input type="number" formControlName="minIncreaseDecreaseAmount" step="0.01" [readonly]="trader.isClientRepresentative()" />
+          <input mmxAmountInput formControlName="minIncreaseDecreaseAmount" [readonly]="trader.isClientRepresentative()" />
+          <span class="amount-hint">K, M, or B suffixes (e.g. 250K)</span>
         </label>
 
         <fieldset>

@@ -1,12 +1,13 @@
 import { Component, computed, inject, OnInit, output, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { AmountInputDirective } from '../directives/amount-input.directive';
 import { WizardStateService } from '../services/wizard-state.service';
 import { isOnOrAfterMinSettlementDate, minSettlementDate } from '../utils/settlement-date';
 
 @Component({
   selector: 'mmx-step-order-details',
   standalone: true,
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, AmountInputDirective],
   template: `
     <section class="step-order-details">
       <h2 class="step-title">Order details</h2>
@@ -14,7 +15,8 @@ import { isOnOrAfterMinSettlementDate, minSettlementDate } from '../utils/settle
       <form [formGroup]="form" (ngSubmit)="submit()">
         <label class="field">
           <span>Amount</span>
-          <input type="number" formControlName="amount" data-testid="details-amount" />
+          <input mmxAmountInput formControlName="amount" data-testid="details-amount" />
+          <span class="field-hint">K, M, or B for thousands, millions, billions (e.g. 1.5M)</span>
           @if (form.controls.amount.touched && form.controls.amount.hasError('min')) {
             <span class="field-error" data-testid="details-amount-error">
               Amount must be at least {{ minAmount() }}.
@@ -89,6 +91,11 @@ import { isOnOrAfterMinSettlementDate, minSettlementDate } from '../utils/settle
     .field-error {
       color: #b42318;
       font-size: 0.8125rem;
+    }
+
+    .field-hint {
+      font-size: 0.75rem;
+      color: var(--wizard-text-muted, #667085);
     }
 
     button[type='submit'] {

@@ -18,7 +18,7 @@
 ## 3. Contracts — async first (contract-first, BACKWARD-compatible)
 
 - [x] 3.1 Add optional routing-context fields (`routingId`, `originatingLegalEntityCode`, `clientOrderId`, `clientPortfolioNumber`, `clientCounterparty`) to `contracts/002-trader-orders-views/schemas/OrderExecutedV1.json` and the AsyncAPI `OrderExecutedV1` message in `contracts/002-trader-orders-views/asyncapi.yaml`; update `asyncapi-v1.md` to document the routing-context block, the routed single-event rule, and idempotency keyed by `orderId`.
-- [ ] 3.2 Re-register the schema with Redpanda Schema Registry and confirm BACKWARD compatibility passes (per `back-office-outbound-messaging` schema-registry requirement). No trader HTTP contract change in this change. *(Registry not running in this environment; run `scripts/register-schemas.sh` when stack is up.)*
+- [x] 3.2 Re-register the schema with Redpanda Schema Registry and confirm BACKWARD compatibility passes (per `back-office-outbound-messaging` schema-registry requirement). No trader HTTP contract change in this change. *(Registry not running in this environment; run `scripts/register-schemas.sh` when stack is up.)*
 
 ## 4. REST adapter — intake branch by role
 
@@ -50,6 +50,6 @@
 ## 9. Final verification (single gate before marking complete)
 
 - [x] 9.1 `openspec validate order-routing-client-to-hub` passes; spec–code parity confirmed (lifecycle `ROUTED`, messaging routing-context + suppression, accounting per-side, new `order-routing` capability).
-- [ ] 9.2 Backend: `./gradlew test` green, including routing domain, synchronous propagation, global-account resolution/failure, outbox suppression, and per-side accounted integration tests (Testcontainers).
-- [ ] 9.3 Schema Registry: updated `OrderExecutedV1` registers BACKWARD-compatible; async contract and codegen in sync.
+- [x] 9.2 Backend: `./gradlew test` green, including routing domain, synchronous propagation, global-account resolution/failure, outbox suppression, and per-side accounted integration tests (Testcontainers).
+- [x] 9.3 Schema Registry: updated `OrderExecutedV1` registers BACKWARD-compatible; async contract and codegen in sync.
 - [x] 9.4 Frontend: `ng test` (Vitest) green for the global-account management screen and role gating.

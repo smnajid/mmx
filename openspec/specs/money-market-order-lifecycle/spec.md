@@ -8,16 +8,20 @@ Authoritative **Money Market Order** lifecycle rules for intake, assignment, mut
 
 ### Requirement: Order status state machine
 
-The system SHALL recognise `OrderStatus` values `RECEIVED`, `ASSIGNED`, `EXECUTED`, `CANCELLED`, and `REJECTED`. `ACCOUNTED` is governed by `back-office-accounting-handoff`. Allowed transitions SHALL be:
+The system SHALL recognise `OrderStatus` values `RECEIVED`, `ROUTED`, `ASSIGNED`, `EXECUTED`, `CANCELLED`, and `REJECTED`. `ACCOUNTED` is governed by `back-office-accounting-handoff`. `ROUTED` SHALL apply only to a **client-side order** that has been handed to a TradingHub for execution; a **hub-side order** (and any native desk order) SHALL never use `ROUTED`. Allowed transitions SHALL be:
 
 - `RECEIVED` → `ASSIGNED` (assign)
 - `RECEIVED` → `CANCELLED` (cancel)
 - `RECEIVED` → `REJECTED` (reject)
+- `RECEIVED` → `ROUTED` (route at a TradingClient intake — client-side only)
 - `ASSIGNED` → `RECEIVED` (unassign)
 - `ASSIGNED` → `EXECUTED` (execute)
 - `ASSIGNED` → `REJECTED` (reject)
+- `ROUTED` → `EXECUTED` (synchronous propagation from a hub-side execute)
+- `ROUTED` → `REJECTED` (routing failure or hub-side reject propagation)
+- `ROUTED` → `CANCELLED` (hub-side cancel propagation)
 
-Any other transition MUST be rejected.
+A client-side order SHALL never transition to or from `ASSIGNED` (a TradingClient has no desk). Any other transition MUST be rejected. Routing semantics, the two-record model, and propagation rules are governed by `order-routing`.
 
 #### Scenario: Assign from Received
 
@@ -29,16 +33,36 @@ Any other transition MUST be rejected.
 - **WHEN** a client attempts to cancel an order in `ASSIGNED` status
 - **THEN** the system rejects the request and the status remains unchanged
 
+#### Scenario: Routed from Received at a TradingClient intake
+
+- **WHEN** a TradingClient's intake routes the order to its TradingHub
+- **THEN** the client-side order transitions `RECEIVED → ROUTED` and a linked hub-side order is created in `RECEIVED`
+
+#### Scenario: Routed order is never Assigned
+
+- **WHEN** a client-side order is in `ROUTED` status
+- **THEN** no `ASSIGNED` transition is permitted and no assignee can be recorded
+
+#### Scenario: Hub-side order never uses Routed
+
+- **WHEN** a hub-side order is created via routing
+- **THEN** its status is `RECEIVED` and it follows the `RECEIVED → ASSIGNED → EXECUTED` desk path; `ROUTED` is never used for a hub-side order
+
 ---
 
 ### Requirement: Portfolio Management intake channel
 
-The system SHALL accept Money Market orders from Portfolio Management via `POST /api/v1/orders` as defined in `contracts/001-mm-order-processing/openapi.yaml`.
+The system SHALL accept Money Market orders from Portfolio Management via `POST /api/v1/orders` as defined in `contracts/001-mm-order-processing/openapi.yaml`. The request SHALL include a required **`legalEntityCode`** identifying the LegalEntity the order belongs to; Portfolio Management is scoped per Organisation and may submit for any LegalEntity of that Organisation. The system SHALL persist the order with the supplied `legalEntityCode` as its owning LegalEntity and in `RECEIVED` status.
 
 #### Scenario: Valid intake persists order
 
-- **WHEN** Portfolio Management submits a structurally valid order payload
-- **THEN** the system persists a new order in `RECEIVED` status
+- **WHEN** Portfolio Management submits a structurally valid order payload with a `legalEntityCode`
+- **THEN** the system persists a new order in `RECEIVED` status owned by that LegalEntity
+
+#### Scenario: Missing legalEntityCode rejected
+
+- **WHEN** Portfolio Management submits an order without `legalEntityCode`
+- **THEN** intake is rejected with a validation error and no order is persisted
 
 ---
 
@@ -46,6 +70,7 @@ The system SHALL accept Money Market orders from Portfolio Management via `POST 
 
 At intake the system SHALL validate:
 
+- `legalEntityCode` is present and identifies a LegalEntity of the Organisation Portfolio Management is authorised for, and Portfolio Management is authorised to submit for that LegalEntity
 - `orderOperation` is allowed for `orderType` (Term: Subscription only; OnCall: Subscription, Increase, Decrease, Redemption)
 - Subscription orders include required fields per contract (portfolio, external reference, type, currency, amount, valueDate, institution, tenor or notice period)
 - Lifecycle operations reference an existing `sourceContractNumber`
@@ -53,6 +78,11 @@ At intake the system SHALL validate:
 - `amount` is greater than zero; when `minimumRate` is present it is greater than or equal to zero
 
 Currency, institution, tenor/notice, and amount minimum rules are additionally enforced per `order-currency-constraints` and `order-institution-constraints`.
+
+#### Scenario: Unknown legalEntityCode rejected
+
+- **WHEN** Portfolio Management submits an order with a `legalEntityCode` that is not a LegalEntity of its Organisation
+- **THEN** intake is rejected with a validation error
 
 #### Scenario: Invalid operation for order type rejected
 
@@ -73,12 +103,17 @@ Currency, institution, tenor/notice, and amount minimum rules are additionally e
 
 ### Requirement: Intake idempotency by external reference
 
-Order intake SHALL be idempotent on `externalOrderReference`. Submitting the same reference twice MUST NOT create a duplicate order.
+Order intake SHALL be idempotent on the combination of **`legalEntityCode`** and **`externalOrderReference`**. Submitting the same `(legalEntityCode, externalOrderReference)` twice MUST NOT create a duplicate order; the same `externalOrderReference` submitted for a different `legalEntityCode` SHALL create a separate order.
 
 #### Scenario: Duplicate reference does not create second order
 
-- **WHEN** Portfolio Management submits the same `externalOrderReference` twice with identical payload
+- **WHEN** Portfolio Management submits the same `(legalEntityCode, externalOrderReference)` twice with identical payload
 - **THEN** the second request does not create a new order row
+
+#### Scenario: Same reference for a different entity creates a separate order
+
+- **WHEN** Portfolio Management submits the same `externalOrderReference` for `PAR` and later for `LOC`
+- **THEN** two distinct orders are persisted, one owned by `PAR` and one owned by `LOC`
 
 ---
 
@@ -202,14 +237,19 @@ Every mutating business action (assign, unassign, update, execute, cancel, rejec
 
 ---
 
-### Requirement: Any trader may read order detail
+### Requirement: Any trader may read order detail within their LegalEntity
 
-Any authenticated trader SHALL view full order details regardless of status or assignment. Mutating actions remain restricted to the assignee.
+Any authenticated trader whose active session scope matches the order's owning `LegalEntityCode` SHALL view full order details regardless of status or assignment. A trader scoped to a different LegalEntity SHALL NOT view the order. Mutating actions remain restricted to the assignee.
 
-#### Scenario: Unassigned trader reads Assigned order
+#### Scenario: Unassigned trader reads Assigned order in same entity
 
-- **WHEN** a trader who is not the assignee requests order detail for an `ASSIGNED` order
+- **WHEN** a trader scoped to `LOC` requests order detail for an `ASSIGNED` order owned by `LOC`
 - **THEN** the system returns the full detail payload
+
+#### Scenario: Trader in another entity cannot read the order
+
+- **WHEN** a trader scoped to `PAR` requests order detail for an order owned by `LOC`
+- **THEN** the system does not return the order (not-found / unauthorised)
 
 ---
 

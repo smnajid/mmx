@@ -9,11 +9,12 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { OrderDetails, UpdateOrderRequest } from '../../core/models/order.model';
+import { AmountInputDirective } from '../../shared/amount-input/amount-input.directive';
 
 @Component({
   selector: 'mmx-order-update-form',
   standalone: true,
-  imports: [DecimalPipe, FormsModule],
+  imports: [DecimalPipe, FormsModule, AmountInputDirective],
   template: `
     <div class="panel">
       <h2 class="panel-title">Adjust order parameters</h2>
@@ -31,15 +32,14 @@ import type { OrderDetails, UpdateOrderRequest } from '../../core/models/order.m
         <label class="field">
           <span class="label">Amount</span>
           <input
-            type="number"
+            mmxAmountInput
             name="amount"
-            step="any"
-            min="0"
             class="input mono"
             [(ngModel)]="amountModel"
             [disabled]="submitting()"
             autocomplete="off"
           />
+          <span class="field-hint">K, M, or B for thousands, millions, billions (e.g. 1.5M)</span>
         </label>
         <label class="field">
           <span class="label">Value date</span>
@@ -161,6 +161,12 @@ import type { OrderDetails, UpdateOrderRequest } from '../../core/models/order.m
       color: #fda4af;
     }
 
+    .field-hint {
+      font-size: 0.75rem;
+      color: var(--mmx-text-muted);
+      line-height: 1.35;
+    }
+
     .submit {
       align-self: flex-start;
       margin-top: 0.25rem;
@@ -198,22 +204,22 @@ export class OrderUpdateFormComponent {
 
   readonly localError = signal<string | null>(null);
 
-  amountModel = '';
+  amountModel: number | null = null;
   valueDateModel = '';
 
   constructor() {
     effect(() => {
       const o = this.order();
-      this.amountModel = String(o.amount);
+      this.amountModel = o.amount;
       this.valueDateModel = o.valueDate;
     });
   }
 
   onSubmit(): void {
     this.localError.set(null);
-    const amount = this.amountModel === '' ? NaN : Number(this.amountModel);
+    const amount = this.amountModel;
     const vd = this.valueDateModel?.trim() ?? '';
-    if (Number.isNaN(amount) || amount <= 0) {
+    if (amount == null || amount <= 0) {
       this.localError.set('Enter a valid amount (> 0).');
       return;
     }

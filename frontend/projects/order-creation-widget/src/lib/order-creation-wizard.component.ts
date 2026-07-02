@@ -46,6 +46,38 @@ import { WizardShellComponent } from './wizard-shell/wizard-shell.component';
       display: block;
       width: 100%;
       min-height: 0;
+      border-radius: 0.5rem;
+      padding: 0.25rem;
+    }
+
+    :host.theme-light {
+      --wizard-text: #101828;
+      --wizard-text-secondary: #344054;
+      --wizard-text-muted: #667085;
+      --wizard-surface: #fff;
+      --wizard-surface-hover: #f9fafb;
+      --wizard-border: #d0d5dd;
+      --wizard-border-strong: #98a2b3;
+      --wizard-primary: #155eef;
+      --wizard-primary-surface: #eff4ff;
+      --wizard-on-primary: #fff;
+      background: var(--wizard-surface);
+      color: var(--wizard-text);
+    }
+
+    :host.theme-dark {
+      --wizard-text: #e8ecf1;
+      --wizard-text-secondary: #c5cdd8;
+      --wizard-text-muted: #8b98a8;
+      --wizard-surface: #151b22;
+      --wizard-surface-hover: #1c2430;
+      --wizard-border: rgba(232, 168, 56, 0.22);
+      --wizard-border-strong: rgba(232, 168, 56, 0.35);
+      --wizard-primary: #e8a838;
+      --wizard-primary-surface: rgba(232, 168, 56, 0.14);
+      --wizard-on-primary: #0c0f12;
+      background: var(--wizard-surface);
+      color: var(--wizard-text);
     }
 
     .wizard-config-error,

@@ -75,18 +75,18 @@ import { WizardStateService } from '../services/wizard-state.service';
 
     .review-summary dt {
       margin: 0;
-      color: #667085;
+      color: var(--wizard-text-muted, #667085);
       font-weight: 500;
     }
 
     .review-summary dd {
       margin: 0;
-      color: #101828;
+      color: var(--wizard-text, #101828);
       font-weight: 600;
     }
 
     .review-rate {
-      color: #667085;
+      color: var(--wizard-text-muted, #667085);
       font-weight: 500;
     }
 
@@ -102,15 +102,15 @@ import { WizardStateService } from '../services/wizard-state.service';
     }
 
     .review-actions button[data-testid='review-cancel'] {
-      border: 1px solid #d0d5dd;
-      background: #fff;
-      color: #344054;
+      border: 1px solid var(--wizard-border, #d0d5dd);
+      background: var(--wizard-surface-hover, #fff);
+      color: var(--wizard-text-secondary, #344054);
     }
 
     .review-actions button[data-testid='review-create-order'] {
       border: none;
-      background: #155eef;
-      color: #fff;
+      background: var(--wizard-primary, #155eef);
+      color: var(--wizard-on-primary, #fff);
     }
   `,
 })

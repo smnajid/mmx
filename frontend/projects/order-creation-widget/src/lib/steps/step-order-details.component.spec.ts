@@ -37,6 +37,19 @@ describe('StepOrderDetailsComponent', () => {
     vi.useRealTimers();
   });
 
+  it('accepts amount entered with millions suffix', () => {
+    const amountInput = fixture.nativeElement.querySelector('[data-testid="details-amount"]');
+    amountInput.value = '1.5M';
+    amountInput.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+
+    fixture.componentInstance.submit();
+    fixture.detectChanges();
+
+    expect(state.state().amount).toBe(1_500_000);
+    expect(state.state().currentStep).not.toBe(WizardStepId.ORDER_DETAILS);
+  });
+
   it('rejects amount below operation minimum', () => {
     const amountInput = fixture.nativeElement.querySelector('[data-testid="details-amount"]');
     amountInput.value = '100000';

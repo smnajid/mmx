@@ -353,7 +353,8 @@ button.btn-secondary:disabled {
 }
 
 .settings-form input[type='text'],
-.settings-form input[type='number'] {
+.settings-form input[type='number'],
+.settings-form input[inputmode='decimal'] {
   font-family: var(--font-mono);
   font-size: 0.8125rem;
   padding: 0.45rem 0.55rem;
@@ -361,6 +362,13 @@ button.btn-secondary:disabled {
   border: 1px solid var(--mmx-border);
   background: var(--mmx-bg);
   color: var(--mmx-text);
+}
+
+.settings-form .amount-hint {
+  font-size: 0.68rem;
+  color: var(--mmx-text-muted);
+  letter-spacing: normal;
+  text-transform: none;
 }
 
 .settings-form input:focus {

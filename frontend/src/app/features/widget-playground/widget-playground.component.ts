@@ -177,6 +177,7 @@ type LiveContract = {
               [portfolioNumber]="activePortfolioNumber()"
               [orderType]="activeOrderType()"
               [contractNumber]="activeContractNumber()"
+              theme="dark"
               (orderReady)="onOrderReady($event)"
               (cancelled)="onCancelled()"
             />
