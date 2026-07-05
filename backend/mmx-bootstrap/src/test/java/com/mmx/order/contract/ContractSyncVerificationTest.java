@@ -10,7 +10,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -18,7 +17,7 @@ import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Task 7.2: Lightweight unit checks that OpenAPI and AsyncAPI contract specimens stay in sync
+ * Lightweight unit checks that OpenAPI and AsyncAPI contract specimens stay in sync
  * with golden fixtures and codegen output. No Spring context, no Testcontainers.
  *
  * <ul>
@@ -29,9 +28,6 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class ContractSyncVerificationTest {
 
-    private static final String CANONICAL_SCHEMA_CLASSPATH = "/contracts/OrderExecutedV1.json";
-    private static final String CANONICAL_SCHEMA_RELATIVE =
-            "../../contracts/002-trader-orders-views/schemas/OrderExecutedV1.json";
     private static final String ASYNCAPI_CONTRACT_RELATIVE =
             "../../contracts/002-trader-orders-views/asyncapi.yaml";
 
@@ -39,51 +35,47 @@ class ContractSyncVerificationTest {
 
     @Test
     void asyncApiOrderExecutedV1_payloadRef_pointsAtCanonicalSchemaFile() throws Exception {
-        Map<String, Object> asyncApiDoc = loadAsyncApiYaml();
+        assertAsyncApiMessagePayloadRef("OrderExecutedV1", "./schemas/OrderExecutedV1.json");
+    }
 
-        @SuppressWarnings("unchecked")
-        Map<String, Object> messages = (Map<String, Object>)
-                ((Map<String, Object>) asyncApiDoc.get("components")).get("messages");
-        @SuppressWarnings("unchecked")
-        Map<String, Object> orderExecutedV1 = (Map<String, Object>) messages.get("OrderExecutedV1");
-        @SuppressWarnings("unchecked")
-        Map<String, Object> payload = (Map<String, Object>) orderExecutedV1.get("payload");
+    @Test
+    void asyncApiOnCallRateUpdatedV1_payloadRef_pointsAtCanonicalSchemaFile() throws Exception {
+        assertAsyncApiMessagePayloadRef("OnCallRateUpdatedV1", "./schemas/OnCallRateUpdatedV1.json");
+    }
 
-        assertThat(payload.get("$ref"))
-                .as("AsyncAPI OrderExecutedV1 payload must reference external canonical schema")
-                .isEqualTo("./schemas/OrderExecutedV1.json");
+    @Test
+    void asyncApiOnCallRateCanceledV1_payloadRef_pointsAtCanonicalSchemaFile() throws Exception {
+        assertAsyncApiMessagePayloadRef("OnCallRateCanceledV1", "./schemas/OnCallRateCanceledV1.json");
     }
 
     @Test
     void asyncApiOrderExecutedV1_classpathSchemaRequired_matchesCanonicalFile() throws Exception {
-        JsonNode classpathSchema = loadClasspathSchema();
-        JsonNode fileSchema = loadCanonicalSchemaFile();
+        assertClasspathSchemaMatchesCanonicalFile("OrderExecutedV1.json");
+    }
 
-        Set<String> classpathRequired = new HashSet<>();
-        classpathSchema.path("required").forEach(n -> classpathRequired.add(n.asText()));
+    @Test
+    void asyncApiOnCallRateUpdatedV1_classpathSchemaRequired_matchesCanonicalFile() throws Exception {
+        assertClasspathSchemaMatchesCanonicalFile("OnCallRateUpdatedV1.json");
+    }
 
-        Set<String> fileRequired = new HashSet<>();
-        fileSchema.path("required").forEach(n -> fileRequired.add(n.asText()));
-
-        assertThat(classpathRequired)
-                .as("classpath schema 'required' must match canonical OrderExecutedV1.json on disk")
-                .containsExactlyInAnyOrderElementsOf(fileRequired);
+    @Test
+    void asyncApiOnCallRateCanceledV1_classpathSchemaRequired_matchesCanonicalFile() throws Exception {
+        assertClasspathSchemaMatchesCanonicalFile("OnCallRateCanceledV1.json");
     }
 
     @Test
     void asyncApiOrderExecutedV1_classpathSchemaProperties_matchesCanonicalFile() throws Exception {
-        JsonNode classpathSchema = loadClasspathSchema();
-        JsonNode fileSchema = loadCanonicalSchemaFile();
+        assertClasspathSchemaPropertiesMatchCanonicalFile("OrderExecutedV1.json");
+    }
 
-        Set<String> classpathProperties = new HashSet<>();
-        classpathSchema.path("properties").fieldNames().forEachRemaining(classpathProperties::add);
+    @Test
+    void asyncApiOnCallRateUpdatedV1_classpathSchemaProperties_matchesCanonicalFile() throws Exception {
+        assertClasspathSchemaPropertiesMatchCanonicalFile("OnCallRateUpdatedV1.json");
+    }
 
-        Set<String> fileProperties = new HashSet<>();
-        fileSchema.path("properties").fieldNames().forEachRemaining(fileProperties::add);
-
-        assertThat(classpathProperties)
-                .as("classpath schema 'properties' keys must match canonical OrderExecutedV1.json on disk")
-                .containsExactlyInAnyOrderElementsOf(fileProperties);
+    @Test
+    void asyncApiOnCallRateCanceledV1_classpathSchemaProperties_matchesCanonicalFile() throws Exception {
+        assertClasspathSchemaPropertiesMatchCanonicalFile("OnCallRateCanceledV1.json");
     }
 
     @Test
@@ -113,15 +105,62 @@ class ContractSyncVerificationTest {
                 .containsExactlyInAnyOrder("PENDING", "PUBLISHED", "FAILED");
     }
 
-    private JsonNode loadClasspathSchema() throws Exception {
-        try (InputStream in = getClass().getResourceAsStream(CANONICAL_SCHEMA_CLASSPATH)) {
-            Objects.requireNonNull(in, "Missing classpath schema " + CANONICAL_SCHEMA_CLASSPATH);
+    private void assertAsyncApiMessagePayloadRef(String messageName, String expectedRef) throws Exception {
+        Map<String, Object> asyncApiDoc = loadAsyncApiYaml();
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> messages = (Map<String, Object>)
+                ((Map<String, Object>) asyncApiDoc.get("components")).get("messages");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> message = (Map<String, Object>) messages.get(messageName);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> payload = (Map<String, Object>) message.get("payload");
+
+        assertThat(payload.get("$ref"))
+                .as("AsyncAPI %s payload must reference external canonical schema", messageName)
+                .isEqualTo(expectedRef);
+    }
+
+    private void assertClasspathSchemaMatchesCanonicalFile(String schemaFileName) throws Exception {
+        JsonNode classpathSchema = loadClasspathSchema(schemaFileName);
+        JsonNode fileSchema = loadCanonicalSchemaFile(schemaFileName);
+
+        Set<String> classpathRequired = new HashSet<>();
+        classpathSchema.path("required").forEach(n -> classpathRequired.add(n.asText()));
+
+        Set<String> fileRequired = new HashSet<>();
+        fileSchema.path("required").forEach(n -> fileRequired.add(n.asText()));
+
+        assertThat(classpathRequired)
+                .as("classpath schema 'required' must match canonical %s on disk", schemaFileName)
+                .containsExactlyInAnyOrderElementsOf(fileRequired);
+    }
+
+    private void assertClasspathSchemaPropertiesMatchCanonicalFile(String schemaFileName) throws Exception {
+        JsonNode classpathSchema = loadClasspathSchema(schemaFileName);
+        JsonNode fileSchema = loadCanonicalSchemaFile(schemaFileName);
+
+        Set<String> classpathProperties = new HashSet<>();
+        classpathSchema.path("properties").fieldNames().forEachRemaining(classpathProperties::add);
+
+        Set<String> fileProperties = new HashSet<>();
+        fileSchema.path("properties").fieldNames().forEachRemaining(fileProperties::add);
+
+        assertThat(classpathProperties)
+                .as("classpath schema 'properties' keys must match canonical %s on disk", schemaFileName)
+                .containsExactlyInAnyOrderElementsOf(fileProperties);
+    }
+
+    private JsonNode loadClasspathSchema(String schemaFileName) throws Exception {
+        String classpath = "/contracts/" + schemaFileName;
+        try (InputStream in = getClass().getResourceAsStream(classpath)) {
+            Objects.requireNonNull(in, "Missing classpath schema " + classpath);
             return JSON.readTree(in);
         }
     }
 
-    private JsonNode loadCanonicalSchemaFile() throws Exception {
-        Path schemaPath = resolveCanonicalSchemaPath();
+    private JsonNode loadCanonicalSchemaFile(String schemaFileName) throws Exception {
+        Path schemaPath = resolveSchemaPath(schemaFileName);
         return JSON.readTree(Files.readString(schemaPath));
     }
 
@@ -132,22 +171,23 @@ class ContractSyncVerificationTest {
         }
     }
 
-    private Path resolveCanonicalSchemaPath() {
-        Path candidate = Paths.get(CANONICAL_SCHEMA_RELATIVE).toAbsolutePath().normalize();
+    private Path resolveSchemaPath(String schemaFileName) {
+        Path candidate =
+                Paths.get("../../contracts/002-trader-orders-views/schemas/" + schemaFileName)
+                        .toAbsolutePath()
+                        .normalize();
         if (Files.exists(candidate)) {
             return candidate;
         }
         Path dir = Paths.get("").toAbsolutePath();
         while (dir != null) {
-            Path target =
-                    dir.resolve("contracts/002-trader-orders-views/schemas/OrderExecutedV1.json");
+            Path target = dir.resolve("contracts/002-trader-orders-views/schemas/" + schemaFileName);
             if (Files.exists(target)) {
                 return target;
             }
             dir = dir.getParent();
         }
-        throw new IllegalStateException(
-                "Cannot locate canonical schema. Searched: " + candidate);
+        throw new IllegalStateException("Cannot locate canonical schema. Searched: " + candidate);
     }
 
     private Path resolveAsyncApiPath() {
