@@ -2,7 +2,6 @@
 
 Agents MUST keep **specifications and code aligned** for any material change (API, domain behavior, persistence, Trader-facing UX). Operational checklist: `CLAUDE.md`. Governance: `docs/governance.md` Principle VI (Spec–code parity). Treat missing spec updates as a **blocking** defect, not a follow-up.
 
-**Claude Code**: skills and OPSX commands live under `.claude/` — see `docs/agents/claude-code.md`.
 
 ## Test-driven development (TDD)
 
@@ -19,10 +18,6 @@ Agents SHOULD read the `tdd` skill (`.claude/skills/tdd/SKILL.md` on Claude Code
 Use OpenSpec for spec-driven work: propose a change (`/opsx:propose` or `/opsx:new`), implement from `tasks.md` (`/opsx:apply`), and merge into `openspec/specs/` (`/opsx:archive`). CLI: `openspec validate`, `openspec status --json`. Project context and task-generation rules live in `openspec/config.yaml`.
 
 ## Agent skills
-
-### Issue tracker
-
-Issues are tracked as local markdown files under `.scratch/`. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 

@@ -9,6 +9,7 @@ This repo was migrated from **Cursor** (`cursor-agent` + `.cursor/skills`) to **
 | **OpenSpec** | `.claude/skills/openspec-*`, `.claude/commands/opsx/` | `.cursor/skills/openspec-*`, `.cursor/commands/opsx-*` |
 | **Project rules** | `CLAUDE.md` | `.cursor/rules/*.mdc` |
 | **Specs & contracts** | `openspec/`, `contracts/` | unchanged |
+| **Skills curation** | [skills-curation-mmx.md](./skills-curation-mmx.md), [skills-curation-global.md](./skills-curation-global.md) | — |
 
 ## Daily commands
 
