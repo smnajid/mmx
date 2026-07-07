@@ -3,7 +3,7 @@ package com.mmx.order.domain.model;
 import com.mmx.order.domain.exception.InvalidOrderException;
 import com.mmx.order.domain.exception.InvalidStatusTransitionException;
 import com.mmx.order.domain.exception.UnauthorizedTraderException;
-import com.mmx.order.domain.policy.OrderRoutingFieldMappingPolicy.RoutedHubOrderDraft;
+import com.mmx.order.domain.model.RoutedHubOrderDraft;
 
 import java.math.BigDecimal;
 import java.time.Instant;

@@ -10,16 +10,16 @@ import com.mmx.order.adapter.out.persistence.repository.SpringDataOrderRepositor
 import com.mmx.order.application.port.in.CancelOrderUseCase;
 import com.mmx.order.application.port.in.DeskOrderQueries;
 import com.mmx.order.application.port.in.MarkOrderAccountedUseCase;
-import com.mmx.order.application.port.in.ReceiveOrderUseCase;
 import com.mmx.order.application.port.in.RejectOrderUseCase;
 import com.mmx.order.application.port.in.UpdateAssignedOrderUseCase;
 import com.mmx.order.application.port.out.*;
 import com.mmx.order.application.service.AssignmentService;
 import com.mmx.order.application.service.ExecuteOrderService;
+import com.mmx.order.application.service.IntakeService;
 import com.mmx.order.application.service.MarkOrderAccountedService;
 import com.mmx.order.application.service.OrderLifecycleService;
 import com.mmx.order.application.service.DeskOrderQueryService;
-import com.mmx.order.application.service.ReceiveOrderService;
+import com.mmx.order.application.service.RoutedOrderIntake;
 import com.mmx.order.application.service.UpdateOrderService;
 import com.mmx.order.domain.model.OrganisationCode;
 import com.mmx.order.domain.policy.OrderAgainstInstitutionPolicy;
@@ -80,7 +80,24 @@ public class OrderModuleConfiguration {
     }
 
     @Bean
-    public ReceiveOrderUseCase receiveOrderUseCase(
+    public RoutedOrderIntake routedOrderIntake(
+            ProxyInstitutionRepository proxyInstitutionRepository,
+            DelegatedGrantDirectory delegatedGrantDirectory,
+            GlobalAccountDirectory globalAccountDirectory,
+            InstitutionRepository institutionRepository,
+            OrderRepository orderRepository,
+            Clock clock) {
+        return new RoutedOrderIntake(
+                proxyInstitutionRepository,
+                delegatedGrantDirectory,
+                globalAccountDirectory,
+                institutionRepository,
+                orderRepository,
+                clock);
+    }
+
+    @Bean
+    public IntakeService intakeService(
             OrderRepository orderRepository,
             ManagedCurrencyRepository managedCurrencyRepository,
             InstitutionRepository institutionRepository,
@@ -88,9 +105,10 @@ public class OrderModuleConfiguration {
             OrganisationRepository organisationRepository,
             LegalEntityRepository legalEntityRepository,
             OrganisationCode portfolioManagementOrganisation,
+            RoutedOrderIntake routedOrderIntake,
             AuditLogger auditLogger,
             Clock clock) {
-        return new ReceiveOrderService(
+        return new IntakeService(
                 orderRepository,
                 managedCurrencyRepository,
                 institutionRepository,
@@ -98,6 +116,7 @@ public class OrderModuleConfiguration {
                 organisationRepository,
                 legalEntityRepository,
                 portfolioManagementOrganisation,
+                routedOrderIntake,
                 auditLogger,
                 clock);
     }

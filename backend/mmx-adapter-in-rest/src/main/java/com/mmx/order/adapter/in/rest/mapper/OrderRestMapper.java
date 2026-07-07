@@ -18,7 +18,7 @@ import com.mmx.order.application.command.ReceiveOrderCommand;
 import com.mmx.order.application.command.RejectOrderCommand;
 import com.mmx.order.application.command.UpdateOrderCommand;
 import com.mmx.order.application.port.in.OrderPage;
-import com.mmx.order.application.port.in.ReceiveOrderUseCase;
+import com.mmx.order.application.port.in.IntakeUseCase;
 import com.mmx.order.domain.model.Assignment;
 import com.mmx.order.domain.model.LegalEntityCode;
 import com.mmx.order.domain.model.ContractNumber;
@@ -164,7 +164,7 @@ public class OrderRestMapper {
     }
 
     public ReceiveOrderResponse toReceiveResponse(
-            ReceiveOrderUseCase.Result result, LegalEntityCode legalEntityCode) {
+            IntakeUseCase.Result result, LegalEntityCode legalEntityCode) {
         return new ReceiveOrderResponse()
                 .orderId(result.orderId())
                 .status(OrderStatus.fromValue(result.status().name()))

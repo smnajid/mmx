@@ -5,11 +5,11 @@ import com.mmx.order.domain.model.OrderStatus;
 
 import java.util.UUID;
 
-public interface ReceiveOrderUseCase {
+public interface IntakeUseCase {
 
     /**
-     * Accepts an order from Portfolio Management. Idempotent: same external reference returns the
-     * existing order ({@code newlyCreated == false}); new payload is never applied on duplicate receive.
+     * Accepts an order from Portfolio Management for TradingHub-native or TradingClient-routed intake.
+     * Idempotent: same external reference returns the existing order ({@code newlyCreated == false}).
      */
     Result receive(ReceiveOrderCommand command);
 

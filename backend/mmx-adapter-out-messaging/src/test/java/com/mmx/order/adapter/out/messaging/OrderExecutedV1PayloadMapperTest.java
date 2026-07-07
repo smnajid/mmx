@@ -94,7 +94,7 @@ class OrderExecutedV1PayloadMapperTest {
         RoutingId routingId = RoutingId.fromClientOrderId(client.getId());
         MoneyMarketOrder hub =
                 MoneyMarketOrder.createHubSideFromRouting(
-                        new com.mmx.order.domain.policy.OrderRoutingFieldMappingPolicy.RoutedHubOrderDraft(
+                        new com.mmx.order.domain.model.RoutedHubOrderDraft(
                                 new LegalEntityCode("LOC"),
                                 new PortfolioNumber("PAR-EUR-001"),
                                 RestTestInstitutionCode(),
