@@ -1,0 +1,45 @@
+<!-- label: wayfinder:map -->
+# Cross-organisation order routing (CGD → LOC)
+
+## Destination
+
+A **locked design decision** — topology, consistency model, and how local vs remote routing coexist — written so an OpenSpec change can be proposed from it (`/opsx:propose`). Planning only: **no code**. The way is clear when nothing about *which* architecture is left to decide before someone implements it.
+
+Concrete driver: **CGD** (a TradingClient with no desk, in the new Organisation **CGED**) must route its orders to **LOC** (the TradingHub of Organisation **LODH**) — the first cross-organisation, cross-deployment routing case.
+
+## Notes
+
+- **Domain language**: [CONTEXT.md](../../CONTEXT.md) — esp. *Order routing*, *MMX deployment boundary* (L157–158), *TradingHub*/*TradingClient*, *Routing outcome propagation*, *Global account*, *Delegated institution grant*.
+- **Invariant source**: [ADR-0002](../../docs/adr/0002-routed-order-is-two-linked-records.md) — routed order = two linked records, synchronous same-transaction propagation. This effort deliberately **relaxes** that atomicity *across deployments only*; local routing keeps it.
+- **Prior hardening**: [.scratch/architecture-deepening/02-routed-outcome-propagation-architecture.md](../architecture-deepening/02-routed-outcome-propagation-architecture.md) — the sync in-process propagation this map must NOT regress for local clients.
+- **Every ticket is HITL grilling by default.** Use `/grill-with-docs` (and update CONTEXT.md / propose ADRs inline as terms crystallise). Ask one question at a time.
+- **Framing givens (locked while charting — constraints on every ticket, not tickets themselves):**
+  1. **Topology = cross-deployment.** CGED and LODH stay two separate MMX instances/DBs talking over the network. No co-location.
+  2. **Coexistence = keep both.** Local (same-deployment) routing stays synchronous/atomic and unchanged; remote routing is a new async, eventually-consistent path. Routing is polymorphic (`isLocalHub` vs `isRemoteHub`).
+  3. **Connection model = one `connectedHubCode`.** A TradingClient still has exactly one connected hub; that code may now point at a hub in another Organisation. Local vs remote is *derived* (same deployment/org or not). The domain org-guard in `LegalEntity.tradingClient()` must be relaxed accordingly.
+  4. **Remote `Routed` timing = after hub accept.** A remote client-side order stays `Received` until LOC confirms the hub-side order exists, then flips `Received → Routed`. `Routed` keeps its meaning: hub-side order exists.
+
+## Decisions so far
+
+<!-- one line per closed ticket -->
+- [Transport & protocol for cross-deployment routing](issues/01-transport-protocol.md) — hybrid backbone: **leg A** routing request = synchronous REST handshake (CGD→LOC, immediate accept→`Routed`/reject→`Rejected`); **leg B** outcome return = async via the existing transactional-outbox + **shared-broker Kafka** (LODH-owned, org-suffixed topic, CGED consume-only ACL); LODH inbound handled by a **new dedicated `AcceptRoutedHubOrderUseCase`** (not PM intake) via CGED outbound port `RemoteRoutingGateway`.
+- [Routing correlation & idempotency across the trust boundary](issues/04-routing-correlation-idempotency.md) — LODH **trusts** the CGED-minted `RoutingId` (no hub-minted second id); hub-side key = **`(originatingLegalEntityCode, routingId)`** as trust-boundary *containment* (id is already globally unique). Exactly-one enforced by a **partial unique index** on that pair (`WHERE originating_legal_entity_code IS NOT NULL`), **not** the read-check; `AcceptRoutedHubOrderUseCase` turns a unique-violation into an **idempotent success** (returns the existing hub-side accept). Cross-boundary correlation is **`(originatingLegalEntityCode, routingId)` only** — no internal order UUID crosses the boundary (leg B + back-office broadcast key off it).
+- [Global-account resolution ownership across deployments](issues/03-global-account-ownership.md) — **CGED resolves, before send.** An external **External Identity** system (CGED-side, new outbound port `ExternalIdentityGateway`) maps `(client, client portfolioNumber, hub) → hub-side portfolioNumber`; the resolved account travels **in the leg-A payload**, LODH never resolves. No remote `GlobalAccountDirectory`; local path keeps its in-process directory (framing #2). Surfaced a **domain correction**: global account is keyed by `(client, client portfolioNumber, hub)`, accounts are multi-currency w/ one reference currency, **currency is not a key** — corrected in CONTEXT; code drift parked out of scope ([09](issues/09-unify-global-account-keying.md)).
+- [Remote client reference-data & delegated grants access](issues/02-remote-client-reference-data.md) — **thin client, single authority at LODH.** CGED stores **zero** hub reference data; a remote client reads currencies/rates/grants/counterparties **live from LODH** per request (no replication — leg A is sync, so caching buys no availability), and LODH's **in-process check at leg-A accept is the one true validation**. Delegated grants **mastered on the hub** (keyed by CGD). Seam = **remote-backed existing read ports** chosen by derived local-vs-remote (`HubScopeResolver` unchanged). **Proxy indirection collapses** for remote clients: hub-native institution codes cross the boundary, `"BNP via LOC"` is display-only. Rate-visible UX **preserved, bounded by grant** (grant *is* the exposure control; final veto → 07). **Domain correction (user):** CGD is a **genuine TradingClient of LOC** — *TradingClient is a hub-owned membership that may span organisations* (Organisation owns legal-entity identity; TradingHub owns its client list, which may include foreign-org legal entities); same-org guard relaxes **symmetrically**. Connection is **bidirectional** (CGED holds `connectedHubCode=LOC`; LODH holds CGD in LOC's client list), wired by the registration task.
+
+## Not yet specified
+
+<!-- in-scope fog, not yet sharp enough to ticket -->
+- Ops/observability for cross-deployment desyncs (a remote pair stuck half-terminal) — monitoring, alerting, reconciliation. Shape depends on the consistency & failure model.
+- Reference-data & config migration to *register* a remote hub connection. Now sharper (per 02): must wire **both** sides — CGED's `connectedHubCode=LOC` pointer **and** CGD's membership in LOC's TradingClient list (in LODH) — plus provision credentials/endpoints. Since CGED stores no hub reference data (02), there is **no reference-data seeding** into CGED; registration is connection + credentials only. Still a `task` ticket, gated on 07's credential/trust decisions.
+- Whether/how LODH **validates** the CGED-supplied hub-side `portfolioNumber` (account exists at LOC, belongs to CGD) before booking, vs accepting it as-authored — extends the trust boundary (07). Surfaced by 03.
+- Trader/ClientRepresentative UI implications for a remote client (does CGD's settings view change; does LOC's desk show provenance differently).
+- Generalising beyond the single CGD→LOC case to N remote clients / N remote hubs.
+
+## Out of scope
+
+- **Co-locating CGD inside LODH's deployment** — rejected at charting (topology = cross-deployment).
+- **Unifying all routing onto one async path** (regressing local PAR→LOC to eventual consistency) — rejected at charting (coexistence = keep both).
+- Cross-org routing for ProductTypes other than **Fiduciary** (Deposits remains deferred per CONTEXT).
+- V2 hub↔client role flipping.
+- **Unifying the local global-account model onto the portfolio key** — surfaced while resolving 03 (currency-keying is factually wrong; corrected in CONTEXT). Fixing it changes local routing (framing #2), so it's a separate future effort, tracked as a defect ([09](issues/09-unify-global-account-keying.md)).
