@@ -9,8 +9,6 @@ import com.mmx.order.application.port.out.Clock;
 import com.mmx.order.application.port.out.OrderRepository;
 import com.mmx.order.domain.exception.InvalidOrderException;
 import com.mmx.order.domain.exception.OrderNotFoundException;
-import com.mmx.order.domain.model.OrderStatus;
-import com.mmx.order.domain.model.RoutingId;
 import com.mmx.order.domain.model.MoneyMarketOrder;
 
 public final class OrderLifecycleService implements CancelOrderUseCase, RejectOrderUseCase {
@@ -21,11 +19,17 @@ public final class OrderLifecycleService implements CancelOrderUseCase, RejectOr
     private final OrderRepository orderRepository;
     private final AuditLogger auditLogger;
     private final Clock clock;
+    private final RoutedOrderOutcomePropagation routedOrderOutcomePropagation;
 
-    public OrderLifecycleService(OrderRepository orderRepository, AuditLogger auditLogger, Clock clock) {
+    public OrderLifecycleService(
+            OrderRepository orderRepository,
+            AuditLogger auditLogger,
+            Clock clock,
+            RoutedOrderOutcomePropagation routedOrderOutcomePropagation) {
         this.orderRepository = orderRepository;
         this.auditLogger = auditLogger;
         this.clock = clock;
+        this.routedOrderOutcomePropagation = routedOrderOutcomePropagation;
     }
 
     @Override
@@ -38,7 +42,9 @@ public final class OrderLifecycleService implements CancelOrderUseCase, RejectOr
         var now = clock.now();
         order.cancel(now);
         MoneyMarketOrder saved = orderRepository.save(order);
-        propagateHubCancelOrReject(saved, now, null);
+        if (saved.isHubSideRoutedLink()) {
+            routedOrderOutcomePropagation.propagateCancel(saved, now);
+        }
         auditLogger.log(saved.getId(), EVENT_ORDER_CANCELLED, command.traderId().value(), now);
         return saved;
     }
@@ -54,30 +60,11 @@ public final class OrderLifecycleService implements CancelOrderUseCase, RejectOr
         var now = clock.now();
         order.reject(command.traderId(), command.reason(), now);
         MoneyMarketOrder saved = orderRepository.save(order);
-        propagateHubCancelOrReject(saved, now, saved.getRejectionReason());
+        if (saved.isHubSideRoutedLink()) {
+            routedOrderOutcomePropagation.propagateReject(saved, saved.getRejectionReason(), now);
+        }
         auditLogger.log(saved.getId(), EVENT_ORDER_REJECTED, command.traderId().value(), now);
         return saved;
-    }
-
-    private void propagateHubCancelOrReject(MoneyMarketOrder hubOrder, java.time.Instant now, String rejectReason) {
-        if (!hubOrder.isHubSideRoutedLink() || hubOrder.getRoutingId() == null) {
-            return;
-        }
-        if (hubOrder.getStatus() != OrderStatus.REJECTED && hubOrder.getStatus() != OrderStatus.CANCELLED) {
-            return;
-        }
-        orderRepository
-                .findRoutedClientOrderByRoutingId(hubOrder.getRoutingId())
-                .ifPresent(
-                        client -> {
-                            if (hubOrder.getStatus() == OrderStatus.REJECTED) {
-                                client.propagateRejectFromHub(
-                                        rejectReason != null ? rejectReason : "Rejected at hub", now);
-                            } else {
-                                client.propagateCancelFromHub(now);
-                            }
-                            orderRepository.save(client);
-                        });
     }
 
     private static void validateReject(RejectOrderCommand command) {

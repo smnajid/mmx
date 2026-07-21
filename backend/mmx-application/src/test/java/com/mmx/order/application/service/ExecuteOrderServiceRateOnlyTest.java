@@ -92,7 +92,8 @@ class ExecuteOrderServiceRateOnlyTest {
                         referenceGenerator,
                         auditLogger,
                         clock,
-                        executionHandoffOutbox);
+                        executionHandoffOutbox,
+                        new RoutedOrderOutcomePropagationService(orderRepository, referenceGenerator));
     }
 
     @Test

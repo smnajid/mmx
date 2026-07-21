@@ -12,6 +12,7 @@ import com.mmx.order.domain.policy.OrderAgainstInstitutionPolicy;
 import com.mmx.order.domain.exception.InvalidOrderException;
 import com.mmx.order.domain.exception.InvalidStatusTransitionException;
 import com.mmx.order.domain.exception.OrderNotFoundException;
+import com.mmx.order.domain.exception.RoutedOrderPairIntegrityException;
 import com.mmx.order.domain.exception.UnauthorizedTraderException;
 import com.mmx.order.domain.model.ContractNumber;
 import com.mmx.order.domain.model.DealingReference;
@@ -24,6 +25,8 @@ import com.mmx.order.domain.model.OrderOperation;
 import com.mmx.order.domain.model.OrderStatus;
 import com.mmx.order.domain.model.OrderType;
 import com.mmx.order.domain.model.PortfolioNumber;
+import com.mmx.order.domain.model.RoutedHubOrderDraft;
+import com.mmx.order.domain.model.RoutingId;
 import com.mmx.order.domain.model.Tenor;
 import com.mmx.order.domain.model.TraderId;
 import org.junit.jupiter.api.BeforeEach;
@@ -46,7 +49,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.AdditionalAnswers.returnsFirstArg;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import org.mockito.ArgumentCaptor;
+
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -104,7 +110,8 @@ class ExecuteOrderServiceTest {
                         referenceGenerator,
                         auditLogger,
                         clock,
-                        executionHandoffOutbox);
+                        executionHandoffOutbox,
+                        new RoutedOrderOutcomePropagationService(orderRepository, referenceGenerator));
     }
 
     @Test
@@ -399,6 +406,160 @@ class ExecuteOrderServiceTest {
 
         assertThat(result.getStatus().name()).isEqualTo("EXECUTED");
         verify(executionHandoffOutbox).schedule(any(MoneyMarketOrder.class), any());
+    }
+
+    @Test
+    void execute_hubRoutedSubscription_propagatesExecutedToClientWithNewContractNumber() {
+        RoutedExecutePair pair = routedSubscriptionPair();
+        when(orderRepository.findById(pair.hub().getId())).thenReturn(Optional.of(pair.hub()));
+        when(orderRepository.findRoutedClientOrderByRoutingId(pair.routingId()))
+                .thenReturn(Optional.of(pair.client()));
+        when(orderRepository.save(any(MoneyMarketOrder.class))).then(returnsFirstArg());
+        when(referenceGenerator.generateDealingReference()).thenReturn(DEAL_REF);
+        when(referenceGenerator.generateContractNumber())
+                .thenReturn(CONTRACT_REF)
+                .thenReturn(new ContractNumber("CN-client-new"));
+
+        MoneyMarketOrder result =
+                subject.execute(
+                        new ExecuteOrderCommand(pair.hub().getId(), TRADER_A, new BigDecimal("3.55")));
+
+        assertThat(result.getStatus()).isEqualTo(OrderStatus.EXECUTED);
+        ArgumentCaptor<MoneyMarketOrder> saved = ArgumentCaptor.forClass(MoneyMarketOrder.class);
+        verify(orderRepository, times(2)).save(saved.capture());
+        MoneyMarketOrder savedClient = saved.getAllValues().get(1);
+        assertThat(savedClient.getStatus()).isEqualTo(OrderStatus.EXECUTED);
+        assertThat(savedClient.getExecutionDetails().generatedContractNumber())
+                .isEqualTo(new ContractNumber("CN-client-new"));
+        verify(referenceGenerator, times(2)).generateContractNumber();
+        verify(orderRepository, times(1)).findRoutedClientOrderByRoutingId(pair.routingId());
+    }
+
+    @Test
+    void execute_hubRoutedLifecycle_reusesClientSourceContractNumber() {
+        RoutedExecutePair pair = routedLifecyclePair();
+        when(orderRepository.findById(pair.hub().getId())).thenReturn(Optional.of(pair.hub()));
+        when(orderRepository.findRoutedClientOrderByRoutingId(pair.routingId()))
+                .thenReturn(Optional.of(pair.client()));
+        when(orderRepository.save(any(MoneyMarketOrder.class))).then(returnsFirstArg());
+        when(referenceGenerator.generateDealingReference()).thenReturn(DEAL_REF);
+
+        subject.execute(new ExecuteOrderCommand(pair.hub().getId(), TRADER_A, new BigDecimal("3.55")));
+
+        ArgumentCaptor<MoneyMarketOrder> saved = ArgumentCaptor.forClass(MoneyMarketOrder.class);
+        verify(orderRepository, times(2)).save(saved.capture());
+        assertThat(saved.getAllValues().get(1).getExecutionDetails().generatedContractNumber())
+                .isEqualTo(LIFECYCLE_SOURCE_REF);
+        verify(referenceGenerator, never()).generateContractNumber();
+        verify(orderRepository, times(1)).findRoutedClientOrderByRoutingId(pair.routingId());
+    }
+
+    @Test
+    void execute_hubRoutedOrder_missingClient_throwsPairIntegrityException() {
+        RoutedExecutePair pair = routedSubscriptionPair();
+        when(orderRepository.findById(pair.hub().getId())).thenReturn(Optional.of(pair.hub()));
+        when(orderRepository.findRoutedClientOrderByRoutingId(pair.routingId())).thenReturn(Optional.empty());
+        when(orderRepository.save(any(MoneyMarketOrder.class))).then(returnsFirstArg());
+        when(referenceGenerator.generateDealingReference()).thenReturn(DEAL_REF);
+        when(referenceGenerator.generateContractNumber()).thenReturn(CONTRACT_REF);
+
+        assertThatThrownBy(
+                        () ->
+                                subject.execute(
+                                        new ExecuteOrderCommand(
+                                                pair.hub().getId(), TRADER_A, new BigDecimal("3.55"))))
+                .isInstanceOf(RoutedOrderPairIntegrityException.class)
+                .hasMessageContaining("No client-side order");
+    }
+
+    private record RoutedExecutePair(MoneyMarketOrder hub, MoneyMarketOrder client, RoutingId routingId) {}
+
+    private static RoutedExecutePair routedSubscriptionPair() {
+        MoneyMarketOrder client =
+                MoneyMarketOrder.create(
+                        new ExternalOrderReference("PM-CLIENT-" + UUID.randomUUID()),
+                        new LegalEntityCode("PAR"),
+                        OrderType.TERM,
+                        OrderOperation.SUBSCRIPTION,
+                        new PortfolioNumber("PAR-PM-77"),
+                        "EUR",
+                        new BigDecimal("1000000.00"),
+                        TODAY.plusDays(5),
+                        new BigDecimal("3.25"),
+                        Tenor._3M,
+                        null,
+                        null,
+                        "BNPLOC",
+                        "BNP via LOC",
+                        TODAY);
+        RoutingId routingId = RoutingId.fromClientOrderId(client.getId());
+        client.markRouted(routingId, FIXED_NOW);
+        MoneyMarketOrder hub =
+                MoneyMarketOrder.createHubSideFromRouting(
+                        new RoutedHubOrderDraft(
+                                new LegalEntityCode("LOC"),
+                                new PortfolioNumber("PAR-EUR-001"),
+                                "HSBC-01",
+                                "BankCo International",
+                                "EUR",
+                                new BigDecimal("1000000.00"),
+                                TODAY.plusDays(5),
+                                OrderType.TERM,
+                                OrderOperation.SUBSCRIPTION,
+                                Tenor._3M,
+                                null,
+                                new BigDecimal("3.25"),
+                                null,
+                                routingId,
+                                new LegalEntityCode("PAR"),
+                                client.getExternalOrderReference()),
+                        TODAY);
+        hub.assign(TRADER_A, FIXED_NOW);
+        return new RoutedExecutePair(hub, client, routingId);
+    }
+
+    private static RoutedExecutePair routedLifecyclePair() {
+        MoneyMarketOrder client =
+                MoneyMarketOrder.create(
+                        new ExternalOrderReference("PM-CLIENT-LC-" + UUID.randomUUID()),
+                        new LegalEntityCode("PAR"),
+                        OrderType.ON_CALL,
+                        OrderOperation.INCREASE,
+                        new PortfolioNumber("PAR-PM-L"),
+                        "EUR",
+                        new BigDecimal("500000.00"),
+                        TODAY.plusDays(5),
+                        null,
+                        null,
+                        NoticePeriod._24H,
+                        LIFECYCLE_SOURCE_REF,
+                        "BNPLOC",
+                        "BNP via LOC",
+                        TODAY);
+        RoutingId routingId = RoutingId.fromClientOrderId(client.getId());
+        client.markRouted(routingId, FIXED_NOW);
+        MoneyMarketOrder hub =
+                MoneyMarketOrder.createHubSideFromRouting(
+                        new RoutedHubOrderDraft(
+                                new LegalEntityCode("LOC"),
+                                new PortfolioNumber("PAR-EUR-001"),
+                                "HSBC-01",
+                                "BankCo International",
+                                "EUR",
+                                new BigDecimal("500000.00"),
+                                TODAY.plusDays(5),
+                                OrderType.ON_CALL,
+                                OrderOperation.INCREASE,
+                                null,
+                                NoticePeriod._24H,
+                                null,
+                                LIFECYCLE_SOURCE_REF,
+                                routingId,
+                                new LegalEntityCode("PAR"),
+                                client.getExternalOrderReference()),
+                        TODAY);
+        hub.assign(TRADER_A, FIXED_NOW);
+        return new RoutedExecutePair(hub, client, routingId);
     }
 
     private static MoneyMarketOrder receivedOrder() {

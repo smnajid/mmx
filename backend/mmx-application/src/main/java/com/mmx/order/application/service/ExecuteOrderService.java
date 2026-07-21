@@ -15,7 +15,6 @@ import com.mmx.order.domain.model.ContractNumber;
 import com.mmx.order.domain.model.Institution;
 import com.mmx.order.domain.model.MoneyMarketOrder;
 import com.mmx.order.domain.model.OrderOperation;
-import com.mmx.order.domain.model.RoutingId;
 import com.mmx.order.domain.policy.OrderAgainstInstitutionPolicy;
 
 public final class ExecuteOrderService implements ExecuteOrderUseCase {
@@ -29,6 +28,7 @@ public final class ExecuteOrderService implements ExecuteOrderUseCase {
     private final AuditLogger auditLogger;
     private final Clock clock;
     private final ExecutionHandoffOutbox executionHandoffOutbox;
+    private final RoutedOrderOutcomePropagation routedOrderOutcomePropagation;
 
     public ExecuteOrderService(
             OrderRepository orderRepository,
@@ -37,7 +37,8 @@ public final class ExecuteOrderService implements ExecuteOrderUseCase {
             ReferenceGenerator referenceGenerator,
             AuditLogger auditLogger,
             Clock clock,
-            ExecutionHandoffOutbox executionHandoffOutbox) {
+            ExecutionHandoffOutbox executionHandoffOutbox,
+            RoutedOrderOutcomePropagation routedOrderOutcomePropagation) {
         this.orderRepository = orderRepository;
         this.institutionRepository = institutionRepository;
         this.institutionPolicy = institutionPolicy;
@@ -45,6 +46,7 @@ public final class ExecuteOrderService implements ExecuteOrderUseCase {
         this.auditLogger = auditLogger;
         this.clock = clock;
         this.executionHandoffOutbox = executionHandoffOutbox;
+        this.routedOrderOutcomePropagation = routedOrderOutcomePropagation;
     }
 
     @Override
@@ -77,57 +79,16 @@ public final class ExecuteOrderService implements ExecuteOrderUseCase {
         order.markHandoffPending();
         MoneyMarketOrder saved = orderRepository.save(order);
 
+        ExecutionHandoffRoutingContext handoffContext = ExecutionHandoffRoutingContext.none();
         if (saved.isHubSideRoutedLink()) {
-            propagateHubOutcome(saved);
+            handoffContext = routedOrderOutcomePropagation.propagateExecution(saved).handoffContext();
         }
 
         if (!saved.suppressesExecutionHandoff()) {
-            executionHandoffOutbox.schedule(saved, routingContextFor(saved));
+            executionHandoffOutbox.schedule(saved, handoffContext);
         }
         auditLogger.log(saved.getId(), EVENT_ORDER_EXECUTED, command.traderId().value(), now);
         return saved;
-    }
-
-    private void propagateHubOutcome(MoneyMarketOrder hubOrder) {
-        RoutingId routingId = hubOrder.getRoutingId();
-        if (routingId == null) {
-            return;
-        }
-        MoneyMarketOrder clientOrder =
-                orderRepository
-                        .findRoutedClientOrderByRoutingId(routingId)
-                        .orElseThrow(
-                                () ->
-                                        new InvalidOrderException(
-                                                "No client-side order for routing id " + routingId));
-        String viaCounterparty = clientOrder.getCounterparty();
-        ContractNumber clientContract =
-                hubOrder.getOrderOperation() == OrderOperation.SUBSCRIPTION
-                        ? referenceGenerator.generateContractNumber()
-                        : clientOrder.getSourceContractNumber();
-        clientOrder.propagateExecutionFromHub(
-                hubOrder.getExecutionDetails(),
-                viaCounterparty,
-                clientContract,
-                hubOrder.getExecutionDetails().executionTime());
-        orderRepository.save(clientOrder);
-    }
-
-    private ExecutionHandoffRoutingContext routingContextFor(MoneyMarketOrder hubOrder) {
-        if (!hubOrder.isHubSideRoutedLink() || hubOrder.getRoutingId() == null) {
-            return ExecutionHandoffRoutingContext.none();
-        }
-        return orderRepository
-                .findRoutedClientOrderByRoutingId(hubOrder.getRoutingId())
-                .map(
-                        client ->
-                                new ExecutionHandoffRoutingContext(
-                                        hubOrder.getRoutingId(),
-                                        client.getLegalEntityCode(),
-                                        client.getId(),
-                                        client.getPortfolioNumber().value(),
-                                        client.getCounterparty()))
-                .orElse(ExecutionHandoffRoutingContext.none());
     }
 
     private static void validate(ExecuteOrderCommand command) {

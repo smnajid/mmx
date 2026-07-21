@@ -7,10 +7,8 @@ import com.mmx.order.adapter.out.persistence.JpaOrderRepository;
 import com.mmx.order.adapter.out.persistence.mapper.OrderPersistenceMapper;
 import com.mmx.order.adapter.out.persistence.repository.SpringDataAuditLogRepository;
 import com.mmx.order.adapter.out.persistence.repository.SpringDataOrderRepository;
-import com.mmx.order.application.port.in.CancelOrderUseCase;
 import com.mmx.order.application.port.in.DeskOrderQueries;
 import com.mmx.order.application.port.in.MarkOrderAccountedUseCase;
-import com.mmx.order.application.port.in.RejectOrderUseCase;
 import com.mmx.order.application.port.in.UpdateAssignedOrderUseCase;
 import com.mmx.order.application.port.out.*;
 import com.mmx.order.application.service.AssignmentService;
@@ -20,6 +18,8 @@ import com.mmx.order.application.service.MarkOrderAccountedService;
 import com.mmx.order.application.service.OrderLifecycleService;
 import com.mmx.order.application.service.DeskOrderQueryService;
 import com.mmx.order.application.service.RoutedOrderIntake;
+import com.mmx.order.application.service.RoutedOrderOutcomePropagation;
+import com.mmx.order.application.service.RoutedOrderOutcomePropagationService;
 import com.mmx.order.application.service.UpdateOrderService;
 import com.mmx.order.domain.model.OrganisationCode;
 import com.mmx.order.domain.policy.OrderAgainstInstitutionPolicy;
@@ -46,6 +46,12 @@ public class OrderModuleConfiguration {
     }
 
     @Bean
+    public RoutedOrderOutcomePropagation routedOrderOutcomePropagation(
+            OrderRepository orderRepository, ReferenceGenerator referenceGenerator) {
+        return new RoutedOrderOutcomePropagationService(orderRepository, referenceGenerator);
+    }
+
+    @Bean
     public ExecuteOrderService executeOrderService(
             OrderRepository orderRepository,
             InstitutionRepository institutionRepository,
@@ -53,7 +59,8 @@ public class OrderModuleConfiguration {
             ReferenceGenerator referenceGenerator,
             AuditLogger auditLogger,
             Clock clock,
-            ExecutionHandoffOutbox executionHandoffOutbox) {
+            ExecutionHandoffOutbox executionHandoffOutbox,
+            RoutedOrderOutcomePropagation routedOrderOutcomePropagation) {
         return new ExecuteOrderService(
                 orderRepository,
                 institutionRepository,
@@ -61,7 +68,8 @@ public class OrderModuleConfiguration {
                 referenceGenerator,
                 auditLogger,
                 clock,
-                executionHandoffOutbox);
+                executionHandoffOutbox,
+                routedOrderOutcomePropagation);
     }
 
     /**
@@ -144,17 +152,15 @@ public class OrderModuleConfiguration {
 
     @Bean
     public OrderLifecycleService orderLifecycleService(
-            OrderRepository orderRepository, AuditLogger auditLogger, Clock clock) {
-        return new OrderLifecycleService(orderRepository, auditLogger, clock);
+            OrderRepository orderRepository,
+            AuditLogger auditLogger,
+            Clock clock,
+            RoutedOrderOutcomePropagation routedOrderOutcomePropagation) {
+        return new OrderLifecycleService(orderRepository, auditLogger, clock, routedOrderOutcomePropagation);
     }
 
-    @Bean
-    public CancelOrderUseCase cancelOrderUseCase(OrderLifecycleService orderLifecycleService) {
-        return orderLifecycleService;
-    }
-
-    @Bean
-    public RejectOrderUseCase rejectOrderUseCase(OrderLifecycleService orderLifecycleService) {
-        return orderLifecycleService;
-    }
+    /**
+     * Application entry uses {@link TransactionalOrderLifecycleUseCase} (component-scanned) so cancel/reject +
+     * client propagation share one transaction.
+     */
 }
