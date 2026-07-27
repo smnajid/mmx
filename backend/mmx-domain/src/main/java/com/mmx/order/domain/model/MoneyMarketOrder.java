@@ -265,6 +265,29 @@ public class MoneyMarketOrder {
         this.updatedAt = now;
     }
 
+    /**
+     * Apply a leg-B {@code ACCEPTED} outcome to a remote client-side order. Spec: {@code
+     * money-market-order-lifecycle} / silence-is-never-terminal — leg B is the authoritative
+     * lifecycle mirror; it closes {@code Received→Routed} using the same domain transition as leg
+     * A, with no new {@link OrderStatus} value. The apply is idempotent: if the order is already
+     * {@code ROUTED} (leg A delivered first), this is a no-op ack (benign redundancy); any other
+     * state is an error (mismatched terminal under at-least-once Kafka) — silence never
+     * auto-terminalizes a remote {@code Received} order.
+     */
+    public void applyAcceptedFromLegB(RoutingId linkRoutingId, Instant now) {
+        Objects.requireNonNull(linkRoutingId, "routingId must not be null");
+        Objects.requireNonNull(now, "now must not be null");
+        if (this.status == OrderStatus.ROUTED) {
+            return;
+        }
+        if (this.status != OrderStatus.RECEIVED) {
+            throw new InvalidStatusTransitionException(this.status, OrderStatus.ROUTED);
+        }
+        this.status = this.status.transitionTo(OrderStatus.ROUTED, OrderLifecycleKind.ROUTED_CLIENT);
+        this.routingId = linkRoutingId;
+        this.updatedAt = now;
+    }
+
     public void propagateExecutionFromHub(
             ExecutionDetails hubExecution,
             String clientViaCounterparty,

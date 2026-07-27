@@ -25,7 +25,7 @@ Lifecycle state — **Received**, **Routed**, **Assigned**, **Executed**, **Canc
 _Avoid_: stage, phase.
 
 **Received**:
-Order accepted from intake; not yet assigned to a trader.
+Order accepted from intake; not yet assigned to a trader. For a **routed** client-side order, also the state while the connected **TradingHub**'s creation of the hub-side order is unconfirmed — in V1 (same-Organisation, in-process routing) this window is momentary and unobservable (routing is atomic in the intake transaction); in cross-Organisation routing it is an observable wait-state whose outcome is not yet known. Silence from the hub does not terminate this state (see *Routing outcome propagation*).
 
 **Assigned**:
 Order assigned to exactly one **Trader**; only that trader may update or execute.
@@ -34,7 +34,7 @@ Order assigned to exactly one **Trader**; only that trader may update or execute
 Trader recorded execution outcome (rate, institution/counterparty, system-generated references). Market dealing already happened externally.
 
 **Cancelled** / **Rejected**:
-Withdrawn (Received only) vs refused by trader (Received or Assigned); rejection requires a reason.
+`Cancelled` = withdrawn (from Received only). `Rejected` = a definitive non-accept answer (from Received or Assigned); requires a reason. A client-side `Rejected` has one of two **origins**, which MUST be distinguishable to Portfolio Management: a **trader rejection** (the hub desk — a Trader — refused the hub-side order) or a **routing failure** (intake/validation refused the order at routing time: grant invalid, unresolved global account, currency/tenor ineligible). Transport unreachability is neither — silence from the hub never produces `Rejected` (see *Routing outcome propagation*).
 
 **MMXUser**:
 Any human who logs into an MMX instance. Identified on requests by **`X-User-Id`** (umbrella identity, replacing the legacy `X-Trader-Id`). One MMXUser per human; a user holds **N allowed scopes**, each a **`(LegalEntity, role)`** pair (e.g. one person may be a ClientRepresentative on both `PAR` and `SIN`). Authorisation is driven by the user's **active scope** (see *Entity scope of a session*). Adding future human roles is a new role value, not a new identity header.

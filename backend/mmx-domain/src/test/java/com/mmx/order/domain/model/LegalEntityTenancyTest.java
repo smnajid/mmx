@@ -69,12 +69,15 @@ class LegalEntityTenancyTest {
     }
 
     @Test
-    void crossOrganisationHubConnection_isRejected() {
+    void crossOrganisationHubConnection_isAllowed_sinceCrossOrgRoutingRelaxation() {
         LegalEntity hsbcHub = hsbc.createTradingHub(new LegalEntityCode("HUB"), registry);
 
-        assertThatThrownBy(() -> lodh.createTradingClient(new LegalEntityCode("PAR"), hsbcHub, registry))
-                .isInstanceOf(InvalidLegalEntityException.class)
-                .hasMessageContaining("same Organisation");
+        LegalEntity crossOrgClient = lodh.createTradingClient(new LegalEntityCode("PAR"), hsbcHub, registry);
+
+        assertThat(crossOrgClient.isTradingClient()).isTrue();
+        assertThat(((TradingClientRole) crossOrgClient.getRole()).connectedHubCode()).isEqualTo(new LegalEntityCode("HUB"));
+        assertThat(crossOrgClient.getOrganisationCode()).isEqualTo(lodh.getCode());
+        assertThat(crossOrgClient.hubLocality(hsbcHub.getOrganisationCode())).isEqualTo(HubLocality.REMOTE);
     }
 
     @Test
