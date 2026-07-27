@@ -31,6 +31,9 @@ class RemoteOrderLifecycleTest {
         // Remote routing must NOT introduce Pending / InFlight / Retrying / AwaitingConfirm etc.
         // Received covers all pre-confirmed-signal conditions; Routed is the only post-accept
         // non-terminal; the rest are the existing terminal/Accounted values.
+        // If you legitimately add a new OrderStatus for an unrelated reason, update this list
+        // intentionally — this assertion pins the full enum to catch accidental remote-routing
+        // additions (design D7), not to forbid all future growth.
         assertThat(Arrays.stream(OrderStatus.values()).map(Enum::name))
                 .containsExactlyInAnyOrder(
                         "RECEIVED", "ROUTED", "ASSIGNED", "EXECUTED", "ACCOUNTED", "CANCELLED", "REJECTED");
@@ -80,6 +83,22 @@ class RemoteOrderLifecycleTest {
         client.applyAcceptedFromLegB(routingId, FIXED_NOW.plusSeconds(60)); // leg-B ACCEPTED redundant
 
         assertThat(client.getStatus()).isEqualTo(OrderStatus.ROUTED);
+    }
+
+    @Test
+    void applyAcceptedFromLegB_onAlreadyRoutedOrder_rejectsMismatchedRoutingId() {
+        // Defense against a poisoned / mis-routed leg-B ACCEPTED under at-least-once Kafka: when the
+        // order is already ROUTED, a leg-B event carrying a DIFFERENT routingId must surface as an
+        // error — not silently no-op. Same defensive posture as the mismatched-terminal guard below.
+        MoneyMarketOrder client = remoteClientOrderInReceived();
+        RoutingId routedRoutingId = RoutingId.fromClientOrderId(client.getId());
+        client.markRouted(routedRoutingId, FIXED_NOW);
+
+        RoutingId foreignRoutingId = RoutingId.fromClientOrderId(UUID.randomUUID());
+
+        assertThatThrownBy(() -> client.applyAcceptedFromLegB(foreignRoutingId, FIXED_NOW.plusSeconds(60)))
+                .isInstanceOf(InvalidStatusTransitionException.class);
+        assertThat(client.getRoutingId()).isEqualTo(routedRoutingId); // original routing id unchanged
     }
 
     @Test

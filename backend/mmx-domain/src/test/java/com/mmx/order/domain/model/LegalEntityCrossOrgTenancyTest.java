@@ -65,9 +65,9 @@ class LegalEntityCrossOrgTenancyTest {
         LegalEntity par = lodh.createTradingClient(new LegalEntityCode("PAR"), loc, registry);
 
         // CGD's deployment org (CGED) ≠ connected hub's org (LODH) → REMOTE
-        assertThat(cgd.hubLocality(loc.getOrganisationCode())).isEqualTo(HubLocality.REMOTE);
+        assertThat(cgd.hubLocality(cged.getCode(), loc.getOrganisationCode())).isEqualTo(HubLocality.REMOTE);
         // PAR's deployment org (LODH) = connected hub's org (LODH) → LOCAL
-        assertThat(par.hubLocality(loc.getOrganisationCode())).isEqualTo(HubLocality.LOCAL);
+        assertThat(par.hubLocality(lodh.getCode(), loc.getOrganisationCode())).isEqualTo(HubLocality.LOCAL);
     }
 
     @Test
@@ -75,16 +75,31 @@ class LegalEntityCrossOrgTenancyTest {
         LegalEntity cgd = cged.createTradingClient(new LegalEntityCode("CGD"), loc, registry);
         LegalEntity par = lodh.createTradingClient(new LegalEntityCode("PAR"), loc, registry);
 
-        assertThat(cgd.isLocalHub(loc.getOrganisationCode())).isFalse();
-        assertThat(cgd.isRemoteHub(loc.getOrganisationCode())).isTrue();
+        assertThat(cgd.isLocalHub(cged.getCode(), loc.getOrganisationCode())).isFalse();
+        assertThat(cgd.isRemoteHub(cged.getCode(), loc.getOrganisationCode())).isTrue();
 
-        assertThat(par.isLocalHub(loc.getOrganisationCode())).isTrue();
-        assertThat(par.isRemoteHub(loc.getOrganisationCode())).isFalse();
+        assertThat(par.isLocalHub(lodh.getCode(), loc.getOrganisationCode())).isTrue();
+        assertThat(par.isRemoteHub(lodh.getCode(), loc.getOrganisationCode())).isFalse();
+    }
+
+    @Test
+    void hubLocality_usesDeploymentOrganisation_notTheEntitysOwnOrganisation() {
+        LegalEntity cgd = cged.createTradingClient(new LegalEntityCode("CGD"), loc, registry);
+
+        // Spec: locality compares the connected hub's org to THE DEPLOYMENT'S OWN org, not to this
+        // entity's own organisation. CGD's own org is CGED and it connects to LOC (LODH). Supplying
+        // different deployment orgs must yield different localities — proving the deployment org is
+        // authoritative and the entity's org is NOT silently substituted (a foreign-org hub holding
+        // CGD in its client list must not reuse CGD's org as its deployment org).
+        assertThat(cgd.hubLocality(new OrganisationCode("CGED"), loc.getOrganisationCode()))
+                .isEqualTo(HubLocality.REMOTE); // deployment CGED vs hub LODH
+        assertThat(cgd.hubLocality(new OrganisationCode("LODH"), loc.getOrganisationCode()))
+                .isEqualTo(HubLocality.LOCAL); // deployment LODH vs hub LODH
     }
 
     @Test
     void hubLocality_isMeaningfulForTradingClientsOnly() {
-        assertThatThrownBy(() -> loc.isRemoteHub(lodh.getCode()))
+        assertThatThrownBy(() -> loc.isRemoteHub(lodh.getCode(), lodh.getCode()))
                 .isInstanceOf(IllegalStateException.class);
     }
 }

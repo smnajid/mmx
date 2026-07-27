@@ -60,7 +60,7 @@ class LegalEntityTenancyTest {
     }
 
     @Test
-    void tradingClient_mustConnectToSameOrganisationHub() {
+    void tradingClient_sameOrganisationHub_recordsConnectedHubCode() {
         LegalEntity loc = lodh.createTradingHub(new LegalEntityCode("LOC"), registry);
         LegalEntity par = lodh.createTradingClient(new LegalEntityCode("PAR"), loc, registry);
 
@@ -77,7 +77,7 @@ class LegalEntityTenancyTest {
         assertThat(crossOrgClient.isTradingClient()).isTrue();
         assertThat(((TradingClientRole) crossOrgClient.getRole()).connectedHubCode()).isEqualTo(new LegalEntityCode("HUB"));
         assertThat(crossOrgClient.getOrganisationCode()).isEqualTo(lodh.getCode());
-        assertThat(crossOrgClient.hubLocality(hsbcHub.getOrganisationCode())).isEqualTo(HubLocality.REMOTE);
+        assertThat(crossOrgClient.hubLocality(lodh.getCode(), hsbcHub.getOrganisationCode())).isEqualTo(HubLocality.REMOTE);
     }
 
     @Test

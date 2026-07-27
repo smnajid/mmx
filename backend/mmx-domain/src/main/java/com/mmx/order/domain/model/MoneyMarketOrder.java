@@ -278,6 +278,16 @@ public class MoneyMarketOrder {
         Objects.requireNonNull(linkRoutingId, "routingId must not be null");
         Objects.requireNonNull(now, "now must not be null");
         if (this.status == OrderStatus.ROUTED) {
+            // Idempotent ack only when the routingId matches the one already routed. A mismatched
+            // routingId means the leg-B event targets the wrong order (poisoned / mis-routed under
+            // at-least-once Kafka) — surface it, never silently swallow. (RoutingId is deterministic
+            // from the order id, so this only fires on genuine corruption / mis-sequencing.)
+            if (!linkRoutingId.equals(this.routingId)) {
+                throw new InvalidStatusTransitionException(
+                        "leg-B ACCEPTED carries routingId " + linkRoutingId
+                                + " but order is already ROUTED under routingId " + this.routingId
+                                + "; possible poisoned or mis-routed event");
+            }
             return;
         }
         if (this.status != OrderStatus.RECEIVED) {

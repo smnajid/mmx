@@ -11,8 +11,8 @@
 
 - [x] 2.1 Write failing `RemoteRoutingGatewayContractTest` (`mmx-application`): the out-port accepts a `RemoteRoutingRequest` (carrying resolved hub-side `portfolioNumber`, hub-native institution code, order fields, `routingId`, `originatingLegalEntityCode`) and returns a `RemoteRoutingResponse` (accept or reject). `mvn test -pl mmx-application -Dtest=RemoteRoutingGatewayContractTest`
 - [x] 2.2 Define `RemoteRoutingGateway` out-port + request/response value objects in `mmx-application` until green
-- [ ] 2.3 Write failing `ExternalIdentityGatewayContractTest` (`mmx-application`): resolves `(client LegalEntityCode, client portfolioNumber, hub LegalEntityCode) → hub-side portfolioNumber`; unresolved signals a routing failure. `mvn test -pl mmx-application -Dtest=ExternalIdentityGatewayContractTest`
-- [ ] 2.4 Define `ExternalIdentityGateway` out-port in `mmx-application` until green
+- [x] 2.3 Write failing `ExternalIdentityGatewayContractTest` (`mmx-application`): resolves `(client LegalEntityCode, client portfolioNumber, hub LegalEntityCode) → hub-side portfolioNumber`; unresolved signals a routing failure. `mvn test -pl mmx-application -Dtest=ExternalIdentityGatewayContractTest`
+- [x] 2.4 Define `ExternalIdentityGateway` out-port in `mmx-application` until green
 
 ## 3. Contracts — REST + AsyncAPI (contract-first, BACKWARD-compatible)
 
