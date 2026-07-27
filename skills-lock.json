@@ -7,6 +7,12 @@
       "skillPath": "skills/engineering/code-review/SKILL.md",
       "computedHash": "4a17d9d3e0fc87ae48544d371a820fac5a4a78f4c05e7e6b3229094fbf8a7e26"
     },
+    "requesting-code-review": {
+      "source": "obra/superpowers",
+      "sourceType": "github",
+      "skillPath": "skills/requesting-code-review/SKILL.md",
+      "computedHash": "2304d2073c62eab163e04de40fe775e3d87c69c0df40cd4dc953fdb8e3205b81"
+    },
     "wayfinder": {
       "source": "mattpocock/skills",
       "sourceType": "github",
