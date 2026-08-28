@@ -4,18 +4,15 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mmx.order.MmxApplication;
 import com.mmx.order.support.RestTestInstitutions;
+import com.mmx.order.support.SharedPostgresTestBase;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.postgresql.PostgreSQLContainer;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -28,15 +25,20 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@Testcontainers(disabledWithoutDocker = true)
+/**
+ * Thin REST contract smoke for routed intake wiring (spec {@code test-feedback-loop}, Phase B).
+ * The routing business rules — client intake → {@code ROUTED}, one linked hub-side order sharing the
+ * routing id, hub {@code RECEIVED} — are asserted in fast {@code mmx-application}/{@code mmx-domain}
+ * tests ({@code IntakeServiceTest}, {@code AcceptRoutedHubOrderUseCaseTest}); this class pins only the
+ * HTTP contract wiring (status codes, JSON shape, the correlated rows) against the full Spring
+ * context + PostgreSQL.
+ */
+@Tag("integration")
 @SpringBootTest(classes = MmxApplication.class, webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("rest-test")
-class OrderRoutingIntakeIntegrationTest {
+class OrderRoutingIntakeIntegrationTest extends SharedPostgresTestBase {
 
     private static final String DEMO_TRADER = "demo-trader";
-
-    @Container
-    static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:16-alpine");
 
     private final HttpClient httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -49,14 +51,6 @@ class OrderRoutingIntakeIntegrationTest {
 
     String proxyInstitutionCode;
 
-    @DynamicPropertySource
-    static void registerPostgresProps(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
-        registry.add("spring.datasource.username", POSTGRES::getUsername);
-        registry.add("spring.datasource.password", POSTGRES::getPassword);
-        registry.add("spring.datasource.driver-class-name", () -> "org.postgresql.Driver");
-    }
-
     @BeforeEach
     void seedRoutingPrerequisites() throws Exception {
         createGrantAsTrader();
@@ -65,7 +59,7 @@ class OrderRoutingIntakeIntegrationTest {
     }
 
     @Test
-    void tradingClientIntake_returnsRoutedWithLinkedHubOrder() throws Exception {
+    void clientRoutedIntake_linksHubSideOrder_withSharedRoutingId() throws Exception {
         String ref = "IT-ROUTE-" + System.nanoTime();
         HttpResponse<String> res = postJson("/api/v1/orders", parTermSubscribeJson(ref, proxyInstitutionCode));
         assertThat(res.statusCode()).isEqualTo(201);
@@ -83,33 +77,19 @@ class OrderRoutingIntakeIntegrationTest {
 
         Integer hubCount =
                 jdbcTemplate.queryForObject(
-                        "SELECT COUNT(*) FROM money_market_order WHERE routing_id = ?::uuid AND originating_legal_entity_code IS NOT NULL",
+                        "SELECT COUNT(*) FROM money_market_order WHERE routing_id = ?::uuid "
+                                + "AND originating_legal_entity_code IS NOT NULL",
                         Integer.class,
                         routingId);
         assertThat(hubCount).isEqualTo(1);
 
         String hubStatus =
                 jdbcTemplate.queryForObject(
-                        "SELECT status FROM money_market_order WHERE routing_id = ?::uuid AND originating_legal_entity_code IS NOT NULL",
+                        "SELECT status FROM money_market_order WHERE routing_id = ?::uuid "
+                                + "AND originating_legal_entity_code IS NOT NULL",
                         String.class,
                         routingId);
         assertThat(hubStatus).isEqualTo("RECEIVED");
-    }
-
-    @Test
-    void tradingHubIntake_returnsNativeReceived() throws Exception {
-        String ref = "IT-NATIVE-" + System.nanoTime();
-        HttpResponse<String> res = postJson("/api/v1/orders", locTermSubscribeJson(ref));
-        assertThat(res.statusCode()).isEqualTo(201);
-        assertThat(objectMapper.readTree(res.body()).path("status").asText()).isEqualTo("RECEIVED");
-
-        UUID orderId = UUID.fromString(objectMapper.readTree(res.body()).path("orderId").asText());
-        String routingId =
-                jdbcTemplate.queryForObject(
-                        "SELECT routing_id::text FROM money_market_order WHERE id = ?",
-                        String.class,
-                        orderId);
-        assertThat(routingId).isNull();
     }
 
     private void createGrantAsTrader() throws Exception {
@@ -232,26 +212,6 @@ class OrderRoutingIntakeIntegrationTest {
                 }
                 """
                 .formatted(externalOrderReference, valueDate, proxyCode);
-    }
-
-    private static String locTermSubscribeJson(String externalOrderReference) {
-        LocalDate valueDate = LocalDate.now().plusDays(10);
-        return """
-                {
-                  "externalOrderReference": "%s",
-                  "legalEntityCode": "LOC",
-                  "orderType": "TERM",
-                  "orderOperation": "SUBSCRIPTION",
-                  "portfolioNumber": "PF-IT",
-                  "currency": "EUR",
-                  "amount": 5000000.00,
-                  "valueDate": "%s",
-                  "minimumRate": 3.25,
-                  "tenor": "3M",
-                  "institutionCode": "%s"
-                }
-                """
-                .formatted(externalOrderReference, valueDate, RestTestInstitutions.BANKCO_CODE);
     }
 
     private HttpResponse<String> postJson(String path, String json) throws Exception {
