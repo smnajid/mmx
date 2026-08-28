@@ -7,7 +7,9 @@ import com.mmx.order.application.port.in.OrderPage;
 import com.mmx.order.application.port.out.ExecutedSubscriptionContract;
 import com.mmx.order.application.port.out.ExecutedSubscriptionContractInfo;
 import com.mmx.order.application.port.out.OrderRepository;
+import com.mmx.order.domain.exception.DuplicateRoutedHubOrderException;
 import com.mmx.order.domain.model.*;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -33,6 +35,23 @@ public class JpaOrderRepository implements OrderRepository {
     @Override
     public MoneyMarketOrder save(MoneyMarketOrder order) {
         var entity = mapper.toEntity(order);
+        // Routed hub-side orders carry the cross-org idempotency key (originatingLegalEntityCode,
+        // routingId). Flush synchronously so the partial unique index violation surfaces inside this
+        // method and can be translated to the domain exception the application layer catches. Local
+        // desk orders keep the deferred-flush path; their constraint violations surface at commit and
+        // propagate as DataIntegrityViolationException (existing behaviour).
+        if (order.getOriginatingLegalEntityCode() != null && order.getRoutingId() != null) {
+            try {
+                var saved = springDataRepository.saveAndFlush(entity);
+                return mapper.toDomain(saved);
+            } catch (DataIntegrityViolationException collision) {
+                throw new DuplicateRoutedHubOrderException(
+                        "Routed hub-side order collided on (originatingLegalEntityCode="
+                                + order.getOriginatingLegalEntityCode().value()
+                                + ", routingId=" + order.getRoutingId().value() + ")",
+                        collision);
+            }
+        }
         var saved = springDataRepository.save(entity);
         return mapper.toDomain(saved);
     }
@@ -69,6 +88,15 @@ public class JpaOrderRepository implements OrderRepository {
     public Optional<MoneyMarketOrder> findHubOrderByRoutingId(RoutingId routingId) {
         return springDataRepository
                 .findByRoutingIdAndOriginatingLegalEntityCodeIsNotNull(routingId.value())
+                .map(mapper::toDomain);
+    }
+
+    @Override
+    public Optional<MoneyMarketOrder> findHubOrderByOriginatingAndRoutingId(
+            LegalEntityCode originatingLegalEntityCode, RoutingId routingId) {
+        return springDataRepository
+                .findByRoutingIdAndOriginatingLegalEntityCode(
+                        routingId.value(), originatingLegalEntityCode.value())
                 .map(mapper::toDomain);
     }
 
