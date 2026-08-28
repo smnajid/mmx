@@ -112,6 +112,7 @@ public class OrderPersistenceMapper {
                 buildAssignment(e),
                 buildExecutionDetails(e),
                 e.getRejectionReason(),
+                null,
                 handoff,
                 routingId,
                 originatingLegalEntity,
