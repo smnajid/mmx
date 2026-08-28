@@ -78,7 +78,7 @@ final class OrderCreationDelegatedCounterpartySupport {
             String hubInstitutionCode = segment.getCurveKey().institutionCode();
             if (!grantedHubInstitutions.contains(hubInstitutionCode)) {
                 continue;
-            }
+               }
             ThinProxyInstitution proxy = proxiesByHub.get(hubInstitutionCode);
             if (proxy == null) {
                 continue;

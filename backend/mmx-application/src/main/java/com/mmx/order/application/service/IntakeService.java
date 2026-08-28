@@ -4,6 +4,7 @@ import com.mmx.order.application.command.ReceiveOrderCommand;
 import com.mmx.order.application.port.in.IntakeUseCase;
 import com.mmx.order.application.port.out.AuditLogger;
 import com.mmx.order.application.port.out.Clock;
+import com.mmx.order.application.port.out.HubLocalityResolver;
 import com.mmx.order.application.port.out.InstitutionRepository;
 import com.mmx.order.application.port.out.LegalEntityRepository;
 import com.mmx.order.application.port.out.ManagedCurrencyRepository;
@@ -11,6 +12,7 @@ import com.mmx.order.application.port.out.OpenPositionPort;
 import com.mmx.order.application.port.out.OrderRepository;
 import com.mmx.order.application.port.out.OrganisationRepository;
 import com.mmx.order.domain.exception.InvalidOrderException;
+import com.mmx.order.domain.model.HubLocality;
 import com.mmx.order.domain.model.ContractNumber;
 import com.mmx.order.domain.model.Institution;
 import com.mmx.order.domain.model.LegalEntity;
@@ -46,6 +48,8 @@ public final class IntakeService implements IntakeUseCase {
     private final RoutedOrderIntake routedOrderIntake;
     private final AuditLogger auditLogger;
     private final Clock clock;
+    private final HubLocalityResolver hubLocalityResolver;
+    private final RemoteRoutedOrderIntake remoteRoutedOrderIntake;
 
     public IntakeService(
             OrderRepository orderRepository,
@@ -58,6 +62,34 @@ public final class IntakeService implements IntakeUseCase {
             RoutedOrderIntake routedOrderIntake,
             AuditLogger auditLogger,
             Clock clock) {
+        this(
+                orderRepository,
+                managedCurrencyRepository,
+                institutionRepository,
+                openPositionPort,
+                organisationRepository,
+                legalEntityRepository,
+                portfolioManagementOrganisation,
+                routedOrderIntake,
+                auditLogger,
+                clock,
+                null,
+                null);
+    }
+
+    public IntakeService(
+            OrderRepository orderRepository,
+            ManagedCurrencyRepository managedCurrencyRepository,
+            InstitutionRepository institutionRepository,
+            OpenPositionPort openPositionPort,
+            OrganisationRepository organisationRepository,
+            LegalEntityRepository legalEntityRepository,
+            OrganisationCode portfolioManagementOrganisation,
+            RoutedOrderIntake routedOrderIntake,
+            AuditLogger auditLogger,
+            Clock clock,
+            HubLocalityResolver hubLocalityResolver,
+            RemoteRoutedOrderIntake remoteRoutedOrderIntake) {
         this.orderRepository = orderRepository;
         this.managedCurrencyRepository = managedCurrencyRepository;
         this.institutionRepository = institutionRepository;
@@ -70,6 +102,8 @@ public final class IntakeService implements IntakeUseCase {
         this.routedOrderIntake = routedOrderIntake;
         this.auditLogger = auditLogger;
         this.clock = clock;
+        this.hubLocalityResolver = hubLocalityResolver;
+        this.remoteRoutedOrderIntake = remoteRoutedOrderIntake;
     }
 
     @Override
@@ -120,11 +154,36 @@ public final class IntakeService implements IntakeUseCase {
     }
 
     private Result receiveRouted(ReceiveOrderCommand command, LegalEntity clientEntity) {
+        if (isRemoteHub(clientEntity)) {
+            return receiveRoutedRemote(command, clientEntity);
+        }
         ThinProxyInstitution proxy = routedOrderIntake.resolveProxy(command.institutionCode());
         validateLifecycleInstitutionMatchesContract(command, proxy.getInstitutionCode());
         validateCurrency(command);
 
         Result result = routedOrderIntake.completeIntake(command, proxy, clientEntity);
+        if (result.newlyCreated()) {
+            if (result.status() == OrderStatus.ROUTED) {
+                auditLogger.log(result.orderId(), EVENT_ORDER_ROUTED, AUDIT_ACTOR_SYSTEM, clock.now());
+            } else if (result.status() == OrderStatus.REJECTED) {
+                auditLogger.log(
+                        result.orderId(), EVENT_ORDER_ROUTING_REJECTED, AUDIT_ACTOR_SYSTEM, clock.now());
+            }
+        }
+        return result;
+    }
+
+    private boolean isRemoteHub(LegalEntity clientEntity) {
+        if (hubLocalityResolver == null || remoteRoutedOrderIntake == null) {
+            return false;
+        }
+        LegalEntityCode clientCode = clientEntity.getCode();
+        HubLocality locality = hubLocalityResolver.resolveForClient(clientCode);
+        return locality != null && locality.isRemote();
+    }
+
+    private Result receiveRoutedRemote(ReceiveOrderCommand command, LegalEntity clientEntity) {
+        Result result = remoteRoutedOrderIntake.completeIntake(command, clientEntity);
         if (result.newlyCreated()) {
             if (result.status() == OrderStatus.ROUTED) {
                 auditLogger.log(result.orderId(), EVENT_ORDER_ROUTED, AUDIT_ACTOR_SYSTEM, clock.now());

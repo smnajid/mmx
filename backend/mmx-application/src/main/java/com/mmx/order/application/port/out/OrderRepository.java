@@ -31,6 +31,14 @@ public interface OrderRepository {
 
     Optional<MoneyMarketOrder> findHubOrderByRoutingId(RoutingId routingId);
 
+    /**
+     * Trust-boundary containment (D5): resolves a hub-side order by the composite cross-boundary
+     * correlation key {@code (originatingLegalEntityCode, routingId)}. Used by the leg-A idempotent
+     * collision path so one originating client can never resolve to another client's order.
+     */
+    Optional<MoneyMarketOrder> findHubOrderByOriginatingAndRoutingId(
+            LegalEntityCode originatingLegalEntityCode, RoutingId routingId);
+
     List<MoneyMarketOrder> findByStatusAndOrderType(
             LegalEntityCode legalEntityCode, OrderStatus status, OrderType orderType);
 

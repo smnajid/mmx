@@ -43,6 +43,7 @@ public class MoneyMarketOrder {
     private Assignment assignment;
     private ExecutionDetails executionDetails;
     private String rejectionReason;
+    private RejectionOrigin rejectionOrigin;
     /** Integration handoff toward back-office; meaningful when {@link #status} is {@link OrderStatus#EXECUTED}. */
     private HandoffStatus handoffStatus;
     private RoutingId routingId;
@@ -200,6 +201,7 @@ public class MoneyMarketOrder {
             Assignment assignment,
             ExecutionDetails executionDetails,
             String rejectionReason,
+            RejectionOrigin rejectionOrigin,
             HandoffStatus handoffStatus,
             RoutingId routingId,
             LegalEntityCode originatingLegalEntityCode,
@@ -216,6 +218,7 @@ public class MoneyMarketOrder {
         order.assignment = assignment;
         order.executionDetails = executionDetails;
         order.rejectionReason = rejectionReason;
+        order.rejectionOrigin = rejectionOrigin;
         order.routingId = routingId;
         order.originatingLegalEntityCode = originatingLegalEntityCode;
         order.originatingExternalOrderReference = originatingExternalOrderReference;
@@ -252,7 +255,7 @@ public class MoneyMarketOrder {
                 id, externalOrderReference, legalEntityCode, orderType, orderOperation,
                 portfolioNumber, currency, amount, valueDate, minimumRate,
                 tenor, noticePeriod, sourceContractNumber, institutionCode, counterparty,
-                status, assignment, executionDetails, rejectionReason, handoffStatus,
+                status, assignment, executionDetails, rejectionReason, null, handoffStatus,
                 null, null, null, createdAt, updatedAt);
     }
 
@@ -320,6 +323,7 @@ public class MoneyMarketOrder {
         Objects.requireNonNull(reason, "reason must not be null");
         this.status = this.status.transitionTo(OrderStatus.REJECTED, OrderLifecycleKind.ROUTED_CLIENT);
         this.rejectionReason = reason.trim();
+        this.rejectionOrigin = RejectionOrigin.TRADER;
         this.updatedAt = now;
     }
 
@@ -459,7 +463,8 @@ public class MoneyMarketOrder {
     }
 
     /**
-     * Reject from RECEIVED (any Trader) or ASSIGNED (assigned Trader only).
+     * Reject from RECEIVED (any Trader) or ASSIGNED (assigned Trader only). A desk decision —
+     * records {@link RejectionOrigin#TRADER}.
      */
     public void reject(TraderId requestingTraderId, String reason, Instant now) {
         Objects.requireNonNull(requestingTraderId);
@@ -480,6 +485,27 @@ public class MoneyMarketOrder {
             throw new InvalidStatusTransitionException(this.status, OrderStatus.REJECTED);
         }
         this.rejectionReason = trimmed;
+        this.rejectionOrigin = RejectionOrigin.TRADER;
+        this.updatedAt = now;
+    }
+
+    /**
+     * Reject because the route itself failed — no hub-side order lifecycle exists or the route
+     * never completed (unresolved global account, delegated-grant/enabled-set violation at local
+     * intake, unresolved external identity account, or a leg-A HTTP reject closing the client-side
+     * order). Records {@link RejectionOrigin#ROUTING_FAILURE}. System-originated: no Trader
+     * authorization applies.
+     */
+    public void rejectAsRoutingFailure(String reason, Instant now) {
+        Objects.requireNonNull(reason, "reason must not be null");
+        Objects.requireNonNull(now, "now must not be null");
+        String trimmed = reason.trim();
+        if (trimmed.isEmpty()) {
+            throw new InvalidOrderException("reason is required");
+        }
+        this.status = this.status.transitionTo(OrderStatus.REJECTED);
+        this.rejectionReason = trimmed;
+        this.rejectionOrigin = RejectionOrigin.ROUTING_FAILURE;
         this.updatedAt = now;
     }
 
@@ -576,6 +602,7 @@ public class MoneyMarketOrder {
     public Assignment getAssignment() { return assignment; }
     public ExecutionDetails getExecutionDetails() { return executionDetails; }
     public String getRejectionReason() { return rejectionReason; }
+    public RejectionOrigin getRejectionOrigin() { return rejectionOrigin; }
     public HandoffStatus getHandoffStatus() { return handoffStatus; }
     public RoutingId getRoutingId() { return routingId; }
     public LegalEntityCode getOriginatingLegalEntityCode() { return originatingLegalEntityCode; }
