@@ -62,6 +62,10 @@ log "Registering schemas in Redpanda Schema Registry..."
 "$SCRIPT_DIR/scripts/register-schemas.sh"
 
 # ── 2. Spring Boot backend ─────────────────────────────────────────────────────
+log "Installing backend modules (skip tests)..."
+# clean: wipe stale IDE (ECJ) auto-compiled .class files so javac recompiles consistently
+( cd "$BACKEND_DIR" && mvn clean install -DskipTests -q ) || die "mvn install failed — check output above"
+
 log "Starting Spring Boot backend..."
 (
   cd "$BACKEND_DIR"
@@ -84,7 +88,11 @@ ensure_node
 log "Starting Angular frontend..."
 (
   cd "$FRONTEND_DIR"
-  npm start 2>&1 | sed 's/^/[frontend] /'
+  # --host 0.0.0.0: reachable via VS Code/SSH port forwarding and the VM's IP (not just VM-local localhost)
+  # --allowed-hosts: Vite rejects forwarded host headers (e.g. vscode-*.github.dev) without this
+  # npm start resolves the local ng from node_modules/.bin (ng is not installed globally)
+  # '=' form is required: '--allowed-hosts all' makes the CLI parse 'all' as the positional project arg
+  npm start -- --host 0.0.0.0 --allowed-hosts=all 2>&1 | sed 's/^/[frontend] /'
 ) &
 FRONTEND_PID=$!
 

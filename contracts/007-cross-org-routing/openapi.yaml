@@ -1,0 +1,485 @@
+openapi: 3.0.3
+info:
+  title: MMX Cross-Org Routing API
+  description: |
+    LODH inbound surface for cross-organisation order routing (leg A) and thin-client reference-data
+    queries. Exposed by the **hub deployment** (e.g. LODH) for consumption by a remote client
+    deployment (e.g. CGED) whose TradingClient (e.g. CGD) routes to this hub. Mirror: [api-v1.md](./api-v1.md).
+
+    ## Transport-proven identity
+
+    Every operation is authenticated by a transport credential that binds to **exactly one** remote
+    `LegalEntityCode` — the **proven `originatingLegalEntityCode`**. The gateway derives the principal
+    from the credential (`X-MMX-CrossOrg-Key`); request payloads MUST NOT be trusted for identity. The
+    proven principal MUST be a member of this hub's TradingClient list (defense-in-depth: the gateway
+    early-rejects unknown credentials; the use case re-checks membership as a domain rule).
+
+    ## Leg A — synchronous routed-order accept
+
+    `POST /api/v1/cross-org/routed-orders` carries the CGED-resolved hub-side `portfolioNumber`
+    (trusted, not revalidated), a hub-native `institutionCode`, the CGED-minted `routingId`, and the
+    order fields. The hub validates `(institution, currency, tenor|noticePeriod)` against the
+    originating client's grant in-process, then returns accept (hub-side order created + leg-B
+    `ACCEPTED` outbox row committed same-tx) or reject (routing-failure; no hub-side order, no leg-B
+    event). The cross-boundary idempotency key is `(originatingLegalEntityCode, routingId)`; a retry
+    that collides on the partial unique index resolves idempotently to the existing accept.
+
+    ## Thin-client reference-data reads
+
+    The reference-data query endpoints return this hub's live reference data, scoped to the proven
+    client (grants are filtered to `clientLegalEntityCode = proven originatingLegalEntityCode`).
+    Hub-native institution codes cross the boundary; the client renders `"via {hub}"` display names.
+  version: 1.0.0
+
+servers:
+  - url: /
+    description: Relative to deployment base
+
+security:
+  - CrossOrgRoutingAuth: []
+
+tags:
+  - name: CrossOrgRouting
+    description: LODH inbound leg-A routed-order accept
+  - name: CrossOrgReferenceData
+    description: Thin-client live reference-data reads from the hub
+
+paths:
+  /api/v1/cross-org/routed-orders:
+    post:
+      tags: [CrossOrgRouting]
+      summary: Accept a cross-org routed order (leg A inbound)
+      description: |
+        Leg-A synchronous handshake. The proven `originatingLegalEntityCode` is bound from the
+        transport credential (NOT the payload). The hub validates the grant against its own reference
+        data; on success it creates the hub-side order in `RECEIVED`, commits a leg-B `ACCEPTED`
+        outbox row in the same transaction, and returns accept. On a grant/currency/tenor validation
+        failure it returns reject, creates no hub-side order, and emits no leg-B event (the reject is
+        HTTP-only). Idempotent on `(originatingLegalEntityCode, routingId)`: a leg-A retry that
+        collides with an existing hub-side order resolves to the same accept.
+
+        The supplied `portfolioNumber` is the CGED-resolved hub-side account; the hub trusts it and
+        performs no account-existence or account-ownership check.
+      operationId: acceptRoutedOrder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AcceptRoutedOrderRequest"
+      responses:
+        "200":
+          description: |
+            Routed-order accept (also returned for an idempotent retry that resolves to an existing
+            hub-side order). A leg-B `ACCEPTED` outbox row is committed in the same transaction as
+            the hub-side order creation.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoutedOrderAcceptResponse"
+        "422":
+          description: |
+            Routing-failure reject — the `(institution, currency, tenor|noticePeriod)` tuple is not
+            granted to the proven originating client. No hub-side order is created and no leg-B event
+            is emitted; the client deployment closes `Received → Rejected` from this HTTP response
+            directly. (Membership failures are NOT returned here — they are `403`.)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoutedOrderRejectResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+
+  /api/v1/cross-org/reference/currencies:
+    get:
+      tags: [CrossOrgReferenceData]
+      summary: List this hub's managed currencies
+      description: |
+        Live managed-currency catalog for the thin remote client. Returns active managed currencies
+        with their enabled Term tenors and OnCall notice periods. Read live per request; the client
+        stores none of this reference data locally.
+      operationId: listCrossOrgCurrencies
+      responses:
+        "200":
+          description: Managed currencies (may be empty)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CrossOrgCurrencyResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+
+  /api/v1/cross-org/reference/institutions:
+    get:
+      tags: [CrossOrgReferenceData]
+      summary: List this hub's institutions (hub-native codes)
+      description: |
+        Institution catalog returning hub-native institution codes (proxy indirection collapses for
+        remote clients). The client renders the `"via {hub}"` display name client-side.
+      operationId: listCrossOrgInstitutions
+      parameters:
+        - name: activeOnly
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: When true, return only active institutions.
+      responses:
+        "200":
+          description: Institutions (may be empty)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CrossOrgInstitutionResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+
+  /api/v1/cross-org/reference/term-rates:
+    get:
+      tags: [CrossOrgReferenceData]
+      summary: List this hub's Term rates for a trading day
+      description: Live Term rate sheet for the thin remote client's order-form rate display.
+      operationId: listCrossOrgTermRates
+      parameters:
+        - name: tradingDate
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Rates for the requested day (may be empty)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CrossOrgTermRateResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+
+  /api/v1/cross-org/reference/grants:
+    get:
+      tags: [CrossOrgReferenceData]
+      summary: List delegated grants for the proven client
+      description: |
+        Active delegated-institution grants scoped automatically to the proven
+        `originatingLegalEntityCode` (the hub's client list membership). The client cannot claim
+        another client's grants; the gateway injects the proven principal. These grants are mastered
+        and stored in this hub deployment.
+      operationId: listCrossOrgGrants
+      responses:
+        "200":
+          description: Grants for the proven client (may be empty)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CrossOrgGrantResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+
+components:
+  securitySchemes:
+    CrossOrgRoutingAuth:
+      type: apiKey
+      in: header
+      name: X-MMX-CrossOrg-Key
+      description: |
+        Transport credential binding to exactly one remote `LegalEntityCode`. The hub gateway maps
+        this credential to the proven `originatingLegalEntityCode` and rejects unknown credentials
+        before any use case runs. One credential per remote legal entity; the specific mechanism
+        (mTLS client cert, per-client signing key, OAuth2 client-credentials) is infra/platform.
+
+  responses:
+    ValidationError:
+      description: Malformed request (missing required fields, invalid codes/formats).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/CrossOrgErrorResponse"
+    UnauthorizedError:
+      description: Missing or unresolvable transport credential.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/CrossOrgErrorResponse"
+    ForbiddenError:
+      description: |
+        Membership failure (defense-in-depth): the credential resolved to a legal entity that is not
+        a member of this hub's TradingClient list. This is returned both for the gateway early-reject
+        of an unknown credential (no TradingClient membership) and for the use-case membership
+        re-check (a proven principal rejected as a domain rule).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/CrossOrgErrorResponse"
+
+  schemas:
+    TenorCode:
+      type: string
+      enum: ["1W", "2W", "1M", "3M", "6M", "1Y"]
+    NoticePeriodCode:
+      type: string
+      enum: ["24H", "48H"]
+    OrderType:
+      type: string
+      enum: [TERM, ON_CALL]
+    OrderOperation:
+      type: string
+      enum: [SUBSCRIPTION, INCREASE, DECREASE, REDEMPTION]
+
+    AcceptRoutedOrderRequest:
+      type: object
+      description: |
+        Leg-A payload. `originatingLegalEntityCode` is intentionally absent — it is transport-proven
+        (bound from the credential) and the hub never trusts a payload-claimed identity. The supplied
+        `portfolioNumber` is the already-resolved hub-side account (trusted, not revalidated). No
+        deployment-internal order UUID crosses the boundary.
+      required:
+        - routingId
+        - portfolioNumber
+        - institutionCode
+        - originatingExternalOrderReference
+        - currency
+        - amount
+        - valueDate
+        - orderType
+        - orderOperation
+      properties:
+        routingId:
+          type: string
+          format: uuid
+          description: CGED-minted deterministic routing id; the hub trusts it and dedupes on
+            `(originatingLegalEntityCode, routingId)`.
+        portfolioNumber:
+          type: string
+          minLength: 1
+          maxLength: 50
+          description: Hub-side account resolved by the client's `ExternalIdentityGateway`; trusted.
+        institutionCode:
+          type: string
+          minLength: 1
+          maxLength: 32
+          description: Hub-native institution code (proxy indirection collapses at the boundary).
+        originatingExternalOrderReference:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Client-side external order reference, stored on the hub-side order for
+            traceability. Not an idempotency key.
+        currency:
+          type: string
+          pattern: "^[A-Z]{3}$"
+        amount:
+          type: number
+          format: double
+          exclusiveMinimum: 0
+        valueDate:
+          type: string
+          format: date
+        orderType:
+          $ref: "#/components/schemas/OrderType"
+        orderOperation:
+          $ref: "#/components/schemas/OrderOperation"
+        tenor:
+          $ref: "#/components/schemas/TenorCode"
+        noticePeriod:
+          $ref: "#/components/schemas/NoticePeriodCode"
+        minimumRate:
+          type: number
+          format: double
+          minimum: 0
+          nullable: true
+          description: Optional PM execution floor.
+        sourceContractNumber:
+          type: string
+          nullable: true
+          maxLength: 50
+          description: Required for INCREASE/DECREASE/REDEMPTION (existing MM contract).
+
+    RoutedOrderAcceptResponse:
+      type: object
+      required: [outcome, originatingLegalEntityCode, routingId, acceptedAt]
+      properties:
+        outcome:
+          type: string
+          enum: [ACCEPTED]
+        originatingLegalEntityCode:
+          type: string
+          pattern: "^[A-Z]{3}$"
+          description: The proven originating client LegalEntityCode (bound from the credential).
+        routingId:
+          type: string
+          format: uuid
+        acceptedAt:
+          type: string
+          format: date-time
+          description: Hub-side accept instant; a leg-B `ACCEPTED` outbox row is committed same-tx.
+
+    RoutedOrderRejectResponse:
+      type: object
+      required: [outcome, originatingLegalEntityCode, routingId, reason]
+      properties:
+        outcome:
+          type: string
+          enum: [REJECTED]
+        originatingLegalEntityCode:
+          type: string
+          pattern: "^[A-Z]{3}$"
+          description: The proven originating client LegalEntityCode (bound from the credential).
+        routingId:
+          type: string
+          format: uuid
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: Routing-failure reason (grant/currency/tenor violation, or non-membership).
+
+    CrossOrgCurrencyResponse:
+      type: object
+      required:
+        - code
+        - active
+        - minSubscriptionAmount
+        - minIncreaseDecreaseAmount
+        - enabledTenors
+        - enabledNoticePeriods
+      properties:
+        code:
+          type: string
+          pattern: "^[A-Z]{3}$"
+        active:
+          type: boolean
+        minSubscriptionAmount:
+          type: number
+          format: double
+          minimum: 0.01
+        minIncreaseDecreaseAmount:
+          type: number
+          format: double
+          minimum: 0.01
+        enabledTenors:
+          type: array
+          items:
+            $ref: "#/components/schemas/TenorCode"
+          minItems: 0
+        enabledNoticePeriods:
+          type: array
+          items:
+            $ref: "#/components/schemas/NoticePeriodCode"
+          minItems: 0
+
+    CrossOrgInstitutionResponse:
+      type: object
+      required: [institutionCode, displayName, active]
+      properties:
+        institutionCode:
+          type: string
+          maxLength: 32
+          description: Hub-native institution code.
+        displayName:
+          type: string
+          maxLength: 128
+          description: Hub-side display name; the client renders its own `"via {hub}"` view.
+        active:
+          type: boolean
+
+    CrossOrgTermRateResponse:
+      type: object
+      required:
+        - tradingDate
+        - institutionCode
+        - currency
+        - tenor
+        - rate
+      properties:
+        tradingDate:
+          type: string
+          format: date
+        institutionCode:
+          type: string
+          maxLength: 32
+        currency:
+          type: string
+          pattern: "^[A-Z]{3}$"
+        tenor:
+          $ref: "#/components/schemas/TenorCode"
+        rate:
+          type: number
+          format: double
+          exclusiveMinimum: 0
+
+    CrossOrgGrantResponse:
+      type: object
+      required:
+        - hubInstitutionCode
+        - clientLegalEntityCode
+        - currency
+        - enabledTenors
+        - enabledNoticePeriods
+        - active
+      properties:
+        hubInstitutionCode:
+          type: string
+          maxLength: 32
+        clientLegalEntityCode:
+          type: string
+          pattern: "^[A-Z]{3}$"
+          description: Echoes the proven originating client LegalEntityCode.
+        currency:
+          type: string
+          pattern: "^[A-Z]{3}$"
+        enabledTenors:
+          type: array
+          items:
+            $ref: "#/components/schemas/TenorCode"
+          minItems: 0
+        enabledNoticePeriods:
+          type: array
+          items:
+            $ref: "#/components/schemas/NoticePeriodCode"
+          minItems: 0
+        active:
+          type: boolean
+
+    CrossOrgErrorCode:
+      type: string
+      description: |
+        Error codes for the `CrossOrgErrorResponse` envelope (returned on 400/401/403). A routing-
+        failure reject (422) uses `RoutedOrderRejectResponse` with `outcome = REJECTED` + a freeform
+        `reason`, not this envelope.
+      enum:
+        - VALIDATION_ERROR
+        - UNAUTHORIZED
+        - FORBIDDEN
+
+    CrossOrgErrorResponse:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          $ref: "#/components/schemas/CrossOrgErrorCode"
+        message:
+          type: string
