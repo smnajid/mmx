@@ -17,12 +17,14 @@ import com.mmx.order.application.service.IntakeService;
 import com.mmx.order.application.service.MarkOrderAccountedService;
 import com.mmx.order.application.service.OrderLifecycleService;
 import com.mmx.order.application.service.DeskOrderQueryService;
+import com.mmx.order.application.service.RemoteRoutedOrderIntake;
 import com.mmx.order.application.service.RoutedOrderIntake;
 import com.mmx.order.application.service.RoutedOrderOutcomePropagation;
 import com.mmx.order.application.service.RoutedOrderOutcomePropagationService;
 import com.mmx.order.application.service.UpdateOrderService;
 import com.mmx.order.domain.model.OrganisationCode;
 import com.mmx.order.domain.policy.OrderAgainstInstitutionPolicy;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -115,7 +117,9 @@ public class OrderModuleConfiguration {
             OrganisationCode portfolioManagementOrganisation,
             RoutedOrderIntake routedOrderIntake,
             AuditLogger auditLogger,
-            Clock clock) {
+            Clock clock,
+            ObjectProvider<HubLocalityResolver> hubLocalityResolverProvider,
+            ObjectProvider<RemoteRoutedOrderIntake> remoteRoutedOrderIntakeProvider) {
         return new IntakeService(
                 orderRepository,
                 managedCurrencyRepository,
@@ -126,7 +130,9 @@ public class OrderModuleConfiguration {
                 portfolioManagementOrganisation,
                 routedOrderIntake,
                 auditLogger,
-                clock);
+                clock,
+                hubLocalityResolverProvider.getIfAvailable(),
+                remoteRoutedOrderIntakeProvider.getIfAvailable());
     }
 
     @Bean

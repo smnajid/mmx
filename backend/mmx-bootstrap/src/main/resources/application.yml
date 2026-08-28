@@ -23,6 +23,12 @@ spring:
     bootstrap-servers: localhost:19092
     producer:
       acks: all
+    consumer:
+      # Leg-B routed-order-outcome consumer (client deployments only). Values are JSON strings
+      # decoded manually by RoutingOutcomeV1Consumer, so StringDeserializer on both key and value.
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
 
 server:
   port: 8080
@@ -57,6 +63,11 @@ mmx:
   oncall:
     kafka:
       topic: mmx.oncall.rate.handoff
+    outbox:
+      relay-enabled: true
+      max-publish-attempts: 5
+      poll-interval-ms: 1000
+  routing-outcome:
     outbox:
       relay-enabled: true
       max-publish-attempts: 5
