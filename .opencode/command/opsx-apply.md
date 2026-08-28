@@ -1,17 +1,10 @@
 ---
-name: openspec-apply-change
-description: Implement tasks from an OpenSpec change. Use when the user wants to start implementing, continue implementation, or work through tasks.
-license: MIT
-compatibility: Requires openspec CLI.
-metadata:
-  author: openspec
-  version: "1.0"
-  generatedBy: "1.3.1"
+description: Implement tasks from an OpenSpec change (Experimental)
 ---
 
 Implement tasks from an OpenSpec change.
 
-**Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
+**Input**: `$ARGUMENTS` optionally specifies a change name (e.g., `/opsx-apply add-auth`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
 **Steps**
 
@@ -20,7 +13,7 @@ Implement tasks from an OpenSpec change.
    If a name is provided, use it. Otherwise:
    - Infer from conversation context if the user mentioned a change
    - Auto-select if only one active change exists
-   - If ambiguous, run `openspec list --json` to get available changes and use the **AskUserQuestion tool** to let the user select
+   - If ambiguous, run `openspec list --json` to get available changes and use the **question tool** to let the user select
 
    Always announce: "Using change: <name>" and how to override (e.g., `/opsx-apply <other>`).
 
@@ -39,13 +32,13 @@ Implement tasks from an OpenSpec change.
    ```
 
    This returns:
-   - `contextFiles`: artifact ID -> array of concrete file paths (varies by schema - could be proposal/specs/design/tasks or spec/tests/implementation/docs)
+   - `contextFiles`: artifact ID -> array of concrete file paths (varies by schema)
    - Progress (total, complete, remaining)
    - Task list with status
    - Dynamic instruction based on current state
 
    **Handle states:**
-   - If `state: "blocked"` (missing artifacts): show message, suggest using openspec-continue-change
+   - If `state: "blocked"` (missing artifacts): show message, suggest using `/opsx-continue`
    - If `state: "all_done"`: congratulate, suggest archive
    - Otherwise: proceed to implementation
 
@@ -56,18 +49,7 @@ Implement tasks from an OpenSpec change.
    - **spec-driven**: proposal, specs, design, tasks
    - Other schemas: follow the contextFiles from CLI output
 
-5. **Load repo navigation BEFORE implementing** (MUST)
-
-   Before touching code, read these repo navigation docs if they exist:
-   - `CONTEXT.md` — domain vocabulary (e.g. MMXUser, legal-entity scope, routing, delegated grants)
-   - `docs/agents/codebase-map.md` — where modules, routes, contracts, and tests live
-
-   These ARE the codebase exploration. Do NOT start by running `ls`/`glob` over the
-   directory tree to "understand conventions" — the map already tells you where to look.
-   Open only the specific files named in the change tasks, or follow the map's
-   "Exploration strategy" section for targeted greps. Go straight to the files.
-
-6. **Show current progress**
+5. **Show current progress**
 
    Display:
    - Schema being used
@@ -75,12 +57,13 @@ Implement tasks from an OpenSpec change.
    - Remaining tasks overview
    - Dynamic instruction from CLI
 
-7. **Implement tasks (loop until done or blocked)**
+6. **Implement tasks (loop until done or blocked)**
 
    For each pending task:
    - Show which task is being worked on
    - Make the code changes required
    - Keep changes minimal and focused
+   - When a task requires running tests, follow **Verification commands** below (do not default to full-reactor `mvn test`)
    - Mark task complete in the tasks file: `- [ ]` → `- [x]`
    - Continue to next task
 
@@ -90,7 +73,7 @@ Implement tasks from an OpenSpec change.
    - Error or blocker encountered → report and wait for guidance
    - User interrupts
 
-8. **On completion or pause, show status**
+7. **On completion or pause, show status**
 
    Display:
    - Tasks completed this session
@@ -126,7 +109,7 @@ Working on task 4/7: <task description>
 - [x] Task 2
 ...
 
-All tasks complete! Ready to archive this change.
+All tasks complete! You can archive this change with `/opsx-archive`.
 ```
 
 **Output On Pause (Issue Encountered)**
@@ -149,16 +132,31 @@ All tasks complete! Ready to archive this change.
 What would you like to do?
 ```
 
+**Verification commands (backend / frontend)**
+
+Project policy: `openspec/config.yaml` (context + `rules.tasks`). Apply MUST follow it even when `tasks.md` predates the rules.
+
+- Run Maven from **`backend/`**. Prefer **`mvnd`** when installed; otherwise **`mvn`**.
+- **TDD / red-green** (write-test + implement-until-green pairs): use the command on the write-test task, or
+  `mvn test -pl <module> -Dtest=<TestClass>` — one module, one class. Re-run the **same** `-Dtest` after implementation.
+  Use `-am` only when upstream modules must compile first.
+- **Compile/codegen tasks**: `mvn compile` or `mvn -pl <module> -am compile` only — never `mvn test`.
+- **Do not** run full-reactor `cd backend && mvn test` until the **Final verification** task (or the single task that explicitly says full reactor / all modules green).
+- **Mid-phase tasks** that say "run mvn test on X and Y": interpret as
+  `mvn test -pl <modules> -am` only if no Final verification full run exists yet; if Final verification is already planned, skip redundant mid-phase full/scoped suite runs and rely on TDD `-Dtest` loops instead.
+- **`mmx-bootstrap`** (Testcontainers PostgreSQL/Kafka): included only in the final full `mvn test`, unless the task names a specific bootstrap integration test (`-pl mmx-bootstrap -Dtest=…`).
+- **Frontend**: run `npm run test` in `frontend/` only for Final verification or when a task explicitly requires the full suite; for Vitest tasks, prefer the narrowest test file/command the task describes.
+
 **Guardrails**
 - Keep going through tasks until done or blocked
 - Always read context files before starting (from the apply instructions output)
-- MUST read `CONTEXT.md` and `docs/agents/codebase-map.md` before implementing — these are the codebase map; do not re-explore the directory tree from scratch
 - If task is ambiguous, pause and ask before implementing
 - If implementation reveals issues, pause and suggest artifact updates
 - Keep code changes minimal and scoped to each task
 - Update task checkbox immediately after completing each task
 - Pause on errors, blockers, or unclear requirements - don't guess
 - Use contextFiles from CLI output, don't assume specific file names
+- Never run bare `mvn test` from `backend/` during TDD or mid-phase work — always `-pl` and/or `-Dtest` unless the checkbox is the one Final verification full-reactor run
 
 **Fluid Workflow Integration**
 
