@@ -5,6 +5,7 @@ import com.mmx.order.domain.model.LegalEntityCode;
 import com.mmx.order.domain.model.ManagedCurrency;
 import com.mmx.order.domain.model.NoticePeriod;
 import com.mmx.order.domain.model.Tenor;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -14,6 +15,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.assertThatCode;
+@Tag("fast")
 
 class DelegatedGrantSubsetPolicyTest {
 

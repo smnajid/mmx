@@ -2,6 +2,7 @@ package com.mmx.order.domain.model;
 
 import com.mmx.order.domain.exception.OnCallInvalidSegmentStatusException;
 import com.mmx.order.domain.exception.OnCallSegmentCanceledException;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -11,6 +12,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+@Tag("fast")
 
 class OnCallRateTransitionTest {
 

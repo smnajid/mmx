@@ -4,6 +4,7 @@ import com.mmx.order.adapter.in.rest.generated.model.ExecuteOrderRequest;
 import com.mmx.order.adapter.in.rest.generated.model.ReceiveOrderRequest;
 import com.mmx.order.domain.model.*;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -12,6 +13,7 @@ import java.time.LocalDate;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+@Tag("fast")
 
 class OrderRestMapperTest {
 

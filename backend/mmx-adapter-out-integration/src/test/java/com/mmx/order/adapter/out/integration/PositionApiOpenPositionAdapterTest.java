@@ -5,6 +5,7 @@ import com.mmx.order.domain.model.OpenContractPosition;
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import java.io.OutputStream;
@@ -13,6 +14,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+@Tag("fast")
 
 class PositionApiOpenPositionAdapterTest {
 

@@ -1,5 +1,6 @@
 package com.mmx.order.domain.model;
 
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -8,6 +9,7 @@ import java.time.LocalDate;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+@Tag("fast")
 
 class OnCallRateSegmentTest {
 

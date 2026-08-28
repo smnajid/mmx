@@ -2,6 +2,7 @@ package com.mmx.order.domain.model;
 
 import com.mmx.order.domain.exception.InvalidStatusTransitionException;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -20,6 +21,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * no new {@link OrderStatus} value is introduced; {@code Received→Routed} via leg-A accept OR
  * leg-B {@code ACCEPTED}; propagation transitions are async for remote pairs.
  */
+@Tag("fast")
 @DisplayName("Remote client-side order lifecycle")
 class RemoteOrderLifecycleTest {
 

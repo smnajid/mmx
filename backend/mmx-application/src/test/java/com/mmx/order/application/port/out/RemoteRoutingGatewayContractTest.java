@@ -9,6 +9,7 @@ import com.mmx.order.domain.model.OrderType;
 import com.mmx.order.domain.model.PortfolioNumber;
 import com.mmx.order.domain.model.RoutingId;
 import com.mmx.order.domain.model.Tenor;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -27,6 +28,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <p>Spec: {@code order-routing} — cross-org routing transport backbone (leg A = synchronous
  * REST); cross-boundary correlation = {@code (originatingLegalEntityCode, routingId)}.
  */
+@Tag("fast")
 class RemoteRoutingGatewayContractTest {
 
     private static final Instant FIXED_NOW = Instant.parse("2026-05-01T12:00:00Z");

@@ -13,6 +13,7 @@ import com.mmx.order.application.termrate.TermRateAuditRow;
 import com.mmx.order.domain.model.Institution;
 import com.mmx.order.domain.model.Tenor;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -26,6 +27,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+@Tag("integration")
 
 @SpringBootTest
 @ActiveProfiles("test")

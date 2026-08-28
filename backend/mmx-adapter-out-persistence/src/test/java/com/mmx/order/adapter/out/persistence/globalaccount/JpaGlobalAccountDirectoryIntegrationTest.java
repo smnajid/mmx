@@ -6,12 +6,14 @@ import com.mmx.order.adapter.out.persistence.repository.SpringDataGlobalAccountR
 import com.mmx.order.domain.model.GlobalAccount;
 import com.mmx.order.domain.model.LegalEntityCode;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
 import static org.assertj.core.api.Assertions.assertThat;
+@Tag("integration")
 
 @SpringBootTest
 @ActiveProfiles("test")

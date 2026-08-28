@@ -3,6 +3,7 @@ package com.mmx.order.domain.model;
 import com.mmx.order.domain.exception.InvalidOrderException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -10,6 +11,7 @@ import java.time.LocalDate;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+@Tag("fast")
 
 @DisplayName("MoneyMarketOrder creation invariants")
 class MoneyMarketOrderCreationTest {

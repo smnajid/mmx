@@ -3,6 +3,7 @@ package com.mmx.order.application.port.out;
 import com.mmx.order.domain.model.LegalEntityCode;
 import com.mmx.order.domain.model.NoticePeriod;
 import com.mmx.order.domain.model.Tenor;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import java.util.EnumSet;
@@ -10,6 +11,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+@Tag("fast")
 
 class DelegatedGrantDirectoryTest {
 

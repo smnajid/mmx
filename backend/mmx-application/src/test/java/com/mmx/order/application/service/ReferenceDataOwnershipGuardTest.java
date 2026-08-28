@@ -12,6 +12,7 @@ import com.mmx.order.domain.model.Organisation;
 import com.mmx.order.domain.model.OrganisationCode;
 import com.mmx.order.domain.model.Role;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import java.util.LinkedHashMap;
@@ -22,6 +23,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.assertThatCode;
+@Tag("fast")
 
 class ReferenceDataOwnershipGuardTest {
 

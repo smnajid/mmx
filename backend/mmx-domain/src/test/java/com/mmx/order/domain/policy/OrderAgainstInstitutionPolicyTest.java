@@ -2,12 +2,14 @@ package com.mmx.order.domain.policy;
 
 import com.mmx.order.domain.exception.InvalidOrderException;
 import com.mmx.order.domain.model.Institution;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+@Tag("fast")
 
 class OrderAgainstInstitutionPolicyTest {
 

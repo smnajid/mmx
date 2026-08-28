@@ -11,6 +11,7 @@ import com.mmx.order.domain.model.MmxUserId;
 import com.mmx.order.domain.model.Role;
 import com.mmx.order.domain.model.UserScope;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -27,6 +28,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+@Tag("fast")
 
 @ExtendWith(MockitoExtension.class)
 class ReScopeUseCaseTest {

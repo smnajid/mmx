@@ -5,6 +5,7 @@ import com.mmx.order.domain.model.Institution;
 import com.mmx.order.domain.model.ManagedCurrency;
 import com.mmx.order.domain.model.Tenor;
 import com.mmx.order.domain.model.TermRate;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -15,6 +16,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+@Tag("fast")
 
 class TermRateIngestPolicyTest {
 

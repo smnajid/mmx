@@ -7,9 +7,11 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+@Tag("fast")
 
 class GlobalAccountDirectoryTest {
 

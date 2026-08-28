@@ -24,6 +24,7 @@ import com.mmx.order.domain.model.Role;
 import com.mmx.order.domain.model.Tenor;
 import com.mmx.order.domain.model.ThinProxyInstitution;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -35,6 +36,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+@Tag("fast")
 
 class OnboardInstitutionServiceTest {
 

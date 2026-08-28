@@ -12,6 +12,7 @@ import com.mmx.order.domain.model.ManagedCurrency;
 import com.mmx.order.domain.model.Tenor;
 import com.mmx.order.domain.policy.TermRateIngestPolicy;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -36,6 +37,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+@Tag("fast")
 
 @ExtendWith(MockitoExtension.class)
 class UploadTermRatesServiceTest {

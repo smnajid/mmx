@@ -11,6 +11,7 @@ import com.mmx.order.domain.model.NoticePeriod;
 import com.mmx.order.domain.model.OnCallCurveKey;
 import com.mmx.order.domain.model.OnCallRateSegment;
 import com.mmx.order.domain.model.OnCallRateSegmentStatus;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -30,6 +31,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+@Tag("fast")
 
 @ExtendWith(MockitoExtension.class)
 class CancelOnCallRateServiceTest {

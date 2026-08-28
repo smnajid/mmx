@@ -5,6 +5,7 @@ import com.mmx.order.adapter.out.persistence.repository.SpringDataOrderRepositor
 import com.mmx.order.application.port.out.ExecutedSubscriptionContract;
 import com.mmx.order.domain.model.*;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -17,6 +18,7 @@ import java.util.List;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+@Tag("integration")
 
 @SpringBootTest
 @ActiveProfiles("test")

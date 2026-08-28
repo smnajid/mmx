@@ -3,11 +3,13 @@ package com.mmx.order.domain.policy;
 import com.mmx.order.domain.model.Tenor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
 
 import static org.assertj.core.api.Assertions.assertThat;
+@Tag("fast")
 
 class ContractLivenessPolicyTest {
 

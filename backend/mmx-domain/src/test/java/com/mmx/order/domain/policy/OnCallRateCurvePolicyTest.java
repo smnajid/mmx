@@ -6,6 +6,7 @@ import com.mmx.order.domain.model.NoticePeriod;
 import com.mmx.order.domain.model.OnCallCurveKey;
 import com.mmx.order.domain.model.OnCallRateSegment;
 import com.mmx.order.domain.model.OnCallRateSegmentStatus;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -15,6 +16,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+@Tag("fast")
 
 class OnCallRateCurvePolicyTest {
 

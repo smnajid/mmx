@@ -10,6 +10,7 @@ import com.mmx.order.adapter.out.persistence.repository.SpringDataOnCallRateSegm
 import com.mmx.order.application.port.out.ScopeContextProvider;
 import com.mmx.order.domain.model.Institution;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -18,6 +19,7 @@ import org.springframework.test.context.ActiveProfiles;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+@Tag("integration")
 
 @SpringBootTest
 @ActiveProfiles("test")

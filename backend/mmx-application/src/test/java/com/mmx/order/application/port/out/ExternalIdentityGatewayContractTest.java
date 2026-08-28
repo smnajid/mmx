@@ -2,6 +2,7 @@ package com.mmx.order.application.port.out;
 
 import com.mmx.order.domain.model.LegalEntityCode;
 import com.mmx.order.domain.model.PortfolioNumber;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
@@ -24,6 +25,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <p>Distinct from {@link GlobalAccountDirectory} (local routing): the key here is the client
  * portfolioNumber, not currency, and the resolver lives CGED-side, pre-send (design D3).
  */
+@Tag("fast")
 class ExternalIdentityGatewayContractTest {
 
     private static final LegalEntityCode CGD = new LegalEntityCode("CGD");

@@ -17,6 +17,7 @@ import com.mmx.order.domain.model.RoutedHubOrderDraft;
 import com.mmx.order.domain.model.RoutingId;
 import com.mmx.order.domain.model.Tenor;
 import com.mmx.order.domain.model.TraderId;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -33,6 +34,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+@Tag("integration")
 
 @SpringBootTest(classes = MmxApplication.class)
 @ActiveProfiles("rest-test")

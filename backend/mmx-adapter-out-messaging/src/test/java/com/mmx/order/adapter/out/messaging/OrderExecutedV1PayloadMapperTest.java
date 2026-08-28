@@ -17,6 +17,7 @@ import com.mmx.order.application.port.out.ExecutionHandoffRoutingContext;
 import com.mmx.order.domain.model.RoutingId;
 import com.mmx.order.domain.model.TraderId;
 
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -24,6 +25,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 
 import static org.assertj.core.api.Assertions.assertThat;
+@Tag("fast")
 
 class OrderExecutedV1PayloadMapperTest {
 

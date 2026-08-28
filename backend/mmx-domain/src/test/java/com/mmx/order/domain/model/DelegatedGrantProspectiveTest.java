@@ -1,10 +1,12 @@
 package com.mmx.order.domain.model;
 
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import java.util.EnumSet;
 
 import static org.assertj.core.api.Assertions.assertThat;
+@Tag("fast")
 
 class DelegatedGrantProspectiveTest {
 

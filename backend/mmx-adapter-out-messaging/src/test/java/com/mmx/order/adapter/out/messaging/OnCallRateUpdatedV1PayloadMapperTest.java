@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mmx.order.domain.model.NoticePeriod;
 import com.mmx.order.domain.model.OnCallCurveKey;
 import com.mmx.order.domain.model.OnCallRateSegment;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -12,6 +13,7 @@ import java.time.LocalDate;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+@Tag("fast")
 
 class OnCallRateUpdatedV1PayloadMapperTest {
 

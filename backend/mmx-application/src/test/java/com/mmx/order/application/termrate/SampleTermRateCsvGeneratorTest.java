@@ -6,6 +6,7 @@ import com.mmx.order.domain.model.Institution;
 import com.mmx.order.domain.model.ManagedCurrency;
 import com.mmx.order.domain.model.Tenor;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -23,6 +24,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
+@Tag("fast")
 
 @ExtendWith(MockitoExtension.class)
 class SampleTermRateCsvGeneratorTest {
