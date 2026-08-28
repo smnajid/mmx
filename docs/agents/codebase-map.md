@@ -252,8 +252,16 @@ Maven reactor root is **`backend/`** (no root `pom.xml` at repo top).
 # Backend compile + codegen
 cd backend && mvn -q -pl mmx-adapter-in-rest -am compile -DskipTests
 
-# Frontend deps + contract types
-cd frontend && npm ci && npm run generate:api
+# Category-selected tests (see AGENTS.md "Test feedback loop" for the loop-by-change-type policy)
+# Every backend test class carries exactly one tag: fast | integration | e2e | architecture.
+cd backend && mvn test -Dgroups=fast                      # unit loop only — no containers (all modules)
+cd backend && mvn test -Dgroups='fast|integration'        # compose categories
+cd backend && mvn test -Dgroups=integration               # PostgreSQL integration loop
+cd backend && mvn test -Dgroups=e2e                       # Kafka / full-workflow acceptance
+cd backend && mvn test -pl mmx-domain -Dtest=<Class>      # one module-scoped fast class
+cd backend && mvn test -pl mmx-application -Dtest=<Class> # one application fast class
+cd backend && mvn test -pl mmx-adapter-in-rest -Dtest=<Class>  # one REST-controller unit
+cd backend && mvn test -pl mmx-adapter-out-persistence -am -Dtest='<Jpa...Test>'  # persistence integration
 
 # Domain / application unit tests (example)
 cd backend && mvn -q -pl mmx-domain,mmx-application test

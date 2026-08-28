@@ -15,6 +15,18 @@
     <name>mmx-adapter-in-rest</name>
     <description>Inbound REST adapter: controllers, DTOs, mappers. Spring Web + Bean Validation + OpenAPI documentation.</description>
 
+    <properties>
+        <!--
+            Fast REST-controller loop (spec test-feedback-loop): set -DskipOpenApiGenerate=true to
+            skip the 12 OpenAPI-generator executions on unchanged contracts so a controller/unit
+            iteration compiles+ran safely against the already-generated sources in target/
+            rather than regenerating every build. Off by default: the unqualified build preserves
+            contract-first regeneration. Generated sources live under target/generated-sources/ and
+            persist across runs within a module.
+        -->
+        <skipOpenApiGenerate>false</skipOpenApiGenerate>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>com.mmx</groupId>
@@ -66,6 +78,9 @@
                 <groupId>org.openapitools</groupId>
                 <artifactId>openapi-generator-maven-plugin</artifactId>
                 <version>7.14.0</version>
+                <configuration>
+                    <skip>${skipOpenApiGenerate}</skip>
+                </configuration>
                 <executions>
                     <execution>
                         <id>generate-mm-order-api-models</id>
@@ -340,6 +355,59 @@
                             </configOptions>
                         </configuration>
                     </execution>
+                    <execution>
+                        <id>generate-cross-org-routing-api-models</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>generate</goal>
+                        </goals>
+                        <configuration>
+                            <inputSpec>${project.basedir}/../../contracts/007-cross-org-routing/openapi.yaml</inputSpec>
+                            <generatorName>java</generatorName>
+                            <output>${project.build.directory}/generated-sources/openapi-cross-org</output>
+                            <library>native</library>
+                            <generateApis>false</generateApis>
+                            <generateApiTests>false</generateApiTests>
+                            <generateModelTests>false</generateModelTests>
+                            <generateSupportingFiles>true</generateSupportingFiles>
+                            <modelPackage>com.mmx.order.adapter.in.rest.generated.crossorg.model</modelPackage>
+                            <invokerPackage>com.mmx.order.adapter.in.rest.generated.crossorg</invokerPackage>
+                            <configOptions>
+                                <serializationLibrary>jackson</serializationLibrary>
+                                <dateLibrary>java8</dateLibrary>
+                                <useJakartaEe>true</useJakartaEe>
+                                <openApiNullable>false</openApiNullable>
+                                <useBeanValidation>true</useBeanValidation>
+                                <performBeanValidation>true</performBeanValidation>
+                            </configOptions>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>generate-cross-org-routing-spring-api</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>generate</goal>
+                        </goals>
+                        <configuration>
+                            <inputSpec>${project.basedir}/../../contracts/007-cross-org-routing/openapi.yaml</inputSpec>
+                            <generatorName>spring</generatorName>
+                            <output>${project.build.directory}/generated-sources/openapi-cross-org-spring</output>
+                            <generateApis>true</generateApis>
+                            <generateModels>false</generateModels>
+                            <generateSupportingFiles>false</generateSupportingFiles>
+                            <apiPackage>com.mmx.order.adapter.in.rest.generated.crossorg.api</apiPackage>
+                            <modelPackage>com.mmx.order.adapter.in.rest.generated.crossorg.model</modelPackage>
+                            <configOptions>
+                                <interfaceOnly>true</interfaceOnly>
+                                <useTags>true</useTags>
+                                <useJakartaEe>true</useJakartaEe>
+                                <useSpringBoot3>true</useSpringBoot3>
+                                <useBeanValidation>true</useBeanValidation>
+                                <documentationProvider>springdoc</documentationProvider>
+                                <skipDefaultInterface>true</skipDefaultInterface>
+                            </configOptions>
+                        </configuration>
+                    </execution>
                 </executions>
             </plugin>
             <plugin>
@@ -364,6 +432,8 @@
                                 <source>${project.build.directory}/generated-sources/openapi-term-rate-spring/src/main/java</source>
                                 <source>${project.build.directory}/generated-sources/openapi-grants/src/main/java</source>
                                 <source>${project.build.directory}/generated-sources/openapi-grants-spring/src/main/java</source>
+                                <source>${project.build.directory}/generated-sources/openapi-cross-org/src/main/java</source>
+                                <source>${project.build.directory}/generated-sources/openapi-cross-org-spring/src/main/java</source>
                             </sources>
                         </configuration>
                     </execution>
