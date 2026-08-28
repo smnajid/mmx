@@ -10,17 +10,14 @@ import com.mmx.order.domain.model.MmxUserId;
 import com.mmx.order.domain.model.Role;
 import com.mmx.order.domain.model.UserScope;
 import com.mmx.order.support.RestTestInstitutions;
+import com.mmx.order.support.SharedPostgresTestBase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.postgresql.PostgreSQLContainer;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -32,16 +29,13 @@ import java.time.LocalDate;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+@Tag("integration")
 
-@Testcontainers(disabledWithoutDocker = true)
 @SpringBootTest(classes = MmxApplication.class, webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("rest-test")
-class RestScopeIntegrationTest {
+class RestScopeIntegrationTest extends SharedPostgresTestBase {
 
     private static final String PAR_TRADER = "scope-trader-par";
-
-    @Container
-    static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:16-alpine");
 
     private final HttpClient httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -51,14 +45,6 @@ class RestScopeIntegrationTest {
 
     @Autowired
     MmxUserRepository mmxUserRepository;
-
-    @DynamicPropertySource
-    static void registerPostgresProps(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
-        registry.add("spring.datasource.username", POSTGRES::getUsername);
-        registry.add("spring.datasource.password", POSTGRES::getPassword);
-        registry.add("spring.datasource.driver-class-name", () -> "org.postgresql.Driver");
-    }
 
     @BeforeEach
     void seedParTrader() {

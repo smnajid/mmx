@@ -4,14 +4,12 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mmx.order.MmxApplication;
 import com.mmx.order.support.RestTestInstitutions;
+import com.mmx.order.support.SharedPostgresTestBase;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.postgresql.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.net.URI;
@@ -36,15 +34,12 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <p>{@code spring.datasource.driver-class-name} is set explicitly because the {@code rest-test} profile
  * pins the H2 driver while this test overrides the JDBC URL to PostgreSQL.
  */
-@Testcontainers(disabledWithoutDocker = true)
+@Tag("e2e")
 @SpringBootTest(classes = MmxApplication.class, webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("rest-test")
-class TraderWorkflowE2ETest {
+class TraderWorkflowE2ETest extends SharedPostgresTestBase {
 
     private static final String TRADER = "trader-e2e-1";
-
-    @Container
-    static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:16-alpine");
 
     private final HttpClient httpClient =
             HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
@@ -53,15 +48,6 @@ class TraderWorkflowE2ETest {
 
     @LocalServerPort
     private int port;
-
-    @DynamicPropertySource
-    static void registerPostgresProps(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
-        registry.add("spring.datasource.username", POSTGRES::getUsername);
-        registry.add("spring.datasource.password", POSTGRES::getPassword);
-        // rest-test profile pins H2 driver; override so Flyway/JPA use Postgres with the container URL.
-        registry.add("spring.datasource.driver-class-name", () -> "org.postgresql.Driver");
-    }
 
     @Test
     void receive_list_assign_execute_verify_fullTraderWorkflow() throws Exception {

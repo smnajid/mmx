@@ -2,16 +2,13 @@ package com.mmx.order.rest;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mmx.order.MmxApplication;
+import com.mmx.order.support.SharedPostgresTestBase;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Tag;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.postgresql.PostgreSQLContainer;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -21,30 +18,19 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+@Tag("integration")
 
-@Testcontainers(disabledWithoutDocker = true)
 @SpringBootTest(classes = MmxApplication.class, webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("rest-test")
-class GlobalAccountsRestApiIntegrationTest {
+class GlobalAccountsRestApiIntegrationTest extends SharedPostgresTestBase {
 
     private static final String DEMO_TRADER = "demo-trader";
-
-    @Container
-    static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:16-alpine");
 
     private final HttpClient httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @LocalServerPort
     private int port;
-
-    @DynamicPropertySource
-    static void registerPostgresProps(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
-        registry.add("spring.datasource.username", POSTGRES::getUsername);
-        registry.add("spring.datasource.password", POSTGRES::getPassword);
-        registry.add("spring.datasource.driver-class-name", () -> "org.postgresql.Driver");
-    }
 
     @Test
     void trader_can_upsert_and_list_global_accounts() throws Exception {

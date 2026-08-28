@@ -28,6 +28,9 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.serialization.StringDeserializer;
+import com.mmx.order.support.SharedKafkaTestBroker;
+import com.mmx.order.support.SharedPostgresTestBase;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -37,11 +40,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.kafka.KafkaContainer;
-import org.testcontainers.postgresql.PostgreSQLContainer;
-import org.testcontainers.utility.DockerImageName;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
@@ -51,10 +49,10 @@ import static org.awaitility.Awaitility.await;
  * validates the AsyncAPI OrderExecutedV1 JSON Schema mirror, then assert the relay publishes the same
  * bytes to Kafka (Testcontainers) with record key = orderId.
  */
-@Testcontainers(disabledWithoutDocker = true)
+@Tag("e2e")
 @SpringBootTest(classes = MmxApplication.class, webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("rest-test")
-class ExecutionHandoffKafkaIntegrationTest {
+class ExecutionHandoffKafkaIntegrationTest extends SharedPostgresTestBase {
 
     private static final String TRADER = "trader-handoff-it-1";
     private static final String SCHEMA_PATH = "/contracts/OrderExecutedV1.json";
@@ -65,13 +63,6 @@ class ExecutionHandoffKafkaIntegrationTest {
             HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
 
     private final ObjectMapper objectMapper = new ObjectMapper();
-
-    @Container
-    static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:16-alpine");
-
-    @Container
-    static final KafkaContainer KAFKA =
-            new KafkaContainer(DockerImageName.parse("apache/kafka-native:3.8.1"));
 
     @LocalServerPort
     private int port;
@@ -84,11 +75,7 @@ class ExecutionHandoffKafkaIntegrationTest {
 
     @DynamicPropertySource
     static void registerContainers(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
-        registry.add("spring.datasource.username", POSTGRES::getUsername);
-        registry.add("spring.datasource.password", POSTGRES::getPassword);
-        registry.add("spring.datasource.driver-class-name", () -> "org.postgresql.Driver");
-        registry.add("spring.kafka.bootstrap-servers", KAFKA::getBootstrapServers);
+        registry.add("spring.kafka.bootstrap-servers", SharedKafkaTestBroker::bootstrapServers);
         registry.add("mmx.backoffice.outbox.relay-enabled", () -> "true");
         registry.add("mmx.backoffice.outbox.poll-interval-ms", () -> "100");
     }
@@ -140,7 +127,7 @@ class ExecutionHandoffKafkaIntegrationTest {
                         "SELECT payload FROM back_office_outbox WHERE order_id = ?", String.class, orderUuid);
         assertThat(persistedPayloadAfterSend).isEqualTo(storedPayload);
 
-        Properties consumerProps = kafkaConsumerProps(KAFKA.getBootstrapServers());
+        Properties consumerProps = kafkaConsumerProps(SharedKafkaTestBroker.bootstrapServers());
         try (KafkaConsumer<String, String> consumer = new KafkaConsumer<>(consumerProps)) {
             consumer.subscribe(Collections.singletonList(backOfficeExecutedTopic));
             ConsumerRecord<String, String> record =
