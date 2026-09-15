@@ -15,7 +15,9 @@ Agents SHOULD read the `tdd` skill ([`.agents/skills/tdd/SKILL.md`](.agents/skil
 
 ## Test feedback loop
 
-Every backend test class carries **exactly one** JUnit 5 category tag — `fast`, `integration`, `e2e`, or `architecture` — enforced by the `TestCategoryTaggingTest` meta-test (fails the build on a missing/duplicated category). Pick the narrowest loop that can fail for the right reason; reserve the full reactor for final verification only.
+Every backend test class carries **exactly one** JUnit 5 category tag — `fast`, `integration`, `e2e`, or `architecture` — enforced by the `TestCategoryTaggingTest` meta-test (fails the build on a missing/duplicated category).
+
+Agents SHOULD read the `test-loop` skill (global, `~/.agents/skills/test-loop/`) for the loop-selection decision procedure. This section is this repo's **test loop map**; the commands below are the only sanctioned loops. Full reactor runs exactly once, at final verification — never mid-change.
 
 | Category | Meaning | Where the tests live |
 |----------|---------|----------------------|
@@ -36,15 +38,15 @@ cd backend && mvn test -Dgroups=integration               # includes PostgreSQL 
 cd backend && mvn test -Dgroups=e2e                       # Kafka / full-workflow acceptance
 ```
 
-**Choose the loop by what changed** (inward-first, hexagonal):
+**Loop per change location:**
 
 - **`mmx-domain` change** → `mvn test -pl mmx-domain -Dtest=<Class>` (fast; frequently `-Dtest=DomainArchitectureTest`).
 - **`mmx-application` change** → `mvn test -pl mmx-application -Dtest=<Class>` (fast; assert against in-memory `port/out` fakes).
 - **REST contract change** → `mvn test -pl mmx-adapter-in-rest -Dtest=<ControllerTest>` plus the single matching `integration` class in `mmx-bootstrap` (`mvn test -pl mmx-bootstrap -am -Dtest=<Rest...IntegrationTest>`).
-- **REST-controller/unit iteration (no contract change)** → `mvn test -pl mmx-adapter-in-rest -Dtest=<ControllerTest> -DskipOpenApiGenerate=true` — skips the 12 OpenAPI-generator executions so the loop is fast; safe because the generated sources persist in `target/generated-sources/`.
+- **REST-controller/unit iteration (no contract change)** → `mvn test -pl mmx-adapter-in-rest -Dtest=<ControllerTest> -DskipOpenApiGenerate=true` — skips the 12 OpenAPI-generator executions; safe because generated sources persist in `target/generated-sources/`.
 - **Persistence change** → `mvn test -pl mmx-adapter-out-persistence -am -Dtest='<Jpa...Test>'` (`integration`).
 - **`e2e`** → on demand only: `mvn test -pl mmx-bootstrap -am -Dgroups=e2e`.
-- **Final verification** → the **single** full-reactor run `cd backend && mvn test` (all categories). Do not run the full reactor mid-change; rely on the scoped `-Dtest`/`-Dgroups` loops above.
+- **Final verification** → the **single** full-reactor run `cd backend && mvn test` (all categories).
 
 ## OpenSpec changes
 
