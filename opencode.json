@@ -37,6 +37,11 @@
       "type": "local",
       "command": ["npx", "-y", "@upstash/context7-mcp"],
       "enabled": true
+    },
+    "serena": {
+      "type": "local",
+      "command": ["serena", "start-mcp-server", "--context", "codex"],
+      "enabled": true
     }
   }
 }

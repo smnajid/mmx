@@ -66,3 +66,7 @@ This repo uses the default canonical triage labels. See `docs/agents/triage-labe
 | [docs/adr/](docs/adr/) | Architecture decision records (when present) |
 
 Agents MUST read **CONTEXT.md** and **codebase-map.md** before broad codebase exploration. These are the codebase map — do not re-explore the directory tree from scratch each session.
+
+## Serena (semantic code tools)
+
+The Serena MCP server (`.mcp.json`) provides symbolic code tools and project memories (`.serena/memories/`). Agents: activate project `mmx` before using Serena tools; read `mem:core` first instead of re-exploring the tree. Memories are canonical agent notes — update them when moving/renaming key modules or changing workflows.
