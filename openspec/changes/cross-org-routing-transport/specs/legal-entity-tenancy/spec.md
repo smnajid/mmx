@@ -23,3 +23,13 @@ A TradingClient SHALL be connected to exactly one TradingHub. The connected Trad
 
 - **WHEN** a TradingClient's `connectedHubCode` is resolved
 - **THEN** the system derives `isLocalHub` or `isRemoteHub` by comparing the connected hub's `OrganisationCode` to the deployment's own `OrganisationCode`, not by reading a stored flag
+
+#### Scenario: Cross-organisation connection rejected
+
+- **WHEN** an attempt is made to connect TradingClient `PAR` (`LODH`) to a TradingHub in `HSBC` without establishing the corresponding hub-side membership record in `HSBC`
+- **THEN** the connection is rejected — a cross-organisation connection is only established with bidirectional records on both deployments
+
+#### Scenario: Hub connection reassigned within the organisation
+
+- **WHEN** `PAR` is reassigned from hub `LOC` to hub `SIN` (both in `LODH`)
+- **THEN** `PAR` is persisted as connected to `SIN` and new routing targets `SIN`

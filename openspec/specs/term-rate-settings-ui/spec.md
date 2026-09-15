@@ -1,7 +1,9 @@
 # term-rate-settings-ui Specification
 
 ## Purpose
-TBD - created by archiving change term-rates-settings-ux. Update Purpose after archive.
+
+The `/settings/term-rates` screen where traders upload and review daily Term rate sheets: step-oriented morning workflow with discoverable trading days and sheet status, replace-day confirmation, empty-state guidance, and a scanning-optimised rates table styled with the desk design tokens.
+
 ## Requirements
 ### Requirement: Term rates screen uses desk visual theme
 

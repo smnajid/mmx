@@ -27,7 +27,7 @@ A client-side order SHALL never transition to or from `ASSIGNED` (a TradingClien
 - **WHEN** a client attempts to cancel an order in `ASSIGNED` status
 - **THEN** the system rejects the request and the status remains unchanged
 
-#### Scenario: Routed from Received at a TradingClient intake (local)
+#### Scenario: Routed from Received at a TradingClient intake
 
 - **WHEN** a local TradingClient's intake routes the order to its TradingHub in the same deployment
 - **THEN** the client-side order transitions `RECEIVED → ROUTED` synchronously and a linked hub-side order is created in `RECEIVED`

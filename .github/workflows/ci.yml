@@ -22,7 +22,7 @@ jobs:
           java-version: 25
           cache: maven
       - name: OpenSpec validate (spec-code parity gate)
-        run: npx -y @fission-ai/openspec@1 validate --all --strict
+        run: npx -y @fission-ai/openspec@1.13.0 validate --all --strict
       - name: Fast tests (no containers)
         working-directory: backend
         run: mvn -B -ntp test -Dgroups=fast

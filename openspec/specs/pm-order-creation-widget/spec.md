@@ -1,7 +1,9 @@
 # pm-order-creation-widget Specification
 
 ## Purpose
-TBD - created by archiving change pm-order-creation-widget. Update Purpose after archive.
+
+A standalone Angular wizard, embeddable in a PM application, for creating Term and On-Call money-market orders: typed configuration inputs, guided step-wise capture (order type, currency, operation, tenor or notice period, counterparty with rates, order details), review and confirm, structured `orderReady` payload emission to the mmx backend, inline error UI, and a playground for development and demo.
+
 ## Requirements
 ### Requirement: Widget exposes typed Angular inputs for configuration
 

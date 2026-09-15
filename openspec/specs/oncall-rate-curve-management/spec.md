@@ -1,7 +1,9 @@
 # oncall-rate-curve-management Specification
 
 ## Purpose
-TBD - created by archiving change oncall-rate-curve-handoff. Update Purpose after archive.
+
+Lifecycle management of OnCall rate curves as composite-keyed curve points `(institution, currency, noticePeriod)` holding ordered, contiguous rate segments: adding a rate supersedes the prior segment provisionally and prices new orders immediately, back-office confirmation is an atomic idempotent compare-and-set, traders may cancel before confirmation, and curves are hub-owned and client-read-only.
+
 ## Requirements
 ### Requirement: Curve point identity and segment model
 

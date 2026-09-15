@@ -1,7 +1,9 @@
 # term-rate-daily-upload Specification
 
 ## Purpose
-TBD - created by archiving change term-rate-daily-upload. Update Purpose after archive.
+
+Trader-only bulk intake of daily Term rates: authenticated CSV upload with strict header, row-grain, trading-day and reference-data validation, per-day query and trading-day listing, sample CSV download, contract-first REST, and hub-owned / client-read-only scoping.
+
 ## Requirements
 ### Requirement: Upload Term rates from CSV
 

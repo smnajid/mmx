@@ -1,7 +1,9 @@
 # frontend-contract-codegen Specification
 
 ## Purpose
-TBD - created by archiving change frontend-contract-codegen. Update Purpose after archive.
+
+Build-time generation of the Angular app's TypeScript API types from the canonical OpenAPI contracts, so the frontend never hand-authors endpoint types that can drift from the published HTTP contract.
+
 ## Requirements
 ### Requirement: Frontend API types are generated from the canonical OpenAPI contract
 

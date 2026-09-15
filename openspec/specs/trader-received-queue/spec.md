@@ -1,7 +1,9 @@
 # trader-received-queue Specification
 
 ## Purpose
-TBD - created by archiving change received-near-term-window. Update Purpose after archive.
+
+The Received workspace queues for Term and OnCall orders: a default near-term window (today plus the following two calendar days) so the trader sees actionable orders first, with a session-scoped show-all mode that persists when switching between workspaces.
+
 ## Requirements
 ### Requirement: Received default near-term window
 
