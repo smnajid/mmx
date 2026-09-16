@@ -133,19 +133,14 @@ class RoutedExecutionHandoffKafkaIntegrationTest extends SharedPostgresTestBase 
         await().atMost(Duration.ofSeconds(15))
                 .untilAsserted(() -> assertThat(outboxRowCount(hubUuid)).isEqualTo(1));
 
+        // Stored-payload routing-context shape is asserted at persistence level by
+        // ExecutionHandoffOutboxAdapterIntegrationTest; this e2e remains the routed Kafka
+        // acceptance lock: SENT flip + relay publishes exact stored bytes keyed by hub orderId.
         String storedPayload =
                 jdbcTemplate.queryForObject(
                         "SELECT payload FROM back_office_outbox WHERE order_id = ?::uuid",
                         String.class,
                         hubUuid);
-        JsonNode payloadNode = objectMapper.readTree(storedPayload);
-        assertPayloadValidates(payloadSchema, payloadNode);
-        assertThat(payloadNode.path("orderId").asText()).isEqualTo(routed.hubOrderId());
-        assertThat(payloadNode.path("routingId").asText()).isEqualTo(routed.routingId());
-        assertThat(payloadNode.path("originatingLegalEntityCode").asText()).isEqualTo("PAR");
-        assertThat(payloadNode.path("clientOrderId").asText()).isEqualTo(routed.clientOrderId());
-        assertThat(payloadNode.path("clientPortfolioNumber").asText()).isEqualTo("PAR-PM-77");
-        assertThat(payloadNode.path("clientCounterparty").asText()).contains("via LOC");
 
         await().atMost(Duration.ofSeconds(45))
                 .pollInterval(Duration.ofMillis(150))

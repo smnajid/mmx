@@ -109,14 +109,13 @@ class ExecutionHandoffKafkaIntegrationTest extends SharedPostgresTestBase {
                                 .as("outbox row exists after EXECUTED commits")
                                 .isEqualTo(1));
 
+        // Outbox-row payload shape is asserted at persistence level by
+        // ExecutionHandoffOutboxAdapterIntegrationTest; this e2e remains the Kafka acceptance lock:
+        // the relay flips the row to SENT and publishes the exact stored bytes keyed by orderId.
         String storedPayload =
                 jdbcTemplate.queryForObject(
                         "SELECT payload FROM back_office_outbox WHERE order_id = ?", String.class, orderUuid);
         assertThat(storedPayload).isNotBlank();
-        JsonNode payloadNode = objectMapper.readTree(storedPayload);
-        assertPayloadValidates(payloadSchema, payloadNode);
-        assertThat(payloadNode.path("orderId").asText()).isEqualTo(orderId);
-        assertThat(payloadNode.path("externalOrderReference").asText()).isEqualTo(externalRef);
 
         await().atMost(Duration.ofSeconds(45))
                 .pollInterval(Duration.ofMillis(150))

@@ -221,3 +221,28 @@ Source: `cd backend && mvn test` full-reactor run, per-class durations from `tar
 | com.mmx.order.application.port.out.GlobalAccountDirectoryTest | 0.017 |
 | com.mmx.order.domain.model.OnCallRateSegmentTest | 0.014 |
 | com.mmx.order.domain.model.TenorTest | 0.011 |
+
+## Measurements — after (Task 4.1, captured 2026-08-28)
+
+Source: `cd backend && mvn test` full-reactor run (all categories, shared singleton PostgreSQL + Kafka), per-class durations from `target/surefire-reports`. **Reactor total: 3 min 44 s.**
+
+**Slowest classes by module (s) — after vs. 0.1 baseline:**
+
+| Module | Class | Baseline (s) | After (s) |
+|--------|-------|-------------:|----------:|
+| mmx-bootstrap | `TraderWorkflowE2ETest` | 36.13 | 39.51 |
+| mmx-bootstrap | `RoutedExecutionHandoffKafkaIntegrationTest` | 42.98 | 12.83 |
+| mmx-bootstrap | `ExecutionHandoffKafkaIntegrationTest` | 37.22 | 7.25 |
+| mmx-bootstrap | `RestScopeIntegrationTest` | 35.19 | 1.78 |
+| mmx-bootstrap | `RoleScopedSettingsRestApiIntegrationTest` | 39.81 | 1.88 |
+| mmx-bootstrap | `OrderRoutingIntakeIntegrationTest` | 34.23 | 1.69 |
+| mmx-bootstrap | `DelegatedGrantsRestApiIntegrationTest` | 35.47 | 1.53 |
+| mmx-bootstrap | `CrossOrgRoutingPartialUniqueIndexTest` | 34.18 | 5.34 |
+| mmx-bootstrap | `OrderRestApiIntegrationTest` | 5.52 | 3.55 |
+| mmx-bootstrap | `HexagonalArchitectureTest` | 11.36 | 10.96 |
+| mmx-adapter-out-persistence | `JpaOrderRepositoryTest` | 19.96 | 19.46 |
+| mmx-adapter-out-persistence | `ExecutionHandoffOutboxAdapterIntegrationTest` (new, 3.9) | — | 3.34 |
+| mmx-adapter-in-rest | `OrderUpdateControllerTest` | 6.49 | 6.63 |
+| mmx-domain | `DomainArchitectureTest` | 3.50 | 5.92 |
+
+All previously per-class PostgreSQL/Kafka cold-starts are gone: the integration/e2e suite shares ONE PostgreSQL + ONE Kafka per JVM, and Spring context caching engages across classes. The remaining ~40s `TraderWorkflowE2ETest` is full-workflow acceptance latency (Awaitility waits), not infrastructure. Bootstrap module total dropped from >5 min of container-dominated classes to 1:52.

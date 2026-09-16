@@ -60,6 +60,14 @@
             <artifactId>h2</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- Test-only: persistence-level transactional-outbox assertions exercise the
+             messaging-module outbox adapter/repo against the shared H2+Flyway test stack. -->
+        <dependency>
+            <groupId>com.mmx</groupId>
+            <artifactId>mmx-adapter-out-messaging</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
 </project>
