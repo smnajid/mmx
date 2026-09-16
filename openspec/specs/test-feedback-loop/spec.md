@@ -1,7 +1,7 @@
 # test-feedback-loop Specification
 
 ## Purpose
-TBD - created by archiving change fast-test-feedback-loop. Update Purpose after archive.
+Keep the agent (and human) test feedback loop fast and honest. This capability defines the backend test taxonomy — `fast`, `integration`, `e2e`, `architecture`, exactly one tag per test class, enforced by a meta-test — and the selectable `-Dgroups` loops built on it, so verification can be scoped to the narrowest loop that can fail for the right reason instead of always paying the full reactor.
 ## Requirements
 ### Requirement: Every backend test class carries exactly one category tag
 
