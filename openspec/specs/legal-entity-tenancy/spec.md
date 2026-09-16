@@ -76,6 +76,11 @@ A TradingClient SHALL be connected to exactly one TradingHub. The connected Trad
 - **WHEN** a TradingClient's `connectedHubCode` is resolved
 - **THEN** the system derives `isLocalHub` or `isRemoteHub` by comparing the connected hub's `OrganisationCode` to the deployment's own `OrganisationCode`, not by reading a stored flag
 
+#### Scenario: Cross-organisation connection rejected
+
+- **WHEN** an attempt is made to connect TradingClient `PAR` (`LODH`) to a TradingHub in `HSBC` without establishing the corresponding hub-side membership record in `HSBC`
+- **THEN** the connection is rejected — a cross-organisation connection is only established with bidirectional records on both deployments
+
 ### Requirement: LegalEntity is the data partition dimension
 
 Tenant-scoped aggregates SHALL carry their owning `LegalEntityCode`. A session scoped to one LegalEntity SHALL only read or mutate aggregates whose owning `LegalEntityCode` matches the active scope. Orders are the first tenant-scoped aggregate; reference-data LegalEntity scoping is deferred to a later change.
