@@ -1,0 +1,18 @@
+# ─── LODH deployment profile ─────────────────────────────────────────────────
+# TradingHub side of the local cross-org topology (CGD@CGEG → LOC@LODH).
+# Run with:  mvn spring-boot:run -pl mmx-bootstrap -Dspring-boot.run.profiles=lodh
+#
+# Everything else (organisation code LODH, DB mmx, port 8080, back-office topics) is inherited from
+# application.yml. This profile only adds the cross-org leg-A/leg-B hub wiring:
+#   * role=hub registers the inbound AcceptRoutedHubOrderUseCase, the credential binder, the
+#     membership port, the RoutingOutcomeV1 outbox + relay worker (Leg B publisher);
+#   * credentials map transport keys (X-MMX-CrossOrg-Key) → proven originating LegalEntityCode.
+#     The CGEG deployment authenticates with 'local-dev-cgeg-key', proven as CGD;
+#   * outcome-topic is the LODH-owned, org-suffixed Leg-B topic (contracts/007 asyncapi).
+mmx:
+  cross-org:
+    role: hub
+    hub-legal-entity-code: LOC
+    outcome-topic: mmx.routed-order-outcome.LODH
+    credentials:
+      local-dev-cgeg-key: CGD

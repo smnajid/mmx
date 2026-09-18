@@ -1,0 +1,48 @@
+# ─── CGEG deployment profile ─────────────────────────────────────────────────
+# TradingClient side of the local cross-org topology (CGD@CGEG → LOC@LODH).
+# Run with:  mvn spring-boot:run -pl mmx-bootstrap -Dspring-boot.run.profiles=cgeg
+#
+# Separate database (mmx_cgeg) and port (8082) so CGEG and LODH run side by side against the shared
+# dev Postgres/Redpanda. Own back-office execution topic is org-suffixed so the two deployments'
+# back-office streams don't mix on the shared dev broker.
+mmx:
+  organisation:
+    code: CGEG
+  backoffice:
+    kafka:
+      topic: mmx.order.executed.CGEG
+  cross-org:
+    # role=client registers: RemoteRoutingGateway (Leg A outbound, retry + circuit-breaker),
+    # ExternalIdentityGateway, ApplyRemoteOrderOutcomeUseCase + Leg-B Kafka listener.
+    role: client
+    # This deployment's LegalEntities — the Leg-B consumer filters
+    # originatingLegalEntityCode ∈ own-legal-entity-codes before applying outcomes.
+    own-legal-entity-codes: CGD
+    # Thin client: zero hub reference data stored locally — currencies, institutions, rates and
+    # delegated grants are read live from LODH (remote-backed @Primary repositories).
+    reference-data-remote: true
+    # Leg A: LODH inbound routed-order endpoint + this deployment's transport credential
+    # (LODH proves originatingLegalEntityCode=CGD from it — never from the payload).
+    remote-routing-gateway:
+      base-url: http://localhost:8080
+      credential-key: local-dev-cgeg-key
+    # Leg A pre-step: hub-side global-account resolution against the (stubbed) external identity
+    # system. scripts/identity-stub.py serves it during local testing.
+    external-identity:
+      base-url: http://localhost:8090
+    # Leg B: consume LODH's org-suffixed outcome topic; consumer group is CGEG-owned.
+    outcome-topic: mmx.routed-order-outcome.LODH
+    consumer-enabled: true
+    consumer-group: mmx-cgeg-routed-outcome
+    # Gateway retry / circuit-breaker policy (silence is never terminal — failures keep the
+    # client-side order in Received and surface as ops signals, not state transitions).
+    retry:
+      max-attempts: 3
+      initial-backoff-ms: 500
+      failure-threshold: 5
+      recovery-duration-ms: 30000
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/mmx_cgeg
+server:
+  port: 8082
