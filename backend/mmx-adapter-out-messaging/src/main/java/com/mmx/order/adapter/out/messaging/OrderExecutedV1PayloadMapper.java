@@ -56,9 +56,18 @@ public class OrderExecutedV1PayloadMapper {
             map.put(
                     "originatingLegalEntityCode",
                     routingContext.originatingLegalEntityCode().value());
-            map.put("clientOrderId", routingContext.clientOrderId().toString());
-            map.put("clientPortfolioNumber", routingContext.clientPortfolioNumber());
-            map.put("clientCounterparty", routingContext.clientCounterparty());
+            // Client-side fields exist only for LOCAL pairs (in-process client order). On remote
+            // pairs they are unknowable at the hub and omitted — the schema marks them optional and
+            // cross-org back-office correlation keys on (originatingLegalEntityCode, routingId).
+            if (routingContext.clientOrderId() != null) {
+                map.put("clientOrderId", routingContext.clientOrderId().toString());
+            }
+            if (routingContext.clientPortfolioNumber() != null) {
+                map.put("clientPortfolioNumber", routingContext.clientPortfolioNumber());
+            }
+            if (routingContext.clientCounterparty() != null) {
+                map.put("clientCounterparty", routingContext.clientCounterparty());
+            }
         }
 
         try {

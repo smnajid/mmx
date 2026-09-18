@@ -22,6 +22,7 @@ import com.mmx.order.application.service.RoutedOrderIntake;
 import com.mmx.order.application.service.RoutedOrderOutcomePropagation;
 import com.mmx.order.application.service.RoutedOrderOutcomePropagationService;
 import com.mmx.order.application.service.UpdateOrderService;
+import com.mmx.order.domain.model.HubLocality;
 import com.mmx.order.domain.model.OrganisationCode;
 import com.mmx.order.domain.policy.OrderAgainstInstitutionPolicy;
 import org.springframework.beans.factory.ObjectProvider;
@@ -62,7 +63,9 @@ public class OrderModuleConfiguration {
             AuditLogger auditLogger,
             Clock clock,
             ExecutionHandoffOutbox executionHandoffOutbox,
-            RoutedOrderOutcomePropagation routedOrderOutcomePropagation) {
+            RoutedOrderOutcomePropagation routedOrderOutcomePropagation,
+            RoutingOutcomeOutbox routingOutcomeOutbox,
+            RoutedPairLocalityResolver routedPairLocalityResolver) {
         return new ExecuteOrderService(
                 orderRepository,
                 institutionRepository,
@@ -71,7 +74,9 @@ public class OrderModuleConfiguration {
                 auditLogger,
                 clock,
                 executionHandoffOutbox,
-                routedOrderOutcomePropagation);
+                routedOrderOutcomePropagation,
+                routingOutcomeOutbox,
+                routedPairLocalityResolver);
     }
 
     /**
@@ -161,8 +166,39 @@ public class OrderModuleConfiguration {
             OrderRepository orderRepository,
             AuditLogger auditLogger,
             Clock clock,
-            RoutedOrderOutcomePropagation routedOrderOutcomePropagation) {
-        return new OrderLifecycleService(orderRepository, auditLogger, clock, routedOrderOutcomePropagation);
+            RoutedOrderOutcomePropagation routedOrderOutcomePropagation,
+            RoutingOutcomeOutbox routingOutcomeOutbox,
+            RoutedPairLocalityResolver routedPairLocalityResolver) {
+        return new OrderLifecycleService(
+                orderRepository,
+                auditLogger,
+                clock,
+                routedOrderOutcomePropagation,
+                routingOutcomeOutbox,
+                routedPairLocalityResolver);
+    }
+
+    /**
+     * V1 hub-pair locality: a hub-side pair is REMOTE when its originating LegalEntity belongs to a
+     * foreign Organisation (e.g. CGD@CGEG on the LODH deployment) and LOCAL when it belongs to this
+     * deployment's own Organisation (e.g. PAR@LODH). Derived from the legal-entity register — never
+     * stored. An unregistered originating LegalEntity classifies REMOTE (fail toward the leg-B
+     * mirror rather than a local pair-integrity throw).
+     */
+    @Bean
+    public RoutedPairLocalityResolver routedPairLocalityResolver(
+            LegalEntityRepository legalEntityRepository, OrganisationProperties organisationProperties) {
+        return originatingCode ->
+                legalEntityRepository
+                        .findByCode(originatingCode)
+                        .map(
+                                entity ->
+                                        entity.getOrganisationCode()
+                                                .value()
+                                                .equalsIgnoreCase(organisationProperties.code()))
+                        .orElse(false)
+                        ? HubLocality.LOCAL
+                        : HubLocality.REMOTE;
     }
 
     /**

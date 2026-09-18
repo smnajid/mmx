@@ -4,9 +4,12 @@ import com.mmx.order.application.command.ExecuteOrderCommand;
 import com.mmx.order.application.port.out.AuditLogger;
 import com.mmx.order.application.port.out.Clock;
 import com.mmx.order.application.port.out.ExecutionHandoffOutbox;
+import com.mmx.order.domain.model.HubLocality;
 import com.mmx.order.application.port.out.InstitutionRepository;
 import com.mmx.order.application.port.out.OrderRepository;
 import com.mmx.order.application.port.out.ReferenceGenerator;
+import com.mmx.order.application.port.out.RoutedPairLocalityResolver;
+import com.mmx.order.application.port.out.RoutingOutcomeOutbox;
 import com.mmx.order.domain.exception.InvalidOrderException;
 import com.mmx.order.domain.model.ContractNumber;
 import com.mmx.order.domain.model.DealingReference;
@@ -95,7 +98,9 @@ class ExecuteOrderServiceRateOnlyTest {
                         auditLogger,
                         clock,
                         executionHandoffOutbox,
-                        new RoutedOrderOutcomePropagationService(orderRepository, referenceGenerator));
+                        new RoutedOrderOutcomePropagationService(orderRepository, referenceGenerator),
+                        org.mockito.Mockito.mock(RoutingOutcomeOutbox.class),
+                        code -> HubLocality.LOCAL);
     }
 
     @Test

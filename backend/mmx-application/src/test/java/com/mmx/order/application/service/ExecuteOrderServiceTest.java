@@ -4,9 +4,13 @@ import com.mmx.order.application.command.ExecuteOrderCommand;
 import com.mmx.order.application.port.out.AuditLogger;
 import com.mmx.order.application.port.out.Clock;
 import com.mmx.order.application.port.out.ExecutionHandoffOutbox;
+import com.mmx.order.application.port.out.ExecutionHandoffRoutingContext;
+import com.mmx.order.domain.model.HubLocality;
 import com.mmx.order.application.port.out.InstitutionRepository;
 import com.mmx.order.application.port.out.OrderRepository;
 import com.mmx.order.application.port.out.ReferenceGenerator;
+import com.mmx.order.application.port.out.RoutedPairLocalityResolver;
+import com.mmx.order.application.port.out.RoutingOutcomeOutbox;
 import com.mmx.order.domain.model.Institution;
 import com.mmx.order.domain.policy.OrderAgainstInstitutionPolicy;
 import com.mmx.order.domain.exception.InvalidOrderException;
@@ -90,6 +94,12 @@ class ExecuteOrderServiceTest {
     @Mock
     InstitutionRepository institutionRepository;
 
+    @Mock
+    RoutingOutcomeOutbox routingOutcomeOutbox;
+
+    @Mock
+    RoutedPairLocalityResolver routedPairLocalityResolver;
+
     private final OrderAgainstInstitutionPolicy institutionPolicy = new OrderAgainstInstitutionPolicy();
 
     @InjectMocks
@@ -104,6 +114,9 @@ class ExecuteOrderServiceTest {
         when(clock.today()).thenReturn(TODAY);
         when(institutionRepository.existsAny()).thenReturn(true);
         when(institutionRepository.findByInstitutionCode("HSBC-01")).thenReturn(Optional.of(HSBC));
+        // Pairs whose originating client is not classified REMOTE keep the synchronous in-process
+        // propagation (local pair); remote-pair tests override this stub.
+        when(routedPairLocalityResolver.resolve(any())).thenReturn(HubLocality.LOCAL);
         subject =
                 new ExecuteOrderService(
                         orderRepository,
@@ -113,7 +126,9 @@ class ExecuteOrderServiceTest {
                         auditLogger,
                         clock,
                         executionHandoffOutbox,
-                        new RoutedOrderOutcomePropagationService(orderRepository, referenceGenerator));
+                        new RoutedOrderOutcomePropagationService(orderRepository, referenceGenerator),
+                        routingOutcomeOutbox,
+                        routedPairLocalityResolver);
     }
 
     @Test
@@ -454,6 +469,40 @@ class ExecuteOrderServiceTest {
                 .isEqualTo(LIFECYCLE_SOURCE_REF);
         verify(referenceGenerator, never()).generateContractNumber();
         verify(orderRepository, times(1)).findRoutedClientOrderByRoutingId(pair.routingId());
+    }
+
+    @Test
+    void execute_hubRoutedOrder_remotePair_schedulesLegBOutcome_skipsLocalPropagation() {
+        RoutedExecutePair pair = routedSubscriptionPair();
+        when(routedPairLocalityResolver.resolve(pair.hub().getOriginatingLegalEntityCode()))
+                .thenReturn(HubLocality.REMOTE);
+        when(orderRepository.findById(pair.hub().getId())).thenReturn(Optional.of(pair.hub()));
+        when(orderRepository.save(any(MoneyMarketOrder.class))).then(returnsFirstArg());
+        when(referenceGenerator.generateDealingReference()).thenReturn(DEAL_REF);
+        when(referenceGenerator.generateContractNumber()).thenReturn(CONTRACT_REF);
+
+        MoneyMarketOrder result =
+                subject.execute(
+                        new ExecuteOrderCommand(pair.hub().getId(), TRADER_A, new BigDecimal("3.55")));
+
+        // The client-side order lives in the CGEG deployment: no in-process propagation attempt,
+        // and the leg-B EXECUTED outcome is committed in the same transaction.
+        assertThat(result.getStatus()).isEqualTo(OrderStatus.EXECUTED);
+        verify(orderRepository, never()).findRoutedClientOrderByRoutingId(any());
+        verify(routingOutcomeOutbox).scheduleExecuted(pair.hub(), FIXED_NOW);
+
+        // The hub-side back-office event still goes out (hub-side booking facts), carrying the
+        // cross-boundary correlation (routingId + originatingLegalEntityCode) — client fields are
+        // unknowable at the hub and omitted.
+        ArgumentCaptor<ExecutionHandoffRoutingContext> context =
+                ArgumentCaptor.forClass(ExecutionHandoffRoutingContext.class);
+        verify(executionHandoffOutbox).schedule(any(MoneyMarketOrder.class), context.capture());
+        assertThat(context.getValue().routingId()).isEqualTo(pair.routingId());
+        assertThat(context.getValue().originatingLegalEntityCode())
+                .isEqualTo(pair.hub().getOriginatingLegalEntityCode());
+        assertThat(context.getValue().clientOrderId()).isNull();
+        assertThat(context.getValue().clientPortfolioNumber()).isNull();
+        assertThat(context.getValue().clientCounterparty()).isNull();
     }
 
     @Test

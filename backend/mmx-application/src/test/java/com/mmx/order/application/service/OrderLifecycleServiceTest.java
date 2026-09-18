@@ -4,8 +4,11 @@ import com.mmx.order.application.command.CancelOrderCommand;
 import com.mmx.order.application.command.RejectOrderCommand;
 import com.mmx.order.application.port.out.AuditLogger;
 import com.mmx.order.application.port.out.Clock;
+import com.mmx.order.domain.model.HubLocality;
 import com.mmx.order.application.port.out.OrderRepository;
 import com.mmx.order.application.port.out.ReferenceGenerator;
+import com.mmx.order.application.port.out.RoutedPairLocalityResolver;
+import com.mmx.order.application.port.out.RoutingOutcomeOutbox;
 import com.mmx.order.domain.exception.InvalidOrderException;
 import com.mmx.order.domain.exception.InvalidStatusTransitionException;
 import com.mmx.order.domain.exception.OrderNotFoundException;
@@ -71,18 +74,29 @@ class OrderLifecycleServiceTest {
     @Mock
     ReferenceGenerator referenceGenerator;
 
+    @Mock
+    RoutingOutcomeOutbox routingOutcomeOutbox;
+
+    @Mock
+    RoutedPairLocalityResolver routedPairLocalityResolver;
+
     OrderLifecycleService subject;
 
     @BeforeEach
     void freezeClock() {
         when(clock.now()).thenReturn(FIXED_NOW);
         when(clock.today()).thenReturn(TODAY);
+        // Pairs whose originating client is not classified REMOTE keep the synchronous in-process
+        // propagation (local pair); remote-pair tests override this stub.
+        when(routedPairLocalityResolver.resolve(any())).thenReturn(HubLocality.LOCAL);
         subject =
                 new OrderLifecycleService(
                         orderRepository,
                         auditLogger,
                         clock,
-                        new RoutedOrderOutcomePropagationService(orderRepository, referenceGenerator));
+                        new RoutedOrderOutcomePropagationService(orderRepository, referenceGenerator),
+                        routingOutcomeOutbox,
+                        routedPairLocalityResolver);
     }
 
     @Test
@@ -255,6 +269,38 @@ class OrderLifecycleServiceTest {
                         () -> subject.reject(new RejectOrderCommand(pair.hub().getId(), "Declined", TRADER)))
                 .isInstanceOf(RoutedOrderPairIntegrityException.class);
         verify(orderRepository, times(1)).save(any(MoneyMarketOrder.class));
+    }
+
+    @Test
+    void cancel_hubRoutedOrder_remotePair_schedulesLegBCancelled_skipsLocalPropagation() {
+        RoutedPair pair = routedPair();
+        when(routedPairLocalityResolver.resolve(pair.hub().getOriginatingLegalEntityCode()))
+                .thenReturn(HubLocality.REMOTE);
+        when(orderRepository.findById(pair.hub().getId())).thenReturn(Optional.of(pair.hub()));
+        when(orderRepository.save(any(MoneyMarketOrder.class))).then(returnsFirstArg());
+
+        MoneyMarketOrder result = subject.cancel(new CancelOrderCommand(pair.hub().getId(), TRADER));
+
+        assertThat(result.getStatus()).isEqualTo(OrderStatus.CANCELLED);
+        verify(orderRepository, never()).findRoutedClientOrderByRoutingId(any());
+        verify(routingOutcomeOutbox).scheduleCancelled(pair.hub(), FIXED_NOW);
+    }
+
+    @Test
+    void reject_hubRoutedOrder_remotePair_schedulesLegBRejectedWithReason_skipsLocalPropagation() {
+        RoutedPair pair = routedPair();
+        when(routedPairLocalityResolver.resolve(pair.hub().getOriginatingLegalEntityCode()))
+                .thenReturn(HubLocality.REMOTE);
+        pair.hub().assign(TRADER, FIXED_NOW);
+        when(orderRepository.findById(pair.hub().getId())).thenReturn(Optional.of(pair.hub()));
+        when(orderRepository.save(any(MoneyMarketOrder.class))).then(returnsFirstArg());
+
+        MoneyMarketOrder result =
+                subject.reject(new RejectOrderCommand(pair.hub().getId(), "Declined", TRADER));
+
+        assertThat(result.getStatus()).isEqualTo(OrderStatus.REJECTED);
+        verify(orderRepository, never()).findRoutedClientOrderByRoutingId(any());
+        verify(routingOutcomeOutbox).scheduleRejected(pair.hub(), "Declined", FIXED_NOW);
     }
 
     private record RoutedPair(MoneyMarketOrder hub, MoneyMarketOrder client, RoutingId routingId) {}

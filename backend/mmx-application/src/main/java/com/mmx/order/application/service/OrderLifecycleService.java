@@ -7,8 +7,11 @@ import com.mmx.order.application.port.in.RejectOrderUseCase;
 import com.mmx.order.application.port.out.AuditLogger;
 import com.mmx.order.application.port.out.Clock;
 import com.mmx.order.application.port.out.OrderRepository;
+import com.mmx.order.application.port.out.RoutedPairLocalityResolver;
+import com.mmx.order.application.port.out.RoutingOutcomeOutbox;
 import com.mmx.order.domain.exception.InvalidOrderException;
 import com.mmx.order.domain.exception.OrderNotFoundException;
+import com.mmx.order.domain.model.HubLocality;
 import com.mmx.order.domain.model.MoneyMarketOrder;
 
 public final class OrderLifecycleService implements CancelOrderUseCase, RejectOrderUseCase {
@@ -20,16 +23,22 @@ public final class OrderLifecycleService implements CancelOrderUseCase, RejectOr
     private final AuditLogger auditLogger;
     private final Clock clock;
     private final RoutedOrderOutcomePropagation routedOrderOutcomePropagation;
+    private final RoutingOutcomeOutbox routingOutcomeOutbox;
+    private final RoutedPairLocalityResolver routedPairLocalityResolver;
 
     public OrderLifecycleService(
             OrderRepository orderRepository,
             AuditLogger auditLogger,
             Clock clock,
-            RoutedOrderOutcomePropagation routedOrderOutcomePropagation) {
+            RoutedOrderOutcomePropagation routedOrderOutcomePropagation,
+            RoutingOutcomeOutbox routingOutcomeOutbox,
+            RoutedPairLocalityResolver routedPairLocalityResolver) {
         this.orderRepository = orderRepository;
         this.auditLogger = auditLogger;
         this.clock = clock;
         this.routedOrderOutcomePropagation = routedOrderOutcomePropagation;
+        this.routingOutcomeOutbox = routingOutcomeOutbox;
+        this.routedPairLocalityResolver = routedPairLocalityResolver;
     }
 
     @Override
@@ -43,7 +52,13 @@ public final class OrderLifecycleService implements CancelOrderUseCase, RejectOr
         order.cancel(now);
         MoneyMarketOrder saved = orderRepository.save(order);
         if (saved.isHubSideRoutedLink()) {
-            routedOrderOutcomePropagation.propagateCancel(saved, now);
+            if (isRemotePair(saved)) {
+                // Cross-deployment pair: no in-process client-side order — mirror the outcome via
+                // the leg-B outbox in this transaction (silence is never terminal).
+                routingOutcomeOutbox.scheduleCancelled(saved, now);
+            } else {
+                routedOrderOutcomePropagation.propagateCancel(saved, now);
+            }
         }
         auditLogger.log(saved.getId(), EVENT_ORDER_CANCELLED, command.traderId().value(), now);
         return saved;
@@ -61,7 +76,11 @@ public final class OrderLifecycleService implements CancelOrderUseCase, RejectOr
         order.reject(command.traderId(), command.reason(), now);
         MoneyMarketOrder saved = orderRepository.save(order);
         if (saved.isHubSideRoutedLink()) {
-            routedOrderOutcomePropagation.propagateReject(saved, saved.getRejectionReason(), now);
+            if (isRemotePair(saved)) {
+                routingOutcomeOutbox.scheduleRejected(saved, saved.getRejectionReason(), now);
+            } else {
+                routedOrderOutcomePropagation.propagateReject(saved, saved.getRejectionReason(), now);
+            }
         }
         auditLogger.log(saved.getId(), EVENT_ORDER_REJECTED, command.traderId().value(), now);
         return saved;
@@ -71,5 +90,10 @@ public final class OrderLifecycleService implements CancelOrderUseCase, RejectOr
         if (command.reason() == null || command.reason().isBlank()) {
             throw new InvalidOrderException("reason is required");
         }
+    }
+
+    private boolean isRemotePair(MoneyMarketOrder hubOrder) {
+        return routedPairLocalityResolver.resolve(hubOrder.getOriginatingLegalEntityCode())
+                == HubLocality.REMOTE;
     }
 }

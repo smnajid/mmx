@@ -89,8 +89,16 @@ public class CrossOrgRoutingModuleConfiguration {
         return new PropertiesCrossOrgCredentialBinder(creds);
     }
 
+    // Unconditional: the routing-outcome outbox table exists on every deployment (V25) and the
+    // order-lifecycle services take the port; on non-hub deployments no rows are ever scheduled.
     @Bean
-    @ConditionalOnProperty(prefix = "mmx.cross-org", name = "role", havingValue = "hub")
+    public java.time.Clock systemUTCClock() {
+        // java.time.Clock for the leg-B outbox timestamps (distinct from the application-port
+        // Clock bean in OrderModuleConfiguration, which this module also injects by its own type).
+        return java.time.Clock.systemUTC();
+    }
+
+    @Bean
     public RoutingOutcomeOutbox routingOutcomeOutbox(
             com.mmx.order.adapter.out.messaging.repository.SpringDataRoutingOutcomeOutboxRepository
                     repo,

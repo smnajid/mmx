@@ -9,9 +9,12 @@ import com.mmx.order.application.port.out.ExecutionHandoffOutbox;
 import com.mmx.order.application.port.out.InstitutionRepository;
 import com.mmx.order.application.port.out.OrderRepository;
 import com.mmx.order.application.port.out.ReferenceGenerator;
+import com.mmx.order.application.port.out.RoutedPairLocalityResolver;
+import com.mmx.order.application.port.out.RoutingOutcomeOutbox;
 import com.mmx.order.domain.exception.InvalidOrderException;
 import com.mmx.order.domain.exception.OrderNotFoundException;
 import com.mmx.order.domain.model.ContractNumber;
+import com.mmx.order.domain.model.HubLocality;
 import com.mmx.order.domain.model.Institution;
 import com.mmx.order.domain.model.MoneyMarketOrder;
 import com.mmx.order.domain.model.OrderOperation;
@@ -29,6 +32,8 @@ public final class ExecuteOrderService implements ExecuteOrderUseCase {
     private final Clock clock;
     private final ExecutionHandoffOutbox executionHandoffOutbox;
     private final RoutedOrderOutcomePropagation routedOrderOutcomePropagation;
+    private final RoutingOutcomeOutbox routingOutcomeOutbox;
+    private final RoutedPairLocalityResolver routedPairLocalityResolver;
 
     public ExecuteOrderService(
             OrderRepository orderRepository,
@@ -38,7 +43,9 @@ public final class ExecuteOrderService implements ExecuteOrderUseCase {
             AuditLogger auditLogger,
             Clock clock,
             ExecutionHandoffOutbox executionHandoffOutbox,
-            RoutedOrderOutcomePropagation routedOrderOutcomePropagation) {
+            RoutedOrderOutcomePropagation routedOrderOutcomePropagation,
+            RoutingOutcomeOutbox routingOutcomeOutbox,
+            RoutedPairLocalityResolver routedPairLocalityResolver) {
         this.orderRepository = orderRepository;
         this.institutionRepository = institutionRepository;
         this.institutionPolicy = institutionPolicy;
@@ -47,6 +54,8 @@ public final class ExecuteOrderService implements ExecuteOrderUseCase {
         this.clock = clock;
         this.executionHandoffOutbox = executionHandoffOutbox;
         this.routedOrderOutcomePropagation = routedOrderOutcomePropagation;
+        this.routingOutcomeOutbox = routingOutcomeOutbox;
+        this.routedPairLocalityResolver = routedPairLocalityResolver;
     }
 
     @Override
@@ -81,7 +90,19 @@ public final class ExecuteOrderService implements ExecuteOrderUseCase {
 
         ExecutionHandoffRoutingContext handoffContext = ExecutionHandoffRoutingContext.none();
         if (saved.isHubSideRoutedLink()) {
-            handoffContext = routedOrderOutcomePropagation.propagateExecution(saved).handoffContext();
+            if (isRemotePair(saved)) {
+                // Cross-deployment pair (e.g. CGD@CGEG → LOC@LODH): there is no in-process client-side
+                // order to propagate to. The leg-B EXECUTED outcome is committed in this transaction
+                // and the client deployment applies it (silence is never terminal). The back-office
+                // event below still carries the cross-boundary correlation (routingId + originating
+                // LegalEntityCode); client-side fields are unknowable at the hub and omitted.
+                routingOutcomeOutbox.scheduleExecuted(saved, now);
+                handoffContext =
+                        new ExecutionHandoffRoutingContext(
+                                saved.getRoutingId(), saved.getOriginatingLegalEntityCode(), null, null, null);
+            } else {
+                handoffContext = routedOrderOutcomePropagation.propagateExecution(saved).handoffContext();
+            }
         }
 
         if (!saved.suppressesExecutionHandoff()) {
@@ -95,6 +116,11 @@ public final class ExecuteOrderService implements ExecuteOrderUseCase {
         if (command.executedRate() == null) {
             throw new InvalidOrderException("executedRate is required");
         }
+    }
+
+    private boolean isRemotePair(MoneyMarketOrder hubOrder) {
+        return routedPairLocalityResolver.resolve(hubOrder.getOriginatingLegalEntityCode())
+                == HubLocality.REMOTE;
     }
 
     private ContractNumber resolveExecutionContractNumber(MoneyMarketOrder order) {
