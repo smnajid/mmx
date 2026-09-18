@@ -71,4 +71,8 @@ Agents MUST read **CONTEXT.md** and **codebase-map.md** before broad codebase ex
 
 ## Serena (semantic code tools)
 
-The Serena MCP server (`.mcp.json`) provides symbolic code tools and project memories (`.serena/memories/`). Agents: activate project `mmx` before using Serena tools; read `mem:core` first instead of re-exploring the tree. Memories are canonical agent notes — update them when moving/renaming key modules or changing workflows.
+The Serena MCP server (`.mcp.json`) provides symbolic code tools and project memories (`.serena/memories/`).
+
+- Agents MUST activate project `mmx` and read `mem:core` (following its references as relevant) before broad backend/frontend code exploration — same tier as reading CONTEXT.md and codebase-map.md. Do not re-derive what a memory already records.
+- Agents MUST update the relevant memory (e.g. `mem:backend/core`, `mem:frontend/core`) when moving/renaming key modules, changing build/test workflows, or resolving a non-obvious gotcha future agents would otherwise rediscover.
+- Agents SHOULD prefer Serena symbol tools (`find_symbol`, `find_referencing_symbols`) for "where is X defined/used" questions in Java/TS; grep remains fine for configs, SQL, scripts, and prose.

@@ -28,7 +28,7 @@ Package root: `com.mmx.order` in ALL modules.
 - PM intake is the exception: `legalEntityCode` required in intake body (PM authenticated at org level).
 
 ## Persistence
-- Flyway: `mmx-bootstrap/src/main/resources/db/migration/V*.sql` (V1–V4 orders/audit, V7–V8 handoff+outbox, V9–V12 currency/institution/term_rate, V13–V14 on-call segments, V18 tenancy tables `organisation`/`legal_entity`/`mmx_user`, V20 delegated grants, V21 routing columns, V22 `global_account`).
+- Flyway: `mmx-bootstrap/src/main/resources/db/migration/V*.sql` (V1–V4 orders/audit, V7–V8 handoff+outbox, V9–V12 currency/institution/term_rate, V13–V14 on-call segments, V18 tenancy tables `organisation`/`legal_entity`/`mmx_user`, V20 delegated grants, V21 routing columns, V22 `global_account`, V25 routing-outcome outbox, V26 cross-org demo topology seed (CGD@CGEG → LOC@LODH, ON CONFLICT DO NOTHING — hub needs CGD registered for leg-A membership; client needs the LOC row for the connectedHub FK).
 - Adapters: `Jpa*Repository` implementing `port/out`.
 
 ## Test placement
@@ -36,3 +36,16 @@ Package root: `com.mmx.order` in ALL modules.
 
 ## Routing touchpoints
 `ReceiveOrderService`, `RouteOrderService`, `RoutedOrderLink`, `HubLocalityResolver`, `AcceptRoutedHubOrderUseCase`, `ApplyRemoteOrderOutcomeUseCase`, ports `ExternalIdentityGateway`, `RemoteRoutingGateway` (`ResilientRemoteRoutingGateway` retry/CB), `GlobalAccountDirectory`. Invariants: silence is never terminal; routing id deterministic from client-side order id; hub dedupes on `(originatingLegalEntityCode, routingId)`.
+
+## Hub-pair locality dispatch (terminal transitions)
+- `RoutedPairLocalityResolver` (port `application/port/out`; bean in `OrderModuleConfiguration` = originating LE's org == deployment org, unregistered LE → REMOTE).
+- Hub-side execute/cancel/reject: REMOTE pair → `RoutingOutcomeOutbox.schedule*` leg-B row ONLY (no client-side lookup — spec `order-routing` §Remote outcome propagation); LOCAL pair → `RoutedOrderOutcomePropagationService` unchanged (throw-and-rollback on broken pair).
+- Remote pair's `OrderExecutedV1` carries `routingId` + `originatingLegalEntityCode` only; client fields omitted (`OrderExecutedV1PayloadMapper` null-guards — schema marks them optional; BO correlates on the pair).
+
+## Role-scoped deployment gotchas
+- `role=hub` context needs `java.time.Clock` + `RoutingOutcomeOutbox` beans — both unconditional in `CrossOrgRoutingModuleConfiguration` (lifecycle services take the port on every deployment; `RoutingOutcomeRelayWorker` stays hub-only).
+- `rest-test` profile seeders are hub-shaped `ApplicationRunner`s that run at context startup → client-role context tests must NOT activate `rest-test`; datasource from `SharedPostgresTestBase` dynamic props + disable `mmx.backoffice.outbox.relay-enabled` / `mmx.oncall.outbox.relay-enabled` (else relay polls race the Flyway clean+migrate).
+- Desk/settings default scope is resolution-order dependent (`demo-trader` sorts to CGD after V26) — scripts/tests must pin scope via `POST /api/v1/session/scope`.
+
+## Cross-org local dev stack
+`./mmx-cross-org-start.sh` boots BOTH deployments: LODH hub :8080 (DB `mmx`, profile `application-lodh.yml`) + CGEG client :8082 (DB `mmx_cgeg`, profile `application-cgeg.yml`, `reference-data-remote: true` — thin client, zero hub reference data stored) + identity stub :8090 (`scripts/identity-stub.py`). `--frontend` adds LODH UI :4200 + CGEG UI :4201 (`proxy-cgeg.conf.json`). Verify with `./scripts/cross-org-smoke.sh` (idempotent; exercises grant setup → thin-client remote read → intake/leg A → hub execute → leg B EXECUTED).

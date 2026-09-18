@@ -13,7 +13,7 @@ Internal Money Market **order intake + trader workflow** (assign/update/execute/
 - `contracts/00N-<feature>/` — canonical OpenAPI/AsyncAPI/JSON schemas; feature 002 is primary for orders/session/on-call rates.
 - `openspec/specs/` — canonical capability specs (SDD); `openspec/changes/archive/` historical only.
 - `docs/adr/` — tenancy, routing, identity, back-office boundaries.
-- `scripts/` — schema registry, demo seed, BO callbacks. `.scratch/` — issue tracker.
+- `scripts/` — schema registry, demo seed, BO callbacks; `mmx-cross-org-start.sh` (repo root) + `scripts/cross-org-smoke.sh` boot/verify the two-deployment cross-org stack (CGD@CGEG → LOC@LODH; details in `mem:backend/core`). `.scratch/` — issue tracker.
 
 ## Project-wide invariants
 - **SDD parity**: material changes (API, domain behaviour, persistence, Trader UX) MUST update `openspec/specs/` AND `contracts/` (incl. `api-v1.md` prose mirror) — missing spec updates are a blocking defect.

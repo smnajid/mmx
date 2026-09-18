@@ -4,6 +4,7 @@
 
 **Read order before exploring code:**
 
+0. `mem:core` (Serena memory — activate project `mmx` first) — cross-session agent notes; follow references as relevant (see [AGENTS.md](../../AGENTS.md) §Serena)
 1. [CONTEXT.md](../../CONTEXT.md) — vocabulary (MMXUser, legal-entity scope, routing, delegated grants)
 2. This file — locations
 3. Canonical HTTP contracts under `contracts/<feature>/openapi.yaml` + `api-v1.md`
@@ -271,6 +272,10 @@ cd frontend && npm test
 
 # Cypress e2e (app must be running)
 cd frontend && npm run e2e
+
+# Cross-org two-deployment stack (CGD@CGEG client :8082 → LOC@LODH hub :8080, identity stub :8090)
+./mmx-cross-org-start.sh [--frontend]        # profiles: application-lodh.yml / application-cgeg.yml
+./scripts/cross-org-smoke.sh                 # end-to-end order-flow check (intake → leg A → execute → leg B)
 ```
 
 ---
