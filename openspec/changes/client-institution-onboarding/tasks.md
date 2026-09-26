@@ -132,38 +132,38 @@ Strict TDD (no waiver): each "Write failing" task must be seen red before its "I
 
 ## 8. Bootstrap wiring and integration tests (`mmx-bootstrap`)
 
-- [ ] 8.1 Wire the new beans:
+- [x] 8.1 Wire the new beans:
   - `*ModuleConfiguration`: new use cases, `InstitutionExportOutbox`, relay (`mmx.institution.outbox.relay-enabled`, `mmx.institution.kafka.topic-prefix`), and transaction wrapping;
   - `CrossOrgRoutingModuleConfiguration`: the client uses local JPA `InstitutionRepository`, and `HubInstitutionCatalog` is remote on CGEG and in-process otherwise;
   - `application*.yml`: the new keys.
 
   Verify with `mvn test -pl mmx-bootstrap -am -Dtest=HexagonalArchitectureTest -Dsurefire.failIfNoSpecifiedTests=false`.
-- [ ] 8.2 Update seed data so existing integration tests describe the new model:
+- [x] 8.2 Update seed data so existing integration tests describe the new model:
   - `RestTestInstitutionBootstrap`: seeded institutions get both counterparty accounts;
   - the SQL-seeding tests (`OrderRoutingIntakeIntegrationTest`, `OrderRestApiIntegrationTest`, `OrderCreationOptionsRestApiIntegrationTest`, `TermRateRestApiIntegrationTest`, `TransactionalOrderLifecycleAtomicityIntegrationTest`, `RoutedExecutionHandoffKafkaIntegrationTest`, `CrossOrgClientDeploymentIntegrationTest`): insert accounts and onboarded client institutions, replacing proxy wording;
   - client-role contexts: set `mmx.institution.outbox.relay-enabled=false`.
 
   Verify with `mvn test -pl mmx-bootstrap -am -Dtest=OrderRoutingIntakeIntegrationTest -Dsurefire.failIfNoSpecifiedTests=false`.
-- [ ] 8.3 Extend `RoleScopedSettingsRestApiIntegrationTest`. `mvn test -pl mmx-bootstrap -am -Dtest=RoleScopedSettingsRestApiIntegrationTest -Dsurefire.failIfNoSpecifiedTests=false`. Cover:
+- [x] 8.3 Extend `RoleScopedSettingsRestApiIntegrationTest`. `mvn test -pl mmx-bootstrap -am -Dtest=RoleScopedSettingsRestApiIntegrationTest -Dsurefire.failIfNoSpecifiedTests=false`. Cover:
   - ClientRepresentative granted list → onboard (nothing enabled) → set accounts → enable tenors → offboard → re-onboard;
   - enabling without the account, or outside the grant, is rejected;
   - a Trader sets hub accounts;
   - a cross-scope account change is rejected;
   - each mutation commits exactly one `institution_export_outbox` row.
-- [ ] 8.4 Implement any wiring or mapping gaps until green.
-- [ ] 8.5 Extend `OrderRoutingIntakeIntegrationTest`. `mvn test -pl mmx-bootstrap -am -Dtest=OrderRoutingIntakeIntegrationTest -Dsurefire.failIfNoSpecifiedTests=false`. Cover:
+- [x] 8.4 Implement any wiring or mapping gaps until green.
+- [x] 8.5 Extend `OrderRoutingIntakeIntegrationTest`. `mvn test -pl mmx-bootstrap -am -Dtest=OrderRoutingIntakeIntegrationTest -Dsurefire.failIfNoSpecifiedTests=false`. Cover:
   - a Redemption on a deactivated grant is routed;
   - a Subscription on an offboarded institution → REJECTED;
   - a Subscription on a granted tenor the client has not enabled → REJECTED;
   - a missing hub account → REJECTED routing failure, with no hub-side order.
-- [ ] 8.6 Implement any gaps until green.
-- [ ] 8.7 Extend `CrossOrgClientDeploymentIntegrationTest`. `mvn test -pl mmx-bootstrap -am -Dtest=CrossOrgClientDeploymentIntegrationTest -Dsurefire.failIfNoSpecifiedTests=false`. Cover:
+- [x] 8.6 Implement any gaps until green.
+- [x] 8.7 Extend `CrossOrgClientDeploymentIntegrationTest`. `mvn test -pl mmx-bootstrap -am -Dtest=CrossOrgClientDeploymentIntegrationTest -Dsurefire.failIfNoSpecifiedTests=false`. Cover:
   - the client deployment persists an onboarded institution with no local hub LE/institution row;
   - its institution list and client enablement are served and stored locally, with no hub write;
   - leg A carries `clientCounterpartyAccount`.
-- [ ] 8.8 Implement any gaps until green.
-- [ ] 8.9 Write failing `InstitutionExportKafkaIntegrationTest` (`@Tag("e2e")`): onboarding at `PAR` publishes one `InstitutionUpdatedV1` to `mmx.institution.PAR` (and none to `mmx.institution.LOC`), and the payload validates against the canonical schema. Also extend `ExecutionHandoffKafkaIntegrationTest` and `RoutedExecutionHandoffKafkaIntegrationTest` to assert `counterpartyAccount` / `clientCounterpartyAccount`. `mvn test -pl mmx-bootstrap -am -Dtest='InstitutionExportKafkaIntegrationTest,ExecutionHandoffKafkaIntegrationTest,RoutedExecutionHandoffKafkaIntegrationTest' -Dsurefire.failIfNoSpecifiedTests=false`
-- [ ] 8.10 Implement any relay or config gaps until green.
+- [x] 8.8 Implement any gaps until green.
+- [x] 8.9 Write failing `InstitutionExportKafkaIntegrationTest` (`@Tag("e2e")`): onboarding at `PAR` publishes one `InstitutionUpdatedV1` to `mmx.institution.PAR` (and none to `mmx.institution.LOC`), and the payload validates against the canonical schema. Also extend `ExecutionHandoffKafkaIntegrationTest` and `RoutedExecutionHandoffKafkaIntegrationTest` to assert `counterpartyAccount` / `clientCounterpartyAccount`. `mvn test -pl mmx-bootstrap -am -Dtest='InstitutionExportKafkaIntegrationTest,ExecutionHandoffKafkaIntegrationTest,RoutedExecutionHandoffKafkaIntegrationTest' -Dsurefire.failIfNoSpecifiedTests=false`
+- [x] 8.10 Implement any relay or config gaps until green.
 
 ## 9. Scripts and dev stack
 

@@ -304,6 +304,11 @@ public class MoneyMarketOrder {
         this.updatedAt = now;
     }
 
+    /**
+     * Applies the hub-side execution to this client-side order. Rate, time and dealing reference come from the
+     * hub; the counterparty, institution and contract stay the client's own (its onboarded institution), so the
+     * client-side contract is booked, and later matched by lifecycle intake, against the client's institution.
+     */
     public void propagateExecutionFromHub(
             ExecutionDetails hubExecution,
             String clientViaCounterparty,
@@ -315,7 +320,7 @@ public class MoneyMarketOrder {
                 new ExecutionDetails(
                         hubExecution.executedRate(),
                         clientViaCounterparty,
-                        hubExecution.institutionCode(),
+                        this.institutionCode,
                         hubExecution.executionTime(),
                         hubExecution.dealingReference(),
                         clientContractNumber != null ? clientContractNumber : hubExecution.generatedContractNumber());

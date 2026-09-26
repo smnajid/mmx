@@ -18,8 +18,9 @@ mmx:
     # This deployment's LegalEntities — the Leg-B consumer filters
     # originatingLegalEntityCode ∈ own-legal-entity-codes before applying outcomes.
     own-legal-entity-codes: CGD
-    # Thin client: zero hub reference data stored locally — currencies, institutions, rates and
-    # delegated grants are read live from LODH (remote-backed @Primary repositories).
+    # Thin client: no hub reference data stored locally — currencies, rates, delegated grants and the
+    # hub's institution catalog are read live from LODH (remote-backed @Primary adapters). The client
+    # stores only its own onboarded institutions, counterparty accounts and client enablement (ADR 0008).
     reference-data-remote: true
     # Leg A: LODH inbound routed-order endpoint + this deployment's transport credential
     # (LODH proves originatingLegalEntityCode=CGD from it — never from the payload).

@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mmx.order.MmxApplication;
 import com.mmx.order.support.RestTestInstitutions;
 import com.mmx.order.support.SharedKafkaTestBroker;
+import com.mmx.order.support.RoutedClientFixture;
 import com.mmx.order.support.SharedPostgresTestBase;
 import com.networknt.schema.JsonSchema;
 import com.networknt.schema.JsonSchemaFactory;
@@ -67,7 +68,7 @@ class RoutedExecutionHandoffKafkaIntegrationTest extends SharedPostgresTestBase 
     @Value("${mmx.backoffice.kafka.topic}")
     private String backOfficeExecutedTopic;
 
-    String proxyInstitutionCode;
+    String onboardedInstitutionCode;
 
     @DynamicPropertySource
     static void registerContainers(DynamicPropertyRegistry registry) {
@@ -78,9 +79,7 @@ class RoutedExecutionHandoffKafkaIntegrationTest extends SharedPostgresTestBase 
 
     @BeforeEach
     void seedRoutingPrerequisites() throws Exception {
-        createGrantAsTrader();
-        proxyInstitutionCode = onboardProxyAsParClient();
-        upsertGlobalAccountAsTrader("PAR-EUR-001");
+        onboardedInstitutionCode = new RoutedClientFixture(port).routedBaseline();
     }
 
     @Test
@@ -157,7 +156,11 @@ class RoutedExecutionHandoffKafkaIntegrationTest extends SharedPostgresTestBase 
                                     Objects::nonNull);
             assertThat(record.key()).isEqualTo(routed.hubOrderId());
             assertThat(record.value()).isEqualTo(storedPayload);
-            assertPayloadValidates(payloadSchema, objectMapper.readTree(record.value()));
+            JsonNode payload = objectMapper.readTree(record.value());
+            assertPayloadValidates(payloadSchema, payload);
+            assertThat(payload.path("institutionCode").asText()).isEqualTo(RestTestInstitutions.BANKCO_CODE);
+            assertThat(payload.path("counterpartyAccount").asText()).isEqualTo("LOC-" + RestTestInstitutions.BANKCO_CODE + "-T");
+            assertThat(payload.path("clientCounterpartyAccount").asText()).isEqualTo(RoutedClientFixture.PAR_TERM_ACCOUNT);
         }
     }
 
@@ -194,7 +197,7 @@ class RoutedExecutionHandoffKafkaIntegrationTest extends SharedPostgresTestBase 
     private RoutedOrders routeParOrder() throws Exception {
         reScopeToParClient();
         String ref = "IT-ROUTE-EXEC-" + System.nanoTime();
-        HttpResponse<String> res = postJson("/api/v1/orders", parTermSubscribeJson(ref, proxyInstitutionCode));
+        HttpResponse<String> res = postJson("/api/v1/orders", parTermSubscribeJson(ref, onboardedInstitutionCode));
         assertThat(res.statusCode()).isEqualTo(201);
         JsonNode body = objectMapper.readTree(res.body());
         assertThat(body.path("status").asText()).isEqualTo("ROUTED");
@@ -211,47 +214,6 @@ class RoutedExecutionHandoffKafkaIntegrationTest extends SharedPostgresTestBase 
                         String.class,
                         UUID.fromString(routingId));
         return new RoutedOrders(clientOrderId, hubOrderId, routingId);
-    }
-
-    private void createGrantAsTrader() throws Exception {
-        reScopeToLocTrader();
-        HttpResponse<String> created =
-                postJson(
-                        "/api/v1/settings/delegated-grants",
-                        """
-                        {
-                          "hubInstitutionCode": "%s",
-                          "clientLegalEntityCode": "PAR",
-                          "currency": "EUR",
-                          "enabledTenors": ["3M"],
-                          "enabledNoticePeriods": []
-                        }
-                        """
-                                .formatted(RestTestInstitutions.BANKCO_CODE));
-        assertThat(created.statusCode()).isIn(201, 409);
-    }
-
-    private String onboardProxyAsParClient() throws Exception {
-        reScopeToParClient();
-        HttpResponse<String> onboarded =
-                postJson(
-                        "/api/v1/settings/institutions",
-                        """
-                        {"hubInstitutionCode":"%s"}
-                        """
-                                .formatted(RestTestInstitutions.BANKCO_CODE));
-        if (onboarded.statusCode() == 201) {
-            return objectMapper.readTree(onboarded.body()).path("institutionCode").asText();
-        }
-        assertThat(onboarded.statusCode()).isEqualTo(409);
-        HttpResponse<String> listed = get("/api/v1/settings/institutions");
-        assertThat(listed.statusCode()).isEqualTo(200);
-        for (JsonNode node : objectMapper.readTree(listed.body())) {
-            if (RestTestInstitutions.BANKCO_CODE.equals(node.path("hubInstitutionCode").asText())) {
-                return node.path("institutionCode").asText();
-            }
-        }
-        throw new IllegalStateException("Proxy institution not found after conflict");
     }
 
     private HttpResponse<String> get(String path) throws Exception {
@@ -378,7 +340,7 @@ class RoutedExecutionHandoffKafkaIntegrationTest extends SharedPostgresTestBase 
                 .isEmpty();
     }
 
-    private static String parTermSubscribeJson(String externalOrderReference, String proxyCode) {
+    private static String parTermSubscribeJson(String externalOrderReference, String institutionCode) {
         LocalDate valueDate = LocalDate.now().plusDays(10);
         return """
                 {
@@ -395,7 +357,7 @@ class RoutedExecutionHandoffKafkaIntegrationTest extends SharedPostgresTestBase 
                   "institutionCode": "%s"
                 }
                 """
-                .formatted(externalOrderReference, valueDate, proxyCode);
+                .formatted(externalOrderReference, valueDate, institutionCode);
     }
 
     private HttpResponse<String> postJson(String path, String json) throws Exception {
