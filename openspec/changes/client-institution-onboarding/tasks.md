@@ -187,6 +187,6 @@ Strict TDD (no waiver): each "Write failing" task must be seen red before its "I
 
 ## 12. Final verification
 
-- [ ] 12.1 Run full `cd backend && mvn test` — all modules green
-- [ ] 12.2 Run `npm run test` in `frontend/` — green
-- [ ] 12.3 `openspec validate client-institution-onboarding --strict` passes, and the contract prose mirrors (`api-v1.md`, `asyncapi-v1.md`) match their YAML (SDD parity).
+- [x] 12.1 Run full `cd backend && mvn test` — all modules green
+- [x] 12.2 Run `npm run test` in `frontend/` — green
+- [x] 12.3 `openspec validate client-institution-onboarding --strict` passes, and the contract prose mirrors (`api-v1.md`, `asyncapi-v1.md`) match their YAML (SDD parity).
