@@ -51,7 +51,7 @@ Frontend (run from `frontend/`; Node version is in `.nvmrc`):
 ```bash
 npm start                 # ng serve on :4200 (prestart regenerates API types)
 npm test                  # Vitest via ng test (pretest regenerates API + widget types)
-npx ng test --include='src/app/path/to/foo.spec.ts'   # single spec
+npx ng test frontend --include='src/app/path/to/foo.spec.ts'   # single spec (project name required)
 npm run typecheck
 npm run verify:contracts  # generate:api + typecheck; run after any contract change
 npm run build:widget

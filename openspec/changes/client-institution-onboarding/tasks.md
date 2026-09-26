@@ -181,9 +181,9 @@ Strict TDD (no waiver): each "Write failing" task must be seen red before its "I
 
 ## 11. Docs and agent memory
 
-- [ ] 11.1 Update `docs/agents/codebase-map.md` with the new outbox/relay, V27, client enablement (`ClientEnablement`/`EffectiveEnablement`), `HubInstitutionCatalog`, the institution-export contracts, and the retired `ThinProxyInstitution`. Verify that every path it names exists.
-- [ ] 11.2 Update the Serena memories (`mem:backend/core`, `mem:frontend/core` as relevant): the remote client now stores onboarded institutions, the new relay flag gotcha for client-role tests, and "closed to new business" operation-awareness. Verify by reading the memories back.
-- [ ] 11.3 Check the ADRs and glossary: ADR 0008 and `CONTEXT.md` match the delivered behaviour (accounts, export triggers, snapshot fields). Verify by searching the codebase for any leftover "proxy" in UI strings or error messages (`grep -rni proxy frontend/src/app backend/*/src/main`), apart from the dev-server proxy config.
+- [x] 11.1 Update `docs/agents/codebase-map.md` with the new outbox/relay, V27, client enablement (`ClientEnablement`/`EffectiveEnablement`), `HubInstitutionCatalog`, the institution-export contracts, and the retired `ThinProxyInstitution`. Verify that every path it names exists.
+- [x] 11.2 Update the Serena memories (`mem:backend/core`, `mem:frontend/core` as relevant): the remote client now stores onboarded institutions, the new relay flag gotcha for client-role tests, and "closed to new business" operation-awareness. Verify by reading the memories back.
+- [x] 11.3 Check the ADRs and glossary: ADR 0008 and `CONTEXT.md` match the delivered behaviour (accounts, export triggers, snapshot fields). Verify by searching the codebase for any leftover "proxy" in UI strings or error messages (`grep -rni proxy frontend/src/app backend/*/src/main`), apart from the dev-server proxy config.
 
 ## 12. Final verification
 

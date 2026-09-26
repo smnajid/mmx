@@ -15,11 +15,16 @@
 - `core/models/` — TS enums/models; `core/trader/` — `TraderContextService`, `DeskReturnService`, `trader-desk.guard.ts`, `received-view-mode.service.ts`.
 - `shared/components/` — `order-table`, `status-badge`, `confirm-dialog`; `shared/amount-input/` — amount parsing directive (mirrored in widget project).
 
+## Institution settings (`features/institution-settings/`)
+- Role-split on `TraderContextService`: Trader = native institutions (Deactivate/Reactivate); ClientRepresentative = onboarded institutions (onboard from `listGrantedInstitutions`, Offboard/Re-onboard via the same deactivate/activate endpoints).
+- Client-enablement toggles come from `InstitutionResponse.enablements[]` (single-institution GET only, not the list) — not from the grants API. Switching on needs grant + the OrderType's counterparty account; switching off is always allowed; "enabled, not granted" is flagged.
+
 ## PM order-creation widget (library)
 `frontend/projects/order-creation-widget/` — ng-packagr; build `npm run build:widget` (pregenerates its own types); exercised via `/dev/widget-playground`.
 
 ## Tests
 - Unit: `*.spec.ts` beside components (Vitest via `ng test`).
+- Single spec: `npx ng test frontend --watch=false --include='src/app/…/x.spec.ts'` — the project name is required (two projects; without it: "No tests found"). A TS error in ANY spec fails the whole build, so regenerated contract types that add a required field break unrelated spec fixtures.
 - E2E: Cypress `frontend/cypress/e2e/trader-workflow.cy.ts` (requires running app).
 - Typecheck: `npm run typecheck` (tsc --noEmit -p tsconfig.app.json).
 
