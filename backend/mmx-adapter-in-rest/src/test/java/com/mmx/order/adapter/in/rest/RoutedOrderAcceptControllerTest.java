@@ -134,6 +134,19 @@ class RoutedOrderAcceptControllerTest {
         verify(acceptRoutedHubOrderUseCase, never()).accept(any(), any());
     }
 
+    @Test
+    void acceptRoutedOrder_withABlankClientCounterpartyAccount_is400() throws Exception {
+        lenient().when(credentialBinder.bindOriginatingLegalEntity(CREDENTIAL)).thenReturn(Optional.of(PROVEN));
+
+        mockMvc.perform(post("/api/v1/cross-org/routed-orders")
+                        .header("X-MMX-CrossOrg-Key", CREDENTIAL)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(validTermSubscriptionBody().replace("\"CGD-HSBC-T\"", "\"   \"")))
+                .andExpect(status().isBadRequest());
+
+        verify(acceptRoutedHubOrderUseCase, never()).accept(any(), any());
+    }
+
     private static String validTermSubscriptionBody() {
         return """
                 {

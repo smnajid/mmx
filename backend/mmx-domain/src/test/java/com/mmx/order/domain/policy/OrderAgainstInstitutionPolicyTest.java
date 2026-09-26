@@ -83,4 +83,29 @@ class OrderAgainstInstitutionPolicyTest {
                         "HSBC-01", Optional.of(hsbc(true, BOTH)), OrderOperation.SUBSCRIPTION, OrderType.TERM))
                 .isEqualTo("LOC-HSBC-T");
     }
+
+    // --- refusal: the one rule every routing / accept / options call site applies ---
+
+    @Test
+    void refusal_isEmpty_forAnOpenInstitutionWithTheAccount() {
+        assertThat(OrderAgainstInstitutionPolicy.refusal(hsbc(true, BOTH), OrderOperation.SUBSCRIPTION, OrderType.TERM))
+                .isEmpty();
+    }
+
+    @Test
+    void refusal_reportsClosedToNewBusiness_onlyForExposureAddingOperations() {
+        Institution closed = hsbc(false, BOTH);
+
+        assertThat(OrderAgainstInstitutionPolicy.refusal(closed, OrderOperation.INCREASE, OrderType.ON_CALL))
+                .hasValueSatisfying(reason -> assertThat(reason).contains("closed to new business"));
+        assertThat(OrderAgainstInstitutionPolicy.refusal(closed, OrderOperation.REDEMPTION, OrderType.ON_CALL)).isEmpty();
+    }
+
+    @Test
+    void refusal_reportsTheMissingAccount_forEveryOperation() {
+        Institution termOnly = hsbc(false, CounterpartyAccounts.of("LOC-HSBC-T", null));
+
+        assertThat(OrderAgainstInstitutionPolicy.refusal(termOnly, OrderOperation.DECREASE, OrderType.ON_CALL))
+                .hasValueSatisfying(reason -> assertThat(reason).contains("OnCall counterparty account"));
+    }
 }

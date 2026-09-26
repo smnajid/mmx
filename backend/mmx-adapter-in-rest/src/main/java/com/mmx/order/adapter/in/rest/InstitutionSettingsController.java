@@ -77,7 +77,8 @@ public class InstitutionSettingsController implements InstitutionSettingsApi {
 
     @Override
     public ResponseEntity<InstitutionResponse> getInstitution(String xTraderId, String institutionCode) {
-        return ResponseEntity.ok(detail(manageInstitutionSettingsUseCase.getByCode(institutionCode)));
+        ScopeContext scope = scopeContextProvider.requireActiveScope();
+        return ResponseEntity.ok(detail(manageInstitutionSettingsUseCase.getInScope(scope, institutionCode)));
     }
 
     @Override

@@ -435,9 +435,11 @@ class IntakeServiceTest {
         when(legalEntityRepository.belongsToOrganisation(PAR, PM_ORG)).thenReturn(true);
         when(orderRepository.findByLegalEntityAndExternalReference(LOC, ref)).thenReturn(Optional.empty());
         when(orderRepository.findByLegalEntityAndExternalReference(PAR, ref)).thenReturn(Optional.empty());
+        when(institutionRepository.findByInstitutionCode("PARBNK"))
+                .thenReturn(Optional.of(Institution.createNative("PARBNK", "Par Bank", PAR, CounterpartyAccounts.of("T", "OC"))));
 
         IntakeUseCase.Result locResult = subject.receive(validTermSubscribeCommand(ref, LOC));
-        IntakeUseCase.Result parResult = subject.receive(validTermSubscribeCommand(ref, PAR));
+        IntakeUseCase.Result parResult = subject.receive(validTermSubscribeCommand(ref, PAR, "PARBNK"));
 
         assertThat(locResult.orderId()).isNotEqualTo(parResult.orderId());
         verify(orderRepository, times(2)).save(any(MoneyMarketOrder.class));
@@ -544,6 +546,17 @@ class IntakeServiceTest {
     }
 
     // --- Closed to new business and counterparty accounts: hub native intake ---
+
+    @Test
+    void hubOrder_onAnInstitutionOwnedByAnotherLegalEntity_isRejected() {
+        var ref = new ExternalOrderReference("PM-hub-foreign-institution");
+        when(orderRepository.findByLegalEntityAndExternalReference(LOC, ref)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> subject.receive(validTermSubscribeCommand(ref, LOC, "BNPLOC")))
+                .isInstanceOf(InvalidOrderException.class)
+                .hasMessageContaining("Institution not found");
+        verify(orderRepository, never()).save(any());
+    }
 
     @Test
     void hubRedemption_onDeactivatedInstitution_isAccepted() {

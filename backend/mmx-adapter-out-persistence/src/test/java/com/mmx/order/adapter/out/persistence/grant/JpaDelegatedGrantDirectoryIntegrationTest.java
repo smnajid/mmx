@@ -74,13 +74,13 @@ class JpaDelegatedGrantDirectoryIntegrationTest {
                         EnumSet.noneOf(NoticePeriod.class),
                         true));
         scopeProvider.setScope(new com.mmx.order.application.port.in.ScopeContext(PAR, com.mmx.order.domain.model.Role.CLIENT_REPRESENTATIVE));
-        Institution proxy =
+        Institution onboarded =
                 nativeRepository.save(
                         Institution.onboardFromGrant("BVL-01", "BankCo", new HubInstitutionLink(LOC, "BI-01"), PAR, CounterpartyAccounts.none()));
 
-        assertThat(directory.lookupTenor(PAR, proxy.getInstitutionCode(), "EUR", Tenor._3M))
+        assertThat(directory.lookupTenor(PAR, onboarded.getInstitutionCode(), "EUR", Tenor._3M))
                 .isEqualTo(GrantResolution.GRANTED);
-        assertThat(directory.lookupTenor(PAR, proxy.getInstitutionCode(), "EUR", Tenor._1Y))
+        assertThat(directory.lookupTenor(PAR, onboarded.getInstitutionCode(), "EUR", Tenor._1Y))
                 .isEqualTo(GrantResolution.NOT_IN_ENABLED_SET);
     }
 
@@ -96,11 +96,11 @@ class JpaDelegatedGrantDirectoryIntegrationTest {
                         EnumSet.noneOf(NoticePeriod.class),
                         false));
         scopeProvider.setScope(new com.mmx.order.application.port.in.ScopeContext(PAR, com.mmx.order.domain.model.Role.CLIENT_REPRESENTATIVE));
-        Institution proxy =
+        Institution onboarded =
                 nativeRepository.save(
                         Institution.onboardFromGrant("BVL-01", "BankCo", new HubInstitutionLink(LOC, "BI-01"), PAR, CounterpartyAccounts.none()));
 
-        assertThat(directory.lookupTenor(PAR, proxy.getInstitutionCode(), "EUR", Tenor._3M))
+        assertThat(directory.lookupTenor(PAR, onboarded.getInstitutionCode(), "EUR", Tenor._3M))
                 .isEqualTo(GrantResolution.NO_ACTIVE_GRANT);
     }
 }

@@ -37,4 +37,14 @@ public final class OrderAgainstInstitutionPolicy {
         NewBusinessPolicy.requireOpenForNewBusiness(institution, operation);
         return CounterpartyAccountPolicy.requireAccountFor(institution, orderType);
     }
+
+    /**
+     * The single closed-to-new-business and counterparty-account rule, as a refusal reason rather than an
+     * exception, for call sites that reject by recording a reason (routed intake, leg-A accept) or filter
+     * (order-creation options). Closed to new business first, then the missing account.
+     */
+    public static Optional<String> refusal(Institution institution, OrderOperation operation, OrderType orderType) {
+        return NewBusinessPolicy.refusal(institution, operation)
+                .or(() -> CounterpartyAccountPolicy.refusal(institution, orderType));
+    }
 }

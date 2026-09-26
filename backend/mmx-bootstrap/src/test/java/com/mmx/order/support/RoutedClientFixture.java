@@ -72,7 +72,8 @@ public final class RoutedClientFixture {
             assertThat(onboarded.statusCode()).as(onboarded.body()).isEqualTo(409);
             code = parOnboardedCode();
         }
-        setAccounts(code, PAR_TERM_ACCOUNT, PAR_ONCALL_ACCOUNT);
+        HttpResponse<String> accounts = setAccounts(code, PAR_TERM_ACCOUNT, PAR_ONCALL_ACCOUNT);
+        assertThat(accounts.statusCode()).as(accounts.body()).isEqualTo(200);
         return code;
     }
 
@@ -90,12 +91,10 @@ public final class RoutedClientFixture {
 
     /** Full replacement of the accounts of an institution owned by the active scope; returns the response. */
     public HttpResponse<String> setAccounts(String institutionCode, String term, String onCall) throws Exception {
-        HttpResponse<String> res =
-                send(
-                        "PUT",
-                        "/api/v1/settings/institutions/" + institutionCode + "/counterparty-accounts",
-                        "{\"termCounterpartyAccount\":%s,\"onCallCounterpartyAccount\":%s}".formatted(quoted(term), quoted(onCall)));
-        return res;
+        return send(
+                "PUT",
+                "/api/v1/settings/institutions/" + institutionCode + "/counterparty-accounts",
+                "{\"termCounterpartyAccount\":%s,\"onCallCounterpartyAccount\":%s}".formatted(quoted(term), quoted(onCall)));
     }
 
     public HttpResponse<String> enable(String institutionCode, String currency, List<String> tenors, List<String> notices)

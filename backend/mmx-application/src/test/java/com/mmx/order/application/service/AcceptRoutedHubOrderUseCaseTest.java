@@ -201,8 +201,10 @@ class AcceptRoutedHubOrderUseCaseTest {
     }
 
     @Test
-    void redemptionOnARevokedGrant_isAccepted_withoutConsultingTheGrant() {
+    void redemptionOnARevokedGrant_isAccepted() {
         stubInstitution();
+        stubGrant(new DelegatedInstitutionGrant(
+                INSTITUTION_CODE, CLIENT_LE, CURRENCY, Set.of(), Set.of(NoticePeriod._48H), false));
         when(orderRepository.save(any())).then(returnsFirstArg());
         when(clock.today()).thenReturn(TODAY);
         when(clock.now()).thenReturn(FIXED_NOW);
@@ -210,13 +212,41 @@ class AcceptRoutedHubOrderUseCaseTest {
         RemoteRoutingResponse response = subject.accept(onCallRequest(NoticePeriod._24H, OrderOperation.REDEMPTION), CLIENT_LE);
 
         assertThat(response.isAccepted()).isTrue();
-        verify(delegatedGrantRepository, never()).findByKey(any());
         verify(routingOutcomeOutbox).scheduleAccepted(any(), eq(FIXED_NOW));
+    }
+
+    @Test
+    void redemptionOnAnInstitutionNeverGrantedToTheClient_isRejected() {
+        stubInstitution();
+        when(delegatedGrantRepository.findByKey(grantKey())).thenReturn(Optional.empty());
+
+        RemoteRoutingResponse response = subject.accept(onCallRequest(NoticePeriod._24H, OrderOperation.REDEMPTION), CLIENT_LE);
+
+        assertThat(response.isRejected()).isTrue();
+        verify(orderRepository, never()).save(any());
+    }
+
+    @Test
+    void anInstitutionThatIsNotOneOfTheHubsOwnNativeInstitutions_isRejected() {
+        stubInstitution(Institution.onboardFromGrant(
+                INSTITUTION_CODE,
+                "HSBC",
+                new com.mmx.order.domain.model.HubInstitutionLink(HUB_LE, "HSBC"),
+                new LegalEntityCode("PAR"),
+                CounterpartyAccounts.of("PAR-HSBC-T", "PAR-HSBC-OC")));
+
+        RemoteRoutingResponse response = subject.accept(onCallRequest(NoticePeriod._24H, OrderOperation.REDEMPTION), CLIENT_LE);
+
+        assertThat(response.isRejected()).isTrue();
+        assertThat(((RemoteRoutingResponse.Reject) response).reason()).contains("Unknown institution");
+        verify(orderRepository, never()).save(any());
     }
 
     @Test
     void decreaseOnADeactivatedHubInstitution_isAccepted() {
         stubInstitution(hubInstitution(false, CounterpartyAccounts.of("LOC-HSBC-T", "LOC-HSBC-OC")));
+        stubGrant(new DelegatedInstitutionGrant(
+                INSTITUTION_CODE, CLIENT_LE, CURRENCY, Set.of(), Set.of(NoticePeriod._24H), true));
         when(orderRepository.save(any())).then(returnsFirstArg());
         when(clock.today()).thenReturn(TODAY);
         when(clock.now()).thenReturn(FIXED_NOW);

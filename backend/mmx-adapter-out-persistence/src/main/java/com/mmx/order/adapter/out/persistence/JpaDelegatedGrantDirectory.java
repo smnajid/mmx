@@ -48,7 +48,7 @@ public class JpaDelegatedGrantDirectory implements DelegatedGrantDirectory {
             Tenor tenor,
             NoticePeriod notice) {
         List<DelegatedInstitutionGrantEntity> grants =
-                grantRepository.findActiveGrantForProxy(
+                grantRepository.findActiveGrantForOnboardedInstitution(
                         clientLegalEntityCode.value(), onboardedInstitutionCode, currency);
         if (grants.isEmpty()) {
             return GrantResolution.NO_ACTIVE_GRANT;

@@ -25,3 +25,31 @@ Serena memories), 12 (final verification).
   institution code on the client-side execution, so a routed client Decrease/Redemption could not match its
   source Subscription. The client order now keeps its own onboarded institution code.
 - `RoutedClientFixture` (bootstrap test support) converges the shared rest-test database to the routed baseline.
+
+## Independent review (session 2) — applied
+- **Leg-A accept hardened:** only the hub's own native institutions are accepted; a Decrease/Redemption
+  needs the grant to exist in some state (revoked is fine, never-granted is rejected). Spec `order-routing`
+  updated.
+- **Remote lifecycle rule:** `IntakeService` applies the source-contract institution match before leg A on the
+  remote path too (the routed path must not bypass it).
+- **Scoped read:** `GET /settings/institutions/{code}` returns only institutions owned by the active scope
+  (`ManageInstitutionSettingsUseCase.getInScope`), else 404; documented in the 004 contract.
+- **Hub intake ownership:** a TradingHub order must reference that hub's own native institution.
+- **One rule (D2):** `OrderAgainstInstitutionPolicy.refusal(...)` is the closed-to-new-business + account
+  rule used by routed intake (both sides), leg-A accept and the options support; the options support uses
+  `EffectiveEnablement` (D9). Design text updated.
+- **Parity:** options carve-out for a hub institution not stored locally (spec + D7); enablement replacement
+  wording ("newly switched on" must be granted) in the 004 contract and the grants spec; `enablements[]`
+  documented as single-institution responses only; `clientCounterpartyAccount` must be non-blank (007
+  contract pattern → 400).
+- Remaining "proxy" identifiers renamed.
+
+## Known, deferred (non-blocking)
+- Two concurrent exported-state changes on one institution collide on the outbox `(le, code, version)` key:
+  one rolls back correctly but surfaces as 500 (unmapped `DataIntegrityViolationException`); map to 409.
+- Clearing an account and enabling a tenor of that OrderType can race (separate read-check-write); the intake
+  account check is the backstop.
+- Onboarding / re-onboarding without a grant returns 400 with the grants error schema, not the 004 one.
+- Options decide "remote hub" by absence of the local hub row rather than `HubLocalityResolver`, and do not use
+  the remote catalog's `active` flag.
+- `npm run verify:contracts` does not generate the widget types it typechecks (`generate:api:widget` first).

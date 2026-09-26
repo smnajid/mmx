@@ -69,6 +69,26 @@ class ManageInstitutionSettingsServiceTest {
                         "BNP", PAR, "EUR", EnumSet.of(Tenor._1M), EnumSet.noneOf(NoticePeriod.class), active));
     }
 
+    // --- scoped read ---
+
+    @Test
+    void getInScope_returnsAnInstitutionOwnedByTheActiveLegalEntity() {
+        nativeHsbc();
+        onboardedBnp();
+
+        assertThat(subject.getInScope(TRADER, "HSBC-01").getInstitutionCode()).isEqualTo("HSBC-01");
+        assertThat(subject.getInScope(CLIENT_REP, "BVL-01").getInstitutionCode()).isEqualTo("BVL-01");
+    }
+
+    @Test
+    void getInScope_anotherLegalEntitysInstitution_isNotFound() {
+        nativeHsbc();
+        onboardedBnp();
+
+        assertThatThrownBy(() -> subject.getInScope(CLIENT_REP, "HSBC-01")).isInstanceOf(InstitutionNotFoundException.class);
+        assertThatThrownBy(() -> subject.getInScope(TRADER, "BVL-01")).isInstanceOf(InstitutionNotFoundException.class);
+    }
+
     // --- native onboarding ---
 
     @Test

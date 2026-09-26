@@ -82,11 +82,11 @@ class RemoteRoutingGatewayContractTest {
     }
 
     @Test
-    void request_carriesHubNativeInstitutionCode_proxyIndirectionCollapses() {
+    void request_carriesTheHubNativeInstitutionCode_notTheOnboardedCode() {
         RemoteRoutingRequest request = termRequest();
 
-        // Spec: leg A carries the hub-native code "BNP", not the client's "BNP via LOC" proxy.
-        // CGD renders the display name client-side; LODH performs no proxy resolution.
+        // Spec: leg A carries the hub-native code "BNP", not the client's onboarded "BNP via LOC".
+        // CGD renders the display name client-side; LODH resolves nothing from the client's codes.
         assertThat(request.institutionCode()).isEqualTo("BNP");
     }
 

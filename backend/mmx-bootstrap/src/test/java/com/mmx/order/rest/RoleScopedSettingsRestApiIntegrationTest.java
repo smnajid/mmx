@@ -167,6 +167,16 @@ class RoleScopedSettingsRestApiIntegrationTest extends SharedPostgresTestBase {
     }
 
     @Test
+    void crossScope_institutionDetail_isNotFound() throws Exception {
+        RoutedClientFixture fx = new RoutedClientFixture(port);
+        fx.asParClient();
+
+        HttpResponse<String> res = fx.get("/api/v1/settings/institutions/" + RestTestInstitutions.BANKCO_CODE);
+
+        assertThat(res.statusCode()).as("LOC's accounts are not visible to PAR").isEqualTo(404);
+    }
+
+    @Test
     void trader_cannotListGrantedInstitutions() throws Exception {
         RoutedClientFixture fx = new RoutedClientFixture(port);
         fx.asLocTrader();

@@ -31,7 +31,7 @@ not revalidated), the hub-native `institutionCode` linked to the client's onboar
 CGED-minted `routingId`, the required `clientCounterpartyAccount` (the client's counterparty account
 snapshot for the order's OrderType, taken at routing), and the order fields.
 
-> **Upgrade note:** `clientCounterpartyAccount` is required. A client deployment on an older build gets
+> **Upgrade note:** `clientCounterpartyAccount` is required and non-blank (a whitespace-only value is `400`). A client deployment on an older build gets
 > `400` from a hub on this build, so both deployments must be upgraded together.
 
 Before sending, the client validates what it owns: the institution is onboarded, open to new business,

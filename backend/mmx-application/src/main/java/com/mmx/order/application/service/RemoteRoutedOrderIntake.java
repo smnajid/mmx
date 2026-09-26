@@ -23,8 +23,8 @@ import com.mmx.order.domain.model.PortfolioNumber;
 import com.mmx.order.domain.model.RoutingId;
 import com.mmx.order.domain.model.TraderId;
 import com.mmx.order.domain.model.TradingClientRole;
-import com.mmx.order.domain.policy.CounterpartyAccountPolicy;
 import com.mmx.order.domain.policy.NewBusinessPolicy;
+import com.mmx.order.domain.policy.OrderAgainstInstitutionPolicy;
 
 import java.util.Objects;
 import java.util.Optional;
@@ -150,15 +150,12 @@ public final class RemoteRoutedOrderIntake {
 
     /** The client-owned facts: counterparty account, and for new business, open state and client enablement. */
     private Optional<String> refuseOnClientSide(ReceiveOrderCommand command, Institution onboarded) {
-        boolean addsExposure = NewBusinessPolicy.addsExposure(command.orderOperation());
-        if (addsExposure && onboarded.isClosedToNewBusiness()) {
-            return Optional.of("institution " + onboarded.getInstitutionCode() + " is closed to new business");
+        Optional<String> refusal =
+                OrderAgainstInstitutionPolicy.refusal(onboarded, command.orderOperation(), command.orderType());
+        if (refusal.isPresent()) {
+            return refusal;
         }
-        if (onboarded.getCounterpartyAccounts().accountFor(command.orderType()).isEmpty()) {
-            return Optional.of("institution " + onboarded.getInstitutionCode() + " has no "
-                    + CounterpartyAccountPolicy.label(command.orderType()) + " counterparty account");
-        }
-        if (addsExposure && !isClientEnabled(command, onboarded)) {
+        if (NewBusinessPolicy.addsExposure(command.orderOperation()) && !isClientEnabled(command, onboarded)) {
             return Optional.of("client enablement does not include this " + command.orderType() + " term for "
                     + command.currency() + "; it is not enabled on " + onboarded.getInstitutionCode());
         }

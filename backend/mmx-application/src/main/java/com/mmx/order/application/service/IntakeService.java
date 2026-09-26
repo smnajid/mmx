@@ -125,7 +125,7 @@ public final class IntakeService implements IntakeUseCase {
     }
 
     private Result receiveHub(ReceiveOrderCommand command) {
-        Institution institution = resolveInstitution(command.institutionCode());
+        Institution institution = resolveInstitution(command.institutionCode(), command.legalEntityCode());
         validateLifecycleInstitutionMatchesContract(command, institution.getInstitutionCode());
         institutionPolicy.validateExecute(
                 institution.getInstitutionCode(),
@@ -190,6 +190,9 @@ public final class IntakeService implements IntakeUseCase {
     }
 
     private Result receiveRoutedRemote(ReceiveOrderCommand command, LegalEntity clientEntity) {
+        // The routed path never bypasses the lifecycle rule: the client stores its executed Subscriptions under
+        // its own onboarded institution code, and the hub cannot check them.
+        validateLifecycleInstitutionMatchesContract(command, command.institutionCode());
         Result result = remoteRoutedOrderIntake.completeIntake(command, clientEntity);
         if (result.newlyCreated()) {
             if (result.status() == OrderStatus.ROUTED) {
@@ -224,12 +227,14 @@ public final class IntakeService implements IntakeUseCase {
         return entity;
     }
 
-    private Institution resolveInstitution(String institutionCode) {
+    /** A TradingHub order references one of that hub's own native institutions. */
+    private Institution resolveInstitution(String institutionCode, LegalEntityCode hubCode) {
         if (institutionCode == null || institutionCode.isBlank()) {
             throw new InvalidOrderException("institutionCode is required");
         }
         return institutionRepository
                 .findByInstitutionCode(institutionCode)
+                .filter(i -> !i.isOnboarded() && hubCode.equals(i.getOwningLegalEntityCode()))
                 .orElseThrow(() -> new InvalidOrderException("Institution not found: " + institutionCode));
     }
 

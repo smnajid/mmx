@@ -22,8 +22,8 @@ import com.mmx.order.domain.model.RoutedHubOrderDraft;
 import com.mmx.order.domain.model.RoutingId;
 import com.mmx.order.domain.model.TraderId;
 import com.mmx.order.domain.model.TradingClientRole;
-import com.mmx.order.domain.policy.CounterpartyAccountPolicy;
 import com.mmx.order.domain.policy.NewBusinessPolicy;
+import com.mmx.order.domain.policy.OrderAgainstInstitutionPolicy;
 
 import java.util.Optional;
 
@@ -106,14 +106,12 @@ public final class RoutedOrderIntake {
         }
         Institution onboarded = onboardedOpt.get();
         boolean addsExposure = NewBusinessPolicy.addsExposure(command.orderOperation());
-        if (addsExposure && onboarded.isClosedToNewBusiness()) {
-            return rejectAtIntake(
-                    command, onboarded, "Institution " + onboarded.getInstitutionCode() + " is closed to new business");
+        Optional<String> clientRefusal =
+                OrderAgainstInstitutionPolicy.refusal(onboarded, command.orderOperation(), command.orderType());
+        if (clientRefusal.isPresent()) {
+            return rejectAtIntake(command, onboarded, clientRefusal.get());
         }
-        Optional<String> clientAccount = onboarded.getCounterpartyAccounts().accountFor(command.orderType());
-        if (clientAccount.isEmpty()) {
-            return rejectAtIntake(command, onboarded, missingAccount(onboarded, command));
-        }
+        String clientAccount = onboarded.getCounterpartyAccounts().accountFor(command.orderType()).orElseThrow();
 
         GrantResolution grantResolution = resolveGrant(command, onboarded);
         if (!grantResolution.isPermitted()) {
@@ -134,20 +132,17 @@ public final class RoutedOrderIntake {
         }
 
         String hubInstitutionCode = onboarded.getHubLink().orElseThrow().hubInstitutionCode();
-        Optional<Institution> hubInstitutionOpt = institutionRepository.findByInstitutionCode(hubInstitutionCode);
+        Optional<Institution> hubInstitutionOpt =
+                institutionRepository.findByInstitutionCode(hubInstitutionCode).filter(i -> !i.isOnboarded());
         if (hubInstitutionOpt.isEmpty()) {
             return rejectAtIntake(
                     command, onboarded, ROUTING_FAILURE + "hub native institution " + hubInstitutionCode + " not found");
         }
         Institution hubInstitution = hubInstitutionOpt.get();
-        if (addsExposure && hubInstitution.isClosedToNewBusiness()) {
-            return rejectAtIntake(
-                    command,
-                    onboarded,
-                    ROUTING_FAILURE + "hub institution " + hubInstitutionCode + " is closed to new business");
-        }
-        if (hubInstitution.getCounterpartyAccounts().accountFor(command.orderType()).isEmpty()) {
-            return rejectAtIntake(command, onboarded, ROUTING_FAILURE + missingAccount(hubInstitution, command));
+        Optional<String> hubRefusal =
+                OrderAgainstInstitutionPolicy.refusal(hubInstitution, command.orderOperation(), command.orderType());
+        if (hubRefusal.isPresent()) {
+            return rejectAtIntake(command, onboarded, ROUTING_FAILURE + hubRefusal.get());
         }
 
         MoneyMarketOrder clientOrder = createClientOrder(command, onboarded);
@@ -164,7 +159,7 @@ public final class RoutedOrderIntake {
                                                 routingId,
                                                 hubInstitution.getInstitutionCode(),
                                                 hubInstitution.getDisplayName(),
-                                                clientAccount.get()),
+                                                clientAccount),
                                         clock.today()));
 
         markRouted(clientOrder, routingId);
@@ -190,11 +185,6 @@ public final class RoutedOrderIntake {
             case TERM -> command.tenor() == null ? "tenor" : command.tenor().getCode();
             case ON_CALL -> command.noticePeriod() == null ? "notice period" : command.noticePeriod().getCode();
         };
-    }
-
-    private static String missingAccount(Institution institution, ReceiveOrderCommand command) {
-        return "Institution " + institution.getInstitutionCode() + " has no "
-                + CounterpartyAccountPolicy.label(command.orderType()) + " counterparty account";
     }
 
     public IntakeUseCase.Result rejectAtIntake(

@@ -47,6 +47,18 @@ public final class ManageInstitutionSettingsService implements ManageInstitution
     }
 
     @Override
+    public Institution getInScope(ScopeContext scope, String institutionCode) {
+        if (scope == null) {
+            throw new UnauthorizedUserException("Active scope is required");
+        }
+        Institution institution = getByCode(institutionCode);
+        if (!scope.legalEntityCode().equals(institution.getOwningLegalEntityCode())) {
+            throw new InstitutionNotFoundException(institution.getInstitutionCode());
+        }
+        return institution;
+    }
+
+    @Override
     public Institution onboard(OnboardCommand command) {
         String displayName = Institution.validateDisplayName(command.displayName());
         CounterpartyAccounts accounts =
@@ -64,7 +76,7 @@ public final class ManageInstitutionSettingsService implements ManageInstitution
 
     @Override
     public Institution deactivate(ScopeContext scope, String institutionCode) {
-        Institution institution = getInScope(scope, institutionCode);
+        Institution institution = getForMutation(scope, institutionCode);
         boolean changed = institution.isOnboarded() ? institution.offboard() : institution.deactivate();
         return saveAndExport(
                 institution, changed, institution.isOnboarded() ? ChangeReason.OFFBOARDED : ChangeReason.DEACTIVATED);
@@ -72,7 +84,7 @@ public final class ManageInstitutionSettingsService implements ManageInstitution
 
     @Override
     public Institution activate(ScopeContext scope, String institutionCode) {
-        Institution institution = getInScope(scope, institutionCode);
+        Institution institution = getForMutation(scope, institutionCode);
         if (!institution.isOnboarded()) {
             return saveAndExport(institution, institution.reactivate(), ChangeReason.REACTIVATED);
         }
@@ -84,7 +96,7 @@ public final class ManageInstitutionSettingsService implements ManageInstitution
      * An institution owned by the active LegalEntity. A Trader never acts on a client's onboarded institution;
      * anything owned by another LegalEntity is not found.
      */
-    private Institution getInScope(ScopeContext scope, String institutionCode) {
+    private Institution getForMutation(ScopeContext scope, String institutionCode) {
         Institution institution = getByCode(institutionCode);
         if (institution.isOnboarded() && scope.role() == Role.TRADER) {
             throw new UnauthorizedUserException("A Trader cannot offboard or re-onboard a client institution");

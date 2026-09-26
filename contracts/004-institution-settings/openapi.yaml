@@ -106,6 +106,9 @@ paths:
     get:
       tags: [InstitutionSettings]
       summary: Get institution by code
+      description: |
+        An institution owned by the active scope's LegalEntity (its counterparty accounts and client
+        enablement belong to that LegalEntity); any other institution is `404`.
       operationId: getInstitution
       parameters:
         - $ref: "#/components/parameters/UserIdHeader"
@@ -216,7 +219,8 @@ paths:
       description: |
         ClientRepresentative only (Trader → `403`). Full replacement of the tenors (Term) and notice
         periods (OnCall) switched on for new business for `(institutionCode, currency)`. Every value
-        must be enabled by the current active grant, and a Term tenor requires the Term counterparty
+        newly switched on must be enabled by the current active grant (a value already enabled may be
+        kept after the grant stops enabling it: "enabled, not granted"), and a Term tenor requires the Term counterparty
         account (an OnCall notice period the OnCall account); otherwise `400`. Stored in the client's
         own deployment only; never sent to the hub; records no institution export.
       operationId: updateClientEnablement
@@ -346,7 +350,9 @@ components:
         enablements:
           type: array
           description: >
-            Onboarded institutions only: one entry per currency that is granted or client-enabled. A
+            Onboarded institutions on single-institution responses (get, onboard, activate/deactivate,
+            counterparty accounts, enablement): one entry per currency that is granted or client-enabled;
+            empty on the list response and for native institutions. A
             value in `enabledTenors`/`enabledNoticePeriods` but not in the granted set is "enabled,
             not granted" (capped out of the effective enablement).
           items:

@@ -34,6 +34,12 @@ public class TransactionalManageInstitutionSettingsUseCase implements ManageInst
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public Institution getInScope(ScopeContext scope, String institutionCode) {
+        return delegate.getInScope(scope, institutionCode);
+    }
+
+    @Override
     @Transactional
     public Institution onboard(OnboardCommand command) {
         return delegate.onboard(command);

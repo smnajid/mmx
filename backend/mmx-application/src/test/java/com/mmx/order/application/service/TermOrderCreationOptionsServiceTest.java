@@ -278,6 +278,24 @@ class TermOrderCreationOptionsServiceTest {
                 .containsExactly("BNPLOC");
     }
 
+    @Test
+    void listCounterparties_forARemoteClient_offersTheOnboardedInstitution_whenTheHubInstitutionIsNotStoredLocally() {
+        LegalEntity loc = LegalEntity.tradingHub(LOC, new com.mmx.order.domain.model.OrganisationCode("LODH"));
+        LegalEntity par = LegalEntity.tradingClient(PAR, new com.mmx.order.domain.model.OrganisationCode("CGEG"), loc);
+        when(legalEntityRepository.findByCode(PAR)).thenReturn(Optional.of(par));
+        when(termRateRepository.findLatestRatePerInstitution("EUR", Tenor._3M))
+                .thenReturn(List.of(rateRow("HUBONLY", Tenor._3M, TODAY, "3.50")));
+        when(delegatedGrantRepository.findByClientLegalEntityCode(PAR)).thenReturn(List.of(grant("HUBONLY")));
+        institutionRepository.put(
+                Institution.onboardFromGrant(
+                        "HVL-01", "Hub Only", new HubInstitutionLink(LOC, "HUBONLY"), PAR, CounterpartyAccounts.of("PAR-HO-T", null)));
+        clientEnablementRepository.save(PAR, new ClientEnablement("HVL-01", "EUR", Set.of(Tenor._3M), Set.of()));
+
+        assertThat(subject.listCounterparties(PAR, "EUR", Tenor._3M).counterparties())
+                .extracting(OrderCreationCounterparty::institutionCode)
+                .containsExactly("HVL-01");
+    }
+
     private void givenParClientWithHubRates() {
         LegalEntity loc = LegalEntity.tradingHub(LOC, new com.mmx.order.domain.model.OrganisationCode("LODH"));
         LegalEntity par = LegalEntity.tradingClient(PAR, new com.mmx.order.domain.model.OrganisationCode("LODH"), loc);

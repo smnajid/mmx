@@ -31,7 +31,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * live from LODH via REST. The adapters send the {@code X-MMX-CrossOrg-Key} credential; LODH
  * auto-scopes grants to the proven client. CGED stores zero hub reference data locally.
  *
- * <p>Spec: {@code order-routing} — thin-client reference-data reads; proxy indirection collapses
+ * <p>Spec: {@code order-routing} — thin-client reference-data reads; the onboarded-to-hub indirection collapses
  * (hub-native codes cross the boundary).
  */
 @Tag("fast")

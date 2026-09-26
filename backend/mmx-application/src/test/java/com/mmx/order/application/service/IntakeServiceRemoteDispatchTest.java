@@ -176,6 +176,34 @@ class IntakeServiceRemoteDispatchTest {
     }
 
     @Test
+    void receiveRouted_remoteHub_lifecycleMismatch_isRejectedBeforeAnyLegASend() {
+        when(orderRepository.findExecutedSubscriptionByContractNumber("CT-00042"))
+                .thenReturn(Optional.of(new com.mmx.order.application.port.out.ExecutedSubscriptionContractInfo(
+                        "EUR", NoticePeriod._24H, "OTHER-01", "Other via LOC")));
+        ReceiveOrderCommand increase =
+                new ReceiveOrderCommand(
+                        new ExternalOrderReference("CGD-PM-INC"),
+                        CGD,
+                        OrderType.ON_CALL,
+                        OrderOperation.INCREASE,
+                        new PortfolioNumber("CGD-EUR-001"),
+                        "EUR",
+                        new BigDecimal("100000.00"),
+                        TODAY.plusDays(5),
+                        null,
+                        null,
+                        NoticePeriod._24H,
+                        new com.mmx.order.domain.model.ContractNumber("CT-00042"),
+                        "HSBC-01");
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> subject.receive(increase))
+                .isInstanceOf(com.mmx.order.domain.exception.InvalidOrderException.class)
+                .hasMessageContaining("must match the source contract institution");
+        verify(remoteRoutingGateway, never()).route(any());
+        verify(orderRepository, never()).save(any());
+    }
+
+    @Test
     void receiveRouted_localHub_usesLocalIntake_neverTouchesRemotePath() {
         when(managedCurrencyRepository.findByCode("EUR"))
                 .thenReturn(Optional.of(permissiveEur()));

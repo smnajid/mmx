@@ -96,7 +96,7 @@ class InstitutionSettingsControllerTest {
 
     @Test
     void getInstitution_mapsAccountsHubLinkClosedFlagAndEnablements() throws Exception {
-        when(manageInstitutionSettingsUseCase.getByCode("BVL-01")).thenReturn(bnpViaLoc());
+        when(manageInstitutionSettingsUseCase.getInScope(CLIENT_REP_PAR, "BVL-01")).thenReturn(bnpViaLoc());
         when(manageClientEnablementUseCase.enablementsOf("BVL-01"))
                 .thenReturn(List.of(new CurrencyEnablement(
                         "EUR", Set.of(Tenor._1M, Tenor._3M), Set.of(NoticePeriod._24H), Set.of(Tenor._3M, Tenor._6M), Set.of())));
@@ -116,6 +116,15 @@ class InstitutionSettingsControllerTest {
                 .andExpect(jsonPath("$.enablements[0].grantedNoticePeriods[0]").value("24H"))
                 .andExpect(jsonPath("$.enablements[0].enabledTenors[1]").value("6M"))
                 .andExpect(jsonPath("$.enablements[0].enabledNoticePeriods").isEmpty());
+    }
+
+    @Test
+    void getInstitution_outsideTheActiveScope_is404() throws Exception {
+        when(manageInstitutionSettingsUseCase.getInScope(CLIENT_REP_PAR, "BI-01"))
+                .thenThrow(new InstitutionNotFoundException("BI-01"));
+
+        mockMvc.perform(get("/api/v1/settings/institutions/BI-01").header("X-User-Id", "rep-par"))
+                .andExpect(status().isNotFound());
     }
 
     @Test
