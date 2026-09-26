@@ -67,24 +67,24 @@ Strict TDD (no waiver): each "Write failing" task must be seen red before its "I
   - ClientRepresentative deactivate = offboard (OFFBOARDED export, accounts kept, idempotent);
   - a Trader cannot offboard a client institution.
 - [x] 4.4 Implement until green.
-- [ ] 4.5 Write failing `UpdateCounterpartyAccountsServiceTest`: owning-scope role only (Trader on hub, ClientRepresentative on client); cross-scope → not found; unchanged values schedule no export; changed values schedule ACCOUNTS_CHANGED; allowed while closed to new business; clearing an account is rejected while any tenor of that OrderType is client-enabled. `mvn test -pl mmx-application -Dtest=UpdateCounterpartyAccountsServiceTest`
-- [ ] 4.6 Implement `UpdateCounterpartyAccountsUseCase` and its service until green.
-- [ ] 4.7 Write failing `ListGrantedInstitutionsServiceTest`: it joins active grants (any currency) with hub display names from a fake `HubInstitutionCatalog` and the client's onboarded institutions; revoked-everywhere institutions drop out; a Trader is rejected. `mvn test -pl mmx-application -Dtest=ListGrantedInstitutionsServiceTest`
-- [ ] 4.8 Implement the `HubInstitutionCatalog` out-port, `ListGrantedInstitutionsUseCase`, and its service until green.
+- [x] 4.5 Write failing `UpdateCounterpartyAccountsServiceTest`: owning-scope role only (Trader on hub, ClientRepresentative on client); cross-scope → not found; unchanged values schedule no export; changed values schedule ACCOUNTS_CHANGED; allowed while closed to new business; clearing an account is rejected while any tenor of that OrderType is client-enabled. `mvn test -pl mmx-application -Dtest=UpdateCounterpartyAccountsServiceTest`
+- [x] 4.6 Implement `UpdateCounterpartyAccountsUseCase` and its service until green.
+- [x] 4.7 Write failing `ListGrantedInstitutionsServiceTest`: it joins active grants (any currency) with hub display names from a fake `HubInstitutionCatalog` and the client's onboarded institutions; revoked-everywhere institutions drop out; a Trader is rejected. `mvn test -pl mmx-application -Dtest=ListGrantedInstitutionsServiceTest`
+- [x] 4.8 Implement the `HubInstitutionCatalog` out-port, `ListGrantedInstitutionsUseCase`, and its service until green.
 
-- [ ] 4.9 Write failing `ManageClientEnablementServiceTest`. `mvn test -pl mmx-application -Dtest=ManageClientEnablementServiceTest`. Cover:
+- [x] 4.9 Write failing `ManageClientEnablementServiceTest`. `mvn test -pl mmx-application -Dtest=ManageClientEnablementServiceTest`. Cover:
   - ClientRepresentative only (a Trader is rejected);
   - enabling outside the current grant is rejected;
   - enabling a Term tenor without the Term account (or OnCall without OnCall) is rejected;
   - a full replacement per currency persists;
   - no institution export is scheduled.
-- [ ] 4.10 Implement `ManageClientEnablementUseCase`, and its service (with an in-memory `ClientEnablementRepository` fake in tests) until green.
+- [x] 4.10 Implement `ManageClientEnablementUseCase`, and its service (with an in-memory `ClientEnablementRepository` fake in tests) until green.
 
 ## 5. Application: order paths (`mmx-application`)
 
-- [ ] 5.1 Extend `DelegatedGrantDirectoryTest`: resolution takes an `OrderOperation`; DECREASE/REDEMPTION are permitted on an inactive or missing grant; SUBSCRIPTION/INCREASE behave as before. `mvn test -pl mmx-application -Dtest=DelegatedGrantDirectoryTest`
-- [ ] 5.2 Add the `OrderOperation` parameter to the `DelegatedGrantDirectory` port and its fakes until green.
-- [ ] 5.3 Extend `IntakeServiceTest` (hub native and local routed). `mvn test -pl mmx-application -Dtest=IntakeServiceTest`. Cover:
+- [x] 5.1 Extend `DelegatedGrantDirectoryTest`: resolution takes an `OrderOperation`; DECREASE/REDEMPTION are permitted on an inactive or missing grant; SUBSCRIPTION/INCREASE behave as before. `mvn test -pl mmx-application -Dtest=DelegatedGrantDirectoryTest`
+- [x] 5.2 Add the `OrderOperation` parameter to the `DelegatedGrantDirectory` port and its fakes until green.
+- [x] 5.3 Extend `IntakeServiceTest` (hub native and local routed). `mvn test -pl mmx-application -Dtest=IntakeServiceTest`. Cover:
   - Subscription on a deactivated institution is rejected and Redemption is accepted;
   - a missing account for the OrderType is rejected;
   - a local routed order to a not-onboarded or offboarded institution (Subscription/Increase) → client-side REJECTED;
@@ -93,21 +93,21 @@ Strict TDD (no waiver): each "Write failing" task must be seen red before its "I
   - a grant reduction caps the effective set, and restoring it re-admits the tenor with no client action;
   - a missing hub account → REJECTED routing failure;
   - the hub-side order carries the `clientCounterpartyAccount` snapshot.
-- [ ] 5.4 Implement in `IntakeService` and `RoutedOrderIntake` using `NewBusinessPolicy`/`CounterpartyAccountPolicy` until green.
-- [ ] 5.5 Extend `RemoteRoutedOrderIntakeTest`: the client refuses a not-onboarded institution, a closed institution or a tenor outside its effective enablement (Subscription/Increase), or a missing account, with REJECTED routing failure and no leg-A send; `RemoteRoutingRequest` carries the hub-native code and `clientCounterpartyAccount`. `mvn test -pl mmx-application -Dtest=RemoteRoutedOrderIntakeTest`
-- [ ] 5.6 Implement in `RemoteRoutedOrderIntake` and `RemoteRoutingRequest` until green.
-- [ ] 5.7 Extend `AcceptRoutedHubOrderUseCaseTest`: Redemption on a revoked grant is accepted; Subscription on a revoked grant or deactivated hub institution is rejected; a missing hub account is rejected; `clientCounterpartyAccount` is stored on the hub-side order. `mvn test -pl mmx-application -Dtest=AcceptRoutedHubOrderUseCaseTest`
-- [ ] 5.8 Implement the operation-aware checks in `AcceptRoutedHubOrderService` until green.
-- [ ] 5.9 Extend `ExecuteOrderServiceTest`: execute stamps the `counterpartyAccount` snapshot; a cleared account blocks execute (order stays ASSIGNED); a Redemption on a closed institution executes. `mvn test -pl mmx-application -Dtest=ExecuteOrderServiceTest`
-- [ ] 5.10 Implement in `ExecuteOrderService` until green.
-- [ ] 5.11 Extend `TermOrderCreationOptionsServiceTest` and `OnCallOrderCreationOptionsServiceTest`. Counterparties must:
+- [x] 5.4 Implement in `IntakeService` and `RoutedOrderIntake` using `NewBusinessPolicy`/`CounterpartyAccountPolicy` until green.
+- [x] 5.5 Extend `RemoteRoutedOrderIntakeTest`: the client refuses a not-onboarded institution, a closed institution or a tenor outside its effective enablement (Subscription/Increase), or a missing account, with REJECTED routing failure and no leg-A send; `RemoteRoutingRequest` carries the hub-native code and `clientCounterpartyAccount`. `mvn test -pl mmx-application -Dtest=RemoteRoutedOrderIntakeTest`
+- [x] 5.6 Implement in `RemoteRoutedOrderIntake` and `RemoteRoutingRequest` until green.
+- [x] 5.7 Extend `AcceptRoutedHubOrderUseCaseTest`: Redemption on a revoked grant is accepted; Subscription on a revoked grant or deactivated hub institution is rejected; a missing hub account is rejected; `clientCounterpartyAccount` is stored on the hub-side order. `mvn test -pl mmx-application -Dtest=AcceptRoutedHubOrderUseCaseTest`
+- [x] 5.8 Implement the operation-aware checks in `AcceptRoutedHubOrderService` until green.
+- [x] 5.9 Extend `ExecuteOrderServiceTest`: execute stamps the `counterpartyAccount` snapshot; a cleared account blocks execute (order stays ASSIGNED); a Redemption on a closed institution executes. `mvn test -pl mmx-application -Dtest=ExecuteOrderServiceTest`
+- [x] 5.10 Implement in `ExecuteOrderService` until green.
+- [x] 5.11 Extend `TermOrderCreationOptionsServiceTest` and `OnCallOrderCreationOptionsServiceTest`. Counterparties must:
   - exclude institutions without the OrderType's account (at the client and at the linked hub institution);
   - exclude offboarded and granted-but-not-onboarded institutions;
   - exclude tenors/notice periods outside the client's effective enablement;
   - for a client, come from onboarded institutions only.
 
   `mvn test -pl mmx-application -Dtest='TermOrderCreationOptionsServiceTest,OnCallOrderCreationOptionsServiceTest'`
-- [ ] 5.12 Implement in the order-creation counterparty support until green.
+- [x] 5.12 Implement in the order-creation counterparty support until green.
 
 ## 6. Adapters out: messaging and integration
 

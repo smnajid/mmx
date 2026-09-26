@@ -125,8 +125,13 @@ public final class IntakeService implements IntakeUseCase {
     }
 
     private Result receiveHub(ReceiveOrderCommand command) {
-        Institution institution = resolveActiveInstitution(command.institutionCode());
+        Institution institution = resolveInstitution(command.institutionCode());
         validateLifecycleInstitutionMatchesContract(command, institution.getInstitutionCode());
+        institutionPolicy.validateExecute(
+                institution.getInstitutionCode(),
+                Optional.of(institution),
+                command.orderOperation(),
+                command.orderType());
         validateCurrency(command);
 
         MoneyMarketOrder created =
@@ -156,11 +161,14 @@ public final class IntakeService implements IntakeUseCase {
         if (isRemoteHub(clientEntity)) {
             return receiveRoutedRemote(command, clientEntity);
         }
-        Institution proxy = routedOrderIntake.resolveProxy(command.institutionCode());
-        validateLifecycleInstitutionMatchesContract(command, proxy.getInstitutionCode());
+        Optional<Institution> onboarded =
+                routedOrderIntake.findOnboarded(command.institutionCode(), clientEntity.getCode());
+        if (onboarded.isPresent()) {
+            validateLifecycleInstitutionMatchesContract(command, onboarded.get().getInstitutionCode());
+        }
         validateCurrency(command);
 
-        Result result = routedOrderIntake.completeIntake(command, proxy, clientEntity);
+        Result result = routedOrderIntake.completeIntake(command, onboarded, clientEntity);
         if (result.newlyCreated()) {
             if (result.status() == OrderStatus.ROUTED) {
                 auditLogger.log(result.orderId(), EVENT_ORDER_ROUTED, AUDIT_ACTOR_SYSTEM, clock.now());
@@ -216,18 +224,13 @@ public final class IntakeService implements IntakeUseCase {
         return entity;
     }
 
-    private Institution resolveActiveInstitution(String institutionCode) {
+    private Institution resolveInstitution(String institutionCode) {
         if (institutionCode == null || institutionCode.isBlank()) {
             throw new InvalidOrderException("institutionCode is required");
         }
-        Institution institution =
-                institutionRepository
-                        .findByInstitutionCode(institutionCode)
-                        .orElseThrow(() -> new InvalidOrderException("Institution not found: " + institutionCode));
-        if (!institution.isActive()) {
-            throw new InvalidOrderException("Institution is not active: " + institutionCode);
-        }
-        return institution;
+        return institutionRepository
+                .findByInstitutionCode(institutionCode)
+                .orElseThrow(() -> new InvalidOrderException("Institution not found: " + institutionCode));
     }
 
     private void validateLifecycleInstitutionMatchesContract(

@@ -14,7 +14,11 @@ import com.mmx.order.application.port.out.ManagedCurrencyRepository;
 import com.mmx.order.application.port.out.OpenPositionPort;
 import com.mmx.order.application.port.out.OrderRepository;
 import com.mmx.order.application.port.out.OrganisationRepository;
+import com.mmx.order.application.support.InMemoryClientEnablementRepository;
+import com.mmx.order.domain.exception.InstitutionClosedToNewBusinessException;
 import com.mmx.order.domain.exception.InvalidOrderException;
+import com.mmx.order.domain.exception.MissingCounterpartyAccountException;
+import com.mmx.order.domain.model.ClientEnablement;
 import com.mmx.order.domain.model.ContractNumber;
 import com.mmx.order.domain.model.ExternalOrderReference;
 import com.mmx.order.domain.model.GlobalAccount;
@@ -26,6 +30,7 @@ import com.mmx.order.domain.model.LegalEntityCode;
 import com.mmx.order.domain.model.ManagedCurrency;
 import com.mmx.order.domain.model.MoneyMarketOrder;
 import com.mmx.order.domain.model.NoticePeriod;
+import com.mmx.order.domain.model.OpenContractPosition;
 import com.mmx.order.domain.model.OrderOperation;
 import com.mmx.order.domain.model.OrderStatus;
 import com.mmx.order.domain.model.OrderType;
@@ -47,6 +52,8 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.EnumSet;
+import java.util.List;
+import java.util.Set;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -59,8 +66,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
-@Tag("fast")
 
+@Tag("fast")
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class IntakeServiceTest {
@@ -82,6 +89,10 @@ class IntakeServiceTest {
     @Mock DelegatedGrantDirectory delegatedGrantDirectory;
     @Mock GlobalAccountDirectory globalAccountDirectory;
 
+    InMemoryClientEnablementRepository clientEnablementRepository;
+    Institution bnkco;
+    Institution bnpLoc;
+    Institution bnpHub;
     IntakeService subject;
 
     @BeforeEach
@@ -92,8 +103,8 @@ class IntakeServiceTest {
         when(organisationRepository.findByCode(PM_ORG)).thenReturn(Optional.of(new Organisation(PM_ORG)));
         when(managedCurrencyRepository.findByCode("EUR")).thenReturn(Optional.of(permissiveEur()));
         when(managedCurrencyRepository.findByCode("USD")).thenReturn(Optional.of(permissiveUsd()));
-        when(institutionRepository.findByInstitutionCode("BNKCO"))
-                .thenReturn(Optional.of(new Institution("BNKCO", "BankCo", true)));
+        bnkco = Institution.createNative("BNKCO", "BankCo", LOC, CounterpartyAccounts.of("LOC-BNKCO-T", "LOC-BNKCO-OC"));
+        when(institutionRepository.findByInstitutionCode("BNKCO")).thenReturn(Optional.of(bnkco));
         when(legalEntityRepository.findByCode(LOC))
                 .thenReturn(Optional.of(LegalEntity.tradingHub(LOC, PM_ORG)));
         when(legalEntityRepository.belongsToOrganisation(LOC, PM_ORG)).thenReturn(true);
@@ -101,21 +112,30 @@ class IntakeServiceTest {
         LegalEntity client = LegalEntity.tradingClient(PAR, PM_ORG, hub);
         when(legalEntityRepository.findByCode(PAR)).thenReturn(Optional.of(client));
         when(legalEntityRepository.belongsToOrganisation(PAR, PM_ORG)).thenReturn(true);
-        when(institutionRepository.findByInstitutionCode("BNPLOC"))
-                .thenReturn(
-                        Optional.of(
-                                Institution.onboardFromGrant(
-                                        "BNPLOC", "BNP", new HubInstitutionLink(LOC, "BNP"), PAR, CounterpartyAccounts.none())));
-        when(institutionRepository.findByInstitutionCode("BNP"))
-                .thenReturn(Optional.of(new Institution("BNP", "BNP", true)));
-        when(delegatedGrantDirectory.resolveTenor(PAR, "BNPLOC", "EUR", Tenor._3M))
+        bnpLoc =
+                Institution.onboardFromGrant(
+                        "BNPLOC",
+                        "BNP",
+                        new HubInstitutionLink(LOC, "BNP"),
+                        PAR,
+                        CounterpartyAccounts.of("PAR-BNP-T", "PAR-BNP-OC"));
+        when(institutionRepository.findByInstitutionCode("BNPLOC")).thenReturn(Optional.of(bnpLoc));
+        bnpHub = Institution.createNative("BNP", "BNP", LOC, CounterpartyAccounts.of("LOC-BNP-T", "LOC-BNP-OC"));
+        when(institutionRepository.findByInstitutionCode("BNP")).thenReturn(Optional.of(bnpHub));
+        when(delegatedGrantDirectory.resolveTenor(eq(PAR), eq("BNPLOC"), eq("EUR"), eq(Tenor._3M), any()))
                 .thenReturn(GrantResolution.GRANTED);
+        when(globalAccountDirectory.resolve(PAR, LOC, "EUR"))
+                .thenReturn(Optional.of(new GlobalAccount(PAR, LOC, "EUR", "PAR-EUR-001")));
+        clientEnablementRepository = new InMemoryClientEnablementRepository();
+        clientEnablementRepository.save(
+                PAR, new ClientEnablement("BNPLOC", "EUR", Set.of(Tenor._3M), Set.of(NoticePeriod._24H)));
 
         RoutedOrderIntake routedOrderIntake =
                 new RoutedOrderIntake(
                         delegatedGrantDirectory,
                         globalAccountDirectory,
                         institutionRepository,
+                        clientEnablementRepository,
                         orderRepository,
                         clock);
         subject =
@@ -302,11 +322,12 @@ class IntakeServiceTest {
         var ref = new ExternalOrderReference("PM-inst-inactive");
         when(orderRepository.findByLegalEntityAndExternalReference(LOC, ref)).thenReturn(Optional.empty());
         when(institutionRepository.findByInstitutionCode("DEAD-01"))
-                .thenReturn(Optional.of(new Institution("DEAD-01", "Dead Bank", false)));
+                .thenReturn(Optional.of(new Institution(
+                        "DEAD-01", "Dead Bank", LOC, null, CounterpartyAccounts.of("T", "OC"), false, 2)));
 
         assertThatThrownBy(() -> subject.receive(validTermSubscribeCommand(ref, LOC, "DEAD-01")))
-                .isInstanceOf(InvalidOrderException.class)
-                .hasMessageContaining("Institution is not active");
+                .isInstanceOf(InstitutionClosedToNewBusinessException.class)
+                .hasMessageContaining("closed to new business");
 
         verify(orderRepository, never()).save(any());
         verifyNoInteractions(auditLogger);
@@ -345,7 +366,8 @@ class IntakeServiceTest {
         var ref = new ExternalOrderReference("PM-lifecycle-mismatch");
         when(orderRepository.findByLegalEntityAndExternalReference(LOC, ref)).thenReturn(Optional.empty());
         when(institutionRepository.findByInstitutionCode("SGFR"))
-                .thenReturn(Optional.of(new Institution("SGFR", "Société Générale", true)));
+                .thenReturn(Optional.of(Institution.createNative(
+                        "SGFR", "Société Générale", LOC, CounterpartyAccounts.of("T", "OC"))));
         when(orderRepository.findExecutedSubscriptionByContractNumber("CT-00042"))
                 .thenReturn(
                         Optional.of(
@@ -479,7 +501,7 @@ class IntakeServiceTest {
 
     @Test
     void grant_violation_rejects_without_hub_order() {
-        when(delegatedGrantDirectory.resolveTenor(PAR, "BNPLOC", "EUR", Tenor._3M))
+        when(delegatedGrantDirectory.resolveTenor(eq(PAR), eq("BNPLOC"), eq("EUR"), eq(Tenor._3M), any()))
                 .thenReturn(GrantResolution.NO_ACTIVE_GRANT);
         when(orderRepository.findByLegalEntityAndExternalReference(eq(PAR), any())).thenReturn(Optional.empty());
 
@@ -502,7 +524,7 @@ class IntakeServiceTest {
                         Optional.of(
                                 new ExecutedSubscriptionContractInfo(
                                         "EUR", NoticePeriod._24H, "SGFR-VIA-LOC", "SGFR")));
-        when(delegatedGrantDirectory.resolveNotice(PAR, "BNP-VIA-LOC", "EUR", NoticePeriod._24H))
+        when(delegatedGrantDirectory.resolveNotice(eq(PAR), eq("BNP-VIA-LOC"), eq("EUR"), eq(NoticePeriod._24H), any()))
                 .thenReturn(GrantResolution.GRANTED);
 
         assertThatThrownBy(
@@ -519,6 +541,196 @@ class IntakeServiceTest {
 
         verify(orderRepository, never()).save(any());
         verifyNoInteractions(auditLogger);
+    }
+
+    // --- Closed to new business and counterparty accounts: hub native intake ---
+
+    @Test
+    void hubRedemption_onDeactivatedInstitution_isAccepted() {
+        bnkco.deactivate();
+        var ref = new ExternalOrderReference("PM-hub-redeem-closed");
+        when(orderRepository.findByLegalEntityAndExternalReference(LOC, ref)).thenReturn(Optional.empty());
+        when(orderRepository.findExecutedSubscriptionByContractNumber("CT-00042"))
+                .thenReturn(Optional.of(new ExecutedSubscriptionContractInfo("EUR", NoticePeriod._24H, "BNKCO", "BankCo")));
+
+        IntakeUseCase.Result result =
+                subject.receive(onCallLifecycleCommand(ref, LOC, "BNKCO", "CT-00042", OrderOperation.REDEMPTION));
+
+        assertThat(result.status()).isEqualTo(OrderStatus.RECEIVED);
+    }
+
+    @Test
+    void hubSubscription_onDeactivatedInstitution_isRejected() {
+        bnkco.deactivate();
+        var ref = new ExternalOrderReference("PM-hub-sub-closed");
+        when(orderRepository.findByLegalEntityAndExternalReference(LOC, ref)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> subject.receive(validTermSubscribeCommand(ref, LOC)))
+                .isInstanceOf(InstitutionClosedToNewBusinessException.class);
+        verify(orderRepository, never()).save(any());
+    }
+
+    @Test
+    void hubTermOrder_withoutTermCounterpartyAccount_isRejected() {
+        bnkco.changeAccounts(CounterpartyAccounts.of(null, "LOC-BNKCO-OC"));
+        var ref = new ExternalOrderReference("PM-hub-no-term-account");
+        when(orderRepository.findByLegalEntityAndExternalReference(LOC, ref)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> subject.receive(validTermSubscribeCommand(ref, LOC)))
+                .isInstanceOf(MissingCounterpartyAccountException.class)
+                .hasMessageContaining("Term counterparty account");
+        verify(orderRepository, never()).save(any());
+    }
+
+    // --- Closed to new business, enablement and counterparty accounts: local routed intake ---
+
+    @Test
+    void routed_toAGrantedButNotOnboardedInstitution_isClientSideRejected() {
+        when(orderRepository.findByLegalEntityAndExternalReference(eq(PAR), any())).thenReturn(Optional.empty());
+
+        IntakeUseCase.Result result = subject.receive(routedTermCommand("PM-not-onboarded", "BNP", OrderOperation.SUBSCRIPTION));
+
+        assertThat(result.status()).isEqualTo(OrderStatus.REJECTED);
+        assertThat(savedOrders()).singleElement().satisfies(o -> assertThat(o.getRejectionReason()).contains("not onboarded"));
+    }
+
+    @Test
+    void routedSubscription_onAnOffboardedInstitution_isClientSideRejected() {
+        bnpLoc.offboard();
+        when(orderRepository.findByLegalEntityAndExternalReference(eq(PAR), any())).thenReturn(Optional.empty());
+
+        IntakeUseCase.Result result = subject.receive(sampleRoutedCommand());
+
+        assertThat(result.status()).isEqualTo(OrderStatus.REJECTED);
+        assertThat(savedOrders()).singleElement().satisfies(o -> assertThat(o.getRejectionReason()).contains("closed to new business"));
+    }
+
+    @Test
+    void routedDecrease_onAnOffboardedInstitution_isRouted() {
+        bnpLoc.offboard();
+        when(orderRepository.findByLegalEntityAndExternalReference(eq(PAR), any())).thenReturn(Optional.empty());
+        when(orderRepository.findExecutedSubscriptionByContractNumber("CT-00042"))
+                .thenReturn(Optional.of(new ExecutedSubscriptionContractInfo("EUR", NoticePeriod._24H, "BNPLOC", "BNP via LOC")));
+        when(openPositionPort.findOpenByContractNumber(new ContractNumber("CT-00042")))
+                .thenReturn(Optional.of(new OpenContractPosition(new ContractNumber("CT-00042"), "EUR", new BigDecimal("500000.00"))));
+        when(delegatedGrantDirectory.resolveNotice(eq(PAR), eq("BNPLOC"), eq("EUR"), eq(NoticePeriod._24H), eq(OrderOperation.DECREASE)))
+                .thenReturn(GrantResolution.NOT_REQUIRED);
+
+        IntakeUseCase.Result result = subject.receive(
+                onCallLifecycleCommand(new ExternalOrderReference("PM-dec-offboarded"), PAR, "BNPLOC", "CT-00042", OrderOperation.DECREASE));
+
+        assertThat(result.status()).isEqualTo(OrderStatus.ROUTED);
+    }
+
+    @Test
+    void routedSubscription_onAGrantedTenorTheClientHasNotEnabled_isClientSideRejected() {
+        clientEnablementRepository.save(PAR, new ClientEnablement("BNPLOC", "EUR", Set.of(Tenor._1M), Set.of()));
+        when(orderRepository.findByLegalEntityAndExternalReference(eq(PAR), any())).thenReturn(Optional.empty());
+
+        IntakeUseCase.Result result = subject.receive(sampleRoutedCommand());
+
+        assertThat(result.status()).isEqualTo(OrderStatus.REJECTED);
+        assertThat(savedOrders()).singleElement().satisfies(o -> assertThat(o.getRejectionReason()).contains("not enabled"));
+    }
+
+    @Test
+    void routedRedemption_onANoticePeriodSwitchedOffByTheClient_isRouted() {
+        clientEnablementRepository.save(PAR, new ClientEnablement("BNPLOC", "EUR", Set.of(Tenor._3M), Set.of()));
+        when(orderRepository.findByLegalEntityAndExternalReference(eq(PAR), any())).thenReturn(Optional.empty());
+        when(orderRepository.findExecutedSubscriptionByContractNumber("CT-00042"))
+                .thenReturn(Optional.of(new ExecutedSubscriptionContractInfo("EUR", NoticePeriod._24H, "BNPLOC", "BNP via LOC")));
+        when(delegatedGrantDirectory.resolveNotice(eq(PAR), eq("BNPLOC"), eq("EUR"), eq(NoticePeriod._24H), eq(OrderOperation.REDEMPTION)))
+                .thenReturn(GrantResolution.NOT_REQUIRED);
+
+        IntakeUseCase.Result result = subject.receive(
+                onCallLifecycleCommand(new ExternalOrderReference("PM-redeem-off"), PAR, "BNPLOC", "CT-00042", OrderOperation.REDEMPTION));
+
+        assertThat(result.status()).isEqualTo(OrderStatus.ROUTED);
+    }
+
+    @Test
+    void grantReduction_capsTheEffectiveSet_andRestoringItReadmitsTheTenor_withNoClientAction() {
+        when(orderRepository.findByLegalEntityAndExternalReference(eq(PAR), any())).thenReturn(Optional.empty());
+        when(orderRepository.findHubOrderByRoutingId(any())).thenReturn(Optional.empty());
+        when(delegatedGrantDirectory.resolveTenor(eq(PAR), eq("BNPLOC"), eq("EUR"), eq(Tenor._3M), any()))
+                .thenReturn(GrantResolution.NOT_IN_ENABLED_SET, GrantResolution.GRANTED);
+
+        IntakeUseCase.Result whileReduced = subject.receive(routedTermCommand("PM-reduced", "BNPLOC", OrderOperation.SUBSCRIPTION));
+        IntakeUseCase.Result afterRestore = subject.receive(routedTermCommand("PM-restored", "BNPLOC", OrderOperation.SUBSCRIPTION));
+
+        assertThat(whileReduced.status()).isEqualTo(OrderStatus.REJECTED);
+        assertThat(afterRestore.status()).isEqualTo(OrderStatus.ROUTED);
+    }
+
+    @Test
+    void routed_withoutTheClientCounterpartyAccount_isClientSideRejected() {
+        bnpLoc.changeAccounts(CounterpartyAccounts.of(null, "PAR-BNP-OC"));
+        when(orderRepository.findByLegalEntityAndExternalReference(eq(PAR), any())).thenReturn(Optional.empty());
+
+        IntakeUseCase.Result result = subject.receive(sampleRoutedCommand());
+
+        assertThat(result.status()).isEqualTo(OrderStatus.REJECTED);
+        assertThat(savedOrders()).singleElement().satisfies(o -> assertThat(o.getRejectionReason()).contains("Term counterparty account"));
+    }
+
+    @Test
+    void routed_withoutTheHubCounterpartyAccount_isARoutingFailure_withNoHubOrder() {
+        bnpHub.changeAccounts(CounterpartyAccounts.of(null, "LOC-BNP-OC"));
+        when(orderRepository.findByLegalEntityAndExternalReference(eq(PAR), any())).thenReturn(Optional.empty());
+
+        IntakeUseCase.Result result = subject.receive(sampleRoutedCommand());
+
+        assertThat(result.status()).isEqualTo(OrderStatus.REJECTED);
+        assertThat(savedOrders()).singleElement().satisfies(o -> assertThat(o.getRejectionReason())
+                .contains("Routing failure").contains("Term counterparty account"));
+        verify(orderRepository, never()).findHubOrderByRoutingId(any());
+    }
+
+    @Test
+    void routedSubscription_onADeactivatedHubInstitution_isClientSideRejected() {
+        bnpHub.deactivate();
+        when(orderRepository.findByLegalEntityAndExternalReference(eq(PAR), any())).thenReturn(Optional.empty());
+
+        IntakeUseCase.Result result = subject.receive(sampleRoutedCommand());
+
+        assertThat(result.status()).isEqualTo(OrderStatus.REJECTED);
+        assertThat(savedOrders()).singleElement().satisfies(o -> assertThat(o.getRejectionReason()).contains("closed to new business"));
+    }
+
+    @Test
+    void hubSideOrder_carriesTheClientCounterpartyAccountSnapshot() {
+        when(orderRepository.findByLegalEntityAndExternalReference(eq(PAR), any())).thenReturn(Optional.empty());
+        when(orderRepository.findHubOrderByRoutingId(any())).thenReturn(Optional.empty());
+
+        subject.receive(sampleRoutedCommand());
+
+        MoneyMarketOrder hubOrder =
+                savedOrders().stream().filter(MoneyMarketOrder::isHubSideRoutedLink).findFirst().orElseThrow();
+        assertThat(hubOrder.getInstitutionCode()).isEqualTo("BNP");
+        assertThat(hubOrder.getClientCounterpartyAccount()).isEqualTo("PAR-BNP-T");
+    }
+
+    private List<MoneyMarketOrder> savedOrders() {
+        ArgumentCaptor<MoneyMarketOrder> captor = ArgumentCaptor.forClass(MoneyMarketOrder.class);
+        verify(orderRepository, org.mockito.Mockito.atLeast(0)).save(captor.capture());
+        return captor.getAllValues();
+    }
+
+    private static ReceiveOrderCommand routedTermCommand(String ref, String institutionCode, OrderOperation operation) {
+        return new ReceiveOrderCommand(
+                new ExternalOrderReference(ref),
+                PAR,
+                OrderType.TERM,
+                operation,
+                new PortfolioNumber("PAR-PM-77"),
+                "EUR",
+                new BigDecimal("1000000.00"),
+                TODAY.plusDays(2),
+                new BigDecimal("2.50000000"),
+                Tenor._3M,
+                null,
+                null,
+                institutionCode);
     }
 
     private static ReceiveOrderCommand sampleRoutedCommand() {

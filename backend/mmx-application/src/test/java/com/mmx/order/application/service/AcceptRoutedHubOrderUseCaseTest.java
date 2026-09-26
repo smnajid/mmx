@@ -9,11 +9,14 @@ import com.mmx.order.application.port.out.RemoteRoutingRequest;
 import com.mmx.order.application.port.out.RemoteRoutingResponse;
 import com.mmx.order.application.port.out.RoutingOutcomeOutbox;
 import com.mmx.order.domain.exception.CrossOrgMembershipException;
+import com.mmx.order.domain.model.ContractNumber;
+import com.mmx.order.domain.model.CounterpartyAccounts;
 import com.mmx.order.domain.model.DelegatedInstitutionGrant;
 import com.mmx.order.domain.model.DelegatedGrantKey;
 import com.mmx.order.domain.model.ExternalOrderReference;
 import com.mmx.order.domain.model.Institution;
 import com.mmx.order.domain.model.LegalEntityCode;
+import com.mmx.order.domain.model.MoneyMarketOrder;
 import com.mmx.order.domain.model.NoticePeriod;
 import com.mmx.order.domain.model.OrderOperation;
 import com.mmx.order.domain.model.OrderType;
@@ -24,6 +27,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -46,9 +50,10 @@ import static org.mockito.Mockito.when;
 
 /**
  * Hub-deployment (LODH) leg-A inbound: {@code AcceptRoutedHubOrderUseCase} validates the originating
- * client's grant against the hub's own reference data, creates the hub-side order on success, and
- * emits a leg-B {@code ACCEPTED} outbox row in the same transaction; a grant/currency/tenor
- * violation rejects, creating no order and emitting no event.
+ * client's grant against the hub's own reference data (Subscription/Increase only), requires the hub
+ * institution's counterparty account for the OrderType (every operation), creates the hub-side order
+ * carrying the client counterparty account on success, and emits a leg-B {@code ACCEPTED} outbox row in
+ * the same transaction; a violation rejects, creating no order and emitting no event.
  *
  * <p>Spec: {@code order-routing} — remote routed order intake at the hub.
  */
@@ -195,9 +200,83 @@ class AcceptRoutedHubOrderUseCaseTest {
         verify(routingOutcomeOutbox, never()).scheduleAccepted(any(), any());
     }
 
+    @Test
+    void redemptionOnARevokedGrant_isAccepted_withoutConsultingTheGrant() {
+        stubInstitution();
+        when(orderRepository.save(any())).then(returnsFirstArg());
+        when(clock.today()).thenReturn(TODAY);
+        when(clock.now()).thenReturn(FIXED_NOW);
+
+        RemoteRoutingResponse response = subject.accept(onCallRequest(NoticePeriod._24H, OrderOperation.REDEMPTION), CLIENT_LE);
+
+        assertThat(response.isAccepted()).isTrue();
+        verify(delegatedGrantRepository, never()).findByKey(any());
+        verify(routingOutcomeOutbox).scheduleAccepted(any(), eq(FIXED_NOW));
+    }
+
+    @Test
+    void decreaseOnADeactivatedHubInstitution_isAccepted() {
+        stubInstitution(hubInstitution(false, CounterpartyAccounts.of("LOC-HSBC-T", "LOC-HSBC-OC")));
+        when(orderRepository.save(any())).then(returnsFirstArg());
+        when(clock.today()).thenReturn(TODAY);
+        when(clock.now()).thenReturn(FIXED_NOW);
+
+        assertThat(subject.accept(onCallRequest(NoticePeriod._24H, OrderOperation.DECREASE), CLIENT_LE).isAccepted())
+                .isTrue();
+    }
+
+    @Test
+    void subscriptionOnADeactivatedHubInstitution_isRejected() {
+        stubInstitution(hubInstitution(false, CounterpartyAccounts.of("LOC-HSBC-T", "LOC-HSBC-OC")));
+
+        RemoteRoutingResponse response = subject.accept(termRequest(Tenor._3M), CLIENT_LE);
+
+        assertThat(response.isRejected()).isTrue();
+        assertThat(((RemoteRoutingResponse.Reject) response).reason()).contains("closed to new business");
+        verify(orderRepository, never()).save(any());
+        verify(routingOutcomeOutbox, never()).scheduleAccepted(any(), any());
+    }
+
+    @Test
+    void missingHubCounterpartyAccount_isRejected_forEveryOperation() {
+        stubInstitution(hubInstitution(true, CounterpartyAccounts.of("LOC-HSBC-T", null)));
+
+        RemoteRoutingResponse response = subject.accept(onCallRequest(NoticePeriod._24H, OrderOperation.REDEMPTION), CLIENT_LE);
+
+        assertThat(response.isRejected()).isTrue();
+        assertThat(((RemoteRoutingResponse.Reject) response).reason()).contains("OnCall counterparty account");
+        verify(orderRepository, never()).save(any());
+        verify(routingOutcomeOutbox, never()).scheduleAccepted(any(), any());
+    }
+
+    @Test
+    void acceptedHubSideOrder_storesTheClientCounterpartyAccount() {
+        stubInstitution();
+        stubGrant(
+                new DelegatedInstitutionGrant(
+                        INSTITUTION_CODE, CLIENT_LE, CURRENCY, Set.of(Tenor._3M), Set.of(), true));
+        when(orderRepository.save(any())).then(returnsFirstArg());
+        when(clock.today()).thenReturn(TODAY);
+        when(clock.now()).thenReturn(FIXED_NOW);
+
+        subject.accept(termRequest(Tenor._3M), CLIENT_LE);
+
+        ArgumentCaptor<MoneyMarketOrder> captor = ArgumentCaptor.forClass(MoneyMarketOrder.class);
+        verify(orderRepository).save(captor.capture());
+        assertThat(captor.getValue().getClientCounterpartyAccount()).isEqualTo("CGD-CLIENT-ACC");
+        assertThat(captor.getValue().getCounterparty()).isEqualTo(INSTITUTION_DISPLAY);
+    }
+
     private void stubInstitution() {
-        when(institutionRepository.findByInstitutionCode(INSTITUTION_CODE))
-                .thenReturn(Optional.of(new Institution(INSTITUTION_CODE, INSTITUTION_DISPLAY, true)));
+        stubInstitution(hubInstitution(true, CounterpartyAccounts.of("LOC-HSBC-T", "LOC-HSBC-OC")));
+    }
+
+    private void stubInstitution(Institution institution) {
+        when(institutionRepository.findByInstitutionCode(INSTITUTION_CODE)).thenReturn(Optional.of(institution));
+    }
+
+    private static Institution hubInstitution(boolean active, CounterpartyAccounts accounts) {
+        return new Institution(INSTITUTION_CODE, INSTITUTION_DISPLAY, HUB_LE, null, accounts, active, 1);
     }
 
     private void stubGrant(DelegatedInstitutionGrant grant) {
@@ -223,10 +302,15 @@ class AcceptRoutedHubOrderUseCaseTest {
                 tenor,
                 null,
                 new BigDecimal("3.25"),
-                null);
+                null,
+                "CGD-CLIENT-ACC");
     }
 
     private static RemoteRoutingRequest onCallRequest(NoticePeriod noticePeriod) {
+        return onCallRequest(noticePeriod, OrderOperation.SUBSCRIPTION);
+    }
+
+    private static RemoteRoutingRequest onCallRequest(NoticePeriod noticePeriod, OrderOperation operation) {
         return new RemoteRoutingRequest(
                 CLIENT_LE,
                 RoutingId.fromClientOrderId(UUID.randomUUID()),
@@ -237,10 +321,11 @@ class AcceptRoutedHubOrderUseCaseTest {
                 new BigDecimal("1000000.00"),
                 TODAY.plusDays(1),
                 OrderType.ON_CALL,
-                OrderOperation.SUBSCRIPTION,
+                operation,
                 null,
                 noticePeriod,
                 null,
-                null);
+                operation == OrderOperation.SUBSCRIPTION ? null : new ContractNumber("CT-00042"),
+                "CGD-CLIENT-ACC");
     }
 }

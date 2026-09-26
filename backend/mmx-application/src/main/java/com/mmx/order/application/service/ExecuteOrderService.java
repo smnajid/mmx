@@ -20,6 +20,8 @@ import com.mmx.order.domain.model.MoneyMarketOrder;
 import com.mmx.order.domain.model.OrderOperation;
 import com.mmx.order.domain.policy.OrderAgainstInstitutionPolicy;
 
+import java.util.Optional;
+
 public final class ExecuteOrderService implements ExecuteOrderUseCase {
 
     static final String EVENT_ORDER_EXECUTED = "ORDER_EXECUTED";
@@ -67,13 +69,12 @@ public final class ExecuteOrderService implements ExecuteOrderUseCase {
                 orderRepository.findById(command.orderId()).orElseThrow(() -> new OrderNotFoundException(command.orderId()));
 
         String institutionCode = order.getInstitutionCode();
-        Institution institution =
-                institutionRepository
-                        .findByInstitutionCode(institutionCode)
-                        .orElseThrow(() -> new InvalidOrderException("Institution not found: " + institutionCode));
-        if (!institution.isActive()) {
-            throw new InvalidOrderException("Institution is not active: " + institutionCode);
-        }
+        Optional<Institution> institutionOpt = Optional.ofNullable(institutionCode)
+                .flatMap(institutionRepository::findByInstitutionCode);
+        String counterpartyAccount =
+                institutionPolicy.validateExecute(
+                        institutionCode, institutionOpt, order.getOrderOperation(), order.getOrderType());
+        Institution institution = institutionOpt.orElseThrow();
 
         var now = clock.now();
         ContractNumber contractNumber = resolveExecutionContractNumber(order);
@@ -84,6 +85,7 @@ public final class ExecuteOrderService implements ExecuteOrderUseCase {
                 command.executedRate(),
                 counterparty,
                 institution.getInstitutionCode(),
+                counterpartyAccount,
                 dealingReference,
                 contractNumber,
                 command.traderId(),

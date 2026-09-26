@@ -27,7 +27,7 @@ class DelegatedGrantDirectorySmokeTest extends SharedPostgresTestBase {
     void directoryBeanResolvable_andReturnsNoActiveGrantWhenEmpty() {
         assertThat(delegatedGrantDirectory).isNotNull();
         assertThat(
-                        delegatedGrantDirectory.resolveTenor(
+                        delegatedGrantDirectory.lookupTenor(
                                 new LegalEntityCode("PAR"), "UNKNOWN-01", "EUR", Tenor._3M))
                 .isEqualTo(GrantResolution.NO_ACTIVE_GRANT);
     }

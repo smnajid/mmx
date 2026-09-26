@@ -78,9 +78,9 @@ class JpaDelegatedGrantDirectoryIntegrationTest {
                 nativeRepository.save(
                         Institution.onboardFromGrant("BVL-01", "BankCo", new HubInstitutionLink(LOC, "BI-01"), PAR, CounterpartyAccounts.none()));
 
-        assertThat(directory.resolveTenor(PAR, proxy.getInstitutionCode(), "EUR", Tenor._3M))
+        assertThat(directory.lookupTenor(PAR, proxy.getInstitutionCode(), "EUR", Tenor._3M))
                 .isEqualTo(GrantResolution.GRANTED);
-        assertThat(directory.resolveTenor(PAR, proxy.getInstitutionCode(), "EUR", Tenor._1Y))
+        assertThat(directory.lookupTenor(PAR, proxy.getInstitutionCode(), "EUR", Tenor._1Y))
                 .isEqualTo(GrantResolution.NOT_IN_ENABLED_SET);
     }
 
@@ -100,7 +100,7 @@ class JpaDelegatedGrantDirectoryIntegrationTest {
                 nativeRepository.save(
                         Institution.onboardFromGrant("BVL-01", "BankCo", new HubInstitutionLink(LOC, "BI-01"), PAR, CounterpartyAccounts.none()));
 
-        assertThat(directory.resolveTenor(PAR, proxy.getInstitutionCode(), "EUR", Tenor._3M))
+        assertThat(directory.lookupTenor(PAR, proxy.getInstitutionCode(), "EUR", Tenor._3M))
                 .isEqualTo(GrantResolution.NO_ACTIVE_GRANT);
     }
 }

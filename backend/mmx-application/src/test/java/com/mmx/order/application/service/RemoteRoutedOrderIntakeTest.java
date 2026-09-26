@@ -10,7 +10,15 @@ import com.mmx.order.application.port.out.RemoteRoutingGateway;
 import com.mmx.order.application.port.out.RemoteRoutingRequest;
 import com.mmx.order.application.port.out.RemoteRoutingResponse;
 import com.mmx.order.application.port.out.RemoteRoutingTransientFailureException;
+import com.mmx.order.application.support.InMemoryClientEnablementRepository;
+import com.mmx.order.application.support.InMemoryInstitutionRepository;
+import com.mmx.order.domain.model.ClientEnablement;
+import com.mmx.order.domain.model.ContractNumber;
+import com.mmx.order.domain.model.CounterpartyAccounts;
 import com.mmx.order.domain.model.ExternalOrderReference;
+import com.mmx.order.domain.model.HubInstitutionLink;
+import com.mmx.order.domain.model.Institution;
+import com.mmx.order.domain.model.MoneyMarketOrder;
 import com.mmx.order.domain.model.LegalEntity;
 import com.mmx.order.domain.model.LegalEntityCode;
 import com.mmx.order.domain.model.NoticePeriod;
@@ -32,6 +40,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.AdditionalAnswers.returnsFirstArg;
@@ -62,7 +71,8 @@ class RemoteRoutedOrderIntakeTest {
     private static final LegalEntityCode HUB_LE = new LegalEntityCode("LOC");
     private static final OrganisationCode CLIENT_ORG = new OrganisationCode("CGED");
     private static final OrganisationCode HUB_ORG = new OrganisationCode("LODH");
-    private static final String INSTITUTION_CODE = "HSBC";
+    private static final String HUB_INSTITUTION_CODE = "HSBC";
+    private static final String ONBOARDED_CODE = "HVL-01";
     private static final String CURRENCY = "EUR";
     private static final PortfolioNumber CLIENT_PORTFOLIO = new PortfolioNumber("CGD-PM-77");
     private static final PortfolioNumber RESOLVED_HUB_PORTFOLIO = new PortfolioNumber("LOC-EUR-001");
@@ -72,13 +82,33 @@ class RemoteRoutedOrderIntakeTest {
     @Mock OrderRepository orderRepository;
     @Mock Clock clock;
 
+    InMemoryInstitutionRepository institutionRepository;
+    InMemoryClientEnablementRepository clientEnablementRepository;
+    Institution onboarded;
     RemoteRoutedOrderIntake subject;
 
     @BeforeEach
     void setUp() {
+        institutionRepository = new InMemoryInstitutionRepository();
+        onboarded =
+                Institution.onboardFromGrant(
+                        ONBOARDED_CODE,
+                        "HSBC",
+                        new HubInstitutionLink(HUB_LE, HUB_INSTITUTION_CODE),
+                        CLIENT_LE,
+                        CounterpartyAccounts.of("CGD-HSBC-T", "CGD-HSBC-OC"));
+        institutionRepository.put(onboarded);
+        clientEnablementRepository = new InMemoryClientEnablementRepository();
+        clientEnablementRepository.save(
+                CLIENT_LE, new ClientEnablement(ONBOARDED_CODE, CURRENCY, Set.of(Tenor._3M), Set.of()));
         subject =
                 new RemoteRoutedOrderIntake(
-                        externalIdentityGateway, remoteRoutingGateway, orderRepository, clock);
+                        externalIdentityGateway,
+                        remoteRoutingGateway,
+                        institutionRepository,
+                        clientEnablementRepository,
+                        orderRepository,
+                        clock);
         lenient().when(clock.now()).thenReturn(FIXED_NOW);
         lenient().when(clock.today()).thenReturn(TODAY);
         lenient().when(orderRepository.save(any())).then(returnsFirstArg());
@@ -101,7 +131,8 @@ class RemoteRoutedOrderIntakeTest {
         verify(remoteRoutingGateway).route(requestCaptor.capture());
         RemoteRoutingRequest sent = requestCaptor.getValue();
         assertThat(sent.portfolioNumber()).isEqualTo(RESOLVED_HUB_PORTFOLIO);
-        assertThat(sent.institutionCode()).isEqualTo(INSTITUTION_CODE);
+        assertThat(sent.institutionCode()).isEqualTo(HUB_INSTITUTION_CODE);
+        assertThat(sent.clientCounterpartyAccount()).isEqualTo("CGD-HSBC-T");
         assertThat(sent.originatingLegalEntityCode()).isEqualTo(CLIENT_LE);
         assertThat(sent.routingId()).isNotNull();
     }
@@ -157,7 +188,98 @@ class RemoteRoutedOrderIntakeTest {
         assertThat(result.newlyCreated()).isTrue();
     }
 
+    @Test
+    void clientOrder_carriesTheOnboardedInstitutionAndItsDisplayName() {
+        when(externalIdentityGateway.resolveHubSidePortfolioNumber(CLIENT_LE, CLIENT_PORTFOLIO, HUB_LE))
+                .thenReturn(Optional.of(RESOLVED_HUB_PORTFOLIO));
+        when(remoteRoutingGateway.route(any())).thenReturn(new RemoteRoutingResponse.Accept(FIXED_NOW));
+
+        subject.completeIntake(termCommand(), cgdClient());
+
+        MoneyMarketOrder saved = savedOrder();
+        assertThat(saved.getInstitutionCode()).isEqualTo(ONBOARDED_CODE);
+        assertThat(saved.getCounterparty()).isEqualTo("HSBC via LOC");
+    }
+
+    @Test
+    void notOnboardedInstitution_isARoutingFailure_andNoLegAIsSent() {
+        IntakeUseCase.Result result = subject.completeIntake(termCommand("SG"), cgdClient());
+
+        assertRejectedWithoutLegA(result, "not onboarded");
+    }
+
+    @Test
+    void subscriptionOnAnOffboardedInstitution_isRefused_andNoLegAIsSent() {
+        onboarded.offboard();
+
+        assertRejectedWithoutLegA(subject.completeIntake(termCommand(), cgdClient()), "closed to new business");
+    }
+
+    @Test
+    void subscriptionOnATenorOutsideTheClientEnablement_isRefused_andNoLegAIsSent() {
+        clientEnablementRepository.save(
+                CLIENT_LE, new ClientEnablement(ONBOARDED_CODE, CURRENCY, Set.of(Tenor._1M), Set.of()));
+
+        assertRejectedWithoutLegA(subject.completeIntake(termCommand(), cgdClient()), "not enabled");
+    }
+
+    @Test
+    void missingClientCounterpartyAccount_isRefused_andNoLegAIsSent() {
+        onboarded.changeAccounts(CounterpartyAccounts.of(null, "CGD-HSBC-OC"));
+
+        assertRejectedWithoutLegA(subject.completeIntake(termCommand(), cgdClient()), "Term counterparty account");
+    }
+
+    @Test
+    void redemptionOnAnOffboardedInstitutionWithASwitchedOffNotice_isSent() {
+        onboarded.offboard();
+        when(externalIdentityGateway.resolveHubSidePortfolioNumber(CLIENT_LE, CLIENT_PORTFOLIO, HUB_LE))
+                .thenReturn(Optional.of(RESOLVED_HUB_PORTFOLIO));
+        when(remoteRoutingGateway.route(any())).thenReturn(new RemoteRoutingResponse.Accept(FIXED_NOW));
+
+        IntakeUseCase.Result result = subject.completeIntake(onCallRedemptionCommand(), cgdClient());
+
+        assertThat(result.status()).isEqualTo(OrderStatus.ROUTED);
+        ArgumentCaptor<RemoteRoutingRequest> requestCaptor = ArgumentCaptor.forClass(RemoteRoutingRequest.class);
+        verify(remoteRoutingGateway).route(requestCaptor.capture());
+        assertThat(requestCaptor.getValue().clientCounterpartyAccount()).isEqualTo("CGD-HSBC-OC");
+    }
+
+    private void assertRejectedWithoutLegA(IntakeUseCase.Result result, String reason) {
+        assertThat(result.status()).isEqualTo(OrderStatus.REJECTED);
+        assertThat(savedOrder().getRejectionReason()).startsWith("Routing failure").contains(reason);
+        verify(remoteRoutingGateway, never()).route(any());
+        verify(externalIdentityGateway, never()).resolveHubSidePortfolioNumber(any(), any(), any());
+    }
+
+    private MoneyMarketOrder savedOrder() {
+        ArgumentCaptor<MoneyMarketOrder> captor = ArgumentCaptor.forClass(MoneyMarketOrder.class);
+        verify(orderRepository).save(captor.capture());
+        return captor.getValue();
+    }
+
+    private ReceiveOrderCommand onCallRedemptionCommand() {
+        return new ReceiveOrderCommand(
+                new ExternalOrderReference("CGD-PM-2"),
+                CLIENT_LE,
+                OrderType.ON_CALL,
+                OrderOperation.REDEMPTION,
+                CLIENT_PORTFOLIO,
+                CURRENCY,
+                new BigDecimal("100000.00"),
+                TODAY.plusDays(5),
+                null,
+                null,
+                NoticePeriod._48H,
+                new ContractNumber("CT-00042"),
+                ONBOARDED_CODE);
+    }
+
     private ReceiveOrderCommand termCommand() {
+        return termCommand(ONBOARDED_CODE);
+    }
+
+    private ReceiveOrderCommand termCommand(String institutionCode) {
         return new ReceiveOrderCommand(
                 new ExternalOrderReference("CGD-PM-1"),
                 CLIENT_LE,
@@ -171,7 +293,7 @@ class RemoteRoutedOrderIntakeTest {
                 Tenor._3M,
                 null,
                 null,
-                INSTITUTION_CODE);
+                institutionCode);
     }
 
     private static LegalEntity cgdClient() {

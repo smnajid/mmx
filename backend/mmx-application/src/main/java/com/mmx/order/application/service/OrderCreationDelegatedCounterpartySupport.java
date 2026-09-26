@@ -1,123 +1,116 @@
 package com.mmx.order.application.service;
 
 import com.mmx.order.application.ordercreation.OrderCreationCounterparty;
+import com.mmx.order.application.port.out.ClientEnablementRepository;
 import com.mmx.order.application.port.out.DelegatedGrantRepository;
 import com.mmx.order.application.port.out.InstitutionRepository;
-import com.mmx.order.application.termrate.TermRateAuditRow;
+import com.mmx.order.domain.model.ClientEnablement;
 import com.mmx.order.domain.model.DelegatedInstitutionGrant;
-import com.mmx.order.domain.model.LegalEntityCode;
-import com.mmx.order.domain.model.NoticePeriod;
-import com.mmx.order.domain.model.OnCallRateSegment;
-import com.mmx.order.domain.model.Tenor;
 import com.mmx.order.domain.model.Institution;
+import com.mmx.order.domain.model.LegalEntityCode;
+import com.mmx.order.domain.model.OrderType;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+/**
+ * Order-creation counterparties feed new business, so they include only institutions open to new business
+ * that hold the counterparty account for the OrderType. For a TradingHub: its active native institutions.
+ * For a TradingClient: its open onboarded institutions whose effective enablement (active grant ∩ client
+ * enablement) includes the currency and term, priced at the linked hub institution's rate. When the linked
+ * hub institution is stored in this deployment (same-Organisation client) it must also be open and hold the
+ * account; a remote client cannot see the hub's accounts, and the hub enforces them at leg-A accept.
+ */
 final class OrderCreationDelegatedCounterpartySupport {
+
+    /** A hub rate keyed by hub-native institution code. */
+    record RateQuote(String hubInstitutionCode, BigDecimal rate, LocalDate rateDate) {}
 
     private OrderCreationDelegatedCounterpartySupport() {}
 
-    static List<OrderCreationCounterparty> termCounterpartiesForClient(
+    static List<OrderCreationCounterparty> forHub(
+            OrderType orderType, List<RateQuote> quotes, InstitutionRepository institutionRepository, LocalDate today) {
+        List<OrderCreationCounterparty> counterparties = new ArrayList<>();
+        for (RateQuote quote : quotes) {
+            institutionRepository
+                    .findByInstitutionCode(quote.hubInstitutionCode())
+                    .filter(institution -> isOpenWithAccount(institution, orderType))
+                    .ifPresent(institution -> counterparties.add(toCounterparty(institution, quote, today)));
+        }
+        return sortedByBestRate(counterparties);
+    }
+
+    static List<OrderCreationCounterparty> forClient(
             LegalEntityCode clientCode,
             String currency,
-            Tenor tenor,
+            OrderType orderType,
+            Predicate<DelegatedInstitutionGrant> grantEnablesTerm,
+            Predicate<ClientEnablement> clientEnablesTerm,
+            List<RateQuote> hubQuotes,
             DelegatedGrantRepository grantRepository,
-            InstitutionRepository proxyRepository,
-            List<TermRateAuditRow> hubRates,
+            InstitutionRepository institutionRepository,
+            ClientEnablementRepository clientEnablementRepository,
             LocalDate today) {
         Set<String> grantedHubInstitutions =
                 grantRepository.findByClientLegalEntityCode(clientCode).stream()
                         .filter(DelegatedInstitutionGrant::isActive)
                         .filter(grant -> grant.getCurrency().equals(currency))
-                        .filter(grant -> grant.getEnabledTenors().contains(tenor))
+                        .filter(grantEnablesTerm)
                         .map(DelegatedInstitutionGrant::getHubInstitutionCode)
                         .collect(Collectors.toSet());
-        Map<String, Institution> proxiesByHub = activeProxiesByHubInstitution(clientCode, proxyRepository);
+        Map<String, Institution> onboardedByHub = new HashMap<>();
+        for (Institution onboarded : institutionRepository.findOnboardedByLegalEntityCode(clientCode)) {
+            if (isOpenWithAccount(onboarded, orderType)
+                    && clientEnablesTerm.test(
+                            clientEnablementRepository.find(onboarded.getInstitutionCode(), currency))) {
+                onboardedByHub.putIfAbsent(onboarded.getHubLink().orElseThrow().hubInstitutionCode(), onboarded);
+            }
+        }
 
         List<OrderCreationCounterparty> counterparties = new ArrayList<>();
-        for (TermRateAuditRow row : hubRates) {
-            if (!grantedHubInstitutions.contains(row.institutionCode())) {
+        for (RateQuote quote : hubQuotes) {
+            Institution onboarded = onboardedByHub.get(quote.hubInstitutionCode());
+            if (onboarded == null
+                    || !grantedHubInstitutions.contains(quote.hubInstitutionCode())
+                    || !linkedHubInstitutionAdmits(quote.hubInstitutionCode(), orderType, institutionRepository)) {
                 continue;
             }
-            Institution proxy = proxiesByHub.get(row.institutionCode());
-            if (proxy == null) {
-                continue;
-            }
-            counterparties.add(toTermCounterparty(proxy, row, today));
+            counterparties.add(toCounterparty(onboarded, quote, today));
         }
+        return sortedByBestRate(counterparties);
+    }
+
+    private static boolean linkedHubInstitutionAdmits(
+            String hubInstitutionCode, OrderType orderType, InstitutionRepository institutionRepository) {
+        Optional<Institution> hubInstitution = institutionRepository.findByInstitutionCode(hubInstitutionCode);
+        return hubInstitution.map(institution -> isOpenWithAccount(institution, orderType)).orElse(true);
+    }
+
+    private static boolean isOpenWithAccount(Institution institution, OrderType orderType) {
+        return !institution.isClosedToNewBusiness()
+                && institution.getCounterpartyAccounts().accountFor(orderType).isPresent();
+    }
+
+    private static OrderCreationCounterparty toCounterparty(Institution institution, RateQuote quote, LocalDate today) {
+        return new OrderCreationCounterparty(
+                institution.getInstitutionCode(),
+                institution.getDisplayName(),
+                quote.rate(),
+                quote.rateDate(),
+                quote.rateDate().isBefore(today));
+    }
+
+    private static List<OrderCreationCounterparty> sortedByBestRate(List<OrderCreationCounterparty> counterparties) {
         counterparties.sort(Comparator.comparing(OrderCreationCounterparty::rate).reversed());
         return counterparties;
-    }
-
-    static List<OrderCreationCounterparty> onCallCounterpartiesForClient(
-            LegalEntityCode clientCode,
-            String currency,
-            NoticePeriod noticePeriod,
-            DelegatedGrantRepository grantRepository,
-            InstitutionRepository proxyRepository,
-            List<OnCallRateSegment> hubSegments,
-            LocalDate today) {
-        Set<String> grantedHubInstitutions =
-                grantRepository.findByClientLegalEntityCode(clientCode).stream()
-                        .filter(DelegatedInstitutionGrant::isActive)
-                        .filter(grant -> grant.getCurrency().equals(currency))
-                        .filter(grant -> grant.getEnabledNoticePeriods().contains(noticePeriod))
-                        .map(DelegatedInstitutionGrant::getHubInstitutionCode)
-                        .collect(Collectors.toSet());
-        Map<String, Institution> proxiesByHub = activeProxiesByHubInstitution(clientCode, proxyRepository);
-
-        List<OrderCreationCounterparty> counterparties = new ArrayList<>();
-        for (OnCallRateSegment segment : hubSegments) {
-            String hubInstitutionCode = segment.getCurveKey().institutionCode();
-            if (!grantedHubInstitutions.contains(hubInstitutionCode)) {
-                continue;
-               }
-            Institution proxy = proxiesByHub.get(hubInstitutionCode);
-            if (proxy == null) {
-                continue;
-            }
-            counterparties.add(toOnCallCounterparty(proxy, segment, today));
-        }
-        counterparties.sort(Comparator.comparing(OrderCreationCounterparty::rate).reversed());
-        return counterparties;
-    }
-
-    private static Map<String, Institution> activeProxiesByHubInstitution(
-            LegalEntityCode clientCode, InstitutionRepository proxyRepository) {
-        Map<String, Institution> proxiesByHub = new HashMap<>();
-        for (Institution proxy : proxyRepository.findOnboardedByLegalEntityCode(clientCode)) {
-            if (proxy.isActive()) {
-                proxiesByHub.putIfAbsent(proxy.getHubLink().orElseThrow().hubInstitutionCode(), proxy);
-            }
-        }
-        return proxiesByHub;
-    }
-
-    private static OrderCreationCounterparty toTermCounterparty(
-            Institution proxy, TermRateAuditRow row, LocalDate today) {
-        return new OrderCreationCounterparty(
-                proxy.getInstitutionCode(),
-                proxy.getDisplayName(),
-                row.rate(),
-                row.tradingDate(),
-                row.tradingDate().isBefore(today));
-    }
-
-    private static OrderCreationCounterparty toOnCallCounterparty(
-            Institution proxy, OnCallRateSegment segment, LocalDate today) {
-        LocalDate rateDate = segment.getValueDate();
-        return new OrderCreationCounterparty(
-                proxy.getInstitutionCode(),
-                proxy.getDisplayName(),
-                segment.getRate(),
-                rateDate,
-                rateDate.isBefore(today));
     }
 }

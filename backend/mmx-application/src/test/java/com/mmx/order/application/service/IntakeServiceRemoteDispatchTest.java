@@ -18,6 +18,8 @@ import com.mmx.order.application.port.out.OrganisationRepository;
 import com.mmx.order.application.port.out.RemoteRoutingGateway;
 import com.mmx.order.application.port.out.RemoteRoutingRequest;
 import com.mmx.order.application.port.out.RemoteRoutingResponse;
+import com.mmx.order.application.support.InMemoryClientEnablementRepository;
+import com.mmx.order.domain.model.ClientEnablement;
 import com.mmx.order.domain.model.CounterpartyAccounts;
 import com.mmx.order.domain.model.ExternalOrderReference;
 import com.mmx.order.domain.model.HubInstitutionLink;
@@ -50,6 +52,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.EnumSet;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.AdditionalAnswers.returnsFirstArg;
@@ -61,7 +64,8 @@ import static org.mockito.Mockito.when;
 /**
  * Verifies the dispatch decision in {@link IntakeService#receiveRouted}: when the connected hub is
  * remote, intake delegates to {@link RemoteRoutedOrderIntake} and never touches the local-routing
- * path (no proxy lookup, no local account directory, no local hub-order persistence).
+ * path (no local grant directory, no local account directory, no local hub-order persistence). The
+ * remote client does read its own onboarded institution, which it stores locally.
  *
  * <p>Spec: {@code order-routing} — remote routed order intake; design D1/D3/D7.
  */
@@ -111,14 +115,32 @@ class IntakeServiceRemoteDispatchTest {
         when(remoteRoutingGateway.route(any()))
                 .thenReturn(new RemoteRoutingResponse.Accept(FIXED_NOW));
 
+        when(institutionRepository.findByInstitutionCode("HSBC-01"))
+                .thenReturn(Optional.of(
+                        Institution.onboardFromGrant(
+                                "HSBC-01",
+                                "HSBC",
+                                new HubInstitutionLink(LOC, "HSBC"),
+                                CGD,
+                                CounterpartyAccounts.of("CGD-HSBC-T", "CGD-HSBC-OC"))));
+        InMemoryClientEnablementRepository remoteEnablement = new InMemoryClientEnablementRepository();
+        remoteEnablement.save(CGD, new ClientEnablement("HSBC-01", "EUR", Set.of(Tenor._3M), Set.of()));
+
         HubLocalityResolver remoteResolver = code -> HubLocality.REMOTE;
         RemoteRoutedOrderIntake remoteIntake =
-                new RemoteRoutedOrderIntake(externalIdentityGateway, remoteRoutingGateway, orderRepository, clock);
+                new RemoteRoutedOrderIntake(
+                        externalIdentityGateway,
+                        remoteRoutingGateway,
+                        institutionRepository,
+                        remoteEnablement,
+                        orderRepository,
+                        clock);
         RoutedOrderIntake localIntake =
                 new RoutedOrderIntake(
                         delegatedGrantDirectory,
                         globalAccountDirectory,
                         institutionRepository,
+                        new InMemoryClientEnablementRepository(),
                         orderRepository,
                         clock);
 
@@ -149,7 +171,7 @@ class IntakeServiceRemoteDispatchTest {
 
         verify(remoteRoutingGateway).route(any(RemoteRoutingRequest.class));
         verify(externalIdentityGateway).resolveHubSidePortfolioNumber(any(), any(), any());
-        verify(institutionRepository, never()).findByInstitutionCode(any());
+        verify(delegatedGrantDirectory, never()).resolveTenor(any(), any(), any(), any(), any());
         verify(globalAccountDirectory, never()).resolve(any(), any(), any());
     }
 
@@ -164,6 +186,7 @@ class IntakeServiceRemoteDispatchTest {
                         delegatedGrantDirectory,
                         globalAccountDirectory,
                         institutionRepository,
+                        new InMemoryClientEnablementRepository(),
                         orderRepository,
                         clock);
         subject =
@@ -190,7 +213,7 @@ class IntakeServiceRemoteDispatchTest {
         when(globalAccountDirectory.resolve(any(), any(), any()))
                 .thenReturn(Optional.of(new com.mmx.order.domain.model.GlobalAccount(
                         CGD, LOC, "EUR", "LOC-EUR-001")));
-        when(delegatedGrantDirectory.resolveTenor(any(), any(), any(), any()))
+        when(delegatedGrantDirectory.resolveTenor(any(), any(), any(), any(), any()))
                 .thenReturn(GrantResolution.GRANTED);
 
         ReceiveOrderCommand command = termSubscribeCommand();

@@ -8,11 +8,13 @@ import com.mmx.order.application.ordercreation.TermCurrenciesResult;
 import com.mmx.order.application.ordercreation.TenorsResult;
 import com.mmx.order.application.port.out.Clock;
 import com.mmx.order.application.port.out.DelegatedGrantRepository;
-import com.mmx.order.application.port.out.InstitutionRepository;
 import com.mmx.order.application.port.out.LegalEntityRepository;
 import com.mmx.order.application.port.out.ManagedCurrencyRepository;
 import com.mmx.order.application.port.out.TermRateRepository;
+import com.mmx.order.application.support.InMemoryClientEnablementRepository;
+import com.mmx.order.application.support.InMemoryInstitutionRepository;
 import com.mmx.order.application.termrate.TermRateAuditRow;
+import com.mmx.order.domain.model.ClientEnablement;
 import com.mmx.order.domain.model.DelegatedInstitutionGrant;
 import com.mmx.order.domain.model.CounterpartyAccounts;
 import com.mmx.order.domain.model.HubInstitutionLink;
@@ -36,11 +38,12 @@ import java.time.LocalDate;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
-@Tag("fast")
 
+@Tag("fast")
 @ExtendWith(MockitoExtension.class)
 class TermOrderCreationOptionsServiceTest {
 
@@ -56,8 +59,8 @@ class TermOrderCreationOptionsServiceTest {
     @Mock
     TermRateRepository termRateRepository;
 
-    @Mock
-    InstitutionRepository institutionRepository;
+    InMemoryInstitutionRepository institutionRepository;
+    InMemoryClientEnablementRepository clientEnablementRepository;
 
     @Mock
     LegalEntityRepository legalEntityRepository;
@@ -69,6 +72,8 @@ class TermOrderCreationOptionsServiceTest {
 
     @BeforeEach
     void setUp() {
+        institutionRepository = new InMemoryInstitutionRepository();
+        clientEnablementRepository = new InMemoryClientEnablementRepository();
         Clock clock =
                 new Clock() {
                     @Override
@@ -88,6 +93,7 @@ class TermOrderCreationOptionsServiceTest {
                         institutionRepository,
                         legalEntityRepository,
                         delegatedGrantRepository,
+                        clientEnablementRepository,
                         clock);
     }
 
@@ -167,10 +173,8 @@ class TermOrderCreationOptionsServiceTest {
                         List.of(
                                 rateRow("BNKCO", Tenor._3M, TODAY, "3.45"),
                                 rateRow("CDNRD", Tenor._3M, yesterday, "3.40")));
-        when(institutionRepository.findByInstitutionCode("BNKCO"))
-                .thenReturn(Optional.of(new Institution("BNKCO", "BankCo", true)));
-        when(institutionRepository.findByInstitutionCode("CDNRD"))
-                .thenReturn(Optional.of(new Institution("CDNRD", "Canada Rd", true)));
+        institutionRepository.put(hubInstitution("BNKCO", "BankCo", true, "LOC-BNKCO-T"));
+        institutionRepository.put(hubInstitution("CDNRD", "Canada Rd", true, "LOC-CDNRD-T"));
 
         CounterpartiesResult result = subject.listCounterparties(LOC, "EUR", Tenor._3M);
 
@@ -196,7 +200,85 @@ class TermOrderCreationOptionsServiceTest {
     }
 
     @Test
-    void listCounterparties_forTradingClient_returnsOnlyGrantedProxyInstitutions() {
+    void listCounterparties_forHub_excludesInactiveInstitutionsAndThoseWithoutATermAccount() {
+        when(legalEntityRepository.findByCode(LOC))
+                .thenReturn(Optional.of(LegalEntity.tradingHub(LOC, new com.mmx.order.domain.model.OrganisationCode("LODH"))));
+        when(termRateRepository.findLatestRatePerInstitution("EUR", Tenor._3M))
+                .thenReturn(
+                        List.of(
+                                rateRow("BNKCO", Tenor._3M, TODAY, "3.45"),
+                                rateRow("DEAD", Tenor._3M, TODAY, "3.60"),
+                                rateRow("NOACC", Tenor._3M, TODAY, "3.55")));
+        institutionRepository.put(hubInstitution("BNKCO", "BankCo", true, "LOC-BNKCO-T"));
+        institutionRepository.put(hubInstitution("DEAD", "Dead Bank", false, "LOC-DEAD-T"));
+        institutionRepository.put(hubInstitution("NOACC", "No Account Bank", true, null));
+
+        assertThat(subject.listCounterparties(LOC, "EUR", Tenor._3M).counterparties())
+                .extracting(OrderCreationCounterparty::institutionCode)
+                .containsExactly("BNKCO");
+    }
+
+    @Test
+    void listCounterparties_forTradingClient_returnsOnlyOnboardedGrantedEnabledInstitutionsWithAccounts() {
+        givenParClientWithHubRates();
+
+        CounterpartiesResult result = subject.listCounterparties(PAR, "EUR", Tenor._3M);
+
+        assertThat(result.counterparties())
+                .extracting(OrderCreationCounterparty::institutionCode)
+                .containsExactly("BNPLOC");
+        assertThat(result.counterparties().getFirst().displayName()).isEqualTo("BNP Paribas via LOC");
+        assertThat(result.counterparties().getFirst().rate()).isEqualByComparingTo("3.50");
+    }
+
+    @Test
+    void listCounterparties_forTradingClient_excludesAGrantedTenorTheClientHasNotEnabled() {
+        givenParClientWithHubRates();
+        clientEnablementRepository.save(PAR, new ClientEnablement("BNPLOC", "EUR", Set.of(Tenor._1M), Set.of()));
+
+        assertThat(subject.listCounterparties(PAR, "EUR", Tenor._3M).counterparties()).isEmpty();
+    }
+
+    @Test
+    void listCounterparties_forTradingClient_excludesAnOffboardedInstitution() {
+        givenParClientWithHubRates();
+        institutionRepository.findByInstitutionCode("BNPLOC").orElseThrow().offboard();
+
+        assertThat(subject.listCounterparties(PAR, "EUR", Tenor._3M).counterparties()).isEmpty();
+    }
+
+    @Test
+    void listCounterparties_forTradingClient_excludesAnInstitutionWithoutTheClientTermAccount() {
+        givenParClientWithHubRates();
+        institutionRepository.findByInstitutionCode("BNPLOC").orElseThrow()
+                .changeAccounts(CounterpartyAccounts.of(null, "PAR-BNP-OC"));
+
+        assertThat(subject.listCounterparties(PAR, "EUR", Tenor._3M).counterparties()).isEmpty();
+    }
+
+    @Test
+    void listCounterparties_forTradingClient_excludesWhenTheLinkedHubInstitutionHasNoTermAccount() {
+        givenParClientWithHubRates();
+        institutionRepository.put(hubInstitution("BNP", "BNP Paribas", true, null));
+
+        assertThat(subject.listCounterparties(PAR, "EUR", Tenor._3M).counterparties()).isEmpty();
+    }
+
+    @Test
+    void listCounterparties_forTradingClient_excludesAGrantedButNotOnboardedInstitution() {
+        givenParClientWithHubRates();
+        when(delegatedGrantRepository.findByClientLegalEntityCode(PAR))
+                .thenReturn(List.of(grant("BNP"), grant("SGFR")));
+        institutionRepository.put(hubInstitution("SGFR", "Societe Generale", true, "LOC-SGFR-T"));
+        when(termRateRepository.findLatestRatePerInstitution("EUR", Tenor._3M))
+                .thenReturn(List.of(rateRow("BNP", Tenor._3M, TODAY, "3.50"), rateRow("SGFR", Tenor._3M, TODAY, "3.70")));
+
+        assertThat(subject.listCounterparties(PAR, "EUR", Tenor._3M).counterparties())
+                .extracting(OrderCreationCounterparty::institutionCode)
+                .containsExactly("BNPLOC");
+    }
+
+    private void givenParClientWithHubRates() {
         LegalEntity loc = LegalEntity.tradingHub(LOC, new com.mmx.order.domain.model.OrganisationCode("LODH"));
         LegalEntity par = LegalEntity.tradingClient(PAR, new com.mmx.order.domain.model.OrganisationCode("LODH"), loc);
         when(legalEntityRepository.findByCode(PAR)).thenReturn(Optional.of(par));
@@ -205,27 +287,26 @@ class TermOrderCreationOptionsServiceTest {
                         List.of(
                                 rateRow("BNP", Tenor._3M, TODAY, "3.50"),
                                 rateRow("BNKCO", Tenor._3M, TODAY, "3.45")));
-        when(delegatedGrantRepository.findByClientLegalEntityCode(PAR))
-                .thenReturn(
-                        List.of(
-                                new DelegatedInstitutionGrant(
-                                        "BNP",
-                                        PAR,
-                                        "EUR",
-                                        EnumSet.of(Tenor._3M),
-                                        EnumSet.noneOf(NoticePeriod.class),
-                                        true)));
-        Institution bnpProxy =
+        when(delegatedGrantRepository.findByClientLegalEntityCode(PAR)).thenReturn(List.of(grant("BNP")));
+        institutionRepository.put(hubInstitution("BNP", "BNP Paribas", true, "LOC-BNP-T"));
+        institutionRepository.put(hubInstitution("BNKCO", "BankCo", true, "LOC-BNKCO-T"));
+        institutionRepository.put(
                 Institution.onboardFromGrant(
-                                        "BNPLOC", "BNP Paribas", new HubInstitutionLink(LOC, "BNP"), PAR, CounterpartyAccounts.none());
-        when(institutionRepository.findOnboardedByLegalEntityCode(PAR)).thenReturn(List.of(bnpProxy));
+                        "BNPLOC",
+                        "BNP Paribas",
+                        new HubInstitutionLink(LOC, "BNP"),
+                        PAR,
+                        CounterpartyAccounts.of("PAR-BNP-T", "PAR-BNP-OC")));
+        clientEnablementRepository.save(PAR, new ClientEnablement("BNPLOC", "EUR", Set.of(Tenor._3M), Set.of()));
+    }
 
-        CounterpartiesResult result = subject.listCounterparties(PAR, "EUR", Tenor._3M);
+    private static DelegatedInstitutionGrant grant(String hubInstitutionCode) {
+        return new DelegatedInstitutionGrant(
+                hubInstitutionCode, PAR, "EUR", EnumSet.of(Tenor._3M), EnumSet.noneOf(NoticePeriod.class), true);
+    }
 
-        assertThat(result.counterparties())
-                .extracting(OrderCreationCounterparty::institutionCode)
-                .containsExactly("BNPLOC");
-        assertThat(result.counterparties().getFirst().displayName()).isEqualTo("BNP Paribas via LOC");
+    private static Institution hubInstitution(String code, String name, boolean active, String termAccount) {
+        return new Institution(code, name, LOC, null, CounterpartyAccounts.of(termAccount, null), active, 1);
     }
 
     @Test

@@ -12,6 +12,7 @@ import com.mmx.order.domain.exception.DuplicateRoutedHubOrderException;
 import com.mmx.order.domain.model.DelegatedInstitutionGrant;
 import com.mmx.order.domain.model.DelegatedGrantKey;
 import com.mmx.order.domain.model.ExternalOrderReference;
+import com.mmx.order.domain.model.CounterpartyAccounts;
 import com.mmx.order.domain.model.Institution;
 import com.mmx.order.domain.model.LegalEntityCode;
 import com.mmx.order.domain.model.MoneyMarketOrder;
@@ -94,7 +95,7 @@ class AcceptRoutedHubOrderIdempotencyTest {
     @Test
     void legARetry_uniqueViolationCollision_resolvesToExistingHubOrder_returnsSameAccept() {
         when(institutionRepository.findByInstitutionCode(INSTITUTION_CODE))
-                .thenReturn(Optional.of(new Institution(INSTITUTION_CODE, "BankCo International", true)));
+                .thenReturn(Optional.of(new Institution(INSTITUTION_CODE, "BankCo International", HUB_LE, null, CounterpartyAccounts.of("LOC-HSBC-T", "LOC-HSBC-OC"), true, 1)));
         when(delegatedGrantRepository.findByKey(
                         new DelegatedGrantKey(INSTITUTION_CODE, CLIENT_LE, CURRENCY)))
                 .thenReturn(Optional.of(
@@ -155,6 +156,7 @@ class AcceptRoutedHubOrderIdempotencyTest {
                 Tenor._3M,
                 null,
                 new BigDecimal("3.25"),
-                null);
+                null,
+                "CGD-CLIENT-ACC");
     }
 }

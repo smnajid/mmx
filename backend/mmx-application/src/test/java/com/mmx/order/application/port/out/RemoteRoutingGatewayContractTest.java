@@ -148,7 +148,8 @@ class RemoteRoutingGatewayContractTest {
                 Tenor._3M,
                 null,
                 new BigDecimal("3.25"),
-                null);
+                null,
+                "CGD-CLIENT-ACC");
     }
 
     private static RemoteRoutingRequest onCallLifecycleRequest() {
@@ -166,7 +167,8 @@ class RemoteRoutingGatewayContractTest {
                 null,
                 NoticePeriod._24H,
                 null,
-                new ContractNumber("CN-oncall-src"));
+                new ContractNumber("CN-oncall-src"),
+                "CGD-CLIENT-ACC");
     }
 
     /** Minimal fake honouring the port contract; mirrors how the test asserts the contract. */

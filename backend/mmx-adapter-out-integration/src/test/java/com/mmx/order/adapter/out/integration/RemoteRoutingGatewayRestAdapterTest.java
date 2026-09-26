@@ -140,7 +140,8 @@ class RemoteRoutingGatewayRestAdapterTest {
                 Tenor._3M,
                 null,
                 new BigDecimal("3.25"),
-                null);
+                null,
+                "CGD-CLIENT-ACC");
     }
 
     private static class CapturingHandler implements com.sun.net.httpserver.HttpHandler {
