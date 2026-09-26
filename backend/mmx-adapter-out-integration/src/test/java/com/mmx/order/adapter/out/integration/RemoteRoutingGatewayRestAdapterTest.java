@@ -86,6 +86,7 @@ class RemoteRoutingGatewayRestAdapterTest {
         assertThat(body.get("orderType").asText()).isEqualTo("TERM");
         assertThat(body.get("orderOperation").asText()).isEqualTo("SUBSCRIPTION");
         assertThat(body.get("tenor").asText()).isEqualTo("3M");
+        assertThat(body.get("clientCounterpartyAccount").asText()).isEqualTo("CGD-CLIENT-ACC");
     }
 
     @Test

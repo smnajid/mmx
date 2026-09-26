@@ -55,6 +55,25 @@
             <artifactId>mockito-junit-jupiter</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>com.networknt</groupId>
+            <artifactId>json-schema-validator</artifactId>
+            <version>1.5.9</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
+
+    <build>
+        <testResources>
+            <testResource>
+                <directory>src/test/resources</directory>
+            </testResource>
+            <!-- Canonical InstitutionUpdatedV1 schema: payloads are validated against the contract file. -->
+            <testResource>
+                <directory>${project.basedir}/../../contracts/004-institution-settings/schemas</directory>
+                <targetPath>contracts</targetPath>
+            </testResource>
+        </testResources>
+    </build>
 
 </project>

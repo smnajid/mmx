@@ -45,7 +45,8 @@ public class CrossOrgRoutingRestMapper {
                 request.getMinimumRate() != null ? BigDecimal.valueOf(request.getMinimumRate()) : null,
                 request.getSourceContractNumber() != null
                         ? new ContractNumber(request.getSourceContractNumber())
-                        : null);
+                        : null,
+                request.getClientCounterpartyAccount());
     }
 
     public RoutedOrderAcceptResponse toAcceptResponse(

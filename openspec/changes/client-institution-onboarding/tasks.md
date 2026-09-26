@@ -111,24 +111,24 @@ Strict TDD (no waiver): each "Write failing" task must be seen red before its "I
 
 ## 6. Adapters out: messaging and integration
 
-- [ ] 6.1 Write failing `InstitutionUpdatedV1PayloadMapperTest`: full state including hub link (client) or none (hub), nullable accounts, `changeReason`, `version`, and constant `eventType`; the payload validates against `contracts/004-institution-settings/schemas/InstitutionUpdatedV1.json`. `mvn test -pl mmx-adapter-out-messaging -Dtest=InstitutionUpdatedV1PayloadMapperTest`
-- [ ] 6.2 Implement `InstitutionUpdatedV1PayloadMapper` and `InstitutionExportOutboxAdapter` (entity + Spring Data repo) until green.
-- [ ] 6.3 Write failing `InstitutionExportRelayWorkerTest`, modelled on `BackOfficeOutboxRelayWorkerTest`. `mvn test -pl mmx-adapter-out-messaging -Dtest=InstitutionExportRelayWorkerTest`. Cover:
+- [x] 6.1 Write failing `InstitutionUpdatedV1PayloadMapperTest`: full state including hub link (client) or none (hub), nullable accounts, `changeReason`, `version`, and constant `eventType`; the payload validates against `contracts/004-institution-settings/schemas/InstitutionUpdatedV1.json`. `mvn test -pl mmx-adapter-out-messaging -Dtest=InstitutionUpdatedV1PayloadMapperTest`
+- [x] 6.2 Implement `InstitutionUpdatedV1PayloadMapper` and `InstitutionExportOutboxAdapter` (entity + Spring Data repo) until green.
+- [x] 6.3 Write failing `InstitutionExportRelayWorkerTest`, modelled on `BackOfficeOutboxRelayWorkerTest`. `mvn test -pl mmx-adapter-out-messaging -Dtest=InstitutionExportRelayWorkerTest`. Cover:
   - publishes to `{prefix}.{legalEntityCode}` with key `institutionCode`;
   - marks the row SENT only after ack;
   - retries, then goes to terminal FAILED at max attempts.
-- [ ] 6.4 Implement `InstitutionExportRelay` and its worker until green.
-- [ ] 6.5 Extend `OrderExecutedV1PayloadMapperTest`: every message carries `institutionCode` and `counterpartyAccount` from the order snapshot; routed messages carry `clientCounterpartyAccount`; native messages omit routing context. `mvn test -pl mmx-adapter-out-messaging -Dtest=OrderExecutedV1PayloadMapperTest`
-- [ ] 6.6 Implement in `OrderExecutedV1PayloadMapper` until green.
-- [ ] 6.7 Extend `RemoteRoutingGatewayRestAdapterTest`: the leg-A request body includes `clientCounterpartyAccount`. `mvn test -pl mmx-adapter-out-integration -Dtest=RemoteRoutingGatewayRestAdapterTest`
-- [ ] 6.8 Implement in the REST adapter until green, and add the remote-backed `HubInstitutionCatalog` adapter over `/cross-org/reference/institutions`.
+- [x] 6.4 Implement `InstitutionExportRelay` and its worker until green.
+- [x] 6.5 Extend `OrderExecutedV1PayloadMapperTest`: every message carries `institutionCode` and `counterpartyAccount` from the order snapshot; routed messages carry `clientCounterpartyAccount`; native messages omit routing context. `mvn test -pl mmx-adapter-out-messaging -Dtest=OrderExecutedV1PayloadMapperTest`
+- [x] 6.6 Implement in `OrderExecutedV1PayloadMapper` until green.
+- [x] 6.7 Extend `RemoteRoutingGatewayRestAdapterTest`: the leg-A request body includes `clientCounterpartyAccount`. `mvn test -pl mmx-adapter-out-integration -Dtest=RemoteRoutingGatewayRestAdapterTest`
+- [x] 6.8 Implement in the REST adapter until green, and add the remote-backed `HubInstitutionCatalog` adapter over `/cross-org/reference/institutions`.
 
 ## 7. Adapter in: REST controllers (`mmx-adapter-in-rest`)
 
-- [ ] 7.1 Write failing `InstitutionSettingsControllerTest`: maps the new response fields (including `enablements[]`), `listGrantedInstitutions`, `updateCounterpartyAccounts`, `updateClientEnablement`, and onboard 201 (create) vs 200 (reopen); uses only `port.in` and `application.exception`. `mvn test -pl mmx-adapter-in-rest -Dtest=InstitutionSettingsControllerTest -DskipOpenApiGenerate=true`
-- [ ] 7.2 Implement in `InstitutionSettingsController` until green.
-- [ ] 7.3 Extend `RoutedOrderAcceptControllerTest`: `clientCounterpartyAccount` is mapped into the accept command, and a request missing it gets 400. `mvn test -pl mmx-adapter-in-rest -Dtest=RoutedOrderAcceptControllerTest -DskipOpenApiGenerate=true`
-- [ ] 7.4 Implement in the cross-org accept controller until green.
+- [x] 7.1 Write failing `InstitutionSettingsControllerTest`: maps the new response fields (including `enablements[]`), `listGrantedInstitutions`, `updateCounterpartyAccounts`, `updateClientEnablement`, and onboard 201 (create) vs 200 (reopen); uses only `port.in` and `application.exception`. `mvn test -pl mmx-adapter-in-rest -Dtest=InstitutionSettingsControllerTest -DskipOpenApiGenerate=true`
+- [x] 7.2 Implement in `InstitutionSettingsController` until green.
+- [x] 7.3 Extend `RoutedOrderAcceptControllerTest`: `clientCounterpartyAccount` is mapped into the accept command, and a request missing it gets 400. `mvn test -pl mmx-adapter-in-rest -Dtest=RoutedOrderAcceptControllerTest -DskipOpenApiGenerate=true`
+- [x] 7.4 Implement in the cross-org accept controller until green.
 
 ## 8. Bootstrap wiring and integration tests (`mmx-bootstrap`)
 

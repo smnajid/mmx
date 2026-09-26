@@ -1,7 +1,7 @@
 package com.mmx.order.adapter.out.integration;
 
 import com.mmx.order.application.port.out.DelegatedGrantRepository;
-import com.mmx.order.application.port.out.InstitutionRepository;
+import com.mmx.order.application.port.out.HubInstitutionCatalog;
 import com.mmx.order.application.port.out.ManagedCurrencyRepository;
 import com.mmx.order.application.port.out.TermRateRepository;
 import com.mmx.order.domain.model.DelegatedInstitutionGrant;
@@ -86,9 +86,8 @@ class RemoteReferenceDataAdapterTest {
     }
 
     @Test
-    void remoteInstitutionRepository_parsesInstitutionsFromLodh() {
+    void remoteHubInstitutionCatalog_parsesTheHubNativeInstitutionsFromLodh() {
         server.createContext("/api/v1/cross-org/reference/institutions", exchange -> {
-            String query = exchange.getRequestURI().getQuery();
             respond(exchange, 200, """
                     [
                       {"institutionCode":"HSBC-01","displayName":"BankCo International","active":true},
@@ -98,9 +97,9 @@ class RemoteReferenceDataAdapterTest {
         });
 
         var ctx = new RemoteReferenceDataContext("http://localhost:" + port, CREDENTIAL);
-        InstitutionRepository repo = new RemoteInstitutionRepository(ctx);
+        HubInstitutionCatalog catalog = new RemoteHubInstitutionCatalog(ctx);
 
-        List<Institution> result = repo.findAll();
+        List<Institution> result = catalog.findAll();
 
         assertThat(result).hasSize(2);
         assertThat(result.getFirst().getInstitutionCode()).isEqualTo("HSBC-01");
@@ -110,21 +109,19 @@ class RemoteReferenceDataAdapterTest {
     }
 
     @Test
-    void remoteInstitutionRepository_findActive_appendsActiveOnlyParam() {
-        server.createContext("/api/v1/cross-org/reference/institutions", exchange -> {
-            assertThat(exchange.getRequestURI().getQuery()).contains("activeOnly=true");
-            respond(exchange, 200, """
-                    [{"institutionCode":"HSBC-01","displayName":"BankCo International","active":true}]
-                    """);
-        });
+    void remoteHubInstitutionCatalog_findsOneHubInstitutionByCode() {
+        server.createContext("/api/v1/cross-org/reference/institutions", exchange -> respond(exchange, 200, """
+                [
+                  {"institutionCode":"HSBC-01","displayName":"BankCo International","active":true},
+                  {"institutionCode":"BARC-02","displayName":"Barclays Capital","active":false}
+                ]
+                """));
 
         var ctx = new RemoteReferenceDataContext("http://localhost:" + port, CREDENTIAL);
-        InstitutionRepository repo = new RemoteInstitutionRepository(ctx);
+        HubInstitutionCatalog catalog = new RemoteHubInstitutionCatalog(ctx);
 
-        List<Institution> result = repo.findActive();
-
-        assertThat(result).hasSize(1);
-        assertThat(result.getFirst().getInstitutionCode()).isEqualTo("HSBC-01");
+        assertThat(catalog.findByInstitutionCode("BARC-02")).map(Institution::getDisplayName).contains("Barclays Capital");
+        assertThat(catalog.findByInstitutionCode("NOPE-01")).isEmpty();
     }
 
     @Test
@@ -181,7 +178,7 @@ class RemoteReferenceDataAdapterTest {
 
         var ctx = new RemoteReferenceDataContext("http://localhost:" + port, CREDENTIAL);
         assertThat(new RemoteManagedCurrencyRepository(ctx).findAll()).isEmpty();
-        assertThat(new RemoteInstitutionRepository(ctx).findAll()).isEmpty();
+        assertThat(new RemoteHubInstitutionCatalog(ctx).findAll()).isEmpty();
     }
 
     private static void respond(HttpExchange exchange, int status, String body) throws IOException {

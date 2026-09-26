@@ -14,6 +14,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
@@ -23,9 +24,11 @@ import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -99,6 +102,36 @@ class RoutedOrderAcceptControllerTest {
                 .andExpect(jsonPath("$.originatingLegalEntityCode").value("CGD"))
                 .andExpect(jsonPath("$.routingId").value(ROUTING_ID.toString()))
                 .andExpect(jsonPath("$.reason").value("Grant validation failed"));
+    }
+
+    @Test
+    void acceptRoutedOrder_mapsTheClientCounterpartyAccountIntoTheAcceptCommand() throws Exception {
+        when(credentialBinder.bindOriginatingLegalEntity(CREDENTIAL)).thenReturn(Optional.of(PROVEN));
+        when(acceptRoutedHubOrderUseCase.accept(any(RemoteRoutingRequest.class), eq(PROVEN)))
+                .thenReturn(new RemoteRoutingResponse.Accept(Instant.parse("2026-08-02T12:00:00Z")));
+
+        mockMvc.perform(post("/api/v1/cross-org/routed-orders")
+                        .header("X-MMX-CrossOrg-Key", CREDENTIAL)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(validTermSubscriptionBody()))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<RemoteRoutingRequest> captor = ArgumentCaptor.forClass(RemoteRoutingRequest.class);
+        verify(acceptRoutedHubOrderUseCase).accept(captor.capture(), eq(PROVEN));
+        assertThat(captor.getValue().clientCounterpartyAccount()).isEqualTo("CGD-HSBC-T");
+    }
+
+    @Test
+    void acceptRoutedOrder_withoutClientCounterpartyAccount_is400() throws Exception {
+        lenient().when(credentialBinder.bindOriginatingLegalEntity(CREDENTIAL)).thenReturn(Optional.of(PROVEN));
+
+        mockMvc.perform(post("/api/v1/cross-org/routed-orders")
+                        .header("X-MMX-CrossOrg-Key", CREDENTIAL)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(validTermSubscriptionBody().replace("\"clientCounterpartyAccount\": \"CGD-HSBC-T\",", "")))
+                .andExpect(status().isBadRequest());
+
+        verify(acceptRoutedHubOrderUseCase, never()).accept(any(), any());
     }
 
     private static String validTermSubscriptionBody() {

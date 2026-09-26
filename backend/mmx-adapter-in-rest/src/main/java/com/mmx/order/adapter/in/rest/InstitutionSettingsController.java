@@ -8,10 +8,13 @@ import com.mmx.order.adapter.in.rest.generated.institution.model.UpdateClientEna
 import com.mmx.order.adapter.in.rest.generated.institution.model.UpdateCounterpartyAccountsRequest;
 import com.mmx.order.adapter.in.rest.mapper.InstitutionSettingsRestMapper;
 import com.mmx.order.application.port.in.InstitutionListView;
+import com.mmx.order.application.port.in.ListGrantedInstitutionsUseCase;
 import com.mmx.order.application.port.in.ListInstitutionsUseCase;
+import com.mmx.order.application.port.in.ManageClientEnablementUseCase;
 import com.mmx.order.application.port.in.ManageInstitutionSettingsUseCase;
 import com.mmx.order.application.port.in.OnboardInstitutionUseCase;
 import com.mmx.order.application.port.in.ScopeContext;
+import com.mmx.order.application.port.in.UpdateCounterpartyAccountsUseCase;
 import com.mmx.order.application.port.out.ScopeContextProvider;
 import com.mmx.order.domain.model.Institution;
 import org.springframework.http.HttpStatus;
@@ -26,6 +29,9 @@ public class InstitutionSettingsController implements InstitutionSettingsApi {
     private final ManageInstitutionSettingsUseCase manageInstitutionSettingsUseCase;
     private final ListInstitutionsUseCase listInstitutionsUseCase;
     private final OnboardInstitutionUseCase onboardInstitutionUseCase;
+    private final ListGrantedInstitutionsUseCase listGrantedInstitutionsUseCase;
+    private final UpdateCounterpartyAccountsUseCase updateCounterpartyAccountsUseCase;
+    private final ManageClientEnablementUseCase manageClientEnablementUseCase;
     private final InstitutionSettingsRestMapper mapper;
     private final ScopeContextProvider scopeContextProvider;
 
@@ -33,11 +39,17 @@ public class InstitutionSettingsController implements InstitutionSettingsApi {
             ManageInstitutionSettingsUseCase manageInstitutionSettingsUseCase,
             ListInstitutionsUseCase listInstitutionsUseCase,
             OnboardInstitutionUseCase onboardInstitutionUseCase,
+            ListGrantedInstitutionsUseCase listGrantedInstitutionsUseCase,
+            UpdateCounterpartyAccountsUseCase updateCounterpartyAccountsUseCase,
+            ManageClientEnablementUseCase manageClientEnablementUseCase,
             InstitutionSettingsRestMapper mapper,
             ScopeContextProvider scopeContextProvider) {
         this.manageInstitutionSettingsUseCase = manageInstitutionSettingsUseCase;
         this.listInstitutionsUseCase = listInstitutionsUseCase;
         this.onboardInstitutionUseCase = onboardInstitutionUseCase;
+        this.listGrantedInstitutionsUseCase = listGrantedInstitutionsUseCase;
+        this.updateCounterpartyAccountsUseCase = updateCounterpartyAccountsUseCase;
+        this.manageClientEnablementUseCase = manageClientEnablementUseCase;
         this.mapper = mapper;
         this.scopeContextProvider = scopeContextProvider;
     }
@@ -65,7 +77,7 @@ public class InstitutionSettingsController implements InstitutionSettingsApi {
 
     @Override
     public ResponseEntity<InstitutionResponse> getInstitution(String xTraderId, String institutionCode) {
-        return ResponseEntity.ok(mapper.toResponse(manageInstitutionSettingsUseCase.getByCode(institutionCode)));
+        return ResponseEntity.ok(detail(manageInstitutionSettingsUseCase.getByCode(institutionCode)));
     }
 
     @Override
@@ -75,38 +87,55 @@ public class InstitutionSettingsController implements InstitutionSettingsApi {
         OnboardInstitutionUseCase.Result result =
                 onboardInstitutionUseCase.onboard(mapper.toOnboardCommand(scope, onboardInstitutionRequest));
         return ResponseEntity.status(result.created() ? HttpStatus.CREATED : HttpStatus.OK)
-                .body(mapper.toResponse(result.institution()));
+                .body(detail(result.institution()));
     }
 
     @Override
     public ResponseEntity<InstitutionResponse> deactivateInstitution(String xTraderId, String institutionCode) {
         ScopeContext scope = scopeContextProvider.requireActiveScope();
         Institution deactivated = manageInstitutionSettingsUseCase.deactivate(scope, institutionCode);
-        return ResponseEntity.ok(mapper.toResponse(deactivated));
+        return ResponseEntity.ok(detail(deactivated));
     }
 
     @Override
     public ResponseEntity<InstitutionResponse> activateInstitution(String xTraderId, String institutionCode) {
         ScopeContext scope = scopeContextProvider.requireActiveScope();
         Institution activated = manageInstitutionSettingsUseCase.activate(scope, institutionCode);
-        return ResponseEntity.ok(mapper.toResponse(activated));
+        return ResponseEntity.ok(detail(activated));
     }
 
-    // TODO(client-institution-onboarding 7.2): implemented red-first in group 7.
     @Override
     public ResponseEntity<List<GrantedInstitutionResponse>> listGrantedInstitutions(String xUserId) {
-        throw new UnsupportedOperationException("listGrantedInstitutions");
+        ScopeContext scope = scopeContextProvider.requireActiveScope();
+        return ResponseEntity.ok(
+                listGrantedInstitutionsUseCase.list(scope).stream().map(mapper::toGrantedResponse).toList());
     }
 
     @Override
     public ResponseEntity<InstitutionResponse> updateCounterpartyAccounts(
             String xUserId, String institutionCode, UpdateCounterpartyAccountsRequest request) {
-        throw new UnsupportedOperationException("updateCounterpartyAccounts");
+        ScopeContext scope = scopeContextProvider.requireActiveScope();
+        Institution updated =
+                updateCounterpartyAccountsUseCase.update(mapper.toAccountsCommand(scope, institutionCode, request));
+        return ResponseEntity.ok(detail(updated));
     }
 
     @Override
     public ResponseEntity<InstitutionResponse> updateClientEnablement(
             String xUserId, String institutionCode, String currency, UpdateClientEnablementRequest request) {
-        throw new UnsupportedOperationException("updateClientEnablement");
+        ScopeContext scope = scopeContextProvider.requireActiveScope();
+        Institution institution =
+                manageClientEnablementUseCase.update(
+                        mapper.toEnablementCommand(scope, institutionCode, currency, request));
+        return ResponseEntity.ok(detail(institution));
+    }
+
+    /** A single-institution response: an onboarded institution also carries its per-currency enablements. */
+    private InstitutionResponse detail(Institution institution) {
+        return mapper.toResponse(
+                institution,
+                institution.isOnboarded()
+                        ? manageClientEnablementUseCase.enablementsOf(institution.getInstitutionCode())
+                        : List.of());
     }
 }

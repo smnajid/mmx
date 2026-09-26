@@ -19,6 +19,8 @@ import com.mmx.order.application.termrate.TermRateCsvStructuralException;
 import com.mmx.order.application.termrate.TermRateIngestFailedException;
 import com.mmx.order.domain.exception.DuplicateDelegatedGrantException;
 import com.mmx.order.domain.exception.DuplicateManagedCurrencyException;
+import com.mmx.order.domain.exception.CounterpartyAccountInUseException;
+import com.mmx.order.domain.exception.InstitutionAlreadyOnboardedException;
 import com.mmx.order.domain.exception.InstitutionSuffixOverflowException;
 import com.mmx.order.domain.exception.InvalidDelegatedGrantException;
 import com.mmx.order.domain.exception.InvalidInstitutionException;
@@ -108,6 +110,26 @@ public class GlobalExceptionHandler {
                 .body(
                         new InstitutionSettingsErrorResponse()
                                 .error(InstitutionSettingsErrorCode.INSTITUTION_SUFFIX_OVERFLOW)
+                                .message(ex.getMessage()));
+    }
+
+    @ExceptionHandler(InstitutionAlreadyOnboardedException.class)
+    public ResponseEntity<InstitutionSettingsErrorResponse> handleInstitutionAlreadyOnboarded(
+            InstitutionAlreadyOnboardedException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(
+                        new InstitutionSettingsErrorResponse()
+                                .error(InstitutionSettingsErrorCode.INSTITUTION_ALREADY_ONBOARDED)
+                                .message(ex.getMessage()));
+    }
+
+    @ExceptionHandler(CounterpartyAccountInUseException.class)
+    public ResponseEntity<InstitutionSettingsErrorResponse> handleCounterpartyAccountInUse(
+            CounterpartyAccountInUseException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(
+                        new InstitutionSettingsErrorResponse()
+                                .error(InstitutionSettingsErrorCode.COUNTERPARTY_ACCOUNT_IN_USE)
                                 .message(ex.getMessage()));
     }
 

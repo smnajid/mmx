@@ -51,6 +51,9 @@ public class OrderExecutedV1PayloadMapper {
         map.put(
                 "noticePeriod",
                 order.getNoticePeriod() != null ? order.getNoticePeriod().getCode() : null);
+        // Counterparty account snapshot at the owning LegalEntity, stamped at execute.
+        putIfPresent(map, "institutionCode", ex.institutionCode() != null ? ex.institutionCode() : order.getInstitutionCode());
+        putIfPresent(map, "counterpartyAccount", order.getCounterpartyAccount());
         if (routingContext != null) {
             map.put("routingId", routingContext.routingId().value().toString());
             map.put(
@@ -68,12 +71,21 @@ public class OrderExecutedV1PayloadMapper {
             if (routingContext.clientCounterparty() != null) {
                 map.put("clientCounterparty", routingContext.clientCounterparty());
             }
+            // The client's snapshot travels on the hub-side order itself (local copy or leg A), so it is
+            // known for local and remote pairs alike.
+            putIfPresent(map, "clientCounterpartyAccount", order.getClientCounterpartyAccount());
         }
 
         try {
             return objectMapper.writeValueAsString(map);
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("Cannot serialize OrderExecutedV1", e);
+        }
+    }
+
+    private static void putIfPresent(Map<String, Object> map, String key, String value) {
+        if (value != null) {
+            map.put(key, value);
         }
     }
 }
