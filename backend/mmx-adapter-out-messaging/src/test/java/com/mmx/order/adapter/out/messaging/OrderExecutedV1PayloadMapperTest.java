@@ -25,8 +25,8 @@ import java.time.Instant;
 import java.time.LocalDate;
 
 import static org.assertj.core.api.Assertions.assertThat;
-@Tag("fast")
 
+@Tag("fast")
 class OrderExecutedV1PayloadMapperTest {
 
     private static final LocalDate TODAY = LocalDate.of(2026, 5, 10);
@@ -79,6 +79,43 @@ class OrderExecutedV1PayloadMapperTest {
         assertThat(node.path("clientCounterparty").asText()).isEqualTo("BNP via LOC");
     }
 
+    @Test
+    void everyMessage_carriesTheInstitutionCodeAndTheCounterpartyAccountSnapshot() throws Exception {
+        MoneyMarketOrder order = subscribedAssignedExecuted();
+
+        JsonNode node = new ObjectMapper().readTree(mapper.toJsonPayload(order));
+
+        assertThat(node.path("institutionCode").asText()).isEqualTo("HSBC-01");
+        assertThat(node.path("counterpartyAccount").asText()).isEqualTo("LOC-HSBC-T");
+        assertThat(node.has("clientCounterpartyAccount")).isFalse();
+    }
+
+    @Test
+    void routedMessage_carriesTheClientCounterpartyAccountInTheRoutingContext() throws Exception {
+        MoneyMarketOrder hub = hubSideRoutedExecuted();
+        ExecutionHandoffRoutingContext ctx =
+                new ExecutionHandoffRoutingContext(
+                        hub.getRoutingId(), new LegalEntityCode("PAR"), java.util.UUID.randomUUID(), "PAR-PM-77", "BNP via LOC");
+
+        JsonNode node = new ObjectMapper().readTree(mapper.toJsonPayload(hub, ctx));
+
+        assertThat(node.path("institutionCode").asText()).isEqualTo("BI-01");
+        assertThat(node.path("counterpartyAccount").asText()).isEqualTo("LOC-BI-T");
+        assertThat(node.path("clientCounterpartyAccount").asText()).isEqualTo("PAR-BNP-T");
+    }
+
+    @Test
+    void routedRemotePairMessage_stillCarriesTheClientCounterpartyAccount() throws Exception {
+        MoneyMarketOrder hub = hubSideRoutedExecuted();
+        ExecutionHandoffRoutingContext remote =
+                new ExecutionHandoffRoutingContext(hub.getRoutingId(), new LegalEntityCode("CGD"), null, null, null);
+
+        JsonNode node = new ObjectMapper().readTree(mapper.toJsonPayload(hub, remote));
+
+        assertThat(node.path("clientCounterpartyAccount").asText()).isEqualTo("PAR-BNP-T");
+        assertThat(node.has("clientOrderId")).isFalse();
+    }
+
     private static MoneyMarketOrder hubSideRoutedExecuted() {
         MoneyMarketOrder client =
                 MoneyMarketOrder.create(
@@ -112,13 +149,15 @@ class OrderExecutedV1PayloadMapperTest {
                                 null,
                                 routingId,
                                 new LegalEntityCode("PAR"),
-                                client.getExternalOrderReference()),
+                                client.getExternalOrderReference(),
+                                "PAR-BNP-T"),
                         TODAY);
         hub.assign(new TraderId("alice"), Instant.parse("2026-05-10T10:00:00Z"));
         hub.execute(
                 new BigDecimal("3.55"),
                 "BankCo International",
                 RestTestInstitutionCode(),
+                "LOC-BI-T",
                 new DealingReference("DL-001"),
                 new ContractNumber("CN-NEW"),
                 new TraderId("alice"),
@@ -149,6 +188,7 @@ class OrderExecutedV1PayloadMapperTest {
                 new BigDecimal("3.55"),
                 "BankCo International",
                 "HSBC-01",
+                "LOC-HSBC-T",
                 new DealingReference("DL-001"),
                 new ContractNumber("CN-NEW"),
                 new TraderId("alice"),

@@ -47,15 +47,16 @@ Both policies live in `mmx-domain/.../policy/`:
 - **`NewBusinessPolicy`** covers `addsExposure(OrderOperation)` (true for SUBSCRIPTION and INCREASE) and `requireOpenForNewBusiness(institution, operation)`.
 - **`CounterpartyAccountPolicy`** covers `requireAccountFor(institution, OrderType)`, which returns the account used as the snapshot.
 
-`OrderAgainstInstitutionPolicy.validateExecute` delegates to both.
+`OrderAgainstInstitutionPolicy.validateExecute` delegates to both (throwing), and `OrderAgainstInstitutionPolicy.refusal(institution, operation, orderType)` returns the same rule as an optional reason for call sites that reject by recording a reason or that filter.
 
 They are called from:
 
 - `IntakeService` (hub native);
-- `RoutedOrderIntake` (local routing: client institution and hub institution);
-- `RemoteRoutedOrderIntake` (client side, before leg A);
-- `AcceptRoutedHubOrderService` (hub side);
-- `ExecuteOrderService`.
+- `RoutedOrderIntake` (local routing: client institution and hub institution) — via `refusal`;
+- `RemoteRoutedOrderIntake` (client side, before leg A) — via `refusal`;
+- `AcceptRoutedHubOrderService` (hub side) — via `refusal`;
+- `ExecuteOrderService` — via `validateExecute`;
+- the order-creation counterparty support (filter for a Subscription) — via `refusal`.
 
 *Why a domain policy:* five call sites across two use-case families. A single policy keeps the Q11c rule ("one rule for offboarding, revocation, deactivation") from drifting.
 
@@ -111,7 +112,7 @@ Codegen then regenerates the backend interfaces in `mmx-adapter-in-rest` and the
 
 In `CrossOrgRoutingModuleConfiguration`, the client deployment's `InstitutionRepository` becomes the local JPA one: `RemoteInstitutionRepository` is no longer `@Primary`. The hub-native catalog read moves behind a new read-only out-port, `HubInstitutionCatalog`. It is remote-backed on CGEG and in-process on the same-org deployment. `ListGrantedInstitutionsService` uses it to join grants with hub display names.
 
-Grants and rates keep their remote adapters. Order-creation counterparty support for a remote client becomes the intersection of three sets: local open onboarded institutions with the account, live grants, and live rates keyed by the linked hub code.
+Grants and rates keep their remote adapters. Order-creation counterparty support for a remote client becomes the intersection of three sets: local open onboarded institutions with the account, live grants, and live rates keyed by the linked hub code. The linked hub institution's open state and account are checked only when that institution is stored locally (same-Organisation); a remote client cannot see the hub's accounts, and the hub enforces them at leg-A accept.
 
 ### D8. Frontend
 
@@ -135,7 +136,7 @@ The following are touched:
 - `PUT /api/v1/settings/institutions/{institutionCode}/enablement/{currency}` (`updateClientEnablement`, full replacement of that currency's tenor/notice sets);
 - `InstitutionResponse` gains `enablements[]`, one entry per granted currency with `grantedTenors`, `grantedNoticePeriods`, `enabledTenors`, and `enabledNoticePeriods`. A tenor in the enabled set but not the granted set is the UI's "enabled, not granted".
 
-Client intake (local `RoutedOrderIntake`, remote `RemoteRoutedOrderIntake`) and the order-creation counterparty support check effective enablement for Subscription/Increase. The hub's `AcceptRoutedHubOrderService` is unchanged, because it validates the grant only.
+For Subscription/Increase, effective enablement is enforced as follows. The order-creation counterparty support computes `EffectiveEnablement.of(grant, clientEnablement)` directly. Local `RoutedOrderIntake` checks the grant half through `DelegatedGrantDirectory` and then the client half. Remote `RemoteRoutedOrderIntake` checks only the client half before leg A; the hub's `AcceptRoutedHubOrderService` grant check is the grant half, so the intersection holds end to end without a live grant read at client intake. The hub never sees client enablement.
 
 *Alternative considered:* pruning client enablement when a grant shrinks. Rejected (Q20): a temporary hub reduction would silently wipe the client's configuration.
 
@@ -150,7 +151,7 @@ Client intake (local `RoutedOrderIntake`, remote `RemoteRoutedOrderIntake`) and 
 
 ## Risks / Trade-offs
 
-- **[Risk] New-business check order.** Reducing operations bypass grant checks, so a Redemption could be routed on an institution the client never legitimately held. → Mitigation: the existing lifecycle rule requires an executed source Subscription on the same institution code, and that check runs first.
+- **[Risk] New-business check order.** Reducing operations bypass grant checks, so a Redemption could be routed on an institution the client never legitimately held. → Mitigation: the lifecycle rule requires an executed source Subscription on the same (onboarded) institution code and runs first, at local intake and at the remote client before leg A (a propagated client-side execution keeps the client's own institution code). The hub accepts a reducing operation only on its own native institution and only when a grant exists in some state.
 - **[Risk] Required leg-A field.** A remote client deployment on an older build would get 400 from a hub on this build. → Mitigation: pre-production, and both stacks deploy together (`mmx-cross-org-start.sh`). Note this in `api-v1.md`.
 - **[Risk] Relay polling races Flyway.** A new relay polling in client-role Spring tests could race Flyway clean+migrate (known gotcha). → Mitigation: `mmx.institution.outbox.relay-enabled=false` in those tests, as done for the other relays.
 - **[Trade-off] Stale hub names.** The derived client display name is frozen at onboarding, so a hub rename is not reflected. This is accepted (non-goal).

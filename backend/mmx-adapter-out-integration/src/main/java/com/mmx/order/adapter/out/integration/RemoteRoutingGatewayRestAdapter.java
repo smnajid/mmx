@@ -91,7 +91,8 @@ public final class RemoteRoutingGatewayRestAdapter implements RemoteRoutingGatew
                 req.tenor() != null ? req.tenor().getCode() : null,
                 req.noticePeriod() != null ? req.noticePeriod().getCode() : null,
                 req.minimumRate() != null ? req.minimumRate().doubleValue() : null,
-                req.sourceContractNumber() != null ? req.sourceContractNumber().value() : null);
+                req.sourceContractNumber() != null ? req.sourceContractNumber().value() : null,
+                req.clientCounterpartyAccount());
     }
 
     private static RemoteRoutingResponse.Accept parseAccept(String body) throws Exception {
@@ -122,5 +123,6 @@ public final class RemoteRoutingGatewayRestAdapter implements RemoteRoutingGatew
             String tenor,
             String noticePeriod,
             Double minimumRate,
-            String sourceContractNumber) {}
+            String sourceContractNumber,
+            String clientCounterpartyAccount) {}
 }

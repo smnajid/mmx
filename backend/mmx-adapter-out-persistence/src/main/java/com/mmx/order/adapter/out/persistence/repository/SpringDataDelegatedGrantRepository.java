@@ -36,12 +36,12 @@ public interface SpringDataDelegatedGrantRepository
               AND g.active = true
               AND g.id.hubInstitutionCode = (
                   SELECT i.hubInstitutionCode FROM InstitutionEntity i
-                  WHERE i.institutionCode = :proxyInstitutionCode
+                  WHERE i.institutionCode = :onboardedInstitutionCode
                     AND i.hubInstitutionCode IS NOT NULL
               )
             """)
-    List<DelegatedInstitutionGrantEntity> findActiveGrantForProxy(
+    List<DelegatedInstitutionGrantEntity> findActiveGrantForOnboardedInstitution(
             @Param("clientCode") String clientLegalEntityCode,
-            @Param("proxyInstitutionCode") String proxyInstitutionCode,
+            @Param("onboardedInstitutionCode") String onboardedInstitutionCode,
             @Param("currency") String currency);
 }

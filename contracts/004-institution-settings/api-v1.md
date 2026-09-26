@@ -11,7 +11,7 @@ active `(LegalEntity, role)` comes from the session scope. Institution export (a
 | GET | `/api/v1/settings/institutions` | `listInstitutions` | List institutions in the caller's scope (may be empty); optional `?activeOnly=true` |
 | POST | `/api/v1/settings/institutions` | `onboardInstitution` | Onboard (Trader: native by `displayName`; ClientRepresentative: granted institution by `hubInstitutionCode`). `201` on create, `200` on re-onboard |
 | GET | `/api/v1/settings/institutions/granted` | `listGrantedInstitutions` | ClientRepresentative: granted institutions joined with onboarded ones |
-| GET | `/api/v1/settings/institutions/{institutionCode}` | `getInstitution` | Get by code |
+| GET | `/api/v1/settings/institutions/{institutionCode}` | `getInstitution` | Get by code; owned by the active scope only, otherwise `404` |
 | POST | `/api/v1/settings/institutions/{institutionCode}/deactivate` | `deactivateInstitution` | Trader: deactivate. ClientRepresentative: **offboard** |
 | POST | `/api/v1/settings/institutions/{institutionCode}/activate` | `activateInstitution` | Trader: reactivate. ClientRepresentative: **re-onboard** (grant required) |
 | PUT | `/api/v1/settings/institutions/{institutionCode}/counterparty-accounts` | `updateCounterpartyAccounts` | Replace the Term and OnCall counterparty accounts |
@@ -25,7 +25,7 @@ active `(LegalEntity, role)` comes from the session scope. Institution export (a
 - `closedToNewBusiness` — deactivated native institution or offboarded onboarded institution: Subscription/Increase refused, Decrease/Redemption still accepted (and executable)
 - `termCounterpartyAccount`, `onCallCounterpartyAccount` — the owning LegalEntity's counterparty accounts; `null` when unset
 - `hubLegalEntityCode`, `hubInstitutionCode` — onboarded institutions only: the linked hub-native institution
-- `enablements[]` — onboarded institutions only; one `ClientEnablementResponse` per currency that is granted or client-enabled:
+- `enablements[]` — onboarded institutions on single-institution responses only (empty on the list); one `ClientEnablementResponse` per currency that is granted or client-enabled:
   - `currency`
   - `grantedTenors`, `grantedNoticePeriods` — what the active grant enables (empty when the grant is inactive or absent)
   - `enabledTenors`, `enabledNoticePeriods` — the client enablement; a value enabled but not granted is shown as "enabled, not granted"
@@ -71,7 +71,7 @@ the account.
 
 - ClientRepresentative only; a Trader gets `403`.
 - Opt-in: nothing is enabled right after onboarding.
-- Every value must be enabled by the current active grant for that currency (`400` otherwise).
+- Every value newly switched on must be enabled by the current active grant for that currency (`400` otherwise); a value already enabled may be kept after the grant stops enabling it ("enabled, not granted").
 - A Term tenor requires the Term counterparty account; an OnCall notice period requires the OnCall counterparty account (`400` otherwise).
 - Stored in the client's own deployment (a remote client too) and never sent to the hub. Records no institution export.
 - New business uses the **effective enablement**: grant ∩ client enablement, recomputed on every read. A grant reduction caps it without erasing the client's choice; a grant expansion never switches anything on.

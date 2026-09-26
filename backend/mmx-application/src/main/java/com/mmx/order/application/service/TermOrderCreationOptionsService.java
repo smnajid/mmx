@@ -2,7 +2,6 @@ package com.mmx.order.application.service;
 
 import com.mmx.order.application.ordercreation.CounterpartiesResult;
 import com.mmx.order.application.ordercreation.OperationsResult;
-import com.mmx.order.application.ordercreation.OrderCreationCounterparty;
 import com.mmx.order.application.ordercreation.OrderCreationOperation;
 import com.mmx.order.application.ordercreation.TermCurrenciesResult;
 import com.mmx.order.application.ordercreation.TenorsResult;
@@ -10,18 +9,20 @@ import com.mmx.order.application.port.in.ListTermCounterpartiesUseCase;
 import com.mmx.order.application.port.in.ListTermCurrenciesUseCase;
 import com.mmx.order.application.port.in.ListTermOperationsUseCase;
 import com.mmx.order.application.port.in.ListTermTenorsUseCase;
+import com.mmx.order.application.port.out.ClientEnablementRepository;
 import com.mmx.order.application.port.out.Clock;
 import com.mmx.order.application.port.out.DelegatedGrantRepository;
 import com.mmx.order.application.port.out.InstitutionRepository;
 import com.mmx.order.application.port.out.LegalEntityRepository;
 import com.mmx.order.application.port.out.ManagedCurrencyRepository;
 import com.mmx.order.application.port.out.TermRateRepository;
+import com.mmx.order.application.service.OrderCreationDelegatedCounterpartySupport.RateQuote;
 import com.mmx.order.application.termrate.TermRateAuditRow;
 import com.mmx.order.domain.model.LegalEntity;
 import com.mmx.order.domain.model.LegalEntityCode;
-import com.mmx.order.application.termrate.TermRateAuditRow;
 import com.mmx.order.domain.model.ManagedCurrency;
 import com.mmx.order.domain.model.OrderOperation;
+import com.mmx.order.domain.model.OrderType;
 import com.mmx.order.domain.model.Tenor;
 
 import java.util.ArrayList;
@@ -42,6 +43,7 @@ public final class TermOrderCreationOptionsService
     private final InstitutionRepository institutionRepository;
     private final LegalEntityRepository legalEntityRepository;
     private final DelegatedGrantRepository delegatedGrantRepository;
+    private final ClientEnablementRepository clientEnablementRepository;
     private final Clock clock;
 
     public TermOrderCreationOptionsService(
@@ -50,12 +52,14 @@ public final class TermOrderCreationOptionsService
             InstitutionRepository institutionRepository,
             LegalEntityRepository legalEntityRepository,
             DelegatedGrantRepository delegatedGrantRepository,
+            ClientEnablementRepository clientEnablementRepository,
             Clock clock) {
         this.managedCurrencyRepository = managedCurrencyRepository;
         this.termRateRepository = termRateRepository;
         this.institutionRepository = institutionRepository;
         this.legalEntityRepository = legalEntityRepository;
         this.delegatedGrantRepository = delegatedGrantRepository;
+        this.clientEnablementRepository = clientEnablementRepository;
         this.clock = clock;
     }
 
@@ -114,37 +118,25 @@ public final class TermOrderCreationOptionsService
         if (legalEntity.isEmpty()) {
             return new CounterpartiesResult(List.of());
         }
-        List<TermRateAuditRow> hubRates = termRateRepository.findLatestRatePerInstitution(currency, tenor);
+        List<RateQuote> hubQuotes =
+                termRateRepository.findLatestRatePerInstitution(currency, tenor).stream()
+                        .map(row -> new RateQuote(row.institutionCode(), row.rate(), row.tradingDate()))
+                        .toList();
         if (legalEntity.get().isTradingClient()) {
             return new CounterpartiesResult(
-                    OrderCreationDelegatedCounterpartySupport.termCounterpartiesForClient(
+                    OrderCreationDelegatedCounterpartySupport.forClient(
                             legalEntityCode,
                             currency,
-                            tenor,
+                            OrderType.TERM,
+                            effective -> effective.permits(tenor),
+                            hubQuotes,
                             delegatedGrantRepository,
                             institutionRepository,
-                            hubRates,
+                            clientEnablementRepository,
                             clock.today()));
         }
-        List<OrderCreationCounterparty> counterparties =
-                hubRates.stream()
-                        .map(row -> toCounterparty(row, clock.today()))
-                        .sorted(Comparator.comparing(OrderCreationCounterparty::rate).reversed())
-                        .toList();
-        return new CounterpartiesResult(counterparties);
-    }
-
-    private OrderCreationCounterparty toCounterparty(TermRateAuditRow row, java.time.LocalDate today) {
-        String displayName =
-                institutionRepository
-                        .findByInstitutionCode(row.institutionCode())
-                        .map(institution -> institution.getDisplayName())
-                        .orElse(row.institutionCode());
-        return new OrderCreationCounterparty(
-                row.institutionCode(),
-                displayName,
-                row.rate(),
-                row.tradingDate(),
-                row.tradingDate().isBefore(today));
+        return new CounterpartiesResult(
+                OrderCreationDelegatedCounterpartySupport.forHub(
+                        OrderType.TERM, hubQuotes, institutionRepository, clock.today()));
     }
 }

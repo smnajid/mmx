@@ -26,6 +26,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 class JpaInstitutionRepositoryTest {
 
     @Autowired
+    org.springframework.jdbc.core.JdbcTemplate cleanupJdbc;
+
+    @Autowired
     SpringDataInstitutionRepository springDataRepository;
 
     @Autowired
@@ -44,8 +47,7 @@ class JpaInstitutionRepositoryTest {
     void setUp() {
         scopeContextProvider = new FixedScopeContextProvider();
         repository = new JpaInstitutionRepository(springDataRepository, mapper, scopeContextProvider);
-        PersistenceTestCleanup.clearInstitutionsAndOnCall(
-                grantRepository, onCallRateSegmentRepository, springDataRepository);
+        PersistenceTestCleanup.clearInstitutionsAndDependents(cleanupJdbc);
     }
 
     @Test

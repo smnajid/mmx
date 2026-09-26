@@ -1,53 +1,23 @@
 package com.mmx.order.adapter.out.persistence;
 
-import com.mmx.order.adapter.out.persistence.entity.InstitutionEntity;
-import com.mmx.order.adapter.out.persistence.repository.SpringDataDelegatedGrantRepository;
-import com.mmx.order.adapter.out.persistence.repository.SpringDataInstitutionRepository;
-import com.mmx.order.adapter.out.persistence.repository.SpringDataOnCallRateSegmentRepository;
-import com.mmx.order.adapter.out.persistence.repository.SpringDataTermRateRepository;
+import org.springframework.jdbc.core.JdbcTemplate;
 
-import java.util.List;
-
-/** Deletes persistence test rows in FK-safe order after V20 grant constraints. */
+/**
+ * Deletes institutions and every row that references them, in FK-safe order. The test database is shared by
+ * all classes in the module and surefire's class order differs between machines, so each class must clear
+ * every dependent table, not only the ones it writes itself.
+ */
 public final class PersistenceTestCleanup {
 
     private PersistenceTestCleanup() {}
 
-    public static void clearInstitutionsAndRates(
-            SpringDataDelegatedGrantRepository grants,
-            SpringDataOnCallRateSegmentRepository onCallSegments,
-            SpringDataTermRateRepository termRates,
-            SpringDataInstitutionRepository institutions) {
-        grants.deleteAll();
-        onCallSegments.deleteAll();
-        termRates.deleteAll();
-        deleteAllInstitutions(institutions);
-    }
-
-    public static void clearGrantsAndInstitutions(
-            SpringDataDelegatedGrantRepository grants, SpringDataInstitutionRepository institutions) {
-        grants.deleteAll();
-        deleteAllInstitutions(institutions);
-    }
-
-    public static void clearInstitutionsAndOnCall(
-            SpringDataDelegatedGrantRepository grants,
-            SpringDataOnCallRateSegmentRepository onCallSegments,
-            SpringDataInstitutionRepository institutions) {
-        grants.deleteAll();
-        onCallSegments.deleteAll();
-        deleteAllInstitutions(institutions);
-    }
-
-    private static void deleteAllInstitutions(SpringDataInstitutionRepository institutions) {
-        List<InstitutionEntity> proxies =
-                institutions.findAll().stream()
-                        .filter(i -> i.getHubInstitutionCode() != null)
-                        .toList();
-        if (!proxies.isEmpty()) {
-            institutions.deleteAll(proxies);
-            institutions.flush();
-        }
-        institutions.deleteAll();
+    public static void clearInstitutionsAndDependents(JdbcTemplate jdbc) {
+        jdbc.update("DELETE FROM client_institution_enablement");
+        jdbc.update("DELETE FROM delegated_institution_grant");
+        jdbc.update("DELETE FROM oncall_rate_segment");
+        jdbc.update("DELETE FROM term_rate");
+        // Onboarded institutions first: they may reference a hub institution stored in the same table.
+        jdbc.update("DELETE FROM institution WHERE hub_institution_code IS NOT NULL");
+        jdbc.update("DELETE FROM institution");
     }
 }

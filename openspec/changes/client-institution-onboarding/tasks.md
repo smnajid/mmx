@@ -67,24 +67,24 @@ Strict TDD (no waiver): each "Write failing" task must be seen red before its "I
   - ClientRepresentative deactivate = offboard (OFFBOARDED export, accounts kept, idempotent);
   - a Trader cannot offboard a client institution.
 - [x] 4.4 Implement until green.
-- [ ] 4.5 Write failing `UpdateCounterpartyAccountsServiceTest`: owning-scope role only (Trader on hub, ClientRepresentative on client); cross-scope → not found; unchanged values schedule no export; changed values schedule ACCOUNTS_CHANGED; allowed while closed to new business; clearing an account is rejected while any tenor of that OrderType is client-enabled. `mvn test -pl mmx-application -Dtest=UpdateCounterpartyAccountsServiceTest`
-- [ ] 4.6 Implement `UpdateCounterpartyAccountsUseCase` and its service until green.
-- [ ] 4.7 Write failing `ListGrantedInstitutionsServiceTest`: it joins active grants (any currency) with hub display names from a fake `HubInstitutionCatalog` and the client's onboarded institutions; revoked-everywhere institutions drop out; a Trader is rejected. `mvn test -pl mmx-application -Dtest=ListGrantedInstitutionsServiceTest`
-- [ ] 4.8 Implement the `HubInstitutionCatalog` out-port, `ListGrantedInstitutionsUseCase`, and its service until green.
+- [x] 4.5 Write failing `UpdateCounterpartyAccountsServiceTest`: owning-scope role only (Trader on hub, ClientRepresentative on client); cross-scope → not found; unchanged values schedule no export; changed values schedule ACCOUNTS_CHANGED; allowed while closed to new business; clearing an account is rejected while any tenor of that OrderType is client-enabled. `mvn test -pl mmx-application -Dtest=UpdateCounterpartyAccountsServiceTest`
+- [x] 4.6 Implement `UpdateCounterpartyAccountsUseCase` and its service until green.
+- [x] 4.7 Write failing `ListGrantedInstitutionsServiceTest`: it joins active grants (any currency) with hub display names from a fake `HubInstitutionCatalog` and the client's onboarded institutions; revoked-everywhere institutions drop out; a Trader is rejected. `mvn test -pl mmx-application -Dtest=ListGrantedInstitutionsServiceTest`
+- [x] 4.8 Implement the `HubInstitutionCatalog` out-port, `ListGrantedInstitutionsUseCase`, and its service until green.
 
-- [ ] 4.9 Write failing `ManageClientEnablementServiceTest`. `mvn test -pl mmx-application -Dtest=ManageClientEnablementServiceTest`. Cover:
+- [x] 4.9 Write failing `ManageClientEnablementServiceTest`. `mvn test -pl mmx-application -Dtest=ManageClientEnablementServiceTest`. Cover:
   - ClientRepresentative only (a Trader is rejected);
   - enabling outside the current grant is rejected;
   - enabling a Term tenor without the Term account (or OnCall without OnCall) is rejected;
   - a full replacement per currency persists;
   - no institution export is scheduled.
-- [ ] 4.10 Implement `ManageClientEnablementUseCase`, and its service (with an in-memory `ClientEnablementRepository` fake in tests) until green.
+- [x] 4.10 Implement `ManageClientEnablementUseCase`, and its service (with an in-memory `ClientEnablementRepository` fake in tests) until green.
 
 ## 5. Application: order paths (`mmx-application`)
 
-- [ ] 5.1 Extend `DelegatedGrantDirectoryTest`: resolution takes an `OrderOperation`; DECREASE/REDEMPTION are permitted on an inactive or missing grant; SUBSCRIPTION/INCREASE behave as before. `mvn test -pl mmx-application -Dtest=DelegatedGrantDirectoryTest`
-- [ ] 5.2 Add the `OrderOperation` parameter to the `DelegatedGrantDirectory` port and its fakes until green.
-- [ ] 5.3 Extend `IntakeServiceTest` (hub native and local routed). `mvn test -pl mmx-application -Dtest=IntakeServiceTest`. Cover:
+- [x] 5.1 Extend `DelegatedGrantDirectoryTest`: resolution takes an `OrderOperation`; DECREASE/REDEMPTION are permitted on an inactive or missing grant; SUBSCRIPTION/INCREASE behave as before. `mvn test -pl mmx-application -Dtest=DelegatedGrantDirectoryTest`
+- [x] 5.2 Add the `OrderOperation` parameter to the `DelegatedGrantDirectory` port and its fakes until green.
+- [x] 5.3 Extend `IntakeServiceTest` (hub native and local routed). `mvn test -pl mmx-application -Dtest=IntakeServiceTest`. Cover:
   - Subscription on a deactivated institution is rejected and Redemption is accepted;
   - a missing account for the OrderType is rejected;
   - a local routed order to a not-onboarded or offboarded institution (Subscription/Increase) → client-side REJECTED;
@@ -93,77 +93,77 @@ Strict TDD (no waiver): each "Write failing" task must be seen red before its "I
   - a grant reduction caps the effective set, and restoring it re-admits the tenor with no client action;
   - a missing hub account → REJECTED routing failure;
   - the hub-side order carries the `clientCounterpartyAccount` snapshot.
-- [ ] 5.4 Implement in `IntakeService` and `RoutedOrderIntake` using `NewBusinessPolicy`/`CounterpartyAccountPolicy` until green.
-- [ ] 5.5 Extend `RemoteRoutedOrderIntakeTest`: the client refuses a not-onboarded institution, a closed institution or a tenor outside its effective enablement (Subscription/Increase), or a missing account, with REJECTED routing failure and no leg-A send; `RemoteRoutingRequest` carries the hub-native code and `clientCounterpartyAccount`. `mvn test -pl mmx-application -Dtest=RemoteRoutedOrderIntakeTest`
-- [ ] 5.6 Implement in `RemoteRoutedOrderIntake` and `RemoteRoutingRequest` until green.
-- [ ] 5.7 Extend `AcceptRoutedHubOrderUseCaseTest`: Redemption on a revoked grant is accepted; Subscription on a revoked grant or deactivated hub institution is rejected; a missing hub account is rejected; `clientCounterpartyAccount` is stored on the hub-side order. `mvn test -pl mmx-application -Dtest=AcceptRoutedHubOrderUseCaseTest`
-- [ ] 5.8 Implement the operation-aware checks in `AcceptRoutedHubOrderService` until green.
-- [ ] 5.9 Extend `ExecuteOrderServiceTest`: execute stamps the `counterpartyAccount` snapshot; a cleared account blocks execute (order stays ASSIGNED); a Redemption on a closed institution executes. `mvn test -pl mmx-application -Dtest=ExecuteOrderServiceTest`
-- [ ] 5.10 Implement in `ExecuteOrderService` until green.
-- [ ] 5.11 Extend `TermOrderCreationOptionsServiceTest` and `OnCallOrderCreationOptionsServiceTest`. Counterparties must:
+- [x] 5.4 Implement in `IntakeService` and `RoutedOrderIntake` using `NewBusinessPolicy`/`CounterpartyAccountPolicy` until green.
+- [x] 5.5 Extend `RemoteRoutedOrderIntakeTest`: the client refuses a not-onboarded institution, a closed institution or a tenor outside its effective enablement (Subscription/Increase), or a missing account, with REJECTED routing failure and no leg-A send; `RemoteRoutingRequest` carries the hub-native code and `clientCounterpartyAccount`. `mvn test -pl mmx-application -Dtest=RemoteRoutedOrderIntakeTest`
+- [x] 5.6 Implement in `RemoteRoutedOrderIntake` and `RemoteRoutingRequest` until green.
+- [x] 5.7 Extend `AcceptRoutedHubOrderUseCaseTest`: Redemption on a revoked grant is accepted; Subscription on a revoked grant or deactivated hub institution is rejected; a missing hub account is rejected; `clientCounterpartyAccount` is stored on the hub-side order. `mvn test -pl mmx-application -Dtest=AcceptRoutedHubOrderUseCaseTest`
+- [x] 5.8 Implement the operation-aware checks in `AcceptRoutedHubOrderService` until green.
+- [x] 5.9 Extend `ExecuteOrderServiceTest`: execute stamps the `counterpartyAccount` snapshot; a cleared account blocks execute (order stays ASSIGNED); a Redemption on a closed institution executes. `mvn test -pl mmx-application -Dtest=ExecuteOrderServiceTest`
+- [x] 5.10 Implement in `ExecuteOrderService` until green.
+- [x] 5.11 Extend `TermOrderCreationOptionsServiceTest` and `OnCallOrderCreationOptionsServiceTest`. Counterparties must:
   - exclude institutions without the OrderType's account (at the client and at the linked hub institution);
   - exclude offboarded and granted-but-not-onboarded institutions;
   - exclude tenors/notice periods outside the client's effective enablement;
   - for a client, come from onboarded institutions only.
 
   `mvn test -pl mmx-application -Dtest='TermOrderCreationOptionsServiceTest,OnCallOrderCreationOptionsServiceTest'`
-- [ ] 5.12 Implement in the order-creation counterparty support until green.
+- [x] 5.12 Implement in the order-creation counterparty support until green.
 
 ## 6. Adapters out: messaging and integration
 
-- [ ] 6.1 Write failing `InstitutionUpdatedV1PayloadMapperTest`: full state including hub link (client) or none (hub), nullable accounts, `changeReason`, `version`, and constant `eventType`; the payload validates against `contracts/004-institution-settings/schemas/InstitutionUpdatedV1.json`. `mvn test -pl mmx-adapter-out-messaging -Dtest=InstitutionUpdatedV1PayloadMapperTest`
-- [ ] 6.2 Implement `InstitutionUpdatedV1PayloadMapper` and `InstitutionExportOutboxAdapter` (entity + Spring Data repo) until green.
-- [ ] 6.3 Write failing `InstitutionExportRelayWorkerTest`, modelled on `BackOfficeOutboxRelayWorkerTest`. `mvn test -pl mmx-adapter-out-messaging -Dtest=InstitutionExportRelayWorkerTest`. Cover:
+- [x] 6.1 Write failing `InstitutionUpdatedV1PayloadMapperTest`: full state including hub link (client) or none (hub), nullable accounts, `changeReason`, `version`, and constant `eventType`; the payload validates against `contracts/004-institution-settings/schemas/InstitutionUpdatedV1.json`. `mvn test -pl mmx-adapter-out-messaging -Dtest=InstitutionUpdatedV1PayloadMapperTest`
+- [x] 6.2 Implement `InstitutionUpdatedV1PayloadMapper` and `InstitutionExportOutboxAdapter` (entity + Spring Data repo) until green.
+- [x] 6.3 Write failing `InstitutionExportRelayWorkerTest`, modelled on `BackOfficeOutboxRelayWorkerTest`. `mvn test -pl mmx-adapter-out-messaging -Dtest=InstitutionExportRelayWorkerTest`. Cover:
   - publishes to `{prefix}.{legalEntityCode}` with key `institutionCode`;
   - marks the row SENT only after ack;
   - retries, then goes to terminal FAILED at max attempts.
-- [ ] 6.4 Implement `InstitutionExportRelay` and its worker until green.
-- [ ] 6.5 Extend `OrderExecutedV1PayloadMapperTest`: every message carries `institutionCode` and `counterpartyAccount` from the order snapshot; routed messages carry `clientCounterpartyAccount`; native messages omit routing context. `mvn test -pl mmx-adapter-out-messaging -Dtest=OrderExecutedV1PayloadMapperTest`
-- [ ] 6.6 Implement in `OrderExecutedV1PayloadMapper` until green.
-- [ ] 6.7 Extend `RemoteRoutingGatewayRestAdapterTest`: the leg-A request body includes `clientCounterpartyAccount`. `mvn test -pl mmx-adapter-out-integration -Dtest=RemoteRoutingGatewayRestAdapterTest`
-- [ ] 6.8 Implement in the REST adapter until green, and add the remote-backed `HubInstitutionCatalog` adapter over `/cross-org/reference/institutions`.
+- [x] 6.4 Implement `InstitutionExportRelay` and its worker until green.
+- [x] 6.5 Extend `OrderExecutedV1PayloadMapperTest`: every message carries `institutionCode` and `counterpartyAccount` from the order snapshot; routed messages carry `clientCounterpartyAccount`; native messages omit routing context. `mvn test -pl mmx-adapter-out-messaging -Dtest=OrderExecutedV1PayloadMapperTest`
+- [x] 6.6 Implement in `OrderExecutedV1PayloadMapper` until green.
+- [x] 6.7 Extend `RemoteRoutingGatewayRestAdapterTest`: the leg-A request body includes `clientCounterpartyAccount`. `mvn test -pl mmx-adapter-out-integration -Dtest=RemoteRoutingGatewayRestAdapterTest`
+- [x] 6.8 Implement in the REST adapter until green, and add the remote-backed `HubInstitutionCatalog` adapter over `/cross-org/reference/institutions`.
 
 ## 7. Adapter in: REST controllers (`mmx-adapter-in-rest`)
 
-- [ ] 7.1 Write failing `InstitutionSettingsControllerTest`: maps the new response fields (including `enablements[]`), `listGrantedInstitutions`, `updateCounterpartyAccounts`, `updateClientEnablement`, and onboard 201 (create) vs 200 (reopen); uses only `port.in` and `application.exception`. `mvn test -pl mmx-adapter-in-rest -Dtest=InstitutionSettingsControllerTest -DskipOpenApiGenerate=true`
-- [ ] 7.2 Implement in `InstitutionSettingsController` until green.
-- [ ] 7.3 Extend `RoutedOrderAcceptControllerTest`: `clientCounterpartyAccount` is mapped into the accept command, and a request missing it gets 400. `mvn test -pl mmx-adapter-in-rest -Dtest=RoutedOrderAcceptControllerTest -DskipOpenApiGenerate=true`
-- [ ] 7.4 Implement in the cross-org accept controller until green.
+- [x] 7.1 Write failing `InstitutionSettingsControllerTest`: maps the new response fields (including `enablements[]`), `listGrantedInstitutions`, `updateCounterpartyAccounts`, `updateClientEnablement`, and onboard 201 (create) vs 200 (reopen); uses only `port.in` and `application.exception`. `mvn test -pl mmx-adapter-in-rest -Dtest=InstitutionSettingsControllerTest -DskipOpenApiGenerate=true`
+- [x] 7.2 Implement in `InstitutionSettingsController` until green.
+- [x] 7.3 Extend `RoutedOrderAcceptControllerTest`: `clientCounterpartyAccount` is mapped into the accept command, and a request missing it gets 400. `mvn test -pl mmx-adapter-in-rest -Dtest=RoutedOrderAcceptControllerTest -DskipOpenApiGenerate=true`
+- [x] 7.4 Implement in the cross-org accept controller until green.
 
 ## 8. Bootstrap wiring and integration tests (`mmx-bootstrap`)
 
-- [ ] 8.1 Wire the new beans:
+- [x] 8.1 Wire the new beans:
   - `*ModuleConfiguration`: new use cases, `InstitutionExportOutbox`, relay (`mmx.institution.outbox.relay-enabled`, `mmx.institution.kafka.topic-prefix`), and transaction wrapping;
   - `CrossOrgRoutingModuleConfiguration`: the client uses local JPA `InstitutionRepository`, and `HubInstitutionCatalog` is remote on CGEG and in-process otherwise;
   - `application*.yml`: the new keys.
 
   Verify with `mvn test -pl mmx-bootstrap -am -Dtest=HexagonalArchitectureTest -Dsurefire.failIfNoSpecifiedTests=false`.
-- [ ] 8.2 Update seed data so existing integration tests describe the new model:
+- [x] 8.2 Update seed data so existing integration tests describe the new model:
   - `RestTestInstitutionBootstrap`: seeded institutions get both counterparty accounts;
   - the SQL-seeding tests (`OrderRoutingIntakeIntegrationTest`, `OrderRestApiIntegrationTest`, `OrderCreationOptionsRestApiIntegrationTest`, `TermRateRestApiIntegrationTest`, `TransactionalOrderLifecycleAtomicityIntegrationTest`, `RoutedExecutionHandoffKafkaIntegrationTest`, `CrossOrgClientDeploymentIntegrationTest`): insert accounts and onboarded client institutions, replacing proxy wording;
   - client-role contexts: set `mmx.institution.outbox.relay-enabled=false`.
 
   Verify with `mvn test -pl mmx-bootstrap -am -Dtest=OrderRoutingIntakeIntegrationTest -Dsurefire.failIfNoSpecifiedTests=false`.
-- [ ] 8.3 Extend `RoleScopedSettingsRestApiIntegrationTest`. `mvn test -pl mmx-bootstrap -am -Dtest=RoleScopedSettingsRestApiIntegrationTest -Dsurefire.failIfNoSpecifiedTests=false`. Cover:
+- [x] 8.3 Extend `RoleScopedSettingsRestApiIntegrationTest`. `mvn test -pl mmx-bootstrap -am -Dtest=RoleScopedSettingsRestApiIntegrationTest -Dsurefire.failIfNoSpecifiedTests=false`. Cover:
   - ClientRepresentative granted list → onboard (nothing enabled) → set accounts → enable tenors → offboard → re-onboard;
   - enabling without the account, or outside the grant, is rejected;
   - a Trader sets hub accounts;
   - a cross-scope account change is rejected;
   - each mutation commits exactly one `institution_export_outbox` row.
-- [ ] 8.4 Implement any wiring or mapping gaps until green.
-- [ ] 8.5 Extend `OrderRoutingIntakeIntegrationTest`. `mvn test -pl mmx-bootstrap -am -Dtest=OrderRoutingIntakeIntegrationTest -Dsurefire.failIfNoSpecifiedTests=false`. Cover:
+- [x] 8.4 Implement any wiring or mapping gaps until green.
+- [x] 8.5 Extend `OrderRoutingIntakeIntegrationTest`. `mvn test -pl mmx-bootstrap -am -Dtest=OrderRoutingIntakeIntegrationTest -Dsurefire.failIfNoSpecifiedTests=false`. Cover:
   - a Redemption on a deactivated grant is routed;
   - a Subscription on an offboarded institution → REJECTED;
   - a Subscription on a granted tenor the client has not enabled → REJECTED;
   - a missing hub account → REJECTED routing failure, with no hub-side order.
-- [ ] 8.6 Implement any gaps until green.
-- [ ] 8.7 Extend `CrossOrgClientDeploymentIntegrationTest`. `mvn test -pl mmx-bootstrap -am -Dtest=CrossOrgClientDeploymentIntegrationTest -Dsurefire.failIfNoSpecifiedTests=false`. Cover:
+- [x] 8.6 Implement any gaps until green.
+- [x] 8.7 Extend `CrossOrgClientDeploymentIntegrationTest`. `mvn test -pl mmx-bootstrap -am -Dtest=CrossOrgClientDeploymentIntegrationTest -Dsurefire.failIfNoSpecifiedTests=false`. Cover:
   - the client deployment persists an onboarded institution with no local hub LE/institution row;
   - its institution list and client enablement are served and stored locally, with no hub write;
   - leg A carries `clientCounterpartyAccount`.
-- [ ] 8.8 Implement any gaps until green.
-- [ ] 8.9 Write failing `InstitutionExportKafkaIntegrationTest` (`@Tag("e2e")`): onboarding at `PAR` publishes one `InstitutionUpdatedV1` to `mmx.institution.PAR` (and none to `mmx.institution.LOC`), and the payload validates against the canonical schema. Also extend `ExecutionHandoffKafkaIntegrationTest` and `RoutedExecutionHandoffKafkaIntegrationTest` to assert `counterpartyAccount` / `clientCounterpartyAccount`. `mvn test -pl mmx-bootstrap -am -Dtest='InstitutionExportKafkaIntegrationTest,ExecutionHandoffKafkaIntegrationTest,RoutedExecutionHandoffKafkaIntegrationTest' -Dsurefire.failIfNoSpecifiedTests=false`
-- [ ] 8.10 Implement any relay or config gaps until green.
+- [x] 8.8 Implement any gaps until green.
+- [x] 8.9 Write failing `InstitutionExportKafkaIntegrationTest` (`@Tag("e2e")`): onboarding at `PAR` publishes one `InstitutionUpdatedV1` to `mmx.institution.PAR` (and none to `mmx.institution.LOC`), and the payload validates against the canonical schema. Also extend `ExecutionHandoffKafkaIntegrationTest` and `RoutedExecutionHandoffKafkaIntegrationTest` to assert `counterpartyAccount` / `clientCounterpartyAccount`. `mvn test -pl mmx-bootstrap -am -Dtest='InstitutionExportKafkaIntegrationTest,ExecutionHandoffKafkaIntegrationTest,RoutedExecutionHandoffKafkaIntegrationTest' -Dsurefire.failIfNoSpecifiedTests=false`
+- [x] 8.10 Implement any relay or config gaps until green.
 
 ## 9. Scripts and dev stack
 

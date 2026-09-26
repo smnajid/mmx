@@ -67,6 +67,14 @@ mmx:
       relay-enabled: true
       max-publish-attempts: 5
       poll-interval-ms: 1000
+  institution:
+    kafka:
+      # Institution export (InstitutionUpdatedV1) goes to {topic-prefix}.{legalEntityCode}.
+      topic-prefix: mmx.institution
+    outbox:
+      relay-enabled: true
+      max-publish-attempts: 5
+      poll-interval-ms: 1000
   routing-outcome:
     outbox:
       relay-enabled: true

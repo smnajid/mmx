@@ -125,8 +125,13 @@ public final class IntakeService implements IntakeUseCase {
     }
 
     private Result receiveHub(ReceiveOrderCommand command) {
-        Institution institution = resolveActiveInstitution(command.institutionCode());
+        Institution institution = resolveInstitution(command.institutionCode(), command.legalEntityCode());
         validateLifecycleInstitutionMatchesContract(command, institution.getInstitutionCode());
+        institutionPolicy.validateExecute(
+                institution.getInstitutionCode(),
+                Optional.of(institution),
+                command.orderOperation(),
+                command.orderType());
         validateCurrency(command);
 
         MoneyMarketOrder created =
@@ -156,11 +161,14 @@ public final class IntakeService implements IntakeUseCase {
         if (isRemoteHub(clientEntity)) {
             return receiveRoutedRemote(command, clientEntity);
         }
-        Institution proxy = routedOrderIntake.resolveProxy(command.institutionCode());
-        validateLifecycleInstitutionMatchesContract(command, proxy.getInstitutionCode());
+        Optional<Institution> onboarded =
+                routedOrderIntake.findOnboarded(command.institutionCode(), clientEntity.getCode());
+        if (onboarded.isPresent()) {
+            validateLifecycleInstitutionMatchesContract(command, onboarded.get().getInstitutionCode());
+        }
         validateCurrency(command);
 
-        Result result = routedOrderIntake.completeIntake(command, proxy, clientEntity);
+        Result result = routedOrderIntake.completeIntake(command, onboarded, clientEntity);
         if (result.newlyCreated()) {
             if (result.status() == OrderStatus.ROUTED) {
                 auditLogger.log(result.orderId(), EVENT_ORDER_ROUTED, AUDIT_ACTOR_SYSTEM, clock.now());
@@ -182,6 +190,9 @@ public final class IntakeService implements IntakeUseCase {
     }
 
     private Result receiveRoutedRemote(ReceiveOrderCommand command, LegalEntity clientEntity) {
+        // The routed path never bypasses the lifecycle rule: the client stores its executed Subscriptions under
+        // its own onboarded institution code, and the hub cannot check them.
+        validateLifecycleInstitutionMatchesContract(command, command.institutionCode());
         Result result = remoteRoutedOrderIntake.completeIntake(command, clientEntity);
         if (result.newlyCreated()) {
             if (result.status() == OrderStatus.ROUTED) {
@@ -216,18 +227,15 @@ public final class IntakeService implements IntakeUseCase {
         return entity;
     }
 
-    private Institution resolveActiveInstitution(String institutionCode) {
+    /** A TradingHub order references one of that hub's own native institutions. */
+    private Institution resolveInstitution(String institutionCode, LegalEntityCode hubCode) {
         if (institutionCode == null || institutionCode.isBlank()) {
             throw new InvalidOrderException("institutionCode is required");
         }
-        Institution institution =
-                institutionRepository
-                        .findByInstitutionCode(institutionCode)
-                        .orElseThrow(() -> new InvalidOrderException("Institution not found: " + institutionCode));
-        if (!institution.isActive()) {
-            throw new InvalidOrderException("Institution is not active: " + institutionCode);
-        }
-        return institution;
+        return institutionRepository
+                .findByInstitutionCode(institutionCode)
+                .filter(i -> !i.isOnboarded() && hubCode.equals(i.getOwningLegalEntityCode()))
+                .orElseThrow(() -> new InvalidOrderException("Institution not found: " + institutionCode));
     }
 
     private void validateLifecycleInstitutionMatchesContract(

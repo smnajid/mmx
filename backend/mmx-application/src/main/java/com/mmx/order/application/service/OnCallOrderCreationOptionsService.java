@@ -13,7 +13,9 @@ import com.mmx.order.application.port.in.ListOnCallCounterpartiesUseCase;
 import com.mmx.order.application.port.in.ListOnCallCurrenciesUseCase;
 import com.mmx.order.application.port.in.ListOnCallNoticePeriodsUseCase;
 import com.mmx.order.application.port.in.ListOnCallOperationsUseCase;
+import com.mmx.order.application.port.out.ClientEnablementRepository;
 import com.mmx.order.application.port.out.DelegatedGrantRepository;
+import com.mmx.order.application.service.OrderCreationDelegatedCounterpartySupport.RateQuote;
 import com.mmx.order.application.port.out.InstitutionRepository;
 import com.mmx.order.application.port.out.LegalEntityRepository;
 import com.mmx.order.application.port.out.ManagedCurrencyRepository;
@@ -25,6 +27,7 @@ import com.mmx.order.domain.model.ManagedCurrency;
 import com.mmx.order.domain.model.NoticePeriod;
 import com.mmx.order.domain.model.OnCallRateSegment;
 import com.mmx.order.domain.model.OrderOperation;
+import com.mmx.order.domain.model.OrderType;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -47,6 +50,7 @@ public final class OnCallOrderCreationOptionsService
     private final OrderRepository orderRepository;
     private final LegalEntityRepository legalEntityRepository;
     private final DelegatedGrantRepository delegatedGrantRepository;
+    private final ClientEnablementRepository clientEnablementRepository;
 
     public OnCallOrderCreationOptionsService(
             ManagedCurrencyRepository managedCurrencyRepository,
@@ -54,13 +58,15 @@ public final class OnCallOrderCreationOptionsService
             InstitutionRepository institutionRepository,
             OrderRepository orderRepository,
             LegalEntityRepository legalEntityRepository,
-            DelegatedGrantRepository delegatedGrantRepository) {
+            DelegatedGrantRepository delegatedGrantRepository,
+            ClientEnablementRepository clientEnablementRepository) {
         this.managedCurrencyRepository = managedCurrencyRepository;
         this.onCallRateRepository = onCallRateRepository;
         this.institutionRepository = institutionRepository;
         this.orderRepository = orderRepository;
         this.legalEntityRepository = legalEntityRepository;
         this.delegatedGrantRepository = delegatedGrantRepository;
+        this.clientEnablementRepository = clientEnablementRepository;
     }
 
     @Override
@@ -131,41 +137,27 @@ public final class OnCallOrderCreationOptionsService
         if (legalEntity.isEmpty()) {
             return new CounterpartiesResult(List.of());
         }
-        List<OnCallRateSegment> hubSegments =
-                onCallRateRepository.findSegmentsCoveringDate(currency, noticePeriod, valueDate);
+        List<RateQuote> hubQuotes =
+                onCallRateRepository.findSegmentsCoveringDate(currency, noticePeriod, valueDate).stream()
+                        .map(segment -> new RateQuote(
+                                segment.getCurveKey().institutionCode(), segment.getRate(), segment.getValueDate()))
+                        .toList();
         if (legalEntity.get().isTradingClient()) {
             return new CounterpartiesResult(
-                    OrderCreationDelegatedCounterpartySupport.onCallCounterpartiesForClient(
+                    OrderCreationDelegatedCounterpartySupport.forClient(
                             legalEntityCode,
                             currency,
-                            noticePeriod,
+                            OrderType.ON_CALL,
+                            effective -> effective.permits(noticePeriod),
+                            hubQuotes,
                             delegatedGrantRepository,
                             institutionRepository,
-                            hubSegments,
+                            clientEnablementRepository,
                             LocalDate.now()));
         }
-        List<OrderCreationCounterparty> counterparties =
-                hubSegments.stream()
-                        .map(this::toCounterparty)
-                        .sorted(Comparator.comparing(OrderCreationCounterparty::rate).reversed())
-                        .toList();
-        return new CounterpartiesResult(counterparties);
-    }
-
-    private OrderCreationCounterparty toCounterparty(OnCallRateSegment segment) {
-        String institutionCode = segment.getCurveKey().institutionCode();
-        String displayName =
-                institutionRepository
-                        .findByInstitutionCode(institutionCode)
-                        .map(institution -> institution.getDisplayName())
-                        .orElse(institutionCode);
-        LocalDate rateDate = segment.getValueDate();
-        return new OrderCreationCounterparty(
-                institutionCode,
-                displayName,
-                segment.getRate(),
-                rateDate,
-                rateDate.isBefore(LocalDate.now()));
+        return new CounterpartiesResult(
+                OrderCreationDelegatedCounterpartySupport.forHub(
+                        OrderType.ON_CALL, hubQuotes, institutionRepository, LocalDate.now()));
     }
 
     @Override

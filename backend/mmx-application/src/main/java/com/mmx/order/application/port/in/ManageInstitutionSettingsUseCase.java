@@ -11,6 +11,9 @@ public interface ManageInstitutionSettingsUseCase {
 
     Institution getByCode(String institutionCode);
 
+    /** An institution owned by the active LegalEntity; anything else is not found (counterparty accounts are per LegalEntity). */
+    Institution getInScope(ScopeContext scope, String institutionCode);
+
     /** Native institution onboarding for a TradingHub. */
     Institution onboard(OnboardCommand command);
 

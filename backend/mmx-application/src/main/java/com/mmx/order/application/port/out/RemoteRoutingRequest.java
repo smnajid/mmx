@@ -28,12 +28,15 @@ import java.util.Objects;
  *       {@code (originatingLegalEntityCode, routingId)} as its hub-side idempotency key.
  *   <li>{@code portfolioNumber} — the RESOLVED hub-side account (from {@code ExternalIdentityGateway});
  *       travels in the payload; LODH trusts it and does not revalidate.
- *   <li>{@code institutionCode} — the HUB-NATIVE institution code (proxy indirection collapses; the
- *       "{hub} via {client}" rendering is display-only, client-side).
+ *   <li>{@code institutionCode} — the HUB-NATIVE institution code linked to the client's onboarded
+ *       institution (the "{hub} via {hubLegalEntity}" rendering is client-side only).
  *   <li>{@code originatingExternalOrderReference} — for traceability on the hub-side order; not used
  *       as the idempotency key.
  *   <li>The order fields (currency, amount, valueDate, type, operation, tenor|noticePeriod,
  *       minimumRate, sourceContractNumber).
+ *   <li>{@code clientCounterpartyAccount} — the client's counterparty account for the OrderType,
+ *       snapshotted at routing; required, stored read-only on the hub-side order and not validated by
+ *       the hub beyond its presence.
  * </ul>
  *
  * <p>No deployment-internal order UUID crosses the boundary.
@@ -52,7 +55,8 @@ public record RemoteRoutingRequest(
         Tenor tenor,
         NoticePeriod noticePeriod,
         BigDecimal minimumRate,
-        ContractNumber sourceContractNumber) {
+        ContractNumber sourceContractNumber,
+        String clientCounterpartyAccount) {
 
     public RemoteRoutingRequest {
         Objects.requireNonNull(originatingLegalEntityCode, "originatingLegalEntityCode must not be null");
@@ -67,5 +71,8 @@ public record RemoteRoutingRequest(
         Objects.requireNonNull(valueDate, "valueDate must not be null");
         Objects.requireNonNull(orderType, "orderType must not be null");
         Objects.requireNonNull(orderOperation, "orderOperation must not be null");
+        if (clientCounterpartyAccount == null || clientCounterpartyAccount.isBlank()) {
+            throw new IllegalArgumentException("clientCounterpartyAccount must not be blank");
+        }
     }
 }

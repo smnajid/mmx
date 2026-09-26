@@ -6,7 +6,6 @@ import com.mmx.order.adapter.out.persistence.mapper.DelegatedGrantPersistenceMap
 import com.mmx.order.adapter.out.persistence.repository.SpringDataDelegatedGrantRepository;
 import com.mmx.order.application.port.in.ListInstitutionsUseCase;
 import com.mmx.order.application.port.in.ManageDelegatedGrantsUseCase;
-import com.mmx.order.application.port.in.OnboardInstitutionUseCase;
 import com.mmx.order.application.port.out.DelegatedGrantDirectory;
 import com.mmx.order.application.port.out.DelegatedGrantRepository;
 import com.mmx.order.application.port.out.InstitutionRepository;
@@ -48,8 +47,9 @@ public class DelegatedGrantsModuleConfiguration {
         return new ManageDelegatedGrantsService(grantRepository, institutionRepository, managedCurrencyRepository);
     }
 
+    /** Wrapped by {@link TransactionalOnboardInstitutionUseCase} so the export row commits with the change. */
     @Bean
-    public OnboardInstitutionUseCase onboardInstitutionUseCase(
+    public OnboardInstitutionService onboardInstitutionService(
             InstitutionRepository institutionRepository,
             DelegatedGrantRepository grantRepository,
             LegalEntityRepository legalEntityRepository,

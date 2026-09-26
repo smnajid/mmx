@@ -10,6 +10,7 @@ import com.mmx.order.application.port.in.ListTermCounterpartiesUseCase;
 import com.mmx.order.application.port.in.ListTermCurrenciesUseCase;
 import com.mmx.order.application.port.in.ListTermOperationsUseCase;
 import com.mmx.order.application.port.in.ListTermTenorsUseCase;
+import com.mmx.order.application.port.out.ClientEnablementRepository;
 import com.mmx.order.application.port.out.Clock;
 import com.mmx.order.application.port.out.DelegatedGrantRepository;
 import com.mmx.order.application.port.out.InstitutionRepository;
@@ -34,6 +35,7 @@ public class OrderCreationModuleConfiguration {
             InstitutionRepository institutionRepository,
             LegalEntityRepository legalEntityRepository,
             DelegatedGrantRepository delegatedGrantRepository,
+            ClientEnablementRepository clientEnablementRepository,
             Clock clock) {
         return new TermOrderCreationOptionsService(
                 managedCurrencyRepository,
@@ -41,6 +43,7 @@ public class OrderCreationModuleConfiguration {
                 institutionRepository,
                 legalEntityRepository,
                 delegatedGrantRepository,
+                clientEnablementRepository,
                 clock);
     }
 
@@ -75,14 +78,16 @@ public class OrderCreationModuleConfiguration {
             InstitutionRepository institutionRepository,
             OrderRepository orderRepository,
             LegalEntityRepository legalEntityRepository,
-            DelegatedGrantRepository delegatedGrantRepository) {
+            DelegatedGrantRepository delegatedGrantRepository,
+            ClientEnablementRepository clientEnablementRepository) {
         return new OnCallOrderCreationOptionsService(
                 managedCurrencyRepository,
                 onCallRateRepository,
                 institutionRepository,
                 orderRepository,
                 legalEntityRepository,
-                delegatedGrantRepository);
+                delegatedGrantRepository,
+                clientEnablementRepository);
     }
 
     @Bean

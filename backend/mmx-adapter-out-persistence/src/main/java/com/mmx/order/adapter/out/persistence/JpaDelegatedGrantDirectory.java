@@ -24,32 +24,32 @@ public class JpaDelegatedGrantDirectory implements DelegatedGrantDirectory {
     }
 
     @Override
-    public GrantResolution resolveTenor(
+    public GrantResolution lookupTenor(
             LegalEntityCode clientLegalEntityCode,
-            String proxyInstitutionCode,
+            String onboardedInstitutionCode,
             String currency,
             Tenor tenor) {
-        return resolve(clientLegalEntityCode, proxyInstitutionCode, currency, tenor, null);
+        return resolve(clientLegalEntityCode, onboardedInstitutionCode, currency, tenor, null);
     }
 
     @Override
-    public GrantResolution resolveNotice(
+    public GrantResolution lookupNotice(
             LegalEntityCode clientLegalEntityCode,
-            String proxyInstitutionCode,
+            String onboardedInstitutionCode,
             String currency,
             NoticePeriod noticePeriod) {
-        return resolve(clientLegalEntityCode, proxyInstitutionCode, currency, null, noticePeriod);
+        return resolve(clientLegalEntityCode, onboardedInstitutionCode, currency, null, noticePeriod);
     }
 
     private GrantResolution resolve(
             LegalEntityCode clientLegalEntityCode,
-            String proxyInstitutionCode,
+            String onboardedInstitutionCode,
             String currency,
             Tenor tenor,
             NoticePeriod notice) {
         List<DelegatedInstitutionGrantEntity> grants =
-                grantRepository.findActiveGrantForProxy(
-                        clientLegalEntityCode.value(), proxyInstitutionCode, currency);
+                grantRepository.findActiveGrantForOnboardedInstitution(
+                        clientLegalEntityCode.value(), onboardedInstitutionCode, currency);
         if (grants.isEmpty()) {
             return GrantResolution.NO_ACTIVE_GRANT;
         }

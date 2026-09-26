@@ -15,6 +15,7 @@ import com.mmx.order.domain.model.ContractNumber;
 import com.mmx.order.domain.model.DealingReference;
 import com.mmx.order.domain.model.ExternalOrderReference;
 import com.mmx.order.domain.model.LegalEntityCode;
+import com.mmx.order.domain.model.CounterpartyAccounts;
 import com.mmx.order.domain.model.Institution;
 import com.mmx.order.domain.model.MoneyMarketOrder;
 import com.mmx.order.domain.model.OrderOperation;
@@ -58,7 +59,7 @@ class ExecuteOrderServiceRateOnlyTest {
     private static final ContractNumber CONTRACT_REF = new ContractNumber("CN-rate-only");
 
     private static final Institution HSBC =
-            new Institution("HSBC-01", "BankCo International", true);
+            new Institution("HSBC-01", "BankCo International", new LegalEntityCode("LOC"), null, CounterpartyAccounts.of("LOC-HSBC-T", "LOC-HSBC-OC"), true, 1);
 
     @Mock
     OrderRepository orderRepository;
@@ -122,7 +123,7 @@ class ExecuteOrderServiceRateOnlyTest {
     @Test
     void execute_rejectsWhenInstitutionBecameInactiveSinceIntake() {
         when(institutionRepository.findByInstitutionCode("HSBC-01"))
-                .thenReturn(Optional.of(new Institution("HSBC-01", "BankCo International", false)));
+                .thenReturn(Optional.of(new Institution("HSBC-01", "BankCo International", new LegalEntityCode("LOC"), null, CounterpartyAccounts.of("LOC-HSBC-T", "LOC-HSBC-OC"), false, 2)));
         MoneyMarketOrder assigned = orderWithInstitution("HSBC-01", "BankCo International");
         assigned.assign(TRADER_A, FIXED_NOW);
         when(orderRepository.findById(assigned.getId())).thenReturn(Optional.of(assigned));
@@ -133,7 +134,7 @@ class ExecuteOrderServiceRateOnlyTest {
                                         new ExecuteOrderCommand(
                                                 assigned.getId(), TRADER_A, new BigDecimal("3.55"))))
                 .isInstanceOf(InvalidOrderException.class)
-                .hasMessageContaining("not active");
+                .hasMessageContaining("closed to new business");
 
         verify(orderRepository, never()).save(any());
     }

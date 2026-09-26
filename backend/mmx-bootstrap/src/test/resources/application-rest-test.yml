@@ -26,3 +26,8 @@ mmx:
       relay-enabled: false
       max-publish-attempts: 5
       poll-interval-ms: 1000
+  institution:
+    kafka:
+      topic-prefix: mmx.institution
+    outbox:
+      relay-enabled: false

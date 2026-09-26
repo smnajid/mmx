@@ -119,6 +119,29 @@ class RemoteOrderLifecycleTest {
     }
 
     @Test
+    void propagatedExecution_keepsTheClientsOwnOnboardedInstitutionCode() {
+        // The client-side contract is booked against the client's onboarded institution; the routed
+        // lifecycle rule later matches a Decrease/Redemption against it, not the hub-native code.
+        MoneyMarketOrder client = routedRemoteClientOrder();
+        String onboardedCode = client.getInstitutionCode();
+
+        client.propagateExecutionFromHub(
+                new ExecutionDetails(
+                        new BigDecimal("3.55"),
+                        "HSBC",
+                        "HSBC-HUB-NATIVE",
+                        FIXED_NOW,
+                        new DealingReference("DL-hub"),
+                        new ContractNumber("CN-hub")),
+                client.getCounterparty(),
+                new ContractNumber("CN-client"),
+                FIXED_NOW);
+
+        assertThat(client.getInstitutionCode()).isEqualTo(onboardedCode).isNotEqualTo("HSBC-HUB-NATIVE");
+        assertThat(client.getExecutionDetails().generatedContractNumber()).isEqualTo(new ContractNumber("CN-client"));
+    }
+
+    @Test
     void routed_isAnAcceptableUnboundedWaitState_thenExecutedAsynchronously() {
         // For a remote pair, the client-side order may wait in ROUTED unbounded (leg-B relay lag,
         // hub assignment delay) — ROUTED is a valid wait-state. The async EXECUTED propagation

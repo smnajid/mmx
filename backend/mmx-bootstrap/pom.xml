@@ -134,6 +134,10 @@
                 <directory>${project.basedir}/../../contracts/002-trader-orders-views/schemas</directory>
                 <targetPath>contracts</targetPath>
             </testResource>
+            <testResource>
+                <directory>${project.basedir}/../../contracts/004-institution-settings/schemas</directory>
+                <targetPath>contracts</targetPath>
+            </testResource>
         </testResources>
         <plugins>
             <plugin>

@@ -29,6 +29,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import com.mmx.order.support.SharedKafkaTestBroker;
+import com.mmx.order.support.RestTestInstitutions;
 import com.mmx.order.support.SharedPostgresTestBase;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -99,7 +100,7 @@ class ExecutionHandoffKafkaIntegrationTest extends SharedPostgresTestBase {
         HttpResponse<String> executed =
                 postJson(
                         "/api/v1/orders/" + orderId + "/execute",
-                        com.mmx.order.support.RestTestInstitutions.bankCoExecuteJson(3.5),
+                        RestTestInstitutions.bankCoExecuteJson(3.5),
                         TRADER);
         assertThat(executed.statusCode()).isEqualTo(200);
 
@@ -135,7 +136,13 @@ class ExecutionHandoffKafkaIntegrationTest extends SharedPostgresTestBase {
                             .until(() -> pollForRecord(consumer, orderId), Objects::nonNull);
             assertThat(record.key()).isEqualTo(orderId);
             assertThat(record.value()).isEqualTo(persistedPayloadAfterSend);
-            assertPayloadValidates(payloadSchema, objectMapper.readTree(record.value()));
+            JsonNode payload = objectMapper.readTree(record.value());
+            assertPayloadValidates(payloadSchema, payload);
+            assertThat(payload.path("institutionCode").asText()).isEqualTo(RestTestInstitutions.BANKCO_CODE);
+            assertThat(payload.path("counterpartyAccount").asText())
+                    .as("the counterparty account snapshot stamped at execute")
+                    .isEqualTo("LOC-" + RestTestInstitutions.BANKCO_CODE + "-T");
+            assertThat(payload.has("clientCounterpartyAccount")).as("native orders carry no routing context").isFalse();
         }
     }
 

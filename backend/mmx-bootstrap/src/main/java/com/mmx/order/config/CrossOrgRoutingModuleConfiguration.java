@@ -5,7 +5,7 @@ import com.mmx.order.adapter.out.integration.ExternalIdentityGatewayAdapter;
 import com.mmx.order.adapter.out.integration.LoggingOperationalSignalAdapter;
 import com.mmx.order.adapter.out.integration.RemoteManagedCurrencyRepository;
 import com.mmx.order.adapter.out.integration.RemoteDelegatedGrantRepository;
-import com.mmx.order.adapter.out.integration.RemoteInstitutionRepository;
+import com.mmx.order.adapter.out.integration.RemoteHubInstitutionCatalog;
 import com.mmx.order.adapter.out.integration.RemoteReferenceDataContext;
 import com.mmx.order.adapter.out.integration.RemoteRoutingGatewayRestAdapter;
 import com.mmx.order.adapter.out.integration.RemoteTermRateRepository;
@@ -20,6 +20,8 @@ import com.mmx.order.application.port.out.CrossOrgMembershipPort;
 import com.mmx.order.application.port.out.DelegatedGrantRepository;
 import com.mmx.order.application.port.out.ExternalIdentityGateway;
 import com.mmx.order.application.port.out.HubLocalityResolver;
+import com.mmx.order.application.port.out.ClientEnablementRepository;
+import com.mmx.order.application.port.out.HubInstitutionCatalog;
 import com.mmx.order.application.port.out.InstitutionRepository;
 import com.mmx.order.application.port.out.LegalEntityRepository;
 import com.mmx.order.application.port.out.ManagedCurrencyRepository;
@@ -190,10 +192,17 @@ public class CrossOrgRoutingModuleConfiguration {
     public RemoteRoutedOrderIntake remoteRoutedOrderIntake(
             ExternalIdentityGateway externalIdentityGateway,
             RemoteRoutingGateway remoteRoutingGateway,
+            InstitutionRepository institutionRepository,
+            ClientEnablementRepository clientEnablementRepository,
             OrderRepository orderRepository,
             Clock clock) {
         return new RemoteRoutedOrderIntake(
-                externalIdentityGateway, remoteRoutingGateway, orderRepository, clock);
+                externalIdentityGateway,
+                remoteRoutingGateway,
+                institutionRepository,
+                clientEnablementRepository,
+                orderRepository,
+                clock);
     }
 
     @Bean
@@ -232,11 +241,16 @@ public class CrossOrgRoutingModuleConfiguration {
         return new RemoteManagedCurrencyRepository(ctx);
     }
 
+    /**
+     * The remote client's hub-native institution catalog is a live read of the hub (display names for the
+     * granted list and onboarding). Its {@link InstitutionRepository} stays the local JPA one: the client
+     * stores its own onboarded institutions (design D7, ADR 0008).
+     */
     @Bean
     @ConditionalOnProperty(prefix = "mmx.cross-org", name = "reference-data-remote", havingValue = "true")
     @org.springframework.context.annotation.Primary
-    public InstitutionRepository remoteInstitutionRepository(RemoteReferenceDataContext ctx) {
-        return new RemoteInstitutionRepository(ctx);
+    public HubInstitutionCatalog remoteHubInstitutionCatalog(RemoteReferenceDataContext ctx) {
+        return new RemoteHubInstitutionCatalog(ctx);
     }
 
     @Bean

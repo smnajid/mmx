@@ -80,7 +80,7 @@ An active delegated grant SHALL make the hub institution a **granted institution
 A `ClientRepresentative` SHALL control the **client enablement** of each onboarded institution per `(onboarded institution, currency)`: the tenors (Term) and notice periods (OnCall) the client switches on for new business. The rules are:
 
 - **Opt-in:** client enablement SHALL be empty right after onboarding.
-- **Bounded by the grant:** a tenor or notice period SHALL be enabled only if the active grant for that currency enables it.
+- **Bounded by the grant:** a tenor or notice period SHALL be switched on only if the active grant for that currency enables it. A value already enabled MAY be kept in a replacement after the grant stops enabling it (it shows as "enabled, not granted" and is capped out of the effective enablement).
 - **Kept when the grant shrinks:** a grant reduction or revocation SHALL NOT erase client enablement. The **effective enablement** used for new business SHALL always be *grant ∩ client enablement*, so restoring a grant restores the client's earlier choice.
 - **Never widened by the grant:** a grant expansion SHALL NOT switch anything on.
 - **Switching off:** switching off a tenor or notice period SHALL make that scope closed to new business (Subscription/Increase refused, Decrease/Redemption accepted).

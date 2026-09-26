@@ -17,16 +17,21 @@ import com.mmx.order.domain.model.Institution;
 import com.mmx.order.domain.model.LegalEntityCode;
 import com.mmx.order.domain.model.MoneyMarketOrder;
 import com.mmx.order.domain.model.RoutedHubOrderDraft;
+import com.mmx.order.domain.policy.OrderAgainstInstitutionPolicy;
+import com.mmx.order.domain.policy.NewBusinessPolicy;
 
 import java.time.Instant;
 import java.util.Objects;
 import java.util.Optional;
 
 /**
- * Hub-deployment (LODH) leg-A inbound. Validates the originating client's grant against the hub's
- * own reference data; on success creates the hub-side order in {@code RECEIVED} and commits a leg-B
- * {@code ACCEPTED} outbox row in the same transaction; on a grant/currency/tenor validation failure
- * rejects, creating no order and emitting no event. Cross-boundary idempotency: a leg-A retry that
+ * Hub-deployment (LODH) leg-A inbound. The institution must be one of this hub's own native institutions. For
+ * a Subscription or Increase, validates the originating client's active grant against the hub's own reference
+ * data and refuses a hub institution closed to new business; a Decrease or Redemption skips both but still
+ * needs the grant to exist (in any state). Every operation needs the hub institution's counterparty account for
+ * the OrderType. On success creates the hub-side order in {@code RECEIVED}, storing the client counterparty
+ * account snapshot read-only, and commits a leg-B {@code ACCEPTED} outbox row in the same transaction; on a
+ * validation failure rejects, creating no order and emitting no event. Cross-boundary idempotency: a leg-A retry that
  * collides with the partial unique index is caught and resolved to the already-persisted hub-side
  * order.
  *
@@ -69,15 +74,20 @@ public final class AcceptRoutedHubOrderService implements AcceptRoutedHubOrderUs
             throw new CrossOrgMembershipException(provenOriginatingLegalEntityCode);
         }
 
-        Optional<Institution> institution = institutionRepository.findByInstitutionCode(request.institutionCode());
+        // Only this hub's own native institutions can be traded on leg A (never another LegalEntity's row).
+        Optional<Institution> institution =
+                institutionRepository
+                        .findByInstitutionCode(request.institutionCode())
+                        .filter(i -> !i.isOnboarded() && hubLegalEntityCode.equals(i.getOwningLegalEntityCode()));
         if (institution.isEmpty()) {
             return reject("Unknown institution: " + request.institutionCode());
         }
-
-        Optional<DelegatedInstitutionGrant> grant =
-                delegatedGrantRepository.findByKey(
-                        new DelegatedGrantKey(request.institutionCode(), provenOriginatingLegalEntityCode, request.currency()));
-        if (grant.isEmpty() || !grant.get().isActive() || !isRequestedTenorOrNoticeCoveredBy(grant.get(), request)) {
+        Optional<String> refusal =
+                OrderAgainstInstitutionPolicy.refusal(institution.get(), request.orderOperation(), request.orderType());
+        if (refusal.isPresent()) {
+            return reject(refusal.get());
+        }
+        if (!isPermittedByGrant(request, provenOriginatingLegalEntityCode)) {
             return reject("Delegated grant validation failed for ("
                     + request.institutionCode() + ", " + provenOriginatingLegalEntityCode + ", " + request.currency() + ")");
         }
@@ -96,6 +106,21 @@ public final class AcceptRoutedHubOrderService implements AcceptRoutedHubOrderUs
                     .orElseThrow(() -> collision);
         }
         return new RemoteRoutingResponse.Accept(now);
+    }
+
+    /**
+     * A Subscription or Increase needs the active grant covering the term. A Decrease or Redemption needs only
+     * that the grant exists, in any state: a revoked grant still services existing contracts, but an institution
+     * never granted to this client cannot be traded at all.
+     */
+    private boolean isPermittedByGrant(RemoteRoutingRequest request, LegalEntityCode client) {
+        Optional<DelegatedInstitutionGrant> grant =
+                delegatedGrantRepository.findByKey(
+                        new DelegatedGrantKey(request.institutionCode(), client, request.currency()));
+        if (!NewBusinessPolicy.addsExposure(request.orderOperation())) {
+            return grant.isPresent();
+        }
+        return grant.isPresent() && grant.get().isActive() && isRequestedTenorOrNoticeCoveredBy(grant.get(), request);
     }
 
     private static boolean isRequestedTenorOrNoticeCoveredBy(DelegatedInstitutionGrant grant, RemoteRoutingRequest request) {
@@ -124,7 +149,8 @@ public final class AcceptRoutedHubOrderService implements AcceptRoutedHubOrderUs
                 request.sourceContractNumber(),
                 request.routingId(),
                 provenOriginatingLegalEntityCode,
-                request.originatingExternalOrderReference());
+                request.originatingExternalOrderReference(),
+                request.clientCounterpartyAccount());
     }
 
     private static RemoteRoutingResponse reject(String reason) {

@@ -333,8 +333,10 @@ components:
           type: string
           minLength: 1
           maxLength: 34
+          pattern: ".*\\S.*"
           description: >
-            The client's counterparty account snapshot for the order's OrderType, taken at routing.
+            The client's counterparty account snapshot for the order's OrderType, taken at routing;
+            non-blank (a whitespace-only value is a 400).
             Stored read-only on the hub-side order and returned on `OrderExecutedV1`; the hub checks
             only its presence. Required: client and hub deployments must be upgraded together.
 

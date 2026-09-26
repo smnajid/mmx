@@ -13,12 +13,15 @@ import com.mmx.order.application.port.out.RoutedPairLocalityResolver;
 import com.mmx.order.application.port.out.RoutingOutcomeOutbox;
 import com.mmx.order.domain.model.Institution;
 import com.mmx.order.domain.policy.OrderAgainstInstitutionPolicy;
+import com.mmx.order.domain.exception.InstitutionClosedToNewBusinessException;
 import com.mmx.order.domain.exception.InvalidOrderException;
+import com.mmx.order.domain.exception.MissingCounterpartyAccountException;
 import com.mmx.order.domain.exception.InvalidStatusTransitionException;
 import com.mmx.order.domain.exception.OrderNotFoundException;
 import com.mmx.order.domain.exception.RoutedOrderPairIntegrityException;
 import com.mmx.order.domain.exception.UnauthorizedTraderException;
 import com.mmx.order.domain.model.ContractNumber;
+import com.mmx.order.domain.model.CounterpartyAccounts;
 import com.mmx.order.domain.model.DealingReference;
 import com.mmx.order.domain.model.Assignment;
 import com.mmx.order.domain.model.ExternalOrderReference;
@@ -105,8 +108,11 @@ class ExecuteOrderServiceTest {
     @InjectMocks
     ExecuteOrderService subject;
 
-    private static final Institution HSBC =
-            new Institution("HSBC-01", "BankCo International", true);
+    private static final Institution HSBC = hsbc(true, CounterpartyAccounts.of("LOC-HSBC-T", "LOC-HSBC-OC"));
+
+    private static Institution hsbc(boolean active, CounterpartyAccounts accounts) {
+        return new Institution("HSBC-01", "BankCo International", new LegalEntityCode("LOC"), null, accounts, active, 1);
+    }
 
     @BeforeEach
     void freezeClock() {
@@ -245,7 +251,7 @@ class ExecuteOrderServiceTest {
     @Test
     void execute_inactive_institution_rejected() {
         when(institutionRepository.findByInstitutionCode("HSBC-01"))
-                .thenReturn(Optional.of(new Institution("HSBC-01", "BankCo International", false)));
+                .thenReturn(Optional.of(hsbc(false, CounterpartyAccounts.of("LOC-HSBC-T", "LOC-HSBC-OC"))));
         MoneyMarketOrder assigned = receivedOrder();
         assigned.assign(TRADER_A, FIXED_NOW);
         when(orderRepository.findById(assigned.getId())).thenReturn(Optional.of(assigned));
@@ -254,8 +260,56 @@ class ExecuteOrderServiceTest {
                 new ExecuteOrderCommand(assigned.getId(), TRADER_A, new BigDecimal("3.55"));
 
         assertThatThrownBy(() -> subject.execute(command))
-                .isInstanceOf(InvalidOrderException.class)
-                .hasMessageContaining("not active");
+                .isInstanceOf(InstitutionClosedToNewBusinessException.class)
+                .hasMessageContaining("closed to new business");
+        assertThat(assigned.getStatus()).isEqualTo(OrderStatus.ASSIGNED);
+    }
+
+    @Test
+    void execute_stampsTheCounterpartyAccountSnapshotForTheOrderType() {
+        MoneyMarketOrder assigned = receivedOrder();
+        assigned.assign(TRADER_A, FIXED_NOW);
+        when(orderRepository.findById(assigned.getId())).thenReturn(Optional.of(assigned));
+        when(orderRepository.save(any(MoneyMarketOrder.class))).then(returnsFirstArg());
+        when(referenceGenerator.generateDealingReference()).thenReturn(DEAL_REF);
+        when(referenceGenerator.generateContractNumber()).thenReturn(CONTRACT_REF);
+
+        MoneyMarketOrder result =
+                subject.execute(new ExecuteOrderCommand(assigned.getId(), TRADER_A, new BigDecimal("3.55")));
+
+        assertThat(result.getCounterpartyAccount()).isEqualTo("LOC-HSBC-T");
+    }
+
+    @Test
+    void execute_accountClearedSinceIntake_isRejected_andOrderStaysAssigned() {
+        when(institutionRepository.findByInstitutionCode("HSBC-01"))
+                .thenReturn(Optional.of(hsbc(true, CounterpartyAccounts.of(null, "LOC-HSBC-OC"))));
+        MoneyMarketOrder assigned = receivedOrder();
+        assigned.assign(TRADER_A, FIXED_NOW);
+        when(orderRepository.findById(assigned.getId())).thenReturn(Optional.of(assigned));
+
+        assertThatThrownBy(
+                        () -> subject.execute(new ExecuteOrderCommand(assigned.getId(), TRADER_A, new BigDecimal("3.55"))))
+                .isInstanceOf(MissingCounterpartyAccountException.class)
+                .hasMessageContaining("Term counterparty account");
+        assertThat(assigned.getStatus()).isEqualTo(OrderStatus.ASSIGNED);
+        verify(orderRepository, never()).save(any());
+    }
+
+    @Test
+    void execute_redemptionOnAClosedInstitution_executes_withTheOnCallSnapshot() {
+        when(institutionRepository.findByInstitutionCode("HSBC-01"))
+                .thenReturn(Optional.of(hsbc(false, CounterpartyAccounts.of("LOC-HSBC-T", "LOC-HSBC-OC"))));
+        MoneyMarketOrder assigned = assignedOnCallOrder(OrderOperation.REDEMPTION);
+        when(orderRepository.findById(assigned.getId())).thenReturn(Optional.of(assigned));
+        when(orderRepository.save(any(MoneyMarketOrder.class))).then(returnsFirstArg());
+        when(referenceGenerator.generateDealingReference()).thenReturn(DEAL_REF);
+
+        MoneyMarketOrder result =
+                subject.execute(new ExecuteOrderCommand(assigned.getId(), TRADER_A, new BigDecimal("3.55")));
+
+        assertThat(result.getStatus()).isEqualTo(OrderStatus.EXECUTED);
+        assertThat(result.getCounterpartyAccount()).isEqualTo("LOC-HSBC-OC");
     }
 
     @Test
@@ -394,7 +448,8 @@ class ExecuteOrderServiceTest {
         when(orderRepository.findById(id)).thenReturn(Optional.of(corrupted));
 
         when(institutionRepository.findByInstitutionCode("BNKCO"))
-                .thenReturn(Optional.of(new Institution("BNKCO", "BankCo", true)));
+                .thenReturn(Optional.of(new Institution(
+                        "BNKCO", "BankCo", new LegalEntityCode("LOC"), null, CounterpartyAccounts.of("T", "OC"), true, 1)));
 
         ExecuteOrderCommand command = new ExecuteOrderCommand(id, TRADER_A, new BigDecimal("3.55"));
 
@@ -648,12 +703,16 @@ class ExecuteOrderServiceTest {
     }
 
     private static MoneyMarketOrder assignedOnCallIncreaseOrder() {
+        return assignedOnCallOrder(OrderOperation.INCREASE);
+    }
+
+    private static MoneyMarketOrder assignedOnCallOrder(OrderOperation operation) {
         MoneyMarketOrder order =
                 MoneyMarketOrder.create(
                         new ExternalOrderReference("PM-LIFE-" + UUID.randomUUID()),
                         new LegalEntityCode("LOC"),
                         OrderType.ON_CALL,
-                        OrderOperation.INCREASE,
+                        operation,
                         new PortfolioNumber("PF-L"),
                         "EUR",
                         new BigDecimal("500000.00"),

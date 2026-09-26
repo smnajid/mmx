@@ -99,12 +99,14 @@ public class OrderModuleConfiguration {
             DelegatedGrantDirectory delegatedGrantDirectory,
             GlobalAccountDirectory globalAccountDirectory,
             InstitutionRepository institutionRepository,
+            ClientEnablementRepository clientEnablementRepository,
             OrderRepository orderRepository,
             Clock clock) {
         return new RoutedOrderIntake(
                 delegatedGrantDirectory,
                 globalAccountDirectory,
                 institutionRepository,
+                clientEnablementRepository,
                 orderRepository,
                 clock);
     }
