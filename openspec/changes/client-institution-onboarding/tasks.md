@@ -167,9 +167,9 @@ Strict TDD (no waiver): each "Write failing" task must be seen red before its "I
 
 ## 9. Scripts and dev stack
 
-- [ ] 9.1 In `scripts/register-schemas.sh`, register `contracts/004-institution-settings/schemas/InstitutionUpdatedV1.json` under subject `mmx.institution-value` with `BACKWARD`. Verify that `./mmx-start.sh`, then `curl` of `/subjects/mmx.institution-value/versions`, returns a version.
-- [ ] 9.2 In `scripts/cross-org-smoke.sh`, set LOC counterparty accounts, onboard the granted institution at CGEG with accounts, and use the CGEG onboarded institution for intake. Verify that `./mmx-cross-org-start.sh`, then `./scripts/cross-org-smoke.sh`, completes the flow end to end.
-- [ ] 9.3 In `scripts/seed-demo-orders.sh`, set counterparty accounts on the institutions it uses. Verify that the script runs against `./mmx-start.sh` without intake rejections.
+- [x] 9.1 In `scripts/register-schemas.sh`, register `contracts/004-institution-settings/schemas/InstitutionUpdatedV1.json` under subject `mmx.institution-value` with `BACKWARD`. Verify that `./mmx-start.sh`, then `curl` of `/subjects/mmx.institution-value/versions`, returns a version.
+- [x] 9.2 In `scripts/cross-org-smoke.sh`, set LOC counterparty accounts, onboard the granted institution at CGEG with accounts, and use the CGEG onboarded institution for intake. Verify that `./mmx-cross-org-start.sh`, then `./scripts/cross-org-smoke.sh`, completes the flow end to end.
+- [x] 9.3 In `scripts/seed-demo-orders.sh`, set counterparty accounts on the institutions it uses. Verify that the script runs against `./mmx-start.sh` without intake rejections.
 
 ## 10. Frontend (`frontend/`, standalone components + existing API service conventions)
 

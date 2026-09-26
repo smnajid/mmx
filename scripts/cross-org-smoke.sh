@@ -4,9 +4,10 @@
 #   CGD@CGEG (http://localhost:8082, role=client)  →  LOC@LODH (http://localhost:8080, role=hub)
 #
 # Exercises, in order:
-#   1. hub reference data (currency, institution, delegated grant for CGD) on LODH
-#   2. thin-client live reference read: CGEG ClientRepresentative sees the LODH grant remotely
-#   3. PM intake on CGEG  → Leg A accept → client-side order ROUTED, hub-side order on LODH desk
+#   1. hub reference data (currency, institution + LOC counterparty accounts, delegated grant for CGD) on LODH
+#   2. client onboarding on CGEG: the ClientRepresentative reads the LODH grant live, onboards the granted
+#      institution with CGD counterparty accounts and switches on the routed tenor (client enablement)
+#   3. PM intake on CGEG (onboarded institution) → Leg A accept → client-side ROUTED, hub-side order on LODH desk
 #   4. hub trader assigns + executes the hub-side order
 #   5. Leg B: CGEG client-side order converges to EXECUTED (RoutingOutcomeV1 via Kafka outbox)
 #
@@ -98,7 +99,13 @@ fi
 [[ -n "${INSTITUTION_CODE}" ]] || fail "could not resolve an active institution on LODH"
 ok "hub institution for the flow: ${INSTITUTION_CODE}"
 
-if curl -sf -H "X-User-Id: ${USER_ID}" "${LODH_URL}/api/v1/settings/delegated-grants" | grep -q "\"clientLegalEntityCode\":\"CGD\""; then
+GRANT_ACTIVE="$(curl -sf -H "X-User-Id: ${USER_ID}" "${LODH_URL}/api/v1/settings/delegated-grants" | python3 -c "
+import json, sys
+rows = json.load(sys.stdin)
+print(any(r.get('hubInstitutionCode') == sys.argv[1] and r.get('clientLegalEntityCode') == 'CGD'
+          and r.get('currency') == sys.argv[2] and r.get('active') for r in rows))
+" "${INSTITUTION_CODE}" "${CURRENCY}")"
+if [[ "${GRANT_ACTIVE}" == "True" ]]; then
   ok "delegated grant ${INSTITUTION_CODE}→CGD/${CURRENCY} already active on LODH"
 else
   GRANT_FILE="$(mktemp)"
@@ -109,7 +116,15 @@ else
   ok "created delegated grant ${INSTITUTION_CODE}→CGD/${CURRENCY} (tenors: ${TENOR}) on LODH"
 fi
 
-# ── 2. Thin-client remote reference read on CGEG ──────────────────────────────
+# LOC's own counterparty accounts: the hub refuses a routed order at Leg A without them.
+ACCT_FILE="$(mktemp)"
+curl -sf -X PUT "${LODH_URL}/api/v1/settings/institutions/${INSTITUTION_CODE}/counterparty-accounts" \
+  -H "Content-Type: application/json" -H "X-User-Id: ${USER_ID}" \
+  -d "{\"termCounterpartyAccount\":\"LOC-${INSTITUTION_CODE}-T\",\"onCallCounterpartyAccount\":\"LOC-${INSTITUTION_CODE}-OC\"}" \
+  > "${ACCT_FILE}" || fail "could not set LOC counterparty accounts on ${INSTITUTION_CODE}: $(cat "${ACCT_FILE}")"
+ok "LOC counterparty accounts set on ${INSTITUTION_CODE}"
+
+# ── 2. Client onboarding on CGEG ──────────────────────────────────────────────
 curl -sf -X POST "${CGEG_URL}/api/v1/session/scope" \
   -H "Content-Type: application/json" -H "X-User-Id: ${USER_ID}" \
   -d '{"legalEntityCode":"CGD","role":"CLIENT_REPRESENTATIVE"}' > /dev/null \
@@ -117,7 +132,41 @@ curl -sf -X POST "${CGEG_URL}/api/v1/session/scope" \
 GRANTS="$(curl -sf -H "X-User-Id: ${USER_ID}" "${CGEG_URL}/api/v1/settings/delegated-grants/client")"
 echo "${GRANTS}" | grep -q "\"${INSTITUTION_CODE}\"" \
   || fail "CGEG remote grant read returned no ${INSTITUTION_CODE} grant: ${GRANTS}"
-ok "CGEG (thin client) reads the LODH grant live — BNP via LOC visible"
+ok "CGEG reads the LODH grant live — ${INSTITUTION_CODE} is a granted institution for CGD"
+
+# Onboard (or re-onboard) the granted institution at CGD, with CGD's own counterparty accounts.
+GRANTED="$(curl -sf -H "X-User-Id: ${USER_ID}" "${CGEG_URL}/api/v1/settings/institutions/granted")" \
+  || fail "CGEG granted-institution list failed"
+read -r CLIENT_INSTITUTION_CODE CLIENT_CLOSED <<< "$(python3 -c "
+import json, sys
+rows = [r for r in json.loads(sys.argv[1]) if r.get('hubInstitutionCode') == sys.argv[2]]
+r = rows[0] if rows else {}
+print(r.get('onboardedInstitutionCode') or '-', str(r.get('closedToNewBusiness', False)).lower())
+" "${GRANTED}" "${INSTITUTION_CODE}")"
+CGD_ACCOUNTS="\"termCounterpartyAccount\":\"CGD-${INSTITUTION_CODE}-T\",\"onCallCounterpartyAccount\":\"CGD-${INSTITUTION_CODE}-OC\""
+ONBOARD_FILE="$(mktemp)"
+if [[ "${CLIENT_INSTITUTION_CODE}" == "-" || "${CLIENT_CLOSED}" == "true" ]]; then
+  # Creates the onboarded institution (201), or reopens an offboarded one (200).
+  curl -sf -X POST "${CGEG_URL}/api/v1/settings/institutions" \
+    -H "Content-Type: application/json" -H "X-User-Id: ${USER_ID}" \
+    -d "{\"hubInstitutionCode\":\"${INSTITUTION_CODE}\",${CGD_ACCOUNTS}}" > "${ONBOARD_FILE}" \
+    || fail "could not onboard ${INSTITUTION_CODE} at CGD: $(cat "${ONBOARD_FILE}")"
+  CLIENT_INSTITUTION_CODE="$(json "d['institutionCode']" < "${ONBOARD_FILE}")"
+  ok "onboarded ${INSTITUTION_CODE} at CGD as ${CLIENT_INSTITUTION_CODE} ($(json "d['displayName']" < "${ONBOARD_FILE}"))"
+fi
+curl -sf -X PUT "${CGEG_URL}/api/v1/settings/institutions/${CLIENT_INSTITUTION_CODE}/counterparty-accounts" \
+  -H "Content-Type: application/json" -H "X-User-Id: ${USER_ID}" \
+  -d "{${CGD_ACCOUNTS}}" > "${ONBOARD_FILE}" \
+  || fail "could not set CGD counterparty accounts on ${CLIENT_INSTITUTION_CODE}: $(cat "${ONBOARD_FILE}")"
+ok "CGD counterparty accounts set on ${CLIENT_INSTITUTION_CODE}"
+
+# Client enablement is opt-in: switch on the routed tenor for the currency.
+ENABLE_FILE="$(mktemp)"
+curl -sf -X PUT "${CGEG_URL}/api/v1/settings/institutions/${CLIENT_INSTITUTION_CODE}/enablement/${CURRENCY}" \
+  -H "Content-Type: application/json" -H "X-User-Id: ${USER_ID}" \
+  -d "{\"enabledTenors\":[\"${TENOR}\"],\"enabledNoticePeriods\":[]}" > "${ENABLE_FILE}" \
+  || fail "could not enable ${CURRENCY}/${TENOR} on ${CLIENT_INSTITUTION_CODE}: $(cat "${ENABLE_FILE}")"
+ok "client enablement ${CURRENCY}/${TENOR} switched on for ${CLIENT_INSTITUTION_CODE}"
 
 # ── 3. PM intake on CGEG → Leg A ─────────────────────────────────────────────
 INTAKE_BODY_FILE="$(mktemp)"
@@ -132,7 +181,7 @@ HTTP_CODE="$(curl -sS -o "${INTAKE_BODY_FILE}" -w "%{http_code}" -X POST "${CGEG
         \"currency\":\"${CURRENCY}\",
         \"amount\":1000000,
         \"valueDate\":\"${value_date}\",
-        \"institutionCode\":\"${INSTITUTION_CODE}\",
+        \"institutionCode\":\"${CLIENT_INSTITUTION_CODE}\",
         \"tenor\":\"${TENOR}\"
       }")"
 [[ "${HTTP_CODE}" == "201" || "${HTTP_CODE}" == "200" ]] || fail "CGEG intake → HTTP ${HTTP_CODE}: $(cat "${INTAKE_BODY_FILE}")"
