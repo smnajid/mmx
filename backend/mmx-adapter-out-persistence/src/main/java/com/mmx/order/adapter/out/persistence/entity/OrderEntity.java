@@ -14,8 +14,11 @@ public class OrderEntity {
     @Column(name = "id", nullable = false, updatable = false)
     private UUID id;
 
-    @Column(name = "external_order_reference", nullable = false, unique = true, length = 100)
+    @Column(name = "external_order_reference", nullable = false, length = 100)
     private String externalOrderReference;
+
+    @Column(name = "legal_entity_code", nullable = false, length = 3)
+    private String legalEntityCode;
 
     @Column(name = "order_type", nullable = false, length = 20)
     private String orderType;
@@ -65,6 +68,9 @@ public class OrderEntity {
     @Column(name = "counterparty", length = 200)
     private String counterparty;
 
+    @Column(name = "institution_code", length = 32)
+    private String institutionCode;
+
     @Column(name = "execution_time")
     private Instant executionTime;
 
@@ -79,6 +85,21 @@ public class OrderEntity {
 
     @Column(name = "handoff_status", length = 20)
     private String handoffStatus;
+
+    @Column(name = "routing_id")
+    private UUID routingId;
+
+    @Column(name = "originating_legal_entity_code", length = 3)
+    private String originatingLegalEntityCode;
+
+    @Column(name = "originating_external_order_reference", length = 100)
+    private String originatingExternalOrderReference;
+
+    @Column(name = "counterparty_account", length = 34)
+    private String counterpartyAccount;
+
+    @Column(name = "client_counterparty_account", length = 34)
+    private String clientCounterpartyAccount;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -95,6 +116,9 @@ public class OrderEntity {
 
     public String getExternalOrderReference() { return externalOrderReference; }
     public void setExternalOrderReference(String v) { this.externalOrderReference = v; }
+
+    public String getLegalEntityCode() { return legalEntityCode; }
+    public void setLegalEntityCode(String v) { this.legalEntityCode = v; }
 
     public String getOrderType() { return orderType; }
     public void setOrderType(String v) { this.orderType = v; }
@@ -144,6 +168,9 @@ public class OrderEntity {
     public String getCounterparty() { return counterparty; }
     public void setCounterparty(String v) { this.counterparty = v; }
 
+    public String getInstitutionCode() { return institutionCode; }
+    public void setInstitutionCode(String v) { this.institutionCode = v; }
+
     public Instant getExecutionTime() { return executionTime; }
     public void setExecutionTime(Instant v) { this.executionTime = v; }
 
@@ -158,6 +185,21 @@ public class OrderEntity {
 
     public String getHandoffStatus() { return handoffStatus; }
     public void setHandoffStatus(String handoffStatus) { this.handoffStatus = handoffStatus; }
+
+    public UUID getRoutingId() { return routingId; }
+    public void setRoutingId(UUID routingId) { this.routingId = routingId; }
+
+    public String getOriginatingLegalEntityCode() { return originatingLegalEntityCode; }
+    public void setOriginatingLegalEntityCode(String v) { this.originatingLegalEntityCode = v; }
+
+    public String getOriginatingExternalOrderReference() { return originatingExternalOrderReference; }
+    public void setOriginatingExternalOrderReference(String v) { this.originatingExternalOrderReference = v; }
+
+    public String getCounterpartyAccount() { return counterpartyAccount; }
+    public void setCounterpartyAccount(String v) { this.counterpartyAccount = v; }
+
+    public String getClientCounterpartyAccount() { return clientCounterpartyAccount; }
+    public void setClientCounterpartyAccount(String v) { this.clientCounterpartyAccount = v; }
 
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant v) { this.createdAt = v; }

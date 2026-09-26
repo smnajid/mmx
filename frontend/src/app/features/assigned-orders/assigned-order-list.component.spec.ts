@@ -41,7 +41,7 @@ describe('AssignedOrderListComponent', () => {
         r.url.startsWith('/api/v1/orders/oncall/assigned') &&
         r.params.get('page') === '0'
     );
-    expect(req.request.headers.get('X-Trader-Id')).toBe('alice');
+    expect(req.request.headers.get('X-User-Id')).toBe('alice');
     req.flush({ content: [], totalElements: 0, page: 0, size: 100 });
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('Assigned');

@@ -3,21 +3,14 @@ package com.mmx.order.application.service;
 import com.mmx.order.application.command.AssignOrderCommand;
 import com.mmx.order.application.command.UnassignOrderCommand;
 import com.mmx.order.application.port.in.AssignOrderUseCase;
-import com.mmx.order.application.port.in.ListAssignedOrdersUseCase;
-import com.mmx.order.application.port.in.OrderPage;
 import com.mmx.order.application.port.in.UnassignOrderUseCase;
 import com.mmx.order.application.port.out.AuditLogger;
 import com.mmx.order.application.port.out.Clock;
 import com.mmx.order.application.port.out.OrderRepository;
 import com.mmx.order.domain.exception.OrderNotFoundException;
 import com.mmx.order.domain.model.MoneyMarketOrder;
-import com.mmx.order.domain.model.OrderStatus;
-import com.mmx.order.domain.model.OrderType;
-import com.mmx.order.domain.model.TraderId;
 
-import java.util.List;
-
-public final class AssignmentService implements AssignOrderUseCase, UnassignOrderUseCase, ListAssignedOrdersUseCase {
+public final class AssignmentService implements AssignOrderUseCase, UnassignOrderUseCase {
 
     static final String EVENT_ORDER_ASSIGNED = "ORDER_ASSIGNED";
     static final String EVENT_ORDER_UNASSIGNED = "ORDER_UNASSIGNED";
@@ -54,42 +47,5 @@ public final class AssignmentService implements AssignOrderUseCase, UnassignOrde
         MoneyMarketOrder saved = orderRepository.save(order);
         auditLogger.log(saved.getId(), EVENT_ORDER_UNASSIGNED, command.traderId().value(), clock.now());
         return saved;
-    }
-
-    @Override
-    public OrderPage listAssignedOrders(TraderId traderId, int page, int size) {
-        List<MoneyMarketOrder> all =
-                orderRepository.findByAssignedTraderIdAndStatus(traderId, OrderStatus.ASSIGNED);
-        return paginate(all, page, size);
-    }
-
-    /** Desk-wide ASSIGNED Term orders (workspace Assigned view; not filtered by assignee). */
-    public OrderPage listAssignedTermOrders(int page, int size) {
-        List<MoneyMarketOrder> all =
-                orderRepository.findByStatusAndOrderType(OrderStatus.ASSIGNED, OrderType.TERM);
-        return paginate(all, page, size);
-    }
-
-    /** Desk-wide ASSIGNED OnCall orders. */
-    public OrderPage listAssignedOnCallOrders(int page, int size) {
-        List<MoneyMarketOrder> all =
-                orderRepository.findByStatusAndOrderType(OrderStatus.ASSIGNED, OrderType.ON_CALL);
-        return paginate(all, page, size);
-    }
-
-    private static OrderPage paginate(List<MoneyMarketOrder> all, int page, int size) {
-        if (page < 0) {
-            throw new IllegalArgumentException("page must be non-negative");
-        }
-        if (size <= 0) {
-            throw new IllegalArgumentException("size must be positive");
-        }
-        long totalElements = all.size();
-        int fromIndex = page * size;
-        if (fromIndex >= totalElements) {
-            return new OrderPage(List.of(), totalElements, page, size);
-        }
-        int toIndex = Math.min(fromIndex + size, (int) totalElements);
-        return new OrderPage(all.subList(fromIndex, toIndex), totalElements, page, size);
     }
 }

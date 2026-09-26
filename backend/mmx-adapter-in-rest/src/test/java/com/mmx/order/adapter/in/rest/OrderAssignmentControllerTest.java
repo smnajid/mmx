@@ -3,15 +3,19 @@ package com.mmx.order.adapter.in.rest;
 import com.mmx.order.adapter.in.rest.mapper.OrderRestMapper;
 import com.mmx.order.application.command.AssignOrderCommand;
 import com.mmx.order.application.command.UnassignOrderCommand;
+import com.mmx.order.application.port.in.AssignOrderUseCase;
 import com.mmx.order.application.port.in.CancelOrderUseCase;
+import com.mmx.order.application.port.in.DeskOrderQueries;
 import com.mmx.order.application.port.in.ExecuteOrderUseCase;
 import com.mmx.order.application.port.in.OrderPage;
 import com.mmx.order.application.port.in.RejectOrderUseCase;
+import com.mmx.order.application.port.in.ResolveUserScopeUseCase;
+import com.mmx.order.application.port.in.ScopeContext;
+import com.mmx.order.application.port.in.UnassignOrderUseCase;
 import com.mmx.order.application.port.in.UpdateAssignedOrderUseCase;
-import com.mmx.order.application.service.AssignmentService;
-import com.mmx.order.application.service.OrderQueryService;
 import com.mmx.order.domain.exception.InvalidStatusTransitionException;
 import com.mmx.order.domain.exception.UnauthorizedTraderException;
+import com.mmx.order.domain.model.LegalEntityCode;
 import com.mmx.order.domain.model.ExternalOrderReference;
 import com.mmx.order.domain.model.MoneyMarketOrder;
 import com.mmx.order.domain.model.OrderOperation;
@@ -21,6 +25,7 @@ import com.mmx.order.domain.model.PortfolioNumber;
 import com.mmx.order.domain.model.Tenor;
 import com.mmx.order.domain.model.TraderId;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -42,6 +47,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup;
+@Tag("fast")
 
 @ExtendWith(MockitoExtension.class)
 class OrderAssignmentControllerTest {
@@ -50,10 +56,16 @@ class OrderAssignmentControllerTest {
     private static final Instant NOW = Instant.parse("2026-05-01T12:00:00Z");
 
     @Mock
-    OrderQueryService orderQueryService;
+    DeskOrderQueries deskOrderQueries;
 
     @Mock
-    AssignmentService assignmentService;
+    ResolveUserScopeUseCase resolveUserScopeUseCase;
+
+    @Mock
+    AssignOrderUseCase assignOrderUseCase;
+
+    @Mock
+    UnassignOrderUseCase unassignOrderUseCase;
 
     @Mock
     ExecuteOrderUseCase executeOrderUseCase;
@@ -71,12 +83,15 @@ class OrderAssignmentControllerTest {
 
     @BeforeEach
     void setUp() {
+        OrderControllerTestSupport.stubDefaultScope(resolveUserScopeUseCase);
         OrderRestMapper mapper = new OrderRestMapper();
         mockMvc =
                 standaloneSetup(
                                 new OrderManagementController(
-                                        orderQueryService,
-                                        assignmentService,
+                                        deskOrderQueries,
+                                        resolveUserScopeUseCase,
+                                        assignOrderUseCase,
+                                        unassignOrderUseCase,
                                         executeOrderUseCase,
                                         cancelOrderUseCase,
                                         rejectOrderUseCase,
@@ -90,10 +105,10 @@ class OrderAssignmentControllerTest {
     void postAssign_returns200_whenSuccessful() throws Exception {
         MoneyMarketOrder order = receivedOrder();
         order.assign(new TraderId("trader-a"), NOW);
-        when(assignmentService.assign(org.mockito.ArgumentMatchers.any(AssignOrderCommand.class))).thenReturn(order);
+        when(assignOrderUseCase.assign(org.mockito.ArgumentMatchers.any(AssignOrderCommand.class))).thenReturn(order);
 
         mockMvc.perform(
-                        post("/api/v1/orders/" + order.getId() + "/assign").header("X-Trader-Id", "trader-a"))
+                        post("/api/v1/orders/" + order.getId() + "/assign").header("X-User-Id", "trader-a"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("ASSIGNED"))
                 .andExpect(jsonPath("$.orderId").value(order.getId().toString()));
@@ -102,10 +117,10 @@ class OrderAssignmentControllerTest {
     @Test
     void postAssign_returns409_whenWrongStatus() throws Exception {
         UUID id = UUID.randomUUID();
-        when(assignmentService.assign(org.mockito.ArgumentMatchers.any(AssignOrderCommand.class)))
+        when(assignOrderUseCase.assign(org.mockito.ArgumentMatchers.any(AssignOrderCommand.class)))
                 .thenThrow(new InvalidStatusTransitionException(OrderStatus.ASSIGNED, OrderStatus.ASSIGNED));
 
-        mockMvc.perform(post("/api/v1/orders/" + id + "/assign").header("X-Trader-Id", "trader-a"))
+        mockMvc.perform(post("/api/v1/orders/" + id + "/assign").header("X-User-Id", "trader-a"))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.error").value("INVALID_STATUS_TRANSITION"));
     }
@@ -113,55 +128,58 @@ class OrderAssignmentControllerTest {
     @Test
     void postUnassign_returns403_whenWrongTrader() throws Exception {
         UUID id = UUID.randomUUID();
-        when(assignmentService.unassign(org.mockito.ArgumentMatchers.any(UnassignOrderCommand.class)))
+        when(unassignOrderUseCase.unassign(org.mockito.ArgumentMatchers.any(UnassignOrderCommand.class)))
                 .thenThrow(new UnauthorizedTraderException("Only the assigned Trader may unassign the order"));
 
-        mockMvc.perform(post("/api/v1/orders/" + id + "/unassign").header("X-Trader-Id", "intruder"))
+        mockMvc.perform(post("/api/v1/orders/" + id + "/unassign").header("X-User-Id", "intruder"))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.error").value("UNAUTHORIZED_TRADER"));
     }
 
     @Test
     void getAssigned_passesTraderIdToUseCase() throws Exception {
-        when(assignmentService.listAssignedOrders(eq(new TraderId("alice")), eq(0), eq(20)))
+        when(deskOrderQueries.listAssignedOrders(
+                        eq(OrderControllerTestSupport.DEFAULT_SCOPE), eq(new TraderId("alice")), eq(0), eq(20)))
                 .thenReturn(new OrderPage(List.of(), 0, 0, 20));
 
-        mockMvc.perform(get("/api/v1/orders/assigned").header("X-Trader-Id", "alice"))
+        mockMvc.perform(get("/api/v1/orders/assigned").header("X-User-Id", "alice"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(0))
                 .andExpect(jsonPath("$.content").isArray());
 
         ArgumentCaptor<TraderId> traderCaptor = ArgumentCaptor.forClass(TraderId.class);
-        verify(assignmentService).listAssignedOrders(traderCaptor.capture(), eq(0), eq(20));
+        verify(deskOrderQueries)
+                .listAssignedOrders(eq(OrderControllerTestSupport.DEFAULT_SCOPE), traderCaptor.capture(), eq(0), eq(20));
         assertThat(traderCaptor.getValue()).isEqualTo(new TraderId("alice"));
     }
 
     @Test
     void getTermAssigned_deskWide_doesNotPassTraderToListingUseCase() throws Exception {
-        when(assignmentService.listAssignedTermOrders(eq(0), eq(20)))
+        when(deskOrderQueries.listAssignedTermOrders(eq(OrderControllerTestSupport.DEFAULT_SCOPE), eq(0), eq(20)))
                 .thenReturn(new OrderPage(List.of(), 0, 0, 20));
 
-        mockMvc.perform(get("/api/v1/orders/term/assigned").header("X-Trader-Id", "alice"))
+        mockMvc.perform(get("/api/v1/orders/term/assigned").header("X-User-Id", "alice"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(0));
 
-        verify(assignmentService).listAssignedTermOrders(eq(0), eq(20));
+        verify(deskOrderQueries).listAssignedTermOrders(eq(OrderControllerTestSupport.DEFAULT_SCOPE), eq(0), eq(20));
     }
 
     @Test
     void getOnCallAssigned_deskWide_doesNotPassTraderToListingUseCase() throws Exception {
-        when(assignmentService.listAssignedOnCallOrders(eq(0), eq(20)))
+        when(deskOrderQueries.listAssignedOnCallOrders(eq(OrderControllerTestSupport.DEFAULT_SCOPE), eq(0), eq(20)))
                 .thenReturn(new OrderPage(List.of(), 0, 0, 20));
 
-        mockMvc.perform(get("/api/v1/orders/oncall/assigned").header("X-Trader-Id", "bob"))
+        mockMvc.perform(get("/api/v1/orders/oncall/assigned").header("X-User-Id", "bob"))
                 .andExpect(status().isOk());
 
-        verify(assignmentService).listAssignedOnCallOrders(eq(0), eq(20));
+        verify(deskOrderQueries).listAssignedOnCallOrders(eq(OrderControllerTestSupport.DEFAULT_SCOPE), eq(0), eq(20));
     }
 
     private static MoneyMarketOrder receivedOrder() {
         return MoneyMarketOrder.create(
                 new ExternalOrderReference("REF-CTL-" + UUID.randomUUID()),
+                new LegalEntityCode("LOC"),
                 OrderType.TERM,
                 OrderOperation.SUBSCRIPTION,
                 new PortfolioNumber("PF-1"),
@@ -169,10 +187,7 @@ class OrderAssignmentControllerTest {
                 new BigDecimal("1000000.00"),
                 TODAY.plusDays(3),
                 new BigDecimal("3.25000000"),
-                Tenor._3M,
-                null,
-                null,
-                null,
+                Tenor._3M, null, null, "BNKCO", "BankCo",
                 TODAY);
     }
 }

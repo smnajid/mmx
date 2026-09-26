@@ -10,6 +10,7 @@ import java.util.Objects;
 public record ExecutionDetails(
         BigDecimal executedRate,
         String counterparty,
+        String institutionCode,
         Instant executionTime,
         DealingReference dealingReference,
         ContractNumber generatedContractNumber
@@ -29,6 +30,12 @@ public record ExecutionDetails(
         }
         if (counterparty.length() > 200) {
             throw new InvalidOrderException("counterparty must not exceed 200 characters");
+        }
+        if (institutionCode == null || institutionCode.isBlank()) {
+            throw new InvalidOrderException("institutionCode must not be blank");
+        }
+        if (institutionCode.length() > 32) {
+            throw new InvalidOrderException("institutionCode must not exceed 32 characters");
         }
 
         executedRate = executedRate.setScale(8, RoundingMode.UNNECESSARY);

@@ -115,14 +115,14 @@ export class ExecutedOrderListComponent implements OnInit {
   readonly error = signal<string | null>(null);
   readonly workspace = signal<WorkspaceKind>('oncall');
 
-  readonly workspaceLabel = signal<string>('On-call');
+  readonly workspaceLabel = signal<string>('ON-CALL');
 
   ngOnInit(): void {
     const fromInput = this.fixedWorkspace;
     const fromRoute = this.route.snapshot.data['workspace'] as WorkspaceKind | undefined;
     const ws = fromInput ?? (fromRoute === 'term' || fromRoute === 'oncall' ? fromRoute : 'oncall');
     this.workspace.set(ws);
-    this.workspaceLabel.set(ws === 'term' ? 'Term' : 'On-call');
+    this.workspaceLabel.set(ws === 'term' ? 'Term' : 'ON-CALL');
     this.load();
   }
 

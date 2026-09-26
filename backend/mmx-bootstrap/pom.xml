@@ -92,28 +92,49 @@
             <version>1.5.9</version>
             <scope>test</scope>
         </dependency>
-        <!-- Runtime: optional in-memory DB for spring.profiles.active=local (no Docker/PostgreSQL). Tests use it too. -->
+        <!-- In-memory H2 for fast REST/unit tests only (application-rest-test.yml). Dev uses PostgreSQL. -->
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
-            <scope>runtime</scope>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.mmx</groupId>
+            <artifactId>mmx-domain</artifactId>
+            <version>${project.version}</version>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.tngtech.archunit</groupId>
+            <artifactId>archunit-junit5</artifactId>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 
-    <!-- Package canonical OpenAPI from Spec Kit contracts so Swagger UI loads the codegen source-of-truth. -->
+    <!-- Package canonical OpenAPI from contracts so Swagger UI loads the codegen source-of-truth. -->
     <build>
         <resources>
             <resource>
                 <directory>src/main/resources</directory>
             </resource>
             <resource>
-                <directory>${project.basedir}/../../specs/001-mm-order-processing/contracts</directory>
+                <directory>${project.basedir}/../../contracts/001-mm-order-processing</directory>
                 <includes>
                     <include>openapi.yaml</include>
                 </includes>
                 <targetPath>static</targetPath>
             </resource>
         </resources>
+        <testResources>
+            <testResource>
+                <directory>src/test/resources</directory>
+            </testResource>
+            <testResource>
+                <directory>${project.basedir}/../../contracts/002-trader-orders-views/schemas</directory>
+                <targetPath>contracts</targetPath>
+            </testResource>
+        </testResources>
         <plugins>
             <plugin>
                 <groupId>org.springframework.boot</groupId>

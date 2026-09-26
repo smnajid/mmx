@@ -30,9 +30,7 @@
                 "input": "public"
               }
             ],
-            "styles": [
-              "src/styles.scss"
-            ]
+            "styles": ["src/styles.scss"]
           },
           "configurations": {
             "production": {
@@ -75,6 +73,32 @@
         },
         "test": {
           "builder": "@angular/build:unit-test"
+        }
+      }
+    },
+    "order-creation-widget": {
+      "projectType": "library",
+      "root": "projects/order-creation-widget",
+      "sourceRoot": "projects/order-creation-widget/src",
+      "prefix": "mmx",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:ng-packagr",
+          "configurations": {
+            "production": {
+              "tsConfig": "projects/order-creation-widget/tsconfig.lib.prod.json"
+            },
+            "development": {
+              "tsConfig": "projects/order-creation-widget/tsconfig.lib.json"
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "test": {
+          "builder": "@angular/build:unit-test",
+          "options": {
+            "tsConfig": "projects/order-creation-widget/tsconfig.spec.json"
+          }
         }
       }
     }

@@ -7,6 +7,7 @@ import com.mmx.order.domain.model.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -21,6 +22,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+@Tag("integration")
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -41,12 +43,14 @@ class JpaOrderRepositoryTest {
         springDataRepository.deleteAll();
     }
 
+    private static final LegalEntityCode LOC = new LegalEntityCode("LOC");
     private static final LocalDate TODAY = LocalDate.of(2026, 5, 1);
     private static final LocalDate VALUE_DATE = TODAY.plusDays(2);
 
     private MoneyMarketOrder createTermOrder(String extRef) {
         return MoneyMarketOrder.create(
                 new ExternalOrderReference(extRef),
+                new LegalEntityCode("LOC"),
                 OrderType.TERM,
                 OrderOperation.SUBSCRIPTION,
                 new PortfolioNumber("PF-001"),
@@ -55,7 +59,7 @@ class JpaOrderRepositoryTest {
                 VALUE_DATE,
                 new BigDecimal("3.25000000"),
                 Tenor._3M,
-                null, null, null,
+                null, null, "BNKCO", "BankCo",
                 TODAY
         );
     }
@@ -63,6 +67,7 @@ class JpaOrderRepositoryTest {
     private MoneyMarketOrder createOnCallOrder(String extRef) {
         return MoneyMarketOrder.create(
                 new ExternalOrderReference(extRef),
+                new LegalEntityCode("LOC"),
                 OrderType.ON_CALL,
                 OrderOperation.SUBSCRIPTION,
                 new PortfolioNumber("PF-002"),
@@ -71,8 +76,7 @@ class JpaOrderRepositoryTest {
                 VALUE_DATE,
                 new BigDecimal("2.50000000"),
                 null,
-                NoticePeriod._24H,
-                null, null,
+                NoticePeriod._24H, null, "BNKCO", "BankCo",
                 TODAY
         );
     }
@@ -109,6 +113,7 @@ class JpaOrderRepositoryTest {
             order.execute(
                     new BigDecimal("3.5"),
                     "BankCo",
+                    "HSBC-01",
                     new DealingReference("DL-acc-1"),
                     new ContractNumber("CN-acc-1"),
                     new TraderId("trader-a"),
@@ -158,7 +163,7 @@ class JpaOrderRepositoryTest {
             repository.save(createOnCallOrder("QUERY-ONCALL-001"));
 
             List<MoneyMarketOrder> termReceived = repository.findByStatusAndOrderType(
-                    OrderStatus.RECEIVED, OrderType.TERM);
+                    LOC, OrderStatus.RECEIVED, OrderType.TERM);
 
             assertThat(termReceived).hasSize(2);
             assertThat(termReceived).allMatch(o -> o.getOrderType() == OrderType.TERM);
@@ -174,6 +179,7 @@ class JpaOrderRepositoryTest {
             repository.save(createTermOrder("PAGE-IN"));
             MoneyMarketOrder far = MoneyMarketOrder.create(
                     new ExternalOrderReference("PAGE-OUT"),
+                    new LegalEntityCode("LOC"),
                     OrderType.TERM,
                     OrderOperation.SUBSCRIPTION,
                     new PortfolioNumber("PF-R"),
@@ -181,15 +187,13 @@ class JpaOrderRepositoryTest {
                     new BigDecimal("100000.00"),
                     TODAY.plusDays(20),
                     new BigDecimal("3.00000000"),
-                    Tenor._1M,
-                    null,
-                    null,
-                    null,
+                    Tenor._1M, null, null, "BNKCO", "BankCo",
                     TODAY);
             repository.save(far);
 
             OrderPage page =
                     repository.findReceivedPageByOrderType(
+                            LOC,
                             OrderType.TERM,
                             java.util.Optional.of(TODAY),
                             java.util.Optional.of(TODAY.plusDays(2)),
@@ -219,7 +223,7 @@ class JpaOrderRepositoryTest {
             repository.save(order2);
 
             List<MoneyMarketOrder> assigned = repository.findByAssignedTraderIdAndStatus(
-                    traderId, OrderStatus.ASSIGNED);
+                    LOC, traderId, OrderStatus.ASSIGNED);
 
             assertThat(assigned).hasSize(2);
             assertThat(assigned).allMatch(o ->

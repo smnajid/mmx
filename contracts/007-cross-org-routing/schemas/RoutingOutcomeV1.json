@@ -1,0 +1,106 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://mmx.local/schemas/RoutingOutcomeV1.json",
+  "title": "RoutingOutcomeV1",
+  "description": "Cross-org routed-order outcome mirror (leg B). Hub → client deployment on the LODH-owned, org-suffixed topic mmx.routed-order-outcome.{orgCode}. Discriminated by outcomeType. Correlation key (originatingLegalEntityCode, routingId) — no deployment-internal order UUID crosses the boundary. Canonical schema for AsyncAPI and Schema Registry.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "eventType",
+    "outcomeType",
+    "originatingLegalEntityCode",
+    "routingId",
+    "occurredAt"
+  ],
+  "properties": {
+    "eventType": {
+      "type": "string",
+      "const": "RoutingOutcomeV1"
+    },
+    "outcomeType": {
+      "type": "string",
+      "enum": ["ACCEPTED", "EXECUTED", "CANCELLED", "REJECTED"],
+      "description": "Type discriminator. ACCEPTED is non-terminal (emitted same-tx as hub-side order creation). EXECUTED/CANCELLED/REJECTED are terminal hub-side transitions."
+    },
+    "originatingLegalEntityCode": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$",
+      "description": "Client TradingClient LegalEntityCode; half of the cross-boundary correlation key."
+    },
+    "routingId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "CGED-minted deterministic routing id; half of the cross-boundary correlation key."
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the outcome occurred at the hub."
+    },
+    "acceptedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Present when outcomeType = ACCEPTED. The hub-side accept instant; emitted same-tx as hub-side order creation so the accept signal is exactly as durable as the hub-side order."
+    },
+    "executedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Present when outcomeType = EXECUTED."
+    },
+    "executedRate": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Present when outcomeType = EXECUTED."
+    },
+    "institutionCode": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 32,
+      "description": "Present when outcomeType = EXECUTED. Hub-native institution code; the client renders the display counterparty client-side."
+    },
+    "dealingReference": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Present when outcomeType = EXECUTED."
+    },
+    "contractNumber": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Present when outcomeType = EXECUTED. Hub-generated contract number."
+    },
+    "cancelledAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Present when outcomeType = CANCELLED."
+    },
+    "rejectedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Present when outcomeType = REJECTED (trader-reject only)."
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500,
+      "description": "Present when outcomeType = REJECTED. Trader reject reason. Routing-failure rejects (grant/currency/tenor invalid at accept) NEVER ride this channel — they are HTTP-only."
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "outcomeType": { "const": "ACCEPTED" } }, "required": ["outcomeType"] },
+      "then": { "required": ["acceptedAt"] }
+    },
+    {
+      "if": { "properties": { "outcomeType": { "const": "EXECUTED" } }, "required": ["outcomeType"] },
+      "then": { "required": ["executedAt", "executedRate", "institutionCode", "dealingReference", "contractNumber"] }
+    },
+    {
+      "if": { "properties": { "outcomeType": { "const": "CANCELLED" } }, "required": ["outcomeType"] },
+      "then": { "required": ["cancelledAt"] }
+    },
+    {
+      "if": { "properties": { "outcomeType": { "const": "REJECTED" } }, "required": ["outcomeType"] },
+      "then": { "required": ["rejectedAt", "reason"] }
+    }
+  ]
+}

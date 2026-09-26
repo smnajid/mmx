@@ -8,13 +8,17 @@ import com.mmx.order.domain.exception.OrderNotFoundException;
 import com.mmx.order.domain.model.ContractNumber;
 import com.mmx.order.domain.model.DealingReference;
 import com.mmx.order.domain.model.ExternalOrderReference;
+import com.mmx.order.domain.model.LegalEntityCode;
 import com.mmx.order.domain.model.MoneyMarketOrder;
 import com.mmx.order.domain.model.OrderOperation;
 import com.mmx.order.domain.model.OrderType;
 import com.mmx.order.domain.model.PortfolioNumber;
+import com.mmx.order.domain.model.ExecutionDetails;
+import com.mmx.order.domain.model.RoutingId;
 import com.mmx.order.domain.model.Tenor;
 import com.mmx.order.domain.model.TraderId;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -36,6 +40,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+@Tag("fast")
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -106,6 +111,7 @@ class MarkOrderAccountedServiceTest {
     void markAccounted_nonExecuted_throws() {
         MoneyMarketOrder received = MoneyMarketOrder.create(
                 new ExternalOrderReference("REF-BO-" + System.nanoTime()),
+                new LegalEntityCode("LOC"),
                 OrderType.TERM,
                 OrderOperation.SUBSCRIPTION,
                 new PortfolioNumber("PF-1"),
@@ -113,10 +119,7 @@ class MarkOrderAccountedServiceTest {
                 new BigDecimal("1000000.00"),
                 TODAY.plusDays(5),
                 new BigDecimal("3.25"),
-                Tenor._3M,
-                null,
-                null,
-                null,
+                Tenor._3M, null, null, "BNKCO", "BankCo",
                 TODAY);
         when(orderRepository.findById(received.getId())).thenReturn(Optional.of(received));
 
@@ -127,10 +130,73 @@ class MarkOrderAccountedServiceTest {
         verify(auditLogger, never()).log(any(), any(), any(), any());
     }
 
+    @Test
+    void markAccounted_routedClientExecuted_persistsAccounted() {
+        MoneyMarketOrder client = routedClientExecutedOrder();
+        when(orderRepository.findById(client.getId())).thenReturn(Optional.of(client));
+        when(orderRepository.save(any(MoneyMarketOrder.class))).then(returnsFirstArg());
+
+        subject.markAccounted(client.getId());
+
+        verify(orderRepository).save(eq(client));
+        verify(auditLogger)
+                .log(
+                        eq(client.getId()),
+                        eq(MarkOrderAccountedService.EVENT_ORDER_ACCOUNTED),
+                        eq(MarkOrderAccountedService.AUDIT_ACTOR_BACK_OFFICE),
+                        eq(T1));
+    }
+
+    @Test
+    void markAccounted_oneSideIndependent_doesNotRequireOtherSide() {
+        MoneyMarketOrder hub = executedTermOrder();
+        MoneyMarketOrder client = routedClientExecutedOrder();
+        when(orderRepository.findById(hub.getId())).thenReturn(Optional.of(hub));
+        when(orderRepository.findById(client.getId())).thenReturn(Optional.of(client));
+        when(orderRepository.save(any(MoneyMarketOrder.class))).then(returnsFirstArg());
+
+        subject.markAccounted(hub.getId());
+        subject.markAccounted(client.getId());
+
+        verify(orderRepository).save(eq(hub));
+        verify(orderRepository).save(eq(client));
+    }
+
+    private static MoneyMarketOrder routedClientExecutedOrder() {
+        MoneyMarketOrder client =
+                MoneyMarketOrder.create(
+                        new ExternalOrderReference("REF-ROUTE-BO-" + System.nanoTime()),
+                        new LegalEntityCode("PAR"),
+                        OrderType.TERM,
+                        OrderOperation.SUBSCRIPTION,
+                        new PortfolioNumber("PAR-PM-1"),
+                        "EUR",
+                        new BigDecimal("1000000.00"),
+                        TODAY.plusDays(5),
+                        new BigDecimal("3.25"),
+                        Tenor._3M, null, null, "BNPLOC", "BNP via LOC",
+                        TODAY);
+        RoutingId routingId = RoutingId.fromClientOrderId(client.getId());
+        client.markRouted(routingId, T0);
+        client.propagateExecutionFromHub(
+                new ExecutionDetails(
+                        new BigDecimal("3.5"),
+                        "BankCo International",
+                        "BI-01",
+                        T0,
+                        new DealingReference("DL-hub"),
+                        new ContractNumber("CN-hub")),
+                "BNP via LOC",
+                new ContractNumber("CN-client"),
+                T0);
+        return client;
+    }
+
     private static MoneyMarketOrder executedTermOrder() {
         MoneyMarketOrder order =
                 MoneyMarketOrder.create(
                         new ExternalOrderReference("REF-BO-X-" + System.nanoTime()),
+                        new LegalEntityCode("LOC"),
                         OrderType.TERM,
                         OrderOperation.SUBSCRIPTION,
                         new PortfolioNumber("PF-1"),
@@ -138,15 +204,13 @@ class MarkOrderAccountedServiceTest {
                         new BigDecimal("1000000.00"),
                         TODAY.plusDays(5),
                         new BigDecimal("3.25"),
-                        Tenor._3M,
-                        null,
-                        null,
-                        null,
+                        Tenor._3M, null, null, "BNKCO", "BankCo",
                         TODAY);
         order.assign(new TraderId("trader-x"), T0);
         order.execute(
                 new BigDecimal("3.5"),
                 "BankCo",
+                "HSBC-01",
                 new DealingReference("DL-x"),
                 new ContractNumber("CN-x"),
                 new TraderId("trader-x"),

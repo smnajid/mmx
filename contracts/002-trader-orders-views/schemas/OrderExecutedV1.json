@@ -1,0 +1,127 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://mmx.local/schemas/OrderExecutedV1.json",
+  "title": "OrderExecutedV1",
+  "description": "Thin handoff DTO frozen at schedule time; idempotent on orderId. Canonical schema for AsyncAPI and Schema Registry.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "eventType",
+    "orderId",
+    "executedAt",
+    "orderType",
+    "orderOperation",
+    "portfolioNumber",
+    "currency",
+    "amount",
+    "valueDate",
+    "executedRate",
+    "counterparty",
+    "dealingReference",
+    "contractNumber",
+    "externalOrderReference"
+  ],
+  "properties": {
+    "eventType": {
+      "type": "string",
+      "const": "OrderExecutedV1"
+    },
+    "orderId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "executedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "orderType": {
+      "type": "string",
+      "enum": ["TERM", "ON_CALL"]
+    },
+    "orderOperation": {
+      "type": "string",
+      "enum": ["SUBSCRIPTION", "INCREASE", "DECREASE", "REDEMPTION"]
+    },
+    "portfolioNumber": {
+      "type": "string"
+    },
+    "currency": {
+      "type": "string",
+      "minLength": 1
+    },
+    "amount": {
+      "type": "number"
+    },
+    "valueDate": {
+      "type": "string",
+      "format": "date"
+    },
+    "executedRate": {
+      "type": "number"
+    },
+    "counterparty": {
+      "type": "string",
+      "minLength": 1
+    },
+    "dealingReference": {
+      "type": "string",
+      "minLength": 1
+    },
+    "contractNumber": {
+      "type": "string",
+      "minLength": 1
+    },
+    "externalOrderReference": {
+      "type": "string",
+      "minLength": 1
+    },
+    "tenor": {
+      "type": ["string", "null"],
+      "description": "Term orders only; null for OnCall when not applicable."
+    },
+    "noticePeriod": {
+      "type": ["string", "null"],
+      "description": "OnCall orders only; null for Term when not applicable."
+    },
+    "institutionCode": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The order's institution at the LegalEntity that owns the order."
+    },
+    "counterpartyAccount": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 34,
+      "description": "Counterparty account snapshot: the owning LegalEntity's counterparty account for the order's OrderType, as it stood at execution."
+    },
+    "routingId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Present on routed hub-side executions; correlates client and hub bookings."
+    },
+    "originatingLegalEntityCode": {
+      "type": "string",
+      "minLength": 1,
+      "description": "TradingClient LegalEntityCode for routed trades."
+    },
+    "clientOrderId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Client-side order id for routed trades."
+    },
+    "clientPortfolioNumber": {
+      "type": "string",
+      "description": "Client PM portfolio number at routing time."
+    },
+    "clientCounterparty": {
+      "type": "string",
+      "description": "Client onboarded-institution display name (e.g. BNP via LOC)."
+    },
+    "clientCounterpartyAccount": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 34,
+      "description": "Routed trades: the client's counterparty account snapshot for the order's OrderType, taken at routing and stored on the hub-side order."
+    }
+  }
+}

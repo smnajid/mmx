@@ -1,0 +1,3 @@
+# Dependency blobs installed by pi packages (npm:pi-mcp-adapter) — not reproducible
+# source; package.json + package-lock.json are committed instead.
+npm/node_modules/

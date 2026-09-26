@@ -1,6 +1,7 @@
 package com.mmx.order.domain.model;
 
 import com.mmx.order.domain.exception.InvalidStatusTransitionException;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -9,6 +10,7 @@ import java.time.LocalDate;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+@Tag("fast")
 
 class MoneyMarketOrderTest {
 
@@ -59,9 +61,66 @@ class MoneyMarketOrderTest {
                 .isInstanceOf(InvalidStatusTransitionException.class);
     }
 
+    @Test
+    void execute_stampsCounterpartyAccountSnapshot() {
+        MoneyMarketOrder order = createReceived();
+        order.assign(new TraderId("t-a"), T0);
+
+        order.execute(
+                new BigDecimal("3.5"),
+                "BankCo",
+                "HSBC-01",
+                "LOC-HSBC-T",
+                new DealingReference("DL-1"),
+                new ContractNumber("CN-1"),
+                new TraderId("t-a"),
+                T0);
+
+        assertThat(order.getCounterpartyAccount()).isEqualTo("LOC-HSBC-T");
+    }
+
+    @Test
+    void createHubSideFromRouting_carriesClientCounterpartyAccountSnapshot() {
+        MoneyMarketOrder hubOrder =
+                MoneyMarketOrder.createHubSideFromRouting(
+                        new RoutedHubOrderDraft(
+                                new LegalEntityCode("LOC"),
+                                new PortfolioNumber("PAR-EUR-001"),
+                                "BNP",
+                                "BNP",
+                                "EUR",
+                                new BigDecimal("1000000.00"),
+                                TODAY.plusDays(5),
+                                OrderType.TERM,
+                                OrderOperation.SUBSCRIPTION,
+                                Tenor._3M,
+                                null,
+                                null,
+                                null,
+                                RoutingId.fromClientOrderId(java.util.UUID.randomUUID()),
+                                new LegalEntityCode("PAR"),
+                                new ExternalOrderReference("PAR-PM-1"),
+                                "PAR-BNP-T"),
+                        TODAY);
+
+        assertThat(hubOrder.getClientCounterpartyAccount()).isEqualTo("PAR-BNP-T");
+        assertThat(hubOrder.getCounterpartyAccount()).isNull();
+    }
+
+    @Test
+    void restoreCounterpartyAccounts_rehydratesBothSnapshots() {
+        MoneyMarketOrder order = createReceived();
+
+        order.restoreCounterpartyAccounts("LOC-HSBC-T", "PAR-HSBC-T");
+
+        assertThat(order.getCounterpartyAccount()).isEqualTo("LOC-HSBC-T");
+        assertThat(order.getClientCounterpartyAccount()).isEqualTo("PAR-HSBC-T");
+    }
+
     private static MoneyMarketOrder createReceived() {
         return MoneyMarketOrder.create(
                 new ExternalOrderReference("REF-MK-" + System.nanoTime()),
+                new LegalEntityCode("LOC"),
                 OrderType.TERM,
                 OrderOperation.SUBSCRIPTION,
                 new PortfolioNumber("PF-1"),
@@ -69,10 +128,7 @@ class MoneyMarketOrderTest {
                 new BigDecimal("1000000.00"),
                 TODAY.plusDays(5),
                 new BigDecimal("3.25000000"),
-                Tenor._3M,
-                null,
-                null,
-                null,
+                Tenor._3M, null, null, "BNKCO", "BankCo",
                 TODAY);
     }
 
@@ -82,6 +138,7 @@ class MoneyMarketOrderTest {
         order.execute(
                 new BigDecimal("3.5"),
                 "BankCo",
+                "HSBC-01",
                 new DealingReference("DL-1"),
                 new ContractNumber("CN-1"),
                 new TraderId("t-a"),

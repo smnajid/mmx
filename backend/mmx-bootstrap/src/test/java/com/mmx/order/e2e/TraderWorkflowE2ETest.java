@@ -3,14 +3,13 @@ package com.mmx.order.e2e;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mmx.order.MmxApplication;
+import com.mmx.order.support.RestTestInstitutions;
+import com.mmx.order.support.SharedPostgresTestBase;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.postgresql.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.net.URI;
@@ -35,15 +34,12 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <p>{@code spring.datasource.driver-class-name} is set explicitly because the {@code rest-test} profile
  * pins the H2 driver while this test overrides the JDBC URL to PostgreSQL.
  */
-@Testcontainers(disabledWithoutDocker = true)
+@Tag("e2e")
 @SpringBootTest(classes = MmxApplication.class, webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("rest-test")
-class TraderWorkflowE2ETest {
+class TraderWorkflowE2ETest extends SharedPostgresTestBase {
 
     private static final String TRADER = "trader-e2e-1";
-
-    @Container
-    static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:16-alpine");
 
     private final HttpClient httpClient =
             HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
@@ -52,15 +48,6 @@ class TraderWorkflowE2ETest {
 
     @LocalServerPort
     private int port;
-
-    @DynamicPropertySource
-    static void registerPostgresProps(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
-        registry.add("spring.datasource.username", POSTGRES::getUsername);
-        registry.add("spring.datasource.password", POSTGRES::getPassword);
-        // rest-test profile pins H2 driver; override so Flyway/JPA use Postgres with the container URL.
-        registry.add("spring.datasource.driver-class-name", () -> "org.postgresql.Driver");
-    }
 
     @Test
     void receive_list_assign_execute_verify_fullTraderWorkflow() throws Exception {
@@ -85,7 +72,7 @@ class TraderWorkflowE2ETest {
 
         HttpResponse<String> executed = postJson(
                 "/api/v1/orders/" + orderId + "/execute",
-                "{\"executedRate\":3.5,\"counterparty\":\"BankCo International\"}",
+                RestTestInstitutions.bankCoExecuteJson(3.5),
                 TRADER);
         assertThat(executed.statusCode()).isEqualTo(200);
         JsonNode executedBody = objectMapper.readTree(executed.body());
@@ -128,7 +115,7 @@ class TraderWorkflowE2ETest {
                 HttpRequest.newBuilder(baseUri(path))
                         .timeout(Duration.ofSeconds(30))
                         .header("Content-Type", "application/json")
-                        .header("X-Trader-Id", traderId)
+                        .header("X-User-Id", traderId)
                         .POST(HttpRequest.BodyPublishers.ofString(json, StandardCharsets.UTF_8))
                         .build();
         return httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
@@ -138,7 +125,7 @@ class TraderWorkflowE2ETest {
         HttpRequest request =
                 HttpRequest.newBuilder(baseUri(path))
                         .timeout(Duration.ofSeconds(30))
-                        .header("X-Trader-Id", TRADER)
+                        .header("X-User-Id", TRADER)
                         .POST(HttpRequest.BodyPublishers.noBody())
                         .build();
         return httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
@@ -148,7 +135,7 @@ class TraderWorkflowE2ETest {
         HttpRequest request =
                 HttpRequest.newBuilder(baseUri(path))
                         .timeout(Duration.ofSeconds(30))
-                        .header("X-Trader-Id", traderId)
+                        .header("X-User-Id", traderId)
                         .GET()
                         .build();
         return httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
@@ -163,6 +150,7 @@ class TraderWorkflowE2ETest {
         return """
                 {
                   "externalOrderReference": "%s",
+                  "legalEntityCode": "LOC",
                   "orderType": "TERM",
                   "orderOperation": "SUBSCRIPTION",
                   "portfolioNumber": "PF-E2E",
@@ -170,9 +158,10 @@ class TraderWorkflowE2ETest {
                   "amount": 5000000.00,
                   "valueDate": "%s",
                   "minimumRate": 3.25,
-                  "tenor": "3M"
+                  "tenor": "3M",
+                  "institutionCode": "%s"
                 }
                 """
-                .formatted(externalOrderReference, valueDate);
+                .formatted(externalOrderReference, valueDate, RestTestInstitutions.BANKCO_CODE);
     }
 }

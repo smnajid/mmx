@@ -7,19 +7,25 @@ import com.mmx.order.adapter.out.persistence.JpaOrderRepository;
 import com.mmx.order.adapter.out.persistence.mapper.OrderPersistenceMapper;
 import com.mmx.order.adapter.out.persistence.repository.SpringDataAuditLogRepository;
 import com.mmx.order.adapter.out.persistence.repository.SpringDataOrderRepository;
-import com.mmx.order.application.port.in.CancelOrderUseCase;
+import com.mmx.order.application.port.in.DeskOrderQueries;
 import com.mmx.order.application.port.in.MarkOrderAccountedUseCase;
-import com.mmx.order.application.port.in.ReceiveOrderUseCase;
-import com.mmx.order.application.port.in.RejectOrderUseCase;
 import com.mmx.order.application.port.in.UpdateAssignedOrderUseCase;
 import com.mmx.order.application.port.out.*;
 import com.mmx.order.application.service.AssignmentService;
 import com.mmx.order.application.service.ExecuteOrderService;
+import com.mmx.order.application.service.IntakeService;
 import com.mmx.order.application.service.MarkOrderAccountedService;
 import com.mmx.order.application.service.OrderLifecycleService;
-import com.mmx.order.application.service.OrderQueryService;
-import com.mmx.order.application.service.ReceiveOrderService;
+import com.mmx.order.application.service.DeskOrderQueryService;
+import com.mmx.order.application.service.RemoteRoutedOrderIntake;
+import com.mmx.order.application.service.RoutedOrderIntake;
+import com.mmx.order.application.service.RoutedOrderOutcomePropagation;
+import com.mmx.order.application.service.RoutedOrderOutcomePropagationService;
 import com.mmx.order.application.service.UpdateOrderService;
+import com.mmx.order.domain.model.HubLocality;
+import com.mmx.order.domain.model.OrganisationCode;
+import com.mmx.order.domain.policy.OrderAgainstInstitutionPolicy;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -43,14 +49,34 @@ public class OrderModuleConfiguration {
     }
 
     @Bean
+    public RoutedOrderOutcomePropagation routedOrderOutcomePropagation(
+            OrderRepository orderRepository, ReferenceGenerator referenceGenerator) {
+        return new RoutedOrderOutcomePropagationService(orderRepository, referenceGenerator);
+    }
+
+    @Bean
     public ExecuteOrderService executeOrderService(
             OrderRepository orderRepository,
+            InstitutionRepository institutionRepository,
+            OrderAgainstInstitutionPolicy orderAgainstInstitutionPolicy,
             ReferenceGenerator referenceGenerator,
             AuditLogger auditLogger,
             Clock clock,
-            ExecutionHandoffOutbox executionHandoffOutbox) {
+            ExecutionHandoffOutbox executionHandoffOutbox,
+            RoutedOrderOutcomePropagation routedOrderOutcomePropagation,
+            RoutingOutcomeOutbox routingOutcomeOutbox,
+            RoutedPairLocalityResolver routedPairLocalityResolver) {
         return new ExecuteOrderService(
-                orderRepository, referenceGenerator, auditLogger, clock, executionHandoffOutbox);
+                orderRepository,
+                institutionRepository,
+                orderAgainstInstitutionPolicy,
+                referenceGenerator,
+                auditLogger,
+                clock,
+                executionHandoffOutbox,
+                routedOrderOutcomePropagation,
+                routingOutcomeOutbox,
+                routedPairLocalityResolver);
     }
 
     /**
@@ -69,13 +95,52 @@ public class OrderModuleConfiguration {
     }
 
     @Bean
-    public ReceiveOrderUseCase receiveOrderUseCase(OrderRepository orderRepository, AuditLogger auditLogger, Clock clock) {
-        return new ReceiveOrderService(orderRepository, auditLogger, clock);
+    public RoutedOrderIntake routedOrderIntake(
+            DelegatedGrantDirectory delegatedGrantDirectory,
+            GlobalAccountDirectory globalAccountDirectory,
+            InstitutionRepository institutionRepository,
+            OrderRepository orderRepository,
+            Clock clock) {
+        return new RoutedOrderIntake(
+                delegatedGrantDirectory,
+                globalAccountDirectory,
+                institutionRepository,
+                orderRepository,
+                clock);
     }
 
     @Bean
-    public OrderQueryService orderQueryService(OrderRepository orderRepository, Clock clock) {
-        return new OrderQueryService(orderRepository, clock);
+    public IntakeService intakeService(
+            OrderRepository orderRepository,
+            ManagedCurrencyRepository managedCurrencyRepository,
+            InstitutionRepository institutionRepository,
+            OpenPositionPort openPositionPort,
+            OrganisationRepository organisationRepository,
+            LegalEntityRepository legalEntityRepository,
+            OrganisationCode portfolioManagementOrganisation,
+            RoutedOrderIntake routedOrderIntake,
+            AuditLogger auditLogger,
+            Clock clock,
+            ObjectProvider<HubLocalityResolver> hubLocalityResolverProvider,
+            ObjectProvider<RemoteRoutedOrderIntake> remoteRoutedOrderIntakeProvider) {
+        return new IntakeService(
+                orderRepository,
+                managedCurrencyRepository,
+                institutionRepository,
+                openPositionPort,
+                organisationRepository,
+                legalEntityRepository,
+                portfolioManagementOrganisation,
+                routedOrderIntake,
+                auditLogger,
+                clock,
+                hubLocalityResolverProvider.getIfAvailable(),
+                remoteRoutedOrderIntakeProvider.getIfAvailable());
+    }
+
+    @Bean
+    public DeskOrderQueries deskOrderQueries(OrderRepository orderRepository, Clock clock) {
+        return new DeskOrderQueryService(orderRepository, clock);
     }
 
     @Bean
@@ -85,23 +150,57 @@ public class OrderModuleConfiguration {
 
     @Bean
     public UpdateAssignedOrderUseCase updateAssignedOrderUseCase(
-            OrderRepository orderRepository, AuditLogger auditLogger, Clock clock) {
-        return new UpdateOrderService(orderRepository, auditLogger, clock);
+            OrderRepository orderRepository,
+            ManagedCurrencyRepository managedCurrencyRepository,
+            OpenPositionPort openPositionPort,
+            AuditLogger auditLogger,
+            Clock clock) {
+        return new UpdateOrderService(
+                orderRepository, managedCurrencyRepository, openPositionPort, auditLogger, clock);
     }
 
     @Bean
     public OrderLifecycleService orderLifecycleService(
-            OrderRepository orderRepository, AuditLogger auditLogger, Clock clock) {
-        return new OrderLifecycleService(orderRepository, auditLogger, clock);
+            OrderRepository orderRepository,
+            AuditLogger auditLogger,
+            Clock clock,
+            RoutedOrderOutcomePropagation routedOrderOutcomePropagation,
+            RoutingOutcomeOutbox routingOutcomeOutbox,
+            RoutedPairLocalityResolver routedPairLocalityResolver) {
+        return new OrderLifecycleService(
+                orderRepository,
+                auditLogger,
+                clock,
+                routedOrderOutcomePropagation,
+                routingOutcomeOutbox,
+                routedPairLocalityResolver);
     }
 
+    /**
+     * V1 hub-pair locality: a hub-side pair is REMOTE when its originating LegalEntity belongs to a
+     * foreign Organisation (e.g. CGD@CGEG on the LODH deployment) and LOCAL when it belongs to this
+     * deployment's own Organisation (e.g. PAR@LODH). Derived from the legal-entity register — never
+     * stored. An unregistered originating LegalEntity classifies REMOTE (fail toward the leg-B
+     * mirror rather than a local pair-integrity throw).
+     */
     @Bean
-    public CancelOrderUseCase cancelOrderUseCase(OrderLifecycleService orderLifecycleService) {
-        return orderLifecycleService;
+    public RoutedPairLocalityResolver routedPairLocalityResolver(
+            LegalEntityRepository legalEntityRepository, OrganisationProperties organisationProperties) {
+        return originatingCode ->
+                legalEntityRepository
+                        .findByCode(originatingCode)
+                        .map(
+                                entity ->
+                                        entity.getOrganisationCode()
+                                                .value()
+                                                .equalsIgnoreCase(organisationProperties.code()))
+                        .orElse(false)
+                        ? HubLocality.LOCAL
+                        : HubLocality.REMOTE;
     }
 
-    @Bean
-    public RejectOrderUseCase rejectOrderUseCase(OrderLifecycleService orderLifecycleService) {
-        return orderLifecycleService;
-    }
+    /**
+     * Application entry uses {@link TransactionalOrderLifecycleUseCase} (component-scanned) so cancel/reject +
+     * client propagation share one transaction.
+     */
 }

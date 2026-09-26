@@ -9,13 +9,17 @@ import com.mmx.order.adapter.in.rest.generated.model.UpdateOrderRequest;
 import com.mmx.order.adapter.in.rest.mapper.OrderRestMapper;
 import com.mmx.order.application.command.AssignOrderCommand;
 import com.mmx.order.application.command.UnassignOrderCommand;
+import com.mmx.order.application.port.in.AssignOrderUseCase;
 import com.mmx.order.application.port.in.CancelOrderUseCase;
+import com.mmx.order.application.port.in.DeskOrderQueries;
 import com.mmx.order.application.port.in.ExecuteOrderUseCase;
 import com.mmx.order.application.port.in.RejectOrderUseCase;
+import com.mmx.order.application.port.in.ResolveUserScopeUseCase;
+import com.mmx.order.application.port.in.ScopeContext;
+import com.mmx.order.application.port.in.UnassignOrderUseCase;
 import com.mmx.order.application.port.in.UpdateAssignedOrderUseCase;
-import com.mmx.order.application.service.AssignmentService;
-import com.mmx.order.application.service.OrderQueryService;
 import com.mmx.order.domain.exception.OrderNotFoundException;
+import com.mmx.order.domain.model.MmxUserId;
 import com.mmx.order.domain.model.ReceivedListView;
 import com.mmx.order.domain.model.TraderId;
 import org.springframework.http.MediaType;
@@ -39,8 +43,10 @@ import java.util.UUID;
 @RestController
 public class OrderManagementController implements OrdersApi {
 
-    private final OrderQueryService orderQueryService;
-    private final AssignmentService assignmentService;
+    private final DeskOrderQueries deskOrderQueries;
+    private final ResolveUserScopeUseCase resolveUserScopeUseCase;
+    private final AssignOrderUseCase assignOrderUseCase;
+    private final UnassignOrderUseCase unassignOrderUseCase;
     private final ExecuteOrderUseCase executeOrderUseCase;
     private final CancelOrderUseCase cancelOrderUseCase;
     private final RejectOrderUseCase rejectOrderUseCase;
@@ -48,15 +54,19 @@ public class OrderManagementController implements OrdersApi {
     private final OrderRestMapper orderRestMapper;
 
     public OrderManagementController(
-            OrderQueryService orderQueryService,
-            AssignmentService assignmentService,
+            DeskOrderQueries deskOrderQueries,
+            ResolveUserScopeUseCase resolveUserScopeUseCase,
+            AssignOrderUseCase assignOrderUseCase,
+            UnassignOrderUseCase unassignOrderUseCase,
             ExecuteOrderUseCase executeOrderUseCase,
             CancelOrderUseCase cancelOrderUseCase,
             RejectOrderUseCase rejectOrderUseCase,
             UpdateAssignedOrderUseCase updateAssignedOrderUseCase,
             OrderRestMapper orderRestMapper) {
-        this.orderQueryService = orderQueryService;
-        this.assignmentService = assignmentService;
+        this.deskOrderQueries = deskOrderQueries;
+        this.resolveUserScopeUseCase = resolveUserScopeUseCase;
+        this.assignOrderUseCase = assignOrderUseCase;
+        this.unassignOrderUseCase = unassignOrderUseCase;
         this.executeOrderUseCase = executeOrderUseCase;
         this.cancelOrderUseCase = cancelOrderUseCase;
         this.rejectOrderUseCase = rejectOrderUseCase;
@@ -67,27 +77,33 @@ public class OrderManagementController implements OrdersApi {
     @Override
     @GetMapping(value = "/api/v1/orders/term/received", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<OrderSummaryPage> listReceivedTermOrders(
-            @RequestHeader(value = "X-Trader-Id", required = true) String xTraderId,
+            @RequestHeader(value = "X-User-Id", required = true) String xUserId,
             @RequestParam(value = "page", required = false, defaultValue = "0") Integer page,
             @RequestParam(value = "size", required = false, defaultValue = "20") Integer size,
             @RequestParam(value = "receivedView", required = false, defaultValue = "NEAR_TERM")
                     com.mmx.order.adapter.in.rest.generated.model.ReceivedListView receivedView) {
+        ScopeContext scope = activeScope(xUserId);
         ReceivedListView view = mapReceivedView(receivedView);
-        var result = orderQueryService.listReceivedTermOrders(page, size, view);
+        var result = deskOrderQueries.listReceivedTermOrders(scope, page, size, view);
         return ResponseEntity.ok(orderRestMapper.toSummaryPage(result));
     }
 
     @Override
     @GetMapping(value = "/api/v1/orders/oncall/received", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<OrderSummaryPage> listReceivedOnCallOrders(
-            @RequestHeader(value = "X-Trader-Id", required = true) String xTraderId,
+            @RequestHeader(value = "X-User-Id", required = true) String xUserId,
             @RequestParam(value = "page", required = false, defaultValue = "0") Integer page,
             @RequestParam(value = "size", required = false, defaultValue = "20") Integer size,
             @RequestParam(value = "receivedView", required = false, defaultValue = "NEAR_TERM")
                     com.mmx.order.adapter.in.rest.generated.model.ReceivedListView receivedView) {
+        ScopeContext scope = activeScope(xUserId);
         ReceivedListView view = mapReceivedView(receivedView);
-        var result = orderQueryService.listReceivedOnCallOrders(page, size, view);
+        var result = deskOrderQueries.listReceivedOnCallOrders(scope, page, size, view);
         return ResponseEntity.ok(orderRestMapper.toSummaryPage(result));
+    }
+
+    private ScopeContext activeScope(String xUserId) {
+        return resolveUserScopeUseCase.resolve(new MmxUserId(xUserId));
     }
 
     private static ReceivedListView mapReceivedView(
@@ -101,10 +117,11 @@ public class OrderManagementController implements OrdersApi {
     @Override
     @GetMapping(value = "/api/v1/orders/{orderId}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<OrderDetailsResponse> getOrderDetails(
-            @RequestHeader(value = "X-Trader-Id", required = true) String xTraderId,
+            @RequestHeader(value = "X-User-Id", required = true) String xUserId,
             @PathVariable("orderId") UUID orderId) {
-        return orderQueryService
-                .getOrderDetails(orderId)
+        ScopeContext scope = activeScope(xUserId);
+        return deskOrderQueries
+                .getOrderDetails(scope, orderId)
                 .map(orderRestMapper::toDetails)
                 .map(ResponseEntity::ok)
                 .orElseThrow(() -> new OrderNotFoundException(orderId));
@@ -114,70 +131,75 @@ public class OrderManagementController implements OrdersApi {
     @Deprecated
     @GetMapping(value = "/api/v1/orders/assigned", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<OrderSummaryPage> listAssignedOrders(
-            @RequestHeader(value = "X-Trader-Id", required = true) String xTraderId,
+            @RequestHeader(value = "X-User-Id", required = true) String xUserId,
             @RequestParam(value = "page", required = false, defaultValue = "0") Integer page,
             @RequestParam(value = "size", required = false, defaultValue = "20") Integer size) {
-        var result = assignmentService.listAssignedOrders(new TraderId(xTraderId), page, size);
+        ScopeContext scope = activeScope(xUserId);
+        var result = deskOrderQueries.listAssignedOrders(scope, new TraderId(xUserId), page, size);
         return ResponseEntity.ok(orderRestMapper.toSummaryPage(result));
     }
 
     @Override
     @GetMapping(value = "/api/v1/orders/term/assigned", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<OrderSummaryPage> listAssignedTermOrders(
-            @RequestHeader(value = "X-Trader-Id", required = true) String xTraderId,
+            @RequestHeader(value = "X-User-Id", required = true) String xUserId,
             @RequestParam(value = "page", required = false, defaultValue = "0") Integer page,
             @RequestParam(value = "size", required = false, defaultValue = "20") Integer size) {
-        Objects.requireNonNull(xTraderId, "X-Trader-Id");
-        var result = assignmentService.listAssignedTermOrders(page, size);
+        Objects.requireNonNull(xUserId, "X-User-Id");
+        ScopeContext scope = activeScope(xUserId);
+        var result = deskOrderQueries.listAssignedTermOrders(scope, page, size);
         return ResponseEntity.ok(orderRestMapper.toSummaryPage(result));
     }
 
     @Override
     @GetMapping(value = "/api/v1/orders/oncall/assigned", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<OrderSummaryPage> listAssignedOnCallOrders(
-            @RequestHeader(value = "X-Trader-Id", required = true) String xTraderId,
+            @RequestHeader(value = "X-User-Id", required = true) String xUserId,
             @RequestParam(value = "page", required = false, defaultValue = "0") Integer page,
             @RequestParam(value = "size", required = false, defaultValue = "20") Integer size) {
-        Objects.requireNonNull(xTraderId, "X-Trader-Id");
-        var result = assignmentService.listAssignedOnCallOrders(page, size);
+        Objects.requireNonNull(xUserId, "X-User-Id");
+        ScopeContext scope = activeScope(xUserId);
+        var result = deskOrderQueries.listAssignedOnCallOrders(scope, page, size);
         return ResponseEntity.ok(orderRestMapper.toSummaryPage(result));
     }
 
     @Override
     @GetMapping(value = "/api/v1/orders/term/executed", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<OrderSummaryPage> listExecutedTermOrders(
-            @RequestHeader(value = "X-Trader-Id", required = true) String xTraderId,
+            @RequestHeader(value = "X-User-Id", required = true) String xUserId,
             @RequestParam(value = "page", required = false, defaultValue = "0") Integer page,
             @RequestParam(value = "size", required = false, defaultValue = "20") Integer size) {
-        var result = orderQueryService.listExecutedTermOrders(page, size);
+        ScopeContext scope = activeScope(xUserId);
+        var result = deskOrderQueries.listExecutedTermOrders(scope, page, size);
         return ResponseEntity.ok(orderRestMapper.toSummaryPage(result));
     }
 
     @Override
     @GetMapping(value = "/api/v1/orders/oncall/executed", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<OrderSummaryPage> listExecutedOnCallOrders(
-            @RequestHeader(value = "X-Trader-Id", required = true) String xTraderId,
+            @RequestHeader(value = "X-User-Id", required = true) String xUserId,
             @RequestParam(value = "page", required = false, defaultValue = "0") Integer page,
             @RequestParam(value = "size", required = false, defaultValue = "20") Integer size) {
-        var result = orderQueryService.listExecutedOnCallOrders(page, size);
+        ScopeContext scope = activeScope(xUserId);
+        var result = deskOrderQueries.listExecutedOnCallOrders(scope, page, size);
         return ResponseEntity.ok(orderRestMapper.toSummaryPage(result));
     }
 
     @Override
     @PostMapping(value = "/api/v1/orders/{orderId}/assign", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<OrderDetailsResponse> assignOrder(
-            @RequestHeader(value = "X-Trader-Id", required = true) String xTraderId,
+            @RequestHeader(value = "X-User-Id", required = true) String xUserId,
             @PathVariable("orderId") UUID orderId) {
-        var order = assignmentService.assign(new AssignOrderCommand(orderId, new TraderId(xTraderId)));
+        var order = assignOrderUseCase.assign(new AssignOrderCommand(orderId, new TraderId(xUserId)));
         return ResponseEntity.ok(orderRestMapper.toDetails(order));
     }
 
     @Override
     @PostMapping(value = "/api/v1/orders/{orderId}/unassign", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<OrderDetailsResponse> unassignOrder(
-            @RequestHeader(value = "X-Trader-Id", required = true) String xTraderId,
+            @RequestHeader(value = "X-User-Id", required = true) String xUserId,
             @PathVariable("orderId") UUID orderId) {
-        var order = assignmentService.unassign(new UnassignOrderCommand(orderId, new TraderId(xTraderId)));
+        var order = unassignOrderUseCase.unassign(new UnassignOrderCommand(orderId, new TraderId(xUserId)));
         return ResponseEntity.ok(orderRestMapper.toDetails(order));
     }
 
@@ -187,21 +209,21 @@ public class OrderManagementController implements OrdersApi {
             produces = MediaType.APPLICATION_JSON_VALUE,
             consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<OrderDetailsResponse> executeOrder(
-            @RequestHeader(value = "X-Trader-Id", required = true) String xTraderId,
+            @RequestHeader(value = "X-User-Id", required = true) String xUserId,
             @PathVariable("orderId") UUID orderId,
             @RequestBody ExecuteOrderRequest executeOrderRequest) {
         var order =
                 executeOrderUseCase.execute(
-                        orderRestMapper.toExecuteCommand(executeOrderRequest, orderId, xTraderId));
+                        orderRestMapper.toExecuteCommand(executeOrderRequest, orderId, xUserId));
         return ResponseEntity.ok(orderRestMapper.toDetails(order));
     }
 
     @Override
     @PostMapping(value = "/api/v1/orders/{orderId}/cancel", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<OrderDetailsResponse> cancelOrder(
-            @RequestHeader(value = "X-Trader-Id", required = true) String xTraderId,
+            @RequestHeader(value = "X-User-Id", required = true) String xUserId,
             @PathVariable("orderId") UUID orderId) {
-        var order = cancelOrderUseCase.cancel(orderRestMapper.toCancelCommand(orderId, xTraderId));
+        var order = cancelOrderUseCase.cancel(orderRestMapper.toCancelCommand(orderId, xUserId));
         return ResponseEntity.ok(orderRestMapper.toDetails(order));
     }
 
@@ -211,11 +233,11 @@ public class OrderManagementController implements OrdersApi {
             produces = MediaType.APPLICATION_JSON_VALUE,
             consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<OrderDetailsResponse> rejectOrder(
-            @RequestHeader(value = "X-Trader-Id", required = true) String xTraderId,
+            @RequestHeader(value = "X-User-Id", required = true) String xUserId,
             @PathVariable("orderId") UUID orderId,
             @RequestBody RejectOrderRequest rejectOrderRequest) {
         var order =
-                rejectOrderUseCase.reject(orderRestMapper.toRejectCommand(rejectOrderRequest, orderId, xTraderId));
+                rejectOrderUseCase.reject(orderRestMapper.toRejectCommand(rejectOrderRequest, orderId, xUserId));
         return ResponseEntity.ok(orderRestMapper.toDetails(order));
     }
 
@@ -225,12 +247,12 @@ public class OrderManagementController implements OrdersApi {
             produces = MediaType.APPLICATION_JSON_VALUE,
             consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<OrderDetailsResponse> updateAssignedOrder(
-            @RequestHeader(value = "X-Trader-Id", required = true) String xTraderId,
+            @RequestHeader(value = "X-User-Id", required = true) String xUserId,
             @PathVariable("orderId") UUID orderId,
             @RequestBody UpdateOrderRequest updateOrderRequest) {
         var order =
                 updateAssignedOrderUseCase.update(
-                        orderRestMapper.toUpdateCommand(updateOrderRequest, orderId, xTraderId));
+                        orderRestMapper.toUpdateCommand(updateOrderRequest, orderId, xUserId));
         return ResponseEntity.ok(orderRestMapper.toDetails(order));
     }
 }

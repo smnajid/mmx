@@ -1,9 +1,12 @@
+import { isDevMode } from '@angular/core';
 import { Routes } from '@angular/router';
+import { traderDeskGuard } from './core/trader/trader-desk.guard';
 
 export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'oncall/received' },
   {
     path: 'term',
+    canActivate: [traderDeskGuard],
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'received' },
       {
@@ -30,6 +33,7 @@ export const routes: Routes = [
   },
   {
     path: 'oncall',
+    canActivate: [traderDeskGuard],
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'received' },
       {
@@ -55,9 +59,24 @@ export const routes: Routes = [
     ],
   },
   {
+    path: 'settings',
+    loadComponent: () =>
+      import('./features/settings/settings-shell.component').then((m) => m.SettingsShellComponent),
+    loadChildren: () =>
+      import('./features/settings/settings.routes').then((m) => m.SETTINGS_ROUTES),
+  },
+  {
     path: 'orders/:id',
     loadComponent: () =>
       import('./features/order-details/order-details.component').then((m) => m.OrderDetailsComponent),
+  },
+  {
+    path: 'dev/widget-playground',
+    canMatch: [() => isDevMode()],
+    loadChildren: () =>
+      import('./features/widget-playground/widget-playground.routes').then(
+        (m) => m.WIDGET_PLAYGROUND_ROUTES,
+      ),
   },
   { path: '**', redirectTo: 'oncall/received' },
 ];

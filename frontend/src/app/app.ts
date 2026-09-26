@@ -1,6 +1,8 @@
 import { Component, inject } from '@angular/core';
 import { Router, RouterLink, RouterOutlet } from '@angular/router';
-import { TraderContextService } from './core/trader/trader-context.service';
+import { SessionApiService } from './core/api/session-api.service';
+import { DeskReturnService } from './core/trader/desk-return.service';
+import { TraderContextService, type UserScope } from './core/trader/trader-context.service';
 
 type DeskWorkspace = 'term' | 'oncall';
 type DeskQueue = 'received' | 'assigned' | 'executed';
@@ -17,8 +19,12 @@ interface DeskNavContext {
   styleUrl: './app.scss',
 })
 export class App {
-  protected readonly trader = inject(TraderContextService);
+  protected readonly user = inject(TraderContextService);
+  protected readonly deskReturn = inject(DeskReturnService);
+  protected readonly sessionApi = inject(SessionApiService);
   readonly router = inject(Router);
+
+  private scopeSwitchPending = false;
 
   /**
    * Queue tabs use the active workspace from the URL path, or — on order details —
@@ -48,9 +54,84 @@ export class App {
     return ctx.queue === segment;
   }
 
-  protected onTraderBlur(event: Event): void {
+  protected showDeskNav(): boolean {
+    return this.user.isTrader() && !this.router.url.startsWith('/settings');
+  }
+
+  protected showDeskEntry(): boolean {
+    return this.user.isTrader();
+  }
+
+  protected deskReturnUrl(): string {
+    return this.deskReturn.getReturnUrl();
+  }
+
+  protected deskLinkActive(): boolean {
+    return this.deskReturn.isDeskPath(this.router.url);
+  }
+
+  protected settingsLinkActive(): boolean {
+    return this.deskReturn.isSettingsPath(this.router.url);
+  }
+
+  protected activeScopeKey(): string {
+    return this.user.scopeKey(this.user.activeScope());
+  }
+
+  protected scopeLabel(scope: UserScope): string {
+    const role =
+      scope.role === 'TRADER' ? 'Trader' : 'Client rep';
+    return `${scope.legalEntityCode} · ${role}`;
+  }
+
+  protected onUserBlur(event: Event): void {
     const value = (event.target as HTMLInputElement).value;
-    this.trader.setTraderId(value);
+    this.user.setUserId(value);
+  }
+
+  protected onScopeChange(event: Event): void {
+    if (this.scopeSwitchPending) {
+      return;
+    }
+    const select = event.target as HTMLSelectElement;
+    const requested = this.parseScopeKey(select.value);
+    if (!requested) {
+      return;
+    }
+    const current = this.user.activeScope();
+    if (
+      current.legalEntityCode === requested.legalEntityCode &&
+      current.role === requested.role
+    ) {
+      return;
+    }
+
+    this.scopeSwitchPending = true;
+    const previousKey = this.user.scopeKey(current);
+    this.sessionApi.reScope(this.user.userId(), requested).subscribe({
+      next: (response) => {
+        this.user.bindActiveScope({
+          legalEntityCode: response.legalEntityCode,
+          role: response.role,
+        });
+        this.scopeSwitchPending = false;
+        if (this.user.isClientRepresentative()) {
+          void this.router.navigateByUrl('/settings');
+        }
+      },
+      error: () => {
+        this.scopeSwitchPending = false;
+        select.value = previousKey;
+      },
+    });
+  }
+
+  private parseScopeKey(key: string): UserScope | null {
+    const [legalEntityCode, role] = key.split(':');
+    if (!legalEntityCode || (role !== 'TRADER' && role !== 'CLIENT_REPRESENTATIVE')) {
+      return null;
+    }
+    return { legalEntityCode, role };
   }
 
   private resolveDeskNavContext(): DeskNavContext | null {

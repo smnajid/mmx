@@ -1,0 +1,65 @@
+asyncapi: 3.0.0
+info:
+  title: MMX Cross-Org Routed-Order Outcome (async)
+  version: 1.0.0
+  description: |
+    Contract-first async surface for leg B of cross-org order routing — the hub deployment (e.g. LODH)
+    publishes routed-order outcomes to its org-suffixed topic, consumed by the originating client
+    deployment (e.g. CGED) under a consume-only ACL. Reuses the existing transactional-outbox + relay.
+    Prose mirror: asyncapi-v1.md
+
+    This channel is distinct from `mmx.order.executed` (the back-office execution-handoff channel) and
+    carries inter-deployment routing outcomes, not back-office booking facts.
+
+defaultContentType: application/json
+
+channels:
+  routedOrderOutcome:
+    address: mmx.routed-order-outcome.{orgCode}
+    description: |
+      LODH-owned, org-suffixed topic carrying cross-org routed-order outcomes. `{orgCode}` is the
+      owning hub deployment's `OrganisationCode` (e.g. `LODH` → `mmx.routed-order-outcome.LODH`). The
+      hub publishes to its own topic without knowledge of which clients are listening; the client's
+      consumer is pre-subscribed under a consume-only ACL and filters by `originatingLegalEntityCode`
+      matching its own LegalEntities before applying.
+    parameters:
+      orgCode:
+        description: The owning hub deployment's OrganisationCode.
+        schema:
+          type: string
+          pattern: "^[A-Z]{3,}$"
+    messages:
+      routingOutcomeV1:
+        $ref: '#/components/messages/RoutingOutcomeV1'
+
+operations:
+  publishRoutingOutcome:
+    action: send
+    channel:
+      $ref: '#/channels/routedOrderOutcome'
+    summary: Hub publishes a routed-order outcome after transactional-outbox relay
+    description: |
+      The hub deployment is the sole publisher. Each outbox row is committed in the same database
+      transaction as the hub-side transition it mirrors: order creation for `ACCEPTED`;
+      execute/cancel/reject for terminal outcomes. A routing-failure reject commits NO row (it is
+      HTTP-only). The relay publishes keyed by `(originatingLegalEntityCode, routingId)`.
+    messages:
+      - $ref: '#/channels/routedOrderOutcome/messages/routingOutcomeV1'
+
+components:
+  messages:
+    RoutingOutcomeV1:
+      name: RoutingOutcomeV1
+      title: Routed-order outcome mirror (v1)
+      summary: Type-discriminated leg-B outcome; idempotent on (originatingLegalEntityCode, routingId)
+      contentType: application/json
+      bindings:
+        kafka:
+          key:
+            type: string
+            description: |
+              Kafka record key = composite of `(originatingLegalEntityCode, routingId)` so all outcomes
+              for one routed pair share a partition and apply in order. No deployment-internal order
+              UUID crosses the boundary.
+      payload:
+        $ref: './schemas/RoutingOutcomeV1.json'

@@ -1,6 +1,7 @@
 ## Spec-Driven Development (SDD)
 
-Agents MUST keep **specifications and code aligned** for any material change (API, domain behavior, persistence, Trader-facing UX). Operational checklist: `.cursor/rules/spec-sdd-sync.mdc`. Governance: `.specify/memory/constitution.md` Principle VI (Spec–code parity), version **1.6.0+**. Treat missing spec updates as a **blocking** defect, not a follow-up.
+Agents MUST keep **specifications and code aligned** for any material change (API, domain behavior, persistence, Trader-facing UX). Governance: `docs/governance.md` Principle VI (Spec–code parity). Treat missing spec updates as a **blocking** defect, not a follow-up.
+
 
 ## Test-driven development (TDD)
 
@@ -10,22 +11,68 @@ For **new behavior** and **bug fixes**, the default workflow is **strict TDD**: 
 
 **Waivers**: skipping red-first TDD is allowed only when the user explicitly agrees or when the change is purely mechanical (e.g. rename, comment-only). If TDD was skipped, note it briefly in the PR or commit message.
 
-Agents SHOULD read `.cursor/skills/tdd/SKILL.md` when the user asks for TDD, red-green-refactor, or test-first delivery.
+Agents SHOULD read the `tdd` skill ([`.agents/skills/tdd/SKILL.md`](.agents/skills/tdd/SKILL.md)) when the user asks for TDD, red-green-refactor, or test-first delivery.
 
-## Spec Kit Git hook (`/speckit.specify`)
+## Test feedback loop
 
-Starting a **new** feature with `/speckit.specify` MUST flow through Spec Kit’s **`before_specify`** hook (see `.specify/extensions.yml`): it runs **`speckit.git.feature`**, which creates and checks out the next numbered feature branch (e.g. `003-…`). Repo setting **`auto_execute_hooks: true`** keeps that hook automatic. If you run specify without going through the normal Speckit command path, create the feature branch yourself with the same script or `git checkout -b …` so branch name and spec folder stay aligned.
+Every backend test class carries **exactly one** JUnit 5 category tag — `fast`, `integration`, `e2e`, or `architecture` — enforced by the `TestCategoryTaggingTest` meta-test (fails the build on a missing/duplicated category).
+
+Agents SHOULD read the `test-loop` skill (global, `~/.agents/skills/test-loop/`) for the loop-selection decision procedure. This section is this repo's **test loop map**; the commands below are the only sanctioned loops. Full reactor runs exactly once, at final verification — never mid-change.
+
+| Category | Meaning | Where the tests live |
+|----------|---------|----------------------|
+| `fast` | Pure JVM: no Spring context, no containers, no broker (in-memory fakes allowed) | `mmx-domain`, `mmx-application`, pure adapter units |
+| `integration` | Spring context + relational Testcontainer; HTTP/persistence-surface assertions | `mmx-bootstrap` `rest/`/`config/`/`migration`/`contract`, persistence integration tests |
+| `e2e` | Full stack incl. Kafka broker / full workflow | `mmx-bootstrap` `e2e/*` |
+| `architecture` | ArchUnit / taxonomy rule enforcement | `DomainArchitectureTest`, `HexagonalArchitectureTest`, `TestCategoryTaggingTest` |
+
+**Selection is opt-in** (`mvn test` with no `-Dgroups` still runs everything):
+
+```bash
+cd backend && mvn test -Dgroups=fast                      # unit loop, no containers (all modules)
+cd backend && mvn test -pl mmx-domain -Dtest=<Class>      # one domain test class
+cd backend && mvn test -pl mmx-application -Dtest=<Class> # one application test class
+cd backend && mvn test -pl mmx-adapter-in-rest -Dtest=<Class> # pure REST-controller unit
+cd backend && mvn test -Dgroups='fast|integration'        # compose categories
+cd backend && mvn test -Dgroups=integration               # includes PostgreSQL integration
+cd backend && mvn test -Dgroups=e2e                       # Kafka / full-workflow acceptance
+```
+
+**Loop per change location:**
+
+- **`mmx-domain` change** → `mvn test -pl mmx-domain -Dtest=<Class>` (fast; frequently `-Dtest=DomainArchitectureTest`).
+- **`mmx-application` change** → `mvn test -pl mmx-application -Dtest=<Class>` (fast; assert against in-memory `port/out` fakes).
+- **REST contract change** → `mvn test -pl mmx-adapter-in-rest -Dtest=<ControllerTest>` plus the single matching `integration` class in `mmx-bootstrap` (`mvn test -pl mmx-bootstrap -am -Dtest=<Rest...IntegrationTest>`).
+- **REST-controller/unit iteration (no contract change)** → `mvn test -pl mmx-adapter-in-rest -Dtest=<ControllerTest> -DskipOpenApiGenerate=true` — skips the 12 OpenAPI-generator executions; safe because generated sources persist in `target/generated-sources/`.
+- **Persistence change** → `mvn test -pl mmx-adapter-out-persistence -am -Dtest='<Jpa...Test>'` (`integration`).
+- **`e2e`** → on demand only: `mvn test -pl mmx-bootstrap -am -Dgroups=e2e`.
+- **Final verification** → the **single** full-reactor run `cd backend && mvn test` (all categories).
+
+## OpenSpec changes
+
+Use OpenSpec for spec-driven work: propose a change (`/opsx:propose` or `/opsx:new`), implement from `tasks.md` (`/opsx:apply`), and merge into `openspec/specs/` (`/opsx:archive`). CLI: `openspec validate`, `openspec status --json`. Project context and task-generation rules live in `openspec/config.yaml`.
 
 ## Agent skills
-
-### Issue tracker
-
-Issues are tracked as local markdown files under `.scratch/`. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 
 This repo uses the default canonical triage labels. See `docs/agents/triage-labels.md`.
 
-### Domain docs
+### Domain docs and navigation
 
-This repo uses a single-context layout (`CONTEXT.md` + `docs/adr/` at repo root). See `docs/agents/domain.md`.
+| File | Purpose |
+|------|---------|
+| [CONTEXT.md](CONTEXT.md) | Domain glossary and relationships (ubiquitous language) |
+| [docs/agents/codebase-map.md](docs/agents/codebase-map.md) | Where modules, routes, contracts, and tests live |
+| [docs/agents/domain.md](docs/agents/domain.md) | How skills consume CONTEXT and ADRs |
+| [docs/adr/](docs/adr/) | Architecture decision records (when present) |
+
+Agents MUST read **CONTEXT.md** and **codebase-map.md** before broad codebase exploration. These are the codebase map — do not re-explore the directory tree from scratch each session.
+
+## Serena (semantic code tools)
+
+The Serena MCP server (`.mcp.json`) provides symbolic code tools and project memories (`.serena/memories/`).
+
+- Agents MUST activate project `mmx` and read `mem:core` (following its references as relevant) before broad backend/frontend code exploration — same tier as reading CONTEXT.md and codebase-map.md. Do not re-derive what a memory already records.
+- Agents MUST update the relevant memory (e.g. `mem:backend/core`, `mem:frontend/core`) when moving/renaming key modules, changing build/test workflows, or resolving a non-obvious gotcha future agents would otherwise rediscover.
+- Agents SHOULD prefer Serena symbol tools (`find_symbol`, `find_referencing_symbols`) for "where is X defined/used" questions in Java/TS; grep remains fine for configs, SQL, scripts, and prose.

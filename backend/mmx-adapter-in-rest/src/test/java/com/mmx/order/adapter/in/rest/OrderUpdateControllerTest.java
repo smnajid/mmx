@@ -2,15 +2,18 @@ package com.mmx.order.adapter.in.rest;
 
 import com.mmx.order.adapter.in.rest.mapper.OrderRestMapper;
 import com.mmx.order.application.command.UpdateOrderCommand;
+import com.mmx.order.application.port.in.AssignOrderUseCase;
 import com.mmx.order.application.port.in.CancelOrderUseCase;
+import com.mmx.order.application.port.in.DeskOrderQueries;
 import com.mmx.order.application.port.in.ExecuteOrderUseCase;
 import com.mmx.order.application.port.in.RejectOrderUseCase;
+import com.mmx.order.application.port.in.ResolveUserScopeUseCase;
+import com.mmx.order.application.port.in.UnassignOrderUseCase;
 import com.mmx.order.application.port.in.UpdateAssignedOrderUseCase;
-import com.mmx.order.application.service.AssignmentService;
-import com.mmx.order.application.service.OrderQueryService;
 import com.mmx.order.domain.exception.InvalidOrderException;
 import com.mmx.order.domain.exception.InvalidStatusTransitionException;
 import com.mmx.order.domain.exception.UnauthorizedTraderException;
+import com.mmx.order.domain.model.LegalEntityCode;
 import com.mmx.order.domain.model.ExternalOrderReference;
 import com.mmx.order.domain.model.MoneyMarketOrder;
 import com.mmx.order.domain.model.OrderOperation;
@@ -19,6 +22,7 @@ import com.mmx.order.domain.model.PortfolioNumber;
 import com.mmx.order.domain.model.Tenor;
 import com.mmx.order.domain.model.TraderId;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -36,6 +40,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup;
+@Tag("fast")
 
 @ExtendWith(MockitoExtension.class)
 class OrderUpdateControllerTest {
@@ -44,10 +49,16 @@ class OrderUpdateControllerTest {
     private static final Instant NOW = Instant.parse("2026-05-01T12:00:00Z");
 
     @Mock
-    OrderQueryService orderQueryService;
+    DeskOrderQueries deskOrderQueries;
 
     @Mock
-    AssignmentService assignmentService;
+    ResolveUserScopeUseCase resolveUserScopeUseCase;
+
+    @Mock
+    AssignOrderUseCase assignOrderUseCase;
+
+    @Mock
+    UnassignOrderUseCase unassignOrderUseCase;
 
     @Mock
     ExecuteOrderUseCase executeOrderUseCase;
@@ -65,12 +76,15 @@ class OrderUpdateControllerTest {
 
     @BeforeEach
     void setUp() {
+        OrderControllerTestSupport.stubDefaultScope(resolveUserScopeUseCase);
         OrderRestMapper mapper = new OrderRestMapper();
         mockMvc =
                 standaloneSetup(
                                 new OrderManagementController(
-                                        orderQueryService,
-                                        assignmentService,
+                                        deskOrderQueries,
+                                        resolveUserScopeUseCase,
+                                        assignOrderUseCase,
+                                        unassignOrderUseCase,
                                         executeOrderUseCase,
                                         cancelOrderUseCase,
                                         rejectOrderUseCase,
@@ -88,7 +102,7 @@ class OrderUpdateControllerTest {
 
         mockMvc.perform(
                         put("/api/v1/orders/" + order.getId())
-                                .header("X-Trader-Id", "trader-a")
+                                .header("X-User-Id", "trader-a")
                                 .contentType(APPLICATION_JSON)
                                 .content("{\"amount\":6000000}"))
                 .andExpect(status().isOk())
@@ -106,7 +120,7 @@ class OrderUpdateControllerTest {
 
         mockMvc.perform(
                         put("/api/v1/orders/" + id)
-                                .header("X-Trader-Id", "trader-a")
+                                .header("X-User-Id", "trader-a")
                                 .contentType(APPLICATION_JSON)
                                 .content("{}"))
                 .andExpect(status().isBadRequest())
@@ -121,7 +135,7 @@ class OrderUpdateControllerTest {
 
         mockMvc.perform(
                         put("/api/v1/orders/" + id)
-                                .header("X-Trader-Id", "intruder")
+                                .header("X-User-Id", "intruder")
                                 .contentType(APPLICATION_JSON)
                                 .content("{\"amount\":6000000}"))
                 .andExpect(status().isForbidden())
@@ -136,7 +150,7 @@ class OrderUpdateControllerTest {
 
         mockMvc.perform(
                         put("/api/v1/orders/" + id)
-                                .header("X-Trader-Id", "trader-a")
+                                .header("X-User-Id", "trader-a")
                                 .contentType(APPLICATION_JSON)
                                 .content("{\"amount\":6000000}"))
                 .andExpect(status().isConflict())
@@ -151,7 +165,7 @@ class OrderUpdateControllerTest {
 
         mockMvc.perform(
                         put("/api/v1/orders/" + id)
-                                .header("X-Trader-Id", "trader-a")
+                                .header("X-User-Id", "trader-a")
                                 .contentType(APPLICATION_JSON)
                                 .content("{\"valueDate\":\"2026-05-02\"}"))
                 .andExpect(status().isBadRequest())
@@ -162,6 +176,7 @@ class OrderUpdateControllerTest {
         MoneyMarketOrder order =
                 MoneyMarketOrder.create(
                         new ExternalOrderReference("REF-UPD-" + UUID.randomUUID()),
+                        new LegalEntityCode("LOC"),
                         OrderType.TERM,
                         OrderOperation.SUBSCRIPTION,
                         new PortfolioNumber("PF-1"),
@@ -169,10 +184,7 @@ class OrderUpdateControllerTest {
                         new BigDecimal("1000000.00"),
                         TODAY.plusDays(3),
                         new BigDecimal("3.25000000"),
-                        Tenor._3M,
-                        null,
-                        null,
-                        null,
+                        Tenor._3M, null, null, "BNKCO", "BankCo",
                         TODAY);
         order.assign(new TraderId("trader-a"), NOW);
         return order;

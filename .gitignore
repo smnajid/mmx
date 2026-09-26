@@ -25,6 +25,7 @@ frontend/.angular/
 .vscode/
 *.suo
 *.user
+bin/
 
 # ── OS ────────────────────────────────────────────────────────────────────────
 .DS_Store
@@ -47,3 +48,8 @@ frontend/cypress/downloads/
 # ── Logs ──────────────────────────────────────────────────────────────────────
 *.log
 logs/
+
+# ── Tooling / scratch ─────────────────────────────────────────────────────────
+.pnpm-check/
+.scratch/
+repomix-output.xml

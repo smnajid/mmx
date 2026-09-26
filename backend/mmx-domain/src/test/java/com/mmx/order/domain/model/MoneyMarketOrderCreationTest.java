@@ -3,6 +3,7 @@ package com.mmx.order.domain.model;
 import com.mmx.order.domain.exception.InvalidOrderException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -10,6 +11,7 @@ import java.time.LocalDate;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+@Tag("fast")
 
 @DisplayName("MoneyMarketOrder creation invariants")
 class MoneyMarketOrderCreationTest {
@@ -27,6 +29,7 @@ class MoneyMarketOrderCreationTest {
         void term_subscription_with_tenor() {
             MoneyMarketOrder order = MoneyMarketOrder.create(
                     new ExternalOrderReference("PM-001"),
+                    new LegalEntityCode("LOC"),
                     OrderType.TERM,
                     OrderOperation.SUBSCRIPTION,
                     new PortfolioNumber("PF-001"),
@@ -35,7 +38,7 @@ class MoneyMarketOrderCreationTest {
                     VALID_VALUE_DATE,
                     new BigDecimal("3.25000000"),
                     Tenor._3M,
-                    null, null, null,
+                    null, null, "BNKCO", "BankCo",
                     TODAY
             );
 
@@ -59,6 +62,7 @@ class MoneyMarketOrderCreationTest {
         void oncall_subscription_with_notice_period() {
             MoneyMarketOrder order = MoneyMarketOrder.create(
                     new ExternalOrderReference("PM-002"),
+                    new LegalEntityCode("LOC"),
                     OrderType.ON_CALL,
                     OrderOperation.SUBSCRIPTION,
                     new PortfolioNumber("PF-001"),
@@ -67,7 +71,7 @@ class MoneyMarketOrderCreationTest {
                     VALID_VALUE_DATE,
                     new BigDecimal("2.50000000"),
                     null,
-                    NoticePeriod._24H, null, null,
+                    NoticePeriod._24H, null, "BNKCO", "BankCo",
                     TODAY
             );
 
@@ -80,6 +84,7 @@ class MoneyMarketOrderCreationTest {
         void oncall_increase_with_source_contract() {
             MoneyMarketOrder order = MoneyMarketOrder.create(
                     new ExternalOrderReference("PM-003"),
+                    new LegalEntityCode("LOC"),
                     OrderType.ON_CALL,
                     OrderOperation.INCREASE,
                     new PortfolioNumber("PF-001"),
@@ -89,8 +94,7 @@ class MoneyMarketOrderCreationTest {
                     new BigDecimal("2.50000000"),
                     null,
                     NoticePeriod._48H,
-                    new ContractNumber("CN-existing-001"),
-                    null,
+                    new ContractNumber("CN-existing-001"), "BNKCO", "BankCo",
                     TODAY
             );
 
@@ -108,11 +112,12 @@ class MoneyMarketOrderCreationTest {
         void term_increase_rejected() {
             assertThatThrownBy(() -> MoneyMarketOrder.create(
                     new ExternalOrderReference("PM-X"),
+                    new LegalEntityCode("LOC"),
                     OrderType.TERM, OrderOperation.INCREASE,
                     new PortfolioNumber("PF-001"), "EUR",
                     new BigDecimal("1000000.00"), VALID_VALUE_DATE,
                     new BigDecimal("3.00000000"),
-                    Tenor._1M, null, new ContractNumber("CN-001"), null,
+                    Tenor._1M, null, new ContractNumber("CN-001"), "BNKCO", "BankCo",
                     TODAY
             )).isInstanceOf(InvalidOrderException.class);
         }
@@ -121,11 +126,12 @@ class MoneyMarketOrderCreationTest {
         void term_decrease_rejected() {
             assertThatThrownBy(() -> MoneyMarketOrder.create(
                     new ExternalOrderReference("PM-X"),
+                    new LegalEntityCode("LOC"),
                     OrderType.TERM, OrderOperation.DECREASE,
                     new PortfolioNumber("PF-001"), "EUR",
                     new BigDecimal("1000000.00"), VALID_VALUE_DATE,
                     new BigDecimal("3.00000000"),
-                    Tenor._1M, null, new ContractNumber("CN-001"), null,
+                    Tenor._1M, null, new ContractNumber("CN-001"), "BNKCO", "BankCo",
                     TODAY
             )).isInstanceOf(InvalidOrderException.class);
         }
@@ -134,11 +140,12 @@ class MoneyMarketOrderCreationTest {
         void term_redemption_rejected() {
             assertThatThrownBy(() -> MoneyMarketOrder.create(
                     new ExternalOrderReference("PM-X"),
+                    new LegalEntityCode("LOC"),
                     OrderType.TERM, OrderOperation.REDEMPTION,
                     new PortfolioNumber("PF-001"), "EUR",
                     new BigDecimal("1000000.00"), VALID_VALUE_DATE,
                     new BigDecimal("3.00000000"),
-                    Tenor._1M, null, new ContractNumber("CN-001"), null,
+                    Tenor._1M, null, new ContractNumber("CN-001"), "BNKCO", "BankCo",
                     TODAY
             )).isInstanceOf(InvalidOrderException.class);
         }
@@ -154,11 +161,12 @@ class MoneyMarketOrderCreationTest {
         void term_without_tenor_rejected() {
             assertThatThrownBy(() -> MoneyMarketOrder.create(
                     new ExternalOrderReference("PM-X"),
+                    new LegalEntityCode("LOC"),
                     OrderType.TERM, OrderOperation.SUBSCRIPTION,
                     new PortfolioNumber("PF-001"), "EUR",
                     new BigDecimal("1000000.00"), VALID_VALUE_DATE,
                     new BigDecimal("3.00000000"),
-                    null, null, null, null,
+                    null, null, null, "BNKCO", "BankCo",
                     TODAY
             )).isInstanceOf(InvalidOrderException.class)
               .hasMessageContaining("Tenor");
@@ -168,11 +176,12 @@ class MoneyMarketOrderCreationTest {
         void term_with_notice_period_rejected() {
             assertThatThrownBy(() -> MoneyMarketOrder.create(
                     new ExternalOrderReference("PM-X"),
+                    new LegalEntityCode("LOC"),
                     OrderType.TERM, OrderOperation.SUBSCRIPTION,
                     new PortfolioNumber("PF-001"), "EUR",
                     new BigDecimal("1000000.00"), VALID_VALUE_DATE,
                     new BigDecimal("3.00000000"),
-                    Tenor._1M, NoticePeriod._24H, null, null,
+                    Tenor._1M, NoticePeriod._24H, null, "BNKCO", "BankCo",
                     TODAY
             )).isInstanceOf(InvalidOrderException.class);
         }
@@ -181,11 +190,12 @@ class MoneyMarketOrderCreationTest {
         void oncall_without_notice_period_rejected() {
             assertThatThrownBy(() -> MoneyMarketOrder.create(
                     new ExternalOrderReference("PM-X"),
+                    new LegalEntityCode("LOC"),
                     OrderType.ON_CALL, OrderOperation.SUBSCRIPTION,
                     new PortfolioNumber("PF-001"), "EUR",
                     new BigDecimal("1000000.00"), VALID_VALUE_DATE,
                     new BigDecimal("3.00000000"),
-                    null, null, null, null,
+                    null, null, null, "BNKCO", "BankCo",
                     TODAY
             )).isInstanceOf(InvalidOrderException.class)
               .hasMessageContaining("NoticePeriod");
@@ -195,11 +205,12 @@ class MoneyMarketOrderCreationTest {
         void oncall_with_tenor_rejected() {
             assertThatThrownBy(() -> MoneyMarketOrder.create(
                     new ExternalOrderReference("PM-X"),
+                    new LegalEntityCode("LOC"),
                     OrderType.ON_CALL, OrderOperation.SUBSCRIPTION,
                     new PortfolioNumber("PF-001"), "EUR",
                     new BigDecimal("1000000.00"), VALID_VALUE_DATE,
                     new BigDecimal("3.00000000"),
-                    Tenor._1M, NoticePeriod._24H, null, null,
+                    Tenor._1M, NoticePeriod._24H, null, "BNKCO", "BankCo",
                     TODAY
             )).isInstanceOf(InvalidOrderException.class);
         }
@@ -213,11 +224,12 @@ class MoneyMarketOrderCreationTest {
         void increase_without_source_contract_rejected() {
             assertThatThrownBy(() -> MoneyMarketOrder.create(
                     new ExternalOrderReference("PM-X"),
+                    new LegalEntityCode("LOC"),
                     OrderType.ON_CALL, OrderOperation.INCREASE,
                     new PortfolioNumber("PF-001"), "EUR",
                     new BigDecimal("500000.00"), VALID_VALUE_DATE,
                     new BigDecimal("2.00000000"),
-                    null, NoticePeriod._24H, null, null,
+                    null, NoticePeriod._24H, null, "BNKCO", "BankCo",
                     TODAY
             )).isInstanceOf(InvalidOrderException.class)
               .hasMessageContaining("sourceContractNumber");
@@ -234,11 +246,12 @@ class MoneyMarketOrderCreationTest {
         void zero_amount_rejected() {
             assertThatThrownBy(() -> MoneyMarketOrder.create(
                     new ExternalOrderReference("PM-X"),
+                    new LegalEntityCode("LOC"),
                     OrderType.TERM, OrderOperation.SUBSCRIPTION,
                     new PortfolioNumber("PF-001"), "EUR",
                     BigDecimal.ZERO, VALID_VALUE_DATE,
                     new BigDecimal("3.00000000"),
-                    Tenor._1M, null, null, null,
+                    Tenor._1M, null, null, "BNKCO", "BankCo",
                     TODAY
             )).isInstanceOf(InvalidOrderException.class)
               .hasMessageContaining("Amount");
@@ -248,11 +261,12 @@ class MoneyMarketOrderCreationTest {
         void negative_amount_rejected() {
             assertThatThrownBy(() -> MoneyMarketOrder.create(
                     new ExternalOrderReference("PM-X"),
+                    new LegalEntityCode("LOC"),
                     OrderType.TERM, OrderOperation.SUBSCRIPTION,
                     new PortfolioNumber("PF-001"), "EUR",
                     new BigDecimal("-1.00"), VALID_VALUE_DATE,
                     new BigDecimal("3.00000000"),
-                    Tenor._1M, null, null, null,
+                    Tenor._1M, null, null, "BNKCO", "BankCo",
                     TODAY
             )).isInstanceOf(InvalidOrderException.class);
         }
@@ -261,11 +275,12 @@ class MoneyMarketOrderCreationTest {
         void negative_minimum_rate_rejected() {
             assertThatThrownBy(() -> MoneyMarketOrder.create(
                     new ExternalOrderReference("PM-X"),
+                    new LegalEntityCode("LOC"),
                     OrderType.TERM, OrderOperation.SUBSCRIPTION,
                     new PortfolioNumber("PF-001"), "EUR",
                     new BigDecimal("1000000.00"), VALID_VALUE_DATE,
                     new BigDecimal("-0.00000001"),
-                    Tenor._1M, null, null, null,
+                    Tenor._1M, null, null, "BNKCO", "BankCo",
                     TODAY
             )).isInstanceOf(InvalidOrderException.class)
               .hasMessageContaining("MinimumRate");
@@ -275,11 +290,12 @@ class MoneyMarketOrderCreationTest {
         void zero_minimum_rate_is_valid() {
             MoneyMarketOrder order = MoneyMarketOrder.create(
                     new ExternalOrderReference("PM-X"),
+                    new LegalEntityCode("LOC"),
                     OrderType.TERM, OrderOperation.SUBSCRIPTION,
                     new PortfolioNumber("PF-001"), "EUR",
                     new BigDecimal("1000000.00"), VALID_VALUE_DATE,
                     BigDecimal.ZERO.setScale(8),
-                    Tenor._1M, null, null, null,
+                    Tenor._1M, null, null, "BNKCO", "BankCo",
                     TODAY
             );
             assertThat(order.getMinimumRate()).isEqualByComparingTo(BigDecimal.ZERO);
@@ -289,11 +305,12 @@ class MoneyMarketOrderCreationTest {
         void null_minimum_rate_allowed() {
             MoneyMarketOrder order = MoneyMarketOrder.create(
                     new ExternalOrderReference("PM-X"),
+                    new LegalEntityCode("LOC"),
                     OrderType.TERM, OrderOperation.SUBSCRIPTION,
                     new PortfolioNumber("PF-001"), "EUR",
                     new BigDecimal("1000000.00"), VALID_VALUE_DATE,
                     null,
-                    Tenor._1M, null, null, null,
+                    Tenor._1M, null, null, "BNKCO", "BankCo",
                     TODAY
             );
             assertThat(order.getMinimumRate()).isNull();
@@ -303,11 +320,12 @@ class MoneyMarketOrderCreationTest {
         void bigdecimal_precision_preserved() {
             MoneyMarketOrder order = MoneyMarketOrder.create(
                     new ExternalOrderReference("PM-X"),
+                    new LegalEntityCode("LOC"),
                     OrderType.TERM, OrderOperation.SUBSCRIPTION,
                     new PortfolioNumber("PF-001"), "EUR",
                     new BigDecimal("5000000.00"), VALID_VALUE_DATE,
                     new BigDecimal("3.25000000"),
-                    Tenor._3M, null, null, null,
+                    Tenor._3M, null, null, "BNKCO", "BankCo",
                     TODAY
             );
             assertThat(order.getAmount()).isEqualByComparingTo(new BigDecimal("5000000.00"));
@@ -323,11 +341,12 @@ class MoneyMarketOrderCreationTest {
         void value_date_today_rejected() {
             assertThatThrownBy(() -> MoneyMarketOrder.create(
                     new ExternalOrderReference("PM-X"),
+                    new LegalEntityCode("LOC"),
                     OrderType.TERM, OrderOperation.SUBSCRIPTION,
                     new PortfolioNumber("PF-001"), "EUR",
                     new BigDecimal("1000000.00"), TODAY,
                     new BigDecimal("3.00000000"),
-                    Tenor._1M, null, null, null,
+                    Tenor._1M, null, null, "BNKCO", "BankCo",
                     TODAY
             )).isInstanceOf(InvalidOrderException.class)
               .hasMessageContaining("ValueDate");
@@ -337,11 +356,12 @@ class MoneyMarketOrderCreationTest {
         void value_date_tomorrow_rejected() {
             assertThatThrownBy(() -> MoneyMarketOrder.create(
                     new ExternalOrderReference("PM-X"),
+                    new LegalEntityCode("LOC"),
                     OrderType.TERM, OrderOperation.SUBSCRIPTION,
                     new PortfolioNumber("PF-001"), "EUR",
                     new BigDecimal("1000000.00"), TODAY.plusDays(1),
                     new BigDecimal("3.00000000"),
-                    Tenor._1M, null, null, null,
+                    Tenor._1M, null, null, "BNKCO", "BankCo",
                     TODAY
             )).isInstanceOf(InvalidOrderException.class);
         }
@@ -350,11 +370,12 @@ class MoneyMarketOrderCreationTest {
         void value_date_today_plus_two_is_valid() {
             MoneyMarketOrder order = MoneyMarketOrder.create(
                     new ExternalOrderReference("PM-X"),
+                    new LegalEntityCode("LOC"),
                     OrderType.TERM, OrderOperation.SUBSCRIPTION,
                     new PortfolioNumber("PF-001"), "EUR",
                     new BigDecimal("1000000.00"), TODAY.plusDays(2),
                     new BigDecimal("3.00000000"),
-                    Tenor._1M, null, null, null,
+                    Tenor._1M, null, null, "BNKCO", "BankCo",
                     TODAY
             );
             assertThat(order.getValueDate()).isEqualTo(TODAY.plusDays(2));

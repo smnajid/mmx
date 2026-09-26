@@ -1,0 +1,101 @@
+package com.mmx.order.adapter.out.persistence;
+
+import com.mmx.order.adapter.out.persistence.entity.InstitutionEntity;
+import com.mmx.order.adapter.out.persistence.mapper.InstitutionPersistenceMapper;
+import com.mmx.order.adapter.out.persistence.repository.SpringDataInstitutionRepository;
+import com.mmx.order.application.port.out.InstitutionRepository;
+import com.mmx.order.application.port.out.ScopeContextProvider;
+import com.mmx.order.domain.model.HubInstitutionLink;
+import com.mmx.order.domain.model.Institution;
+import com.mmx.order.domain.model.LegalEntityCode;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
+
+public class JpaInstitutionRepository implements InstitutionRepository {
+
+    private final SpringDataInstitutionRepository springDataRepository;
+    private final InstitutionPersistenceMapper mapper;
+    private final ScopeContextProvider scopeContextProvider;
+
+    public JpaInstitutionRepository(
+            SpringDataInstitutionRepository springDataRepository,
+            InstitutionPersistenceMapper mapper,
+            ScopeContextProvider scopeContextProvider) {
+        this.springDataRepository = springDataRepository;
+        this.mapper = mapper;
+        this.scopeContextProvider = scopeContextProvider;
+    }
+
+    @Override
+    public List<Institution> findAll() {
+        return springDataRepository.findAll().stream().map(mapper::toDomain).toList();
+    }
+
+    @Override
+    public List<Institution> findNativeByLegalEntityCode(LegalEntityCode legalEntityCode) {
+        return springDataRepository
+                .findByLegalEntityCodeAndHubInstitutionCodeIsNullOrderByInstitutionCodeAsc(legalEntityCode.value())
+                .stream()
+                .map(mapper::toDomain)
+                .toList();
+    }
+
+    @Override
+    public List<Institution> findActive() {
+        return springDataRepository.findByActiveTrueOrderByInstitutionCodeAsc().stream()
+                .map(mapper::toDomain)
+                .toList();
+    }
+
+    @Override
+    public List<Institution> findOnboardedByLegalEntityCode(LegalEntityCode legalEntityCode) {
+        return springDataRepository
+                .findByLegalEntityCodeAndHubInstitutionCodeIsNotNullOrderByInstitutionCodeAsc(legalEntityCode.value())
+                .stream()
+                .map(mapper::toDomain)
+                .toList();
+    }
+
+    @Override
+    public Optional<Institution> findOnboarded(LegalEntityCode legalEntityCode, HubInstitutionLink hubLink) {
+        return springDataRepository
+                .findByLegalEntityCodeAndHubLegalEntityCodeAndHubInstitutionCode(
+                        legalEntityCode.value(), hubLink.hubLegalEntityCode().value(), hubLink.hubInstitutionCode())
+                .map(mapper::toDomain);
+    }
+
+    @Override
+    public Optional<Institution> findByInstitutionCode(String institutionCode) {
+        return springDataRepository.findById(institutionCode).map(mapper::toDomain);
+    }
+
+    @Override
+    public boolean existsAny() {
+        return springDataRepository.count() > 0;
+    }
+
+    @Override
+    public int maxSuffixForAcronym(String acronymBase) {
+        return springDataRepository.findMaxSuffixForAcronym(acronymBase);
+    }
+
+    @Override
+    public Institution save(Institution institution) {
+        Instant now = Instant.now();
+        String ownerCode =
+                institution.getOwningLegalEntityCode() != null
+                        ? institution.getOwningLegalEntityCode().value()
+                        : scopeContextProvider.requireActiveScope().legalEntityCode().value();
+        Optional<InstitutionEntity> existing = springDataRepository.findById(institution.getInstitutionCode());
+        InstitutionEntity entity;
+        if (existing.isPresent()) {
+            entity = existing.get();
+            mapper.updateEntity(entity, institution, now);
+        } else {
+            entity = mapper.toEntity(institution, ownerCode, now);
+        }
+        return mapper.toDomain(springDataRepository.saveAndFlush(entity));
+    }
+}

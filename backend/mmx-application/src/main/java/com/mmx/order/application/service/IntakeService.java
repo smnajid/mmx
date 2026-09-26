@@ -1,0 +1,284 @@
+package com.mmx.order.application.service;
+
+import com.mmx.order.application.command.ReceiveOrderCommand;
+import com.mmx.order.application.port.in.IntakeUseCase;
+import com.mmx.order.application.port.out.AuditLogger;
+import com.mmx.order.application.port.out.Clock;
+import com.mmx.order.application.port.out.HubLocalityResolver;
+import com.mmx.order.application.port.out.InstitutionRepository;
+import com.mmx.order.application.port.out.LegalEntityRepository;
+import com.mmx.order.application.port.out.ManagedCurrencyRepository;
+import com.mmx.order.application.port.out.OpenPositionPort;
+import com.mmx.order.application.port.out.OrderRepository;
+import com.mmx.order.application.port.out.OrganisationRepository;
+import com.mmx.order.domain.exception.InvalidOrderException;
+import com.mmx.order.domain.model.HubLocality;
+import com.mmx.order.domain.model.ContractNumber;
+import com.mmx.order.domain.model.Institution;
+import com.mmx.order.domain.model.LegalEntity;
+import com.mmx.order.domain.model.LegalEntityCode;
+import com.mmx.order.domain.model.MoneyMarketOrder;
+import com.mmx.order.domain.model.OpenContractPosition;
+import com.mmx.order.domain.model.OrderOperation;
+import com.mmx.order.domain.model.OrderStatus;
+import com.mmx.order.domain.model.OrganisationCode;
+import com.mmx.order.domain.policy.OrderAgainstCurrencyPolicy;
+import com.mmx.order.domain.policy.OrderAgainstInstitutionPolicy;
+
+import java.util.Optional;
+
+public final class IntakeService implements IntakeUseCase {
+
+    static final String AUDIT_ACTOR_SYSTEM = "PORTFOLIO_MANAGEMENT";
+    static final String EVENT_ORDER_RECEIVED = "ORDER_RECEIVED";
+    static final String EVENT_ORDER_ROUTED = "ORDER_ROUTED";
+    static final String EVENT_ORDER_ROUTING_REJECTED = "ORDER_ROUTING_REJECTED";
+    static final String EVENT_DUPLICATE_RECEIVE_IGNORED = "DUPLICATE_RECEIVE_IGNORED";
+
+    private final OrderRepository orderRepository;
+    private final ManagedCurrencyRepository managedCurrencyRepository;
+    private final InstitutionRepository institutionRepository;
+    private final OpenPositionPort openPositionPort;
+    private final OrganisationRepository organisationRepository;
+    private final LegalEntityRepository legalEntityRepository;
+    private final OrganisationCode portfolioManagementOrganisation;
+    private final OrderAgainstCurrencyPolicy currencyPolicy;
+    private final OrderAgainstInstitutionPolicy institutionPolicy;
+    private final RoutedOrderIntake routedOrderIntake;
+    private final AuditLogger auditLogger;
+    private final Clock clock;
+    private final HubLocalityResolver hubLocalityResolver;
+    private final RemoteRoutedOrderIntake remoteRoutedOrderIntake;
+
+    public IntakeService(
+            OrderRepository orderRepository,
+            ManagedCurrencyRepository managedCurrencyRepository,
+            InstitutionRepository institutionRepository,
+            OpenPositionPort openPositionPort,
+            OrganisationRepository organisationRepository,
+            LegalEntityRepository legalEntityRepository,
+            OrganisationCode portfolioManagementOrganisation,
+            RoutedOrderIntake routedOrderIntake,
+            AuditLogger auditLogger,
+            Clock clock) {
+        this(
+                orderRepository,
+                managedCurrencyRepository,
+                institutionRepository,
+                openPositionPort,
+                organisationRepository,
+                legalEntityRepository,
+                portfolioManagementOrganisation,
+                routedOrderIntake,
+                auditLogger,
+                clock,
+                null,
+                null);
+    }
+
+    public IntakeService(
+            OrderRepository orderRepository,
+            ManagedCurrencyRepository managedCurrencyRepository,
+            InstitutionRepository institutionRepository,
+            OpenPositionPort openPositionPort,
+            OrganisationRepository organisationRepository,
+            LegalEntityRepository legalEntityRepository,
+            OrganisationCode portfolioManagementOrganisation,
+            RoutedOrderIntake routedOrderIntake,
+            AuditLogger auditLogger,
+            Clock clock,
+            HubLocalityResolver hubLocalityResolver,
+            RemoteRoutedOrderIntake remoteRoutedOrderIntake) {
+        this.orderRepository = orderRepository;
+        this.managedCurrencyRepository = managedCurrencyRepository;
+        this.institutionRepository = institutionRepository;
+        this.openPositionPort = openPositionPort;
+        this.organisationRepository = organisationRepository;
+        this.legalEntityRepository = legalEntityRepository;
+        this.portfolioManagementOrganisation = portfolioManagementOrganisation;
+        this.currencyPolicy = new OrderAgainstCurrencyPolicy();
+        this.institutionPolicy = new OrderAgainstInstitutionPolicy();
+        this.routedOrderIntake = routedOrderIntake;
+        this.auditLogger = auditLogger;
+        this.clock = clock;
+        this.hubLocalityResolver = hubLocalityResolver;
+        this.remoteRoutedOrderIntake = remoteRoutedOrderIntake;
+    }
+
+    @Override
+    public Result receive(ReceiveOrderCommand command) {
+        LegalEntity entity = resolveLegalEntityForIntake(command.legalEntityCode());
+
+        var existingOpt =
+                orderRepository.findByLegalEntityAndExternalReference(
+                        command.legalEntityCode(), command.externalOrderReference());
+        if (existingOpt.isPresent()) {
+            MoneyMarketOrder existing = existingOpt.get();
+            auditLogger.log(existing.getId(), EVENT_DUPLICATE_RECEIVE_IGNORED, AUDIT_ACTOR_SYSTEM, clock.now());
+            return new Result(existing.getId(), existing.getStatus(), false);
+        }
+
+        if (entity.isTradingClient()) {
+            return receiveRouted(command, entity);
+        }
+        return receiveHub(command);
+    }
+
+    private Result receiveHub(ReceiveOrderCommand command) {
+        Institution institution = resolveActiveInstitution(command.institutionCode());
+        validateLifecycleInstitutionMatchesContract(command, institution.getInstitutionCode());
+        validateCurrency(command);
+
+        MoneyMarketOrder created =
+                MoneyMarketOrder.create(
+                        command.externalOrderReference(),
+                        command.legalEntityCode(),
+                        command.orderType(),
+                        command.orderOperation(),
+                        command.portfolioNumber(),
+                        command.currency(),
+                        command.amount(),
+                        command.valueDate(),
+                        command.minimumRate(),
+                        command.tenor(),
+                        command.noticePeriod(),
+                        intakeSourceContractNumber(command),
+                        institution.getInstitutionCode(),
+                        institution.getDisplayName(),
+                        clock.today());
+
+        MoneyMarketOrder saved = orderRepository.save(created);
+        auditLogger.log(saved.getId(), EVENT_ORDER_RECEIVED, AUDIT_ACTOR_SYSTEM, clock.now());
+        return new Result(saved.getId(), saved.getStatus(), true);
+    }
+
+    private Result receiveRouted(ReceiveOrderCommand command, LegalEntity clientEntity) {
+        if (isRemoteHub(clientEntity)) {
+            return receiveRoutedRemote(command, clientEntity);
+        }
+        Institution proxy = routedOrderIntake.resolveProxy(command.institutionCode());
+        validateLifecycleInstitutionMatchesContract(command, proxy.getInstitutionCode());
+        validateCurrency(command);
+
+        Result result = routedOrderIntake.completeIntake(command, proxy, clientEntity);
+        if (result.newlyCreated()) {
+            if (result.status() == OrderStatus.ROUTED) {
+                auditLogger.log(result.orderId(), EVENT_ORDER_ROUTED, AUDIT_ACTOR_SYSTEM, clock.now());
+            } else if (result.status() == OrderStatus.REJECTED) {
+                auditLogger.log(
+                        result.orderId(), EVENT_ORDER_ROUTING_REJECTED, AUDIT_ACTOR_SYSTEM, clock.now());
+            }
+        }
+        return result;
+    }
+
+    private boolean isRemoteHub(LegalEntity clientEntity) {
+        if (hubLocalityResolver == null || remoteRoutedOrderIntake == null) {
+            return false;
+        }
+        LegalEntityCode clientCode = clientEntity.getCode();
+        HubLocality locality = hubLocalityResolver.resolveForClient(clientCode);
+        return locality != null && locality.isRemote();
+    }
+
+    private Result receiveRoutedRemote(ReceiveOrderCommand command, LegalEntity clientEntity) {
+        Result result = remoteRoutedOrderIntake.completeIntake(command, clientEntity);
+        if (result.newlyCreated()) {
+            if (result.status() == OrderStatus.ROUTED) {
+                auditLogger.log(result.orderId(), EVENT_ORDER_ROUTED, AUDIT_ACTOR_SYSTEM, clock.now());
+            } else if (result.status() == OrderStatus.REJECTED) {
+                auditLogger.log(
+                        result.orderId(), EVENT_ORDER_ROUTING_REJECTED, AUDIT_ACTOR_SYSTEM, clock.now());
+            }
+        }
+        return result;
+    }
+
+    private LegalEntity resolveLegalEntityForIntake(LegalEntityCode legalEntityCode) {
+        if (legalEntityCode == null) {
+            throw new InvalidOrderException("legalEntityCode is required");
+        }
+        organisationRepository
+                .findByCode(portfolioManagementOrganisation)
+                .orElseThrow(
+                        () ->
+                                new InvalidOrderException(
+                                        "Portfolio Management Organisation is not configured"));
+        LegalEntity entity =
+                legalEntityRepository
+                        .findByCode(legalEntityCode)
+                        .orElseThrow(
+                                () -> new InvalidOrderException("Unknown legalEntityCode: " + legalEntityCode));
+        if (!legalEntityRepository.belongsToOrganisation(legalEntityCode, portfolioManagementOrganisation)) {
+            throw new InvalidOrderException(
+                    "legalEntityCode is not a LegalEntity of the Portfolio Management Organisation");
+        }
+        return entity;
+    }
+
+    private Institution resolveActiveInstitution(String institutionCode) {
+        if (institutionCode == null || institutionCode.isBlank()) {
+            throw new InvalidOrderException("institutionCode is required");
+        }
+        Institution institution =
+                institutionRepository
+                        .findByInstitutionCode(institutionCode)
+                        .orElseThrow(() -> new InvalidOrderException("Institution not found: " + institutionCode));
+        if (!institution.isActive()) {
+            throw new InvalidOrderException("Institution is not active: " + institutionCode);
+        }
+        return institution;
+    }
+
+    private void validateLifecycleInstitutionMatchesContract(
+            ReceiveOrderCommand command, String submittedInstitutionCode) {
+        if (command.sourceContractNumber() == null) {
+            return;
+        }
+        if (command.orderOperation() != OrderOperation.INCREASE
+                && command.orderOperation() != OrderOperation.DECREASE
+                && command.orderOperation() != OrderOperation.REDEMPTION) {
+            return;
+        }
+
+        var contractInfo =
+                orderRepository.findExecutedSubscriptionByContractNumber(
+                        command.sourceContractNumber().value());
+        if (contractInfo.isEmpty()) {
+            throw new InvalidOrderException(
+                    "No executed OnCall Subscription found for source contract number: "
+                            + command.sourceContractNumber().value());
+        }
+        String contractInstitutionCode = contractInfo.get().institutionCode();
+        if (!contractInstitutionCode.equals(submittedInstitutionCode)) {
+            throw new InvalidOrderException(
+                    "institutionCode must match the source contract institution ("
+                            + contractInstitutionCode
+                            + ")");
+        }
+    }
+
+    private void validateCurrency(ReceiveOrderCommand command) {
+        var currencyOpt = managedCurrencyRepository.findByCode(command.currency());
+        Optional<OpenContractPosition> openPosition =
+                command.orderOperation() == OrderOperation.DECREASE && command.sourceContractNumber() != null
+                        ? openPositionPort.findOpenByContractNumber(command.sourceContractNumber())
+                        : Optional.empty();
+        currencyPolicy.validateReceive(
+                currencyOpt,
+                command.currency(),
+                command.orderType(),
+                command.orderOperation(),
+                command.amount(),
+                command.tenor(),
+                command.noticePeriod(),
+                openPosition);
+    }
+
+    private static ContractNumber intakeSourceContractNumber(ReceiveOrderCommand command) {
+        if (command.orderOperation() == OrderOperation.SUBSCRIPTION) {
+            return null;
+        }
+        return command.sourceContractNumber();
+    }
+}

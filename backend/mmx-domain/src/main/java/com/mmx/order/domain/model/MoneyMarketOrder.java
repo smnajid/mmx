@@ -3,6 +3,7 @@ package com.mmx.order.domain.model;
 import com.mmx.order.domain.exception.InvalidOrderException;
 import com.mmx.order.domain.exception.InvalidStatusTransitionException;
 import com.mmx.order.domain.exception.UnauthorizedTraderException;
+import com.mmx.order.domain.model.RoutedHubOrderDraft;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -25,6 +26,7 @@ public class MoneyMarketOrder {
 
     private final UUID id;
     private final ExternalOrderReference externalOrderReference;
+    private final LegalEntityCode legalEntityCode;
     private final OrderType orderType;
     private final OrderOperation orderOperation;
     private final PortfolioNumber portfolioNumber;
@@ -35,19 +37,27 @@ public class MoneyMarketOrder {
     private final Tenor tenor;
     private final NoticePeriod noticePeriod;
     private final ContractNumber sourceContractNumber;
-    private String desiredCounterpartyComment;
+    private final String institutionCode;
+    private final String counterparty;
     private OrderStatus status;
     private Assignment assignment;
     private ExecutionDetails executionDetails;
     private String rejectionReason;
+    private RejectionOrigin rejectionOrigin;
     /** Integration handoff toward back-office; meaningful when {@link #status} is {@link OrderStatus#EXECUTED}. */
     private HandoffStatus handoffStatus;
+    private RoutingId routingId;
+    private LegalEntityCode originatingLegalEntityCode;
+    private ExternalOrderReference originatingExternalOrderReference;
+    private String counterpartyAccount;
+    private String clientCounterpartyAccount;
     private final Instant createdAt;
     private Instant updatedAt;
 
     private MoneyMarketOrder(
             UUID id,
             ExternalOrderReference externalOrderReference,
+            LegalEntityCode legalEntityCode,
             OrderType orderType,
             OrderOperation orderOperation,
             PortfolioNumber portfolioNumber,
@@ -58,13 +68,15 @@ public class MoneyMarketOrder {
             Tenor tenor,
             NoticePeriod noticePeriod,
             ContractNumber sourceContractNumber,
-            String desiredCounterpartyComment,
+            String institutionCode,
+            String counterparty,
             OrderStatus status,
             HandoffStatus handoffStatus,
             Instant createdAt
     ) {
         this.id = id;
         this.externalOrderReference = externalOrderReference;
+        this.legalEntityCode = Objects.requireNonNull(legalEntityCode, "legalEntityCode must not be null");
         this.orderType = orderType;
         this.orderOperation = orderOperation;
         this.portfolioNumber = portfolioNumber;
@@ -75,7 +87,8 @@ public class MoneyMarketOrder {
         this.tenor = tenor;
         this.noticePeriod = noticePeriod;
         this.sourceContractNumber = sourceContractNumber;
-        this.desiredCounterpartyComment = desiredCounterpartyComment;
+        this.institutionCode = institutionCode;
+        this.counterparty = counterparty;
         this.status = status;
         this.handoffStatus = handoffStatus;
         this.createdAt = createdAt;
@@ -86,6 +99,7 @@ public class MoneyMarketOrder {
 
     public static MoneyMarketOrder create(
             ExternalOrderReference externalOrderReference,
+            LegalEntityCode legalEntityCode,
             OrderType orderType,
             OrderOperation orderOperation,
             PortfolioNumber portfolioNumber,
@@ -96,9 +110,11 @@ public class MoneyMarketOrder {
             Tenor tenor,
             NoticePeriod noticePeriod,
             ContractNumber sourceContractNumber,
-            String desiredCounterpartyComment,
+            String institutionCode,
+            String counterparty,
             LocalDate today
     ) {
+        validateInstitutionAtIntake(institutionCode, counterparty);
         validateOrderTypeOperation(orderType, orderOperation);
         validateTenorNoticePeriod(orderType, tenor, noticePeriod);
         validateSourceContractNumber(orderOperation, sourceContractNumber);
@@ -114,6 +130,7 @@ public class MoneyMarketOrder {
         return new MoneyMarketOrder(
                 UUID.randomUUID(),
                 Objects.requireNonNull(externalOrderReference),
+                legalEntityCode,
                 orderType,
                 orderOperation,
                 Objects.requireNonNull(portfolioNumber),
@@ -124,11 +141,45 @@ public class MoneyMarketOrder {
                 tenor,
                 noticePeriod,
                 sourceContractNumber,
-                desiredCounterpartyComment,
+                institutionCode,
+                counterparty,
                 OrderStatus.RECEIVED,
                 null,
                 now
         );
+    }
+
+    public static MoneyMarketOrder createHubSideFromRouting(RoutedHubOrderDraft draft, LocalDate today) {
+        Instant now = Instant.now();
+        BigDecimal minimumRateScaled =
+                draft.minimumRate() == null
+                        ? null
+                        : draft.minimumRate().setScale(8, java.math.RoundingMode.UNNECESSARY);
+        MoneyMarketOrder order =
+                new MoneyMarketOrder(
+                        UUID.randomUUID(),
+                        new ExternalOrderReference(draft.routingId().value().toString()),
+                        draft.hubLegalEntityCode(),
+                        draft.orderType(),
+                        draft.orderOperation(),
+                        draft.portfolioNumber(),
+                        draft.currency(),
+                        draft.amount().setScale(2, java.math.RoundingMode.UNNECESSARY),
+                        draft.valueDate(),
+                        minimumRateScaled,
+                        draft.tenor(),
+                        draft.noticePeriod(),
+                        draft.sourceContractNumber(),
+                        draft.institutionCode(),
+                        draft.counterparty(),
+                        OrderStatus.RECEIVED,
+                        null,
+                        now);
+        order.routingId = draft.routingId();
+        order.originatingLegalEntityCode = draft.originatingLegalEntityCode();
+        order.originatingExternalOrderReference = draft.originatingExternalOrderReference();
+        order.clientCounterpartyAccount = draft.clientCounterpartyAccount();
+        return order;
     }
 
     // ── Reconstitution (persistence layer only) ───────────────────────────────
@@ -136,6 +187,7 @@ public class MoneyMarketOrder {
     public static MoneyMarketOrder reconstitute(
             java.util.UUID id,
             ExternalOrderReference externalOrderReference,
+            LegalEntityCode legalEntityCode,
             OrderType orderType,
             OrderOperation orderOperation,
             PortfolioNumber portfolioNumber,
@@ -146,7 +198,54 @@ public class MoneyMarketOrder {
             Tenor tenor,
             NoticePeriod noticePeriod,
             ContractNumber sourceContractNumber,
-            String desiredCounterpartyComment,
+            String institutionCode,
+            String counterparty,
+            OrderStatus status,
+            Assignment assignment,
+            ExecutionDetails executionDetails,
+            String rejectionReason,
+            RejectionOrigin rejectionOrigin,
+            HandoffStatus handoffStatus,
+            RoutingId routingId,
+            LegalEntityCode originatingLegalEntityCode,
+            ExternalOrderReference originatingExternalOrderReference,
+            Instant createdAt,
+            Instant updatedAt
+    ) {
+        MoneyMarketOrder order = new MoneyMarketOrder(
+                id, externalOrderReference, legalEntityCode, orderType, orderOperation,
+                portfolioNumber, currency, amount, valueDate, minimumRate,
+                tenor, noticePeriod, sourceContractNumber, institutionCode, counterparty,
+                status, handoffStatus, createdAt
+        );
+        order.assignment = assignment;
+        order.executionDetails = executionDetails;
+        order.rejectionReason = rejectionReason;
+        order.rejectionOrigin = rejectionOrigin;
+        order.routingId = routingId;
+        order.originatingLegalEntityCode = originatingLegalEntityCode;
+        order.originatingExternalOrderReference = originatingExternalOrderReference;
+        order.updatedAt = updatedAt;
+        return order;
+    }
+
+    /** @deprecated use overload with routing fields */
+    public static MoneyMarketOrder reconstitute(
+            java.util.UUID id,
+            ExternalOrderReference externalOrderReference,
+            LegalEntityCode legalEntityCode,
+            OrderType orderType,
+            OrderOperation orderOperation,
+            PortfolioNumber portfolioNumber,
+            String currency,
+            java.math.BigDecimal amount,
+            java.time.LocalDate valueDate,
+            java.math.BigDecimal minimumRate,
+            Tenor tenor,
+            NoticePeriod noticePeriod,
+            ContractNumber sourceContractNumber,
+            String institutionCode,
+            String counterparty,
             OrderStatus status,
             Assignment assignment,
             ExecutionDetails executionDetails,
@@ -155,17 +254,98 @@ public class MoneyMarketOrder {
             Instant createdAt,
             Instant updatedAt
     ) {
-        MoneyMarketOrder order = new MoneyMarketOrder(
-                id, externalOrderReference, orderType, orderOperation,
+        return reconstitute(
+                id, externalOrderReference, legalEntityCode, orderType, orderOperation,
                 portfolioNumber, currency, amount, valueDate, minimumRate,
-                tenor, noticePeriod, sourceContractNumber, desiredCounterpartyComment,
-                status, handoffStatus, createdAt
-        );
-        order.assignment = assignment;
-        order.executionDetails = executionDetails;
-        order.rejectionReason = rejectionReason;
-        order.updatedAt = updatedAt;
-        return order;
+                tenor, noticePeriod, sourceContractNumber, institutionCode, counterparty,
+                status, assignment, executionDetails, rejectionReason, null, handoffStatus,
+                null, null, null, createdAt, updatedAt);
+    }
+
+    // ── Routing lifecycle (client-side) ─────────────────────────────────────
+
+    public void markRouted(RoutingId linkRoutingId, Instant now) {
+        Objects.requireNonNull(linkRoutingId, "routingId must not be null");
+        this.status = this.status.transitionTo(OrderStatus.ROUTED, OrderLifecycleKind.ROUTED_CLIENT);
+        this.routingId = linkRoutingId;
+        this.updatedAt = now;
+    }
+
+    /**
+     * Apply a leg-B {@code ACCEPTED} outcome to a remote client-side order. Spec: {@code
+     * money-market-order-lifecycle} / silence-is-never-terminal — leg B is the authoritative
+     * lifecycle mirror; it closes {@code Received→Routed} using the same domain transition as leg
+     * A, with no new {@link OrderStatus} value. The apply is idempotent: if the order is already
+     * {@code ROUTED} (leg A delivered first), this is a no-op ack (benign redundancy); any other
+     * state is an error (mismatched terminal under at-least-once Kafka) — silence never
+     * auto-terminalizes a remote {@code Received} order.
+     */
+    public void applyAcceptedFromLegB(RoutingId linkRoutingId, Instant now) {
+        Objects.requireNonNull(linkRoutingId, "routingId must not be null");
+        Objects.requireNonNull(now, "now must not be null");
+        if (this.status == OrderStatus.ROUTED) {
+            // Idempotent ack only when the routingId matches the one already routed. A mismatched
+            // routingId means the leg-B event targets the wrong order (poisoned / mis-routed under
+            // at-least-once Kafka) — surface it, never silently swallow. (RoutingId is deterministic
+            // from the order id, so this only fires on genuine corruption / mis-sequencing.)
+            if (!linkRoutingId.equals(this.routingId)) {
+                throw new InvalidStatusTransitionException(
+                        "leg-B ACCEPTED carries routingId " + linkRoutingId
+                                + " but order is already ROUTED under routingId " + this.routingId
+                                + "; possible poisoned or mis-routed event");
+            }
+            return;
+        }
+        if (this.status != OrderStatus.RECEIVED) {
+            throw new InvalidStatusTransitionException(this.status, OrderStatus.ROUTED);
+        }
+        this.status = this.status.transitionTo(OrderStatus.ROUTED, OrderLifecycleKind.ROUTED_CLIENT);
+        this.routingId = linkRoutingId;
+        this.updatedAt = now;
+    }
+
+    public void propagateExecutionFromHub(
+            ExecutionDetails hubExecution,
+            String clientViaCounterparty,
+            ContractNumber clientContractNumber,
+            Instant now) {
+        Objects.requireNonNull(hubExecution, "hubExecution must not be null");
+        this.status = this.status.transitionTo(OrderStatus.EXECUTED, OrderLifecycleKind.ROUTED_CLIENT);
+        this.executionDetails =
+                new ExecutionDetails(
+                        hubExecution.executedRate(),
+                        clientViaCounterparty,
+                        hubExecution.institutionCode(),
+                        hubExecution.executionTime(),
+                        hubExecution.dealingReference(),
+                        clientContractNumber != null ? clientContractNumber : hubExecution.generatedContractNumber());
+        this.updatedAt = now;
+    }
+
+    public void propagateRejectFromHub(String reason, Instant now) {
+        Objects.requireNonNull(reason, "reason must not be null");
+        this.status = this.status.transitionTo(OrderStatus.REJECTED, OrderLifecycleKind.ROUTED_CLIENT);
+        this.rejectionReason = reason.trim();
+        this.rejectionOrigin = RejectionOrigin.TRADER;
+        this.updatedAt = now;
+    }
+
+    public void propagateCancelFromHub(Instant now) {
+        this.status = this.status.transitionTo(OrderStatus.CANCELLED, OrderLifecycleKind.ROUTED_CLIENT);
+        this.updatedAt = now;
+    }
+
+    public boolean isRoutedClientSide() {
+        return routingId != null && originatingLegalEntityCode == null;
+    }
+
+    public boolean isHubSideRoutedLink() {
+        return routingId != null && originatingLegalEntityCode != null;
+    }
+
+    /** Propagated client-side EXECUTED must not schedule a back-office outbox row. */
+    public boolean suppressesExecutionHandoff() {
+        return isRoutedClientSide() && status == OrderStatus.EXECUTED;
     }
 
     // ── Lifecycle methods ─────────────────────────────────────────────────────
@@ -217,6 +397,22 @@ public class MoneyMarketOrder {
     public void execute(
             BigDecimal executedRate,
             String counterparty,
+            String institutionCode,
+            DealingReference dealingReference,
+            ContractNumber generatedContractNumber,
+            TraderId requestingTraderId,
+            Instant now
+    ) {
+        execute(executedRate, counterparty, institutionCode, null, dealingReference, generatedContractNumber,
+                requestingTraderId, now);
+    }
+
+    /** Executes and stamps the counterparty account snapshot for the order's OrderType. */
+    public void execute(
+            BigDecimal executedRate,
+            String counterparty,
+            String institutionCode,
+            String counterpartyAccount,
             DealingReference dealingReference,
             ContractNumber generatedContractNumber,
             TraderId requestingTraderId,
@@ -239,9 +435,25 @@ public class MoneyMarketOrder {
         }
         this.status = this.status.transitionTo(OrderStatus.EXECUTED);
         this.executionDetails = new ExecutionDetails(
-                executedRate, counterparty, now, dealingReference, generatedContractNumber
-        );
+                executedRate, counterparty, institutionCode, now, dealingReference, generatedContractNumber);
+        this.counterpartyAccount = counterpartyAccount;
         this.updatedAt = now;
+    }
+
+    /** Persistence layer only: rehydrates the counterparty account snapshots. */
+    public void restoreCounterpartyAccounts(String counterpartyAccount, String clientCounterpartyAccount) {
+        this.counterpartyAccount = counterpartyAccount;
+        this.clientCounterpartyAccount = clientCounterpartyAccount;
+    }
+
+    /** The owning LegalEntity's counterparty account for the OrderType, stamped at execute. */
+    public String getCounterpartyAccount() {
+        return counterpartyAccount;
+    }
+
+    /** Hub-side routed orders: the client's counterparty account, snapshotted at routing. */
+    public String getClientCounterpartyAccount() {
+        return clientCounterpartyAccount;
     }
 
     /**
@@ -286,7 +498,8 @@ public class MoneyMarketOrder {
     }
 
     /**
-     * Reject from RECEIVED (any Trader) or ASSIGNED (assigned Trader only).
+     * Reject from RECEIVED (any Trader) or ASSIGNED (assigned Trader only). A desk decision —
+     * records {@link RejectionOrigin#TRADER}.
      */
     public void reject(TraderId requestingTraderId, String reason, Instant now) {
         Objects.requireNonNull(requestingTraderId);
@@ -307,6 +520,27 @@ public class MoneyMarketOrder {
             throw new InvalidStatusTransitionException(this.status, OrderStatus.REJECTED);
         }
         this.rejectionReason = trimmed;
+        this.rejectionOrigin = RejectionOrigin.TRADER;
+        this.updatedAt = now;
+    }
+
+    /**
+     * Reject because the route itself failed — no hub-side order lifecycle exists or the route
+     * never completed (unresolved global account, delegated-grant/enabled-set violation at local
+     * intake, unresolved external identity account, or a leg-A HTTP reject closing the client-side
+     * order). Records {@link RejectionOrigin#ROUTING_FAILURE}. System-originated: no Trader
+     * authorization applies.
+     */
+    public void rejectAsRoutingFailure(String reason, Instant now) {
+        Objects.requireNonNull(reason, "reason must not be null");
+        Objects.requireNonNull(now, "now must not be null");
+        String trimmed = reason.trim();
+        if (trimmed.isEmpty()) {
+            throw new InvalidOrderException("reason is required");
+        }
+        this.status = this.status.transitionTo(OrderStatus.REJECTED);
+        this.rejectionReason = trimmed;
+        this.rejectionOrigin = RejectionOrigin.ROUTING_FAILURE;
         this.updatedAt = now;
     }
 
@@ -365,10 +599,23 @@ public class MoneyMarketOrder {
         }
     }
 
+    private static void validateInstitutionAtIntake(String institutionCode, String counterparty) {
+        if (institutionCode == null || institutionCode.isBlank()) {
+            throw new InvalidOrderException("institutionCode is required");
+        }
+        if (institutionCode.length() > 32) {
+            throw new InvalidOrderException("institutionCode must not exceed 32 characters");
+        }
+        if (counterparty == null || counterparty.isBlank()) {
+            throw new InvalidOrderException("counterparty is required");
+        }
+    }
+
     // ── Getters ───────────────────────────────────────────────────────────────
 
     public UUID getId() { return id; }
     public ExternalOrderReference getExternalOrderReference() { return externalOrderReference; }
+    public LegalEntityCode getLegalEntityCode() { return legalEntityCode; }
     public OrderType getOrderType() { return orderType; }
     public OrderOperation getOrderOperation() { return orderOperation; }
     public PortfolioNumber getPortfolioNumber() { return portfolioNumber; }
@@ -379,12 +626,24 @@ public class MoneyMarketOrder {
     public Tenor getTenor() { return tenor; }
     public NoticePeriod getNoticePeriod() { return noticePeriod; }
     public ContractNumber getSourceContractNumber() { return sourceContractNumber; }
-    public String getDesiredCounterpartyComment() { return desiredCounterpartyComment; }
+    public String getInstitutionCode() {
+        return executionDetails != null ? executionDetails.institutionCode() : institutionCode;
+    }
+
+    public String getCounterparty() {
+        return executionDetails != null ? executionDetails.counterparty() : counterparty;
+    }
     public OrderStatus getStatus() { return status; }
     public Assignment getAssignment() { return assignment; }
     public ExecutionDetails getExecutionDetails() { return executionDetails; }
     public String getRejectionReason() { return rejectionReason; }
+    public RejectionOrigin getRejectionOrigin() { return rejectionOrigin; }
     public HandoffStatus getHandoffStatus() { return handoffStatus; }
+    public RoutingId getRoutingId() { return routingId; }
+    public LegalEntityCode getOriginatingLegalEntityCode() { return originatingLegalEntityCode; }
+    public ExternalOrderReference getOriginatingExternalOrderReference() {
+        return originatingExternalOrderReference;
+    }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
 }

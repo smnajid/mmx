@@ -1,5 +1,6 @@
 export enum OrderStatus {
   RECEIVED = 'RECEIVED',
+  ROUTED = 'ROUTED',
   ASSIGNED = 'ASSIGNED',
   EXECUTED = 'EXECUTED',
   ACCOUNTED = 'ACCOUNTED',

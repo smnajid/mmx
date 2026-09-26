@@ -1,0 +1,291 @@
+package com.mmx.order.contract;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Test;
+import org.yaml.snakeyaml.Yaml;
+
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+/**
+ * Lightweight unit checks that OpenAPI and AsyncAPI contract specimens stay in sync
+ * with golden fixtures and codegen output. No Spring context, no Testcontainers.
+ *
+ * <ul>
+ *   <li>AsyncAPI ↔ canonical JSON Schema: required fields and property keys must match.</li>
+ *   <li>OpenAPI codegen: generated {@code OrderSummaryResponse} must expose {@code handoffStatus}
+ *       and the generated {@code HandoffStatus} enum must declare all three contract values.</li>
+ * </ul>
+ */
+@Tag("integration")
+class ContractSyncVerificationTest {
+
+    private static final String ASYNCAPI_CONTRACT_RELATIVE =
+            "../../contracts/002-trader-orders-views/asyncapi.yaml";
+
+    private static final ObjectMapper JSON = new ObjectMapper();
+
+    @Test
+    void asyncApiOrderExecutedV1_payloadRef_pointsAtCanonicalSchemaFile() throws Exception {
+        assertAsyncApiMessagePayloadRef("OrderExecutedV1", "./schemas/OrderExecutedV1.json");
+    }
+
+    @Test
+    void asyncApiOnCallRateUpdatedV1_payloadRef_pointsAtCanonicalSchemaFile() throws Exception {
+        assertAsyncApiMessagePayloadRef("OnCallRateUpdatedV1", "./schemas/OnCallRateUpdatedV1.json");
+    }
+
+    @Test
+    void asyncApiOnCallRateCanceledV1_payloadRef_pointsAtCanonicalSchemaFile() throws Exception {
+        assertAsyncApiMessagePayloadRef("OnCallRateCanceledV1", "./schemas/OnCallRateCanceledV1.json");
+    }
+
+    @Test
+    void asyncApiOrderExecutedV1_classpathSchemaRequired_matchesCanonicalFile() throws Exception {
+        assertClasspathSchemaMatchesCanonicalFile("OrderExecutedV1.json");
+    }
+
+    @Test
+    void asyncApiOnCallRateUpdatedV1_classpathSchemaRequired_matchesCanonicalFile() throws Exception {
+        assertClasspathSchemaMatchesCanonicalFile("OnCallRateUpdatedV1.json");
+    }
+
+    @Test
+    void asyncApiOnCallRateCanceledV1_classpathSchemaRequired_matchesCanonicalFile() throws Exception {
+        assertClasspathSchemaMatchesCanonicalFile("OnCallRateCanceledV1.json");
+    }
+
+    @Test
+    void asyncApiOrderExecutedV1_classpathSchemaProperties_matchesCanonicalFile() throws Exception {
+        assertClasspathSchemaPropertiesMatchCanonicalFile("OrderExecutedV1.json");
+    }
+
+    @Test
+    void asyncApiOnCallRateUpdatedV1_classpathSchemaProperties_matchesCanonicalFile() throws Exception {
+        assertClasspathSchemaPropertiesMatchCanonicalFile("OnCallRateUpdatedV1.json");
+    }
+
+    @Test
+    void asyncApiOnCallRateCanceledV1_classpathSchemaProperties_matchesCanonicalFile() throws Exception {
+        assertClasspathSchemaPropertiesMatchCanonicalFile("OnCallRateCanceledV1.json");
+    }
+
+    @Test
+    void asyncApiRoutingOutcomeV1_payloadRef_pointsAtCanonicalSchemaFile() throws Exception {
+        assertCrossOrgAsyncApiMessagePayloadRef("RoutingOutcomeV1", "./schemas/RoutingOutcomeV1.json");
+    }
+
+    @Test
+    void asyncApiRoutingOutcomeV1_canonicalSchema_hasRequiredDiscriminatorFields() throws Exception {
+        Path schemaPath = resolveCrossOrgSchemaPath("RoutingOutcomeV1.json");
+        JsonNode schema = JSON.readTree(Files.readString(schemaPath));
+
+        Set<String> required = new HashSet<>();
+        schema.path("required").forEach(n -> required.add(n.asText()));
+
+        assertThat(required)
+                .as("RoutingOutcomeV1 schema must require eventType, outcomeType, originatingLegalEntityCode, routingId, occurredAt")
+                .containsExactlyInAnyOrder(
+                        "eventType", "outcomeType", "originatingLegalEntityCode", "routingId", "occurredAt");
+    }
+
+    @Test
+    void asyncApiRoutingOutcomeV1_canonicalSchema_outcomeTypeEnum_isBackwardCompatible() throws Exception {
+        Path schemaPath = resolveCrossOrgSchemaPath("RoutingOutcomeV1.json");
+        JsonNode schema = JSON.readTree(Files.readString(schemaPath));
+
+        Set<String> outcomeValues = new HashSet<>();
+        schema.path("properties").path("outcomeType").path("enum").forEach(n -> outcomeValues.add(n.asText()));
+
+        assertThat(outcomeValues)
+                .as("RoutingOutcomeV1 outcomeType enum must be the original four values (backward-compatible)")
+                .containsExactlyInAnyOrder("ACCEPTED", "EXECUTED", "CANCELLED", "REJECTED");
+    }
+
+    @Test
+    void openApiCodegen_orderSummaryResponse_exposesHandoffStatusGetter() throws Exception {
+        Class<?> responseClass = Class.forName(
+                "com.mmx.order.adapter.in.rest.generated.model.OrderSummaryResponse");
+        java.lang.reflect.Method getter = responseClass.getMethod("getHandoffStatus");
+        assertThat(getter)
+                .as("OrderSummaryResponse generated by OpenAPI codegen must have getHandoffStatus()")
+                .isNotNull();
+    }
+
+    @Test
+    void openApiCodegen_handoffStatus_declaresExactContractEnumValues() throws Exception {
+        Class<?> handoffStatusClass = Class.forName(
+                "com.mmx.order.adapter.in.rest.generated.model.HandoffStatus");
+        assertThat(handoffStatusClass.isEnum())
+                .as("HandoffStatus generated by OpenAPI codegen must be an enum")
+                .isTrue();
+
+        Set<String> enumConstants = new HashSet<>();
+        for (Object constant : handoffStatusClass.getEnumConstants()) {
+            enumConstants.add(((Enum<?>) constant).name());
+        }
+        assertThat(enumConstants)
+                .as("HandoffStatus enum must declare exactly PENDING, PUBLISHED, FAILED per OpenAPI contract")
+                .containsExactlyInAnyOrder("PENDING", "PUBLISHED", "FAILED");
+    }
+
+    private void assertAsyncApiMessagePayloadRef(String messageName, String expectedRef) throws Exception {
+        Map<String, Object> asyncApiDoc = loadAsyncApiYaml();
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> messages = (Map<String, Object>)
+                ((Map<String, Object>) asyncApiDoc.get("components")).get("messages");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> message = (Map<String, Object>) messages.get(messageName);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> payload = (Map<String, Object>) message.get("payload");
+
+        assertThat(payload.get("$ref"))
+                .as("AsyncAPI %s payload must reference external canonical schema", messageName)
+                .isEqualTo(expectedRef);
+    }
+
+    private void assertCrossOrgAsyncApiMessagePayloadRef(String messageName, String expectedRef) throws Exception {
+        Map<String, Object> asyncApiDoc = loadCrossOrgAsyncApiYaml();
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> messages = (Map<String, Object>)
+                ((Map<String, Object>) asyncApiDoc.get("components")).get("messages");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> message = (Map<String, Object>) messages.get(messageName);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> payload = (Map<String, Object>) message.get("payload");
+
+        assertThat(payload.get("$ref"))
+                .as("AsyncAPI %s payload must reference external canonical schema", messageName)
+                .isEqualTo(expectedRef);
+    }
+
+    private void assertClasspathSchemaMatchesCanonicalFile(String schemaFileName) throws Exception {
+        JsonNode classpathSchema = loadClasspathSchema(schemaFileName);
+        JsonNode fileSchema = loadCanonicalSchemaFile(schemaFileName);
+
+        Set<String> classpathRequired = new HashSet<>();
+        classpathSchema.path("required").forEach(n -> classpathRequired.add(n.asText()));
+
+        Set<String> fileRequired = new HashSet<>();
+        fileSchema.path("required").forEach(n -> fileRequired.add(n.asText()));
+
+        assertThat(classpathRequired)
+                .as("classpath schema 'required' must match canonical %s on disk", schemaFileName)
+                .containsExactlyInAnyOrderElementsOf(fileRequired);
+    }
+
+    private void assertClasspathSchemaPropertiesMatchCanonicalFile(String schemaFileName) throws Exception {
+        JsonNode classpathSchema = loadClasspathSchema(schemaFileName);
+        JsonNode fileSchema = loadCanonicalSchemaFile(schemaFileName);
+
+        Set<String> classpathProperties = new HashSet<>();
+        classpathSchema.path("properties").fieldNames().forEachRemaining(classpathProperties::add);
+
+        Set<String> fileProperties = new HashSet<>();
+        fileSchema.path("properties").fieldNames().forEachRemaining(fileProperties::add);
+
+        assertThat(classpathProperties)
+                .as("classpath schema 'properties' keys must match canonical %s on disk", schemaFileName)
+                .containsExactlyInAnyOrderElementsOf(fileProperties);
+    }
+
+    private JsonNode loadClasspathSchema(String schemaFileName) throws Exception {
+        String classpath = "/contracts/" + schemaFileName;
+        try (InputStream in = getClass().getResourceAsStream(classpath)) {
+            Objects.requireNonNull(in, "Missing classpath schema " + classpath);
+            return JSON.readTree(in);
+        }
+    }
+
+    private JsonNode loadCanonicalSchemaFile(String schemaFileName) throws Exception {
+        Path schemaPath = resolveSchemaPath(schemaFileName);
+        return JSON.readTree(Files.readString(schemaPath));
+    }
+
+    private Map<String, Object> loadAsyncApiYaml() throws Exception {
+        Path contractPath = resolveAsyncApiPath();
+        try (InputStream in = Files.newInputStream(contractPath)) {
+            return new Yaml().load(in);
+        }
+    }
+
+    private Path resolveSchemaPath(String schemaFileName) {
+        Path candidate =
+                Paths.get("../../contracts/002-trader-orders-views/schemas/" + schemaFileName)
+                        .toAbsolutePath()
+                        .normalize();
+        if (Files.exists(candidate)) {
+            return candidate;
+        }
+        Path dir = Paths.get("").toAbsolutePath();
+        while (dir != null) {
+            Path target = dir.resolve("contracts/002-trader-orders-views/schemas/" + schemaFileName);
+            if (Files.exists(target)) {
+                return target;
+            }
+            dir = dir.getParent();
+        }
+        throw new IllegalStateException("Cannot locate canonical schema. Searched: " + candidate);
+    }
+
+    private Path resolveAsyncApiPath() {
+        Path candidate = Paths.get(ASYNCAPI_CONTRACT_RELATIVE).toAbsolutePath().normalize();
+        if (Files.exists(candidate)) {
+            return candidate;
+        }
+        Path dir = Paths.get("").toAbsolutePath();
+        while (dir != null) {
+            Path target = dir.resolve("contracts/002-trader-orders-views/asyncapi.yaml");
+            if (Files.exists(target)) {
+                return target;
+            }
+            dir = dir.getParent();
+        }
+        throw new IllegalStateException(
+                "Cannot locate contracts/002-trader-orders-views/asyncapi.yaml. "
+                        + "Searched relative path: " + candidate);
+    }
+
+    private Map<String, Object> loadCrossOrgAsyncApiYaml() throws Exception {
+        Path contractPath = resolveCrossOrgAsyncApiPath();
+        try (InputStream in = Files.newInputStream(contractPath)) {
+            return new Yaml().load(in);
+        }
+    }
+
+    private Path resolveCrossOrgAsyncApiPath() {
+        Path dir = Paths.get("").toAbsolutePath();
+        while (dir != null) {
+            Path target = dir.resolve("contracts/007-cross-org-routing/asyncapi.yaml");
+            if (Files.exists(target)) {
+                return target;
+            }
+            dir = dir.getParent();
+        }
+        throw new IllegalStateException("Cannot locate contracts/007-cross-org-routing/asyncapi.yaml");
+    }
+
+    private Path resolveCrossOrgSchemaPath(String schemaFileName) {
+        Path dir = Paths.get("").toAbsolutePath();
+        while (dir != null) {
+            Path target = dir.resolve("contracts/007-cross-org-routing/schemas/" + schemaFileName);
+            if (Files.exists(target)) {
+                return target;
+            }
+            dir = dir.getParent();
+        }
+        throw new IllegalStateException("Cannot locate contracts/007-cross-org-routing/schemas/" + schemaFileName);
+    }
+}

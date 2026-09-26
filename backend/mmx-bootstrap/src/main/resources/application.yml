@@ -23,6 +23,12 @@ spring:
     bootstrap-servers: localhost:19092
     producer:
       acks: all
+    consumer:
+      # Leg-B routed-order-outcome consumer (client deployments only). Values are JSON strings
+      # decoded manually by RoutingOutcomeV1Consumer, so StringDeserializer on both key and value.
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
 
 server:
   port: 8080
@@ -37,7 +43,7 @@ management:
       show-details: always
 
 springdoc:
-  # Serve only the canonical contract (same file as OpenAPI Generator input); avoids runtime scan drift vs specs/002-trader-orders-views/contracts/openapi.yaml
+  # Serve only the canonical contract (same file as OpenAPI Generator input); avoids runtime scan drift vs contracts/002-trader-orders-views/openapi.yaml
   api-docs:
     enabled: false
   swagger-ui:
@@ -45,9 +51,23 @@ springdoc:
     url: /openapi.yaml
 
 mmx:
+  organisation:
+    code: LODH
   backoffice:
     kafka:
       topic: mmx.order.executed
+    outbox:
+      relay-enabled: true
+      max-publish-attempts: 5
+      poll-interval-ms: 1000
+  oncall:
+    kafka:
+      topic: mmx.oncall.rate.handoff
+    outbox:
+      relay-enabled: true
+      max-publish-attempts: 5
+      poll-interval-ms: 1000
+  routing-outcome:
     outbox:
       relay-enabled: true
       max-publish-attempts: 5

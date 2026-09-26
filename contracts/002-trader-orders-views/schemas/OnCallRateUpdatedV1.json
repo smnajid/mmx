@@ -1,0 +1,49 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://mmx.local/schemas/OnCallRateUpdatedV1.json",
+  "title": "OnCallRateUpdatedV1",
+  "description": "Thin OnCall rate handoff DTO frozen at schedule time; idempotent on segmentId. Canonical schema for AsyncAPI and Schema Registry.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "eventType",
+    "segmentId",
+    "institution",
+    "currency",
+    "noticePeriod",
+    "rate",
+    "valueDate"
+  ],
+  "properties": {
+    "eventType": {
+      "type": "string",
+      "const": "OnCallRateUpdatedV1"
+    },
+    "segmentId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "institution": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 32,
+      "description": "Institution catalog code (institutionCode)."
+    },
+    "currency": {
+      "type": "string",
+      "minLength": 1
+    },
+    "noticePeriod": {
+      "type": "string",
+      "enum": ["24H", "48H"]
+    },
+    "rate": {
+      "type": "number"
+    },
+    "valueDate": {
+      "type": "string",
+      "format": "date",
+      "description": "Inclusive segment start date."
+    }
+  }
+}

@@ -28,6 +28,9 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.serialization.StringDeserializer;
+import com.mmx.order.support.SharedKafkaTestBroker;
+import com.mmx.order.support.SharedPostgresTestBase;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -37,11 +40,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.kafka.KafkaContainer;
-import org.testcontainers.postgresql.PostgreSQLContainer;
-import org.testcontainers.utility.DockerImageName;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
@@ -51,13 +49,13 @@ import static org.awaitility.Awaitility.await;
  * validates the AsyncAPI OrderExecutedV1 JSON Schema mirror, then assert the relay publishes the same
  * bytes to Kafka (Testcontainers) with record key = orderId.
  */
-@Testcontainers(disabledWithoutDocker = true)
+@Tag("e2e")
 @SpringBootTest(classes = MmxApplication.class, webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("rest-test")
-class ExecutionHandoffKafkaIntegrationTest {
+class ExecutionHandoffKafkaIntegrationTest extends SharedPostgresTestBase {
 
     private static final String TRADER = "trader-handoff-it-1";
-    private static final String SCHEMA_PATH = "/contracts/order-executed-v1-payload.schema.json";
+    private static final String SCHEMA_PATH = "/contracts/OrderExecutedV1.json";
 
     private static volatile JsonSchema orderExecutedPayloadSchema;
 
@@ -65,13 +63,6 @@ class ExecutionHandoffKafkaIntegrationTest {
             HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
 
     private final ObjectMapper objectMapper = new ObjectMapper();
-
-    @Container
-    static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:16-alpine");
-
-    @Container
-    static final KafkaContainer KAFKA =
-            new KafkaContainer(DockerImageName.parse("apache/kafka-native:3.8.1"));
 
     @LocalServerPort
     private int port;
@@ -84,11 +75,7 @@ class ExecutionHandoffKafkaIntegrationTest {
 
     @DynamicPropertySource
     static void registerContainers(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
-        registry.add("spring.datasource.username", POSTGRES::getUsername);
-        registry.add("spring.datasource.password", POSTGRES::getPassword);
-        registry.add("spring.datasource.driver-class-name", () -> "org.postgresql.Driver");
-        registry.add("spring.kafka.bootstrap-servers", KAFKA::getBootstrapServers);
+        registry.add("spring.kafka.bootstrap-servers", SharedKafkaTestBroker::bootstrapServers);
         registry.add("mmx.backoffice.outbox.relay-enabled", () -> "true");
         registry.add("mmx.backoffice.outbox.poll-interval-ms", () -> "100");
     }
@@ -112,7 +99,7 @@ class ExecutionHandoffKafkaIntegrationTest {
         HttpResponse<String> executed =
                 postJson(
                         "/api/v1/orders/" + orderId + "/execute",
-                        "{\"executedRate\":3.5,\"counterparty\":\"BankCo International\"}",
+                        com.mmx.order.support.RestTestInstitutions.bankCoExecuteJson(3.5),
                         TRADER);
         assertThat(executed.statusCode()).isEqualTo(200);
 
@@ -122,14 +109,13 @@ class ExecutionHandoffKafkaIntegrationTest {
                                 .as("outbox row exists after EXECUTED commits")
                                 .isEqualTo(1));
 
+        // Outbox-row payload shape is asserted at persistence level by
+        // ExecutionHandoffOutboxAdapterIntegrationTest; this e2e remains the Kafka acceptance lock:
+        // the relay flips the row to SENT and publishes the exact stored bytes keyed by orderId.
         String storedPayload =
                 jdbcTemplate.queryForObject(
                         "SELECT payload FROM back_office_outbox WHERE order_id = ?", String.class, orderUuid);
         assertThat(storedPayload).isNotBlank();
-        JsonNode payloadNode = objectMapper.readTree(storedPayload);
-        assertPayloadValidates(payloadSchema, payloadNode);
-        assertThat(payloadNode.path("orderId").asText()).isEqualTo(orderId);
-        assertThat(payloadNode.path("externalOrderReference").asText()).isEqualTo(externalRef);
 
         await().atMost(Duration.ofSeconds(45))
                 .pollInterval(Duration.ofMillis(150))
@@ -140,7 +126,7 @@ class ExecutionHandoffKafkaIntegrationTest {
                         "SELECT payload FROM back_office_outbox WHERE order_id = ?", String.class, orderUuid);
         assertThat(persistedPayloadAfterSend).isEqualTo(storedPayload);
 
-        Properties consumerProps = kafkaConsumerProps(KAFKA.getBootstrapServers());
+        Properties consumerProps = kafkaConsumerProps(SharedKafkaTestBroker.bootstrapServers());
         try (KafkaConsumer<String, String> consumer = new KafkaConsumer<>(consumerProps)) {
             consumer.subscribe(Collections.singletonList(backOfficeExecutedTopic));
             ConsumerRecord<String, String> record =
@@ -230,7 +216,7 @@ class ExecutionHandoffKafkaIntegrationTest {
                 HttpRequest.newBuilder(baseUri(path))
                         .timeout(Duration.ofSeconds(30))
                         .header("Content-Type", "application/json")
-                        .header("X-Trader-Id", traderId)
+                        .header("X-User-Id", traderId)
                         .POST(HttpRequest.BodyPublishers.ofString(json, StandardCharsets.UTF_8))
                         .build();
         return httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
@@ -240,7 +226,7 @@ class ExecutionHandoffKafkaIntegrationTest {
         HttpRequest request =
                 HttpRequest.newBuilder(baseUri(path))
                         .timeout(Duration.ofSeconds(30))
-                        .header("X-Trader-Id", TRADER)
+                        .header("X-User-Id", TRADER)
                         .POST(HttpRequest.BodyPublishers.noBody())
                         .build();
         return httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
@@ -255,6 +241,7 @@ class ExecutionHandoffKafkaIntegrationTest {
         return """
                 {
                   "externalOrderReference": "%s",
+                  "legalEntityCode": "LOC",
                   "orderType": "TERM",
                   "orderOperation": "SUBSCRIPTION",
                   "portfolioNumber": "PF-HANDOFF-IT",
@@ -262,9 +249,13 @@ class ExecutionHandoffKafkaIntegrationTest {
                   "amount": 5000000.00,
                   "valueDate": "%s",
                   "minimumRate": 3.25,
-                  "tenor": "3M"
+                  "tenor": "3M",
+                  "institutionCode": "%s"
                 }
                 """
-                .formatted(externalOrderReference, valueDate);
+                .formatted(
+                        externalOrderReference,
+                        valueDate,
+                        com.mmx.order.support.RestTestInstitutions.BANKCO_CODE);
     }
 }

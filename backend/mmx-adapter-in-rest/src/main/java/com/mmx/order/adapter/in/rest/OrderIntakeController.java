@@ -4,7 +4,8 @@ import com.mmx.order.adapter.in.rest.generated.api.IntakeApi;
 import com.mmx.order.adapter.in.rest.generated.model.ReceiveOrderRequest;
 import com.mmx.order.adapter.in.rest.generated.model.ReceiveOrderResponse;
 import com.mmx.order.adapter.in.rest.mapper.OrderRestMapper;
-import com.mmx.order.application.port.in.ReceiveOrderUseCase;
+import com.mmx.order.application.command.ReceiveOrderCommand;
+import com.mmx.order.application.port.in.IntakeUseCase;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
@@ -12,11 +13,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class OrderIntakeController implements IntakeApi {
 
-    private final ReceiveOrderUseCase receiveOrderUseCase;
+    private final IntakeUseCase intakeUseCase;
     private final OrderRestMapper orderRestMapper;
 
-    public OrderIntakeController(ReceiveOrderUseCase receiveOrderUseCase, OrderRestMapper orderRestMapper) {
-        this.receiveOrderUseCase = receiveOrderUseCase;
+    public OrderIntakeController(IntakeUseCase intakeUseCase, OrderRestMapper orderRestMapper) {
+        this.intakeUseCase = intakeUseCase;
         this.orderRestMapper = orderRestMapper;
     }
 
@@ -26,8 +27,9 @@ public class OrderIntakeController implements IntakeApi {
      */
     @Override
     public ResponseEntity<ReceiveOrderResponse> receiveOrder(ReceiveOrderRequest receiveOrderRequest) {
-        ReceiveOrderUseCase.Result result = receiveOrderUseCase.receive(orderRestMapper.toCommand(receiveOrderRequest));
-        ReceiveOrderResponse body = orderRestMapper.toReceiveResponse(result);
+        ReceiveOrderCommand command = orderRestMapper.toCommand(receiveOrderRequest);
+        IntakeUseCase.Result result = intakeUseCase.receive(command);
+        ReceiveOrderResponse body = orderRestMapper.toReceiveResponse(result, command.legalEntityCode());
         if (result.newlyCreated()) {
             return ResponseEntity.status(HttpStatus.CREATED).body(body);
         }

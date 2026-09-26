@@ -1,0 +1,84 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://mmx.local/schemas/InstitutionUpdatedV1.json",
+  "title": "InstitutionUpdatedV1",
+  "description": "Institution export: the full exported state of one LegalEntity's institution, frozen at record time. Latest-wins by version per (legalEntityCode, institutionCode). Canonical schema for AsyncAPI and Schema Registry.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "eventId",
+    "eventType",
+    "legalEntityCode",
+    "institutionCode",
+    "displayName",
+    "termCounterpartyAccount",
+    "onCallCounterpartyAccount",
+    "closedToNewBusiness",
+    "changeReason",
+    "version",
+    "occurredAt"
+  ],
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "eventType": {
+      "type": "string",
+      "const": "InstitutionUpdatedV1"
+    },
+    "legalEntityCode": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$",
+      "description": "Owning LegalEntity; the message is published only to mmx.institution.{legalEntityCode}."
+    },
+    "institutionCode": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 32
+    },
+    "displayName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "hubLegalEntityCode": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$",
+      "description": "Client-onboarded institutions only: the linked TradingHub LegalEntity. Absent for a hub-native institution."
+    },
+    "hubInstitutionCode": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 32,
+      "description": "Client-onboarded institutions only: the linked hub-native institution code. Absent for a hub-native institution."
+    },
+    "termCounterpartyAccount": {
+      "type": ["string", "null"],
+      "minLength": 1,
+      "maxLength": 34
+    },
+    "onCallCounterpartyAccount": {
+      "type": ["string", "null"],
+      "minLength": 1,
+      "maxLength": 34
+    },
+    "closedToNewBusiness": {
+      "type": "boolean",
+      "description": "When true, open no new contracts but keep servicing existing ones."
+    },
+    "changeReason": {
+      "type": "string",
+      "enum": ["ONBOARDED", "REONBOARDED", "ACCOUNTS_CHANGED", "OFFBOARDED", "DEACTIVATED", "REACTIVATED"]
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Strictly increasing per (legalEntityCode, institutionCode)."
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

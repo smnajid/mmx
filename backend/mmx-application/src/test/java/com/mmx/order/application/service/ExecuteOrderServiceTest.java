@@ -4,25 +4,37 @@ import com.mmx.order.application.command.ExecuteOrderCommand;
 import com.mmx.order.application.port.out.AuditLogger;
 import com.mmx.order.application.port.out.Clock;
 import com.mmx.order.application.port.out.ExecutionHandoffOutbox;
+import com.mmx.order.application.port.out.ExecutionHandoffRoutingContext;
+import com.mmx.order.domain.model.HubLocality;
+import com.mmx.order.application.port.out.InstitutionRepository;
 import com.mmx.order.application.port.out.OrderRepository;
 import com.mmx.order.application.port.out.ReferenceGenerator;
+import com.mmx.order.application.port.out.RoutedPairLocalityResolver;
+import com.mmx.order.application.port.out.RoutingOutcomeOutbox;
+import com.mmx.order.domain.model.Institution;
+import com.mmx.order.domain.policy.OrderAgainstInstitutionPolicy;
 import com.mmx.order.domain.exception.InvalidOrderException;
 import com.mmx.order.domain.exception.InvalidStatusTransitionException;
 import com.mmx.order.domain.exception.OrderNotFoundException;
+import com.mmx.order.domain.exception.RoutedOrderPairIntegrityException;
 import com.mmx.order.domain.exception.UnauthorizedTraderException;
 import com.mmx.order.domain.model.ContractNumber;
 import com.mmx.order.domain.model.DealingReference;
 import com.mmx.order.domain.model.Assignment;
 import com.mmx.order.domain.model.ExternalOrderReference;
+import com.mmx.order.domain.model.LegalEntityCode;
 import com.mmx.order.domain.model.MoneyMarketOrder;
 import com.mmx.order.domain.model.NoticePeriod;
 import com.mmx.order.domain.model.OrderOperation;
 import com.mmx.order.domain.model.OrderStatus;
 import com.mmx.order.domain.model.OrderType;
 import com.mmx.order.domain.model.PortfolioNumber;
+import com.mmx.order.domain.model.RoutedHubOrderDraft;
+import com.mmx.order.domain.model.RoutingId;
 import com.mmx.order.domain.model.Tenor;
 import com.mmx.order.domain.model.TraderId;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -42,10 +54,14 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.AdditionalAnswers.returnsFirstArg;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import org.mockito.ArgumentCaptor;
+
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+@Tag("fast")
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -75,13 +91,44 @@ class ExecuteOrderServiceTest {
     @Mock
     ExecutionHandoffOutbox executionHandoffOutbox;
 
+    @Mock
+    InstitutionRepository institutionRepository;
+
+    @Mock
+    RoutingOutcomeOutbox routingOutcomeOutbox;
+
+    @Mock
+    RoutedPairLocalityResolver routedPairLocalityResolver;
+
+    private final OrderAgainstInstitutionPolicy institutionPolicy = new OrderAgainstInstitutionPolicy();
+
     @InjectMocks
     ExecuteOrderService subject;
+
+    private static final Institution HSBC =
+            new Institution("HSBC-01", "BankCo International", true);
 
     @BeforeEach
     void freezeClock() {
         when(clock.now()).thenReturn(FIXED_NOW);
         when(clock.today()).thenReturn(TODAY);
+        when(institutionRepository.existsAny()).thenReturn(true);
+        when(institutionRepository.findByInstitutionCode("HSBC-01")).thenReturn(Optional.of(HSBC));
+        // Pairs whose originating client is not classified REMOTE keep the synchronous in-process
+        // propagation (local pair); remote-pair tests override this stub.
+        when(routedPairLocalityResolver.resolve(any())).thenReturn(HubLocality.LOCAL);
+        subject =
+                new ExecuteOrderService(
+                        orderRepository,
+                        institutionRepository,
+                        institutionPolicy,
+                        referenceGenerator,
+                        auditLogger,
+                        clock,
+                        executionHandoffOutbox,
+                        new RoutedOrderOutcomePropagationService(orderRepository, referenceGenerator),
+                        routingOutcomeOutbox,
+                        routedPairLocalityResolver);
     }
 
     @Test
@@ -94,11 +141,7 @@ class ExecuteOrderServiceTest {
         when(referenceGenerator.generateContractNumber()).thenReturn(CONTRACT_REF);
 
         ExecuteOrderCommand command =
-                new ExecuteOrderCommand(
-                        assigned.getId(),
-                        TRADER_A,
-                        new BigDecimal("3.55000000"),
-                        "BankCo International");
+                new ExecuteOrderCommand(assigned.getId(), TRADER_A, new BigDecimal("3.55000000"));
 
         MoneyMarketOrder result = subject.execute(command);
 
@@ -107,11 +150,12 @@ class ExecuteOrderServiceTest {
         assertThat(result.getExecutionDetails().dealingReference()).isEqualTo(DEAL_REF);
         assertThat(result.getExecutionDetails().generatedContractNumber()).isEqualTo(CONTRACT_REF);
         assertThat(result.getExecutionDetails().executionTime()).isEqualTo(FIXED_NOW);
+        assertThat(result.getExecutionDetails().counterparty()).isEqualTo("BankCo International");
         assertThat(result.getHandoffStatus()).isEqualTo(com.mmx.order.domain.model.HandoffStatus.PENDING);
 
         verify(referenceGenerator).generateDealingReference();
         verify(referenceGenerator).generateContractNumber();
-        verify(executionHandoffOutbox).schedule(any(MoneyMarketOrder.class));
+        verify(executionHandoffOutbox).schedule(any(MoneyMarketOrder.class), any());
         verify(auditLogger)
                 .log(
                         eq(assigned.getId()),
@@ -123,28 +167,112 @@ class ExecuteOrderServiceTest {
     @Test
     void execute_missing_executedRate_rejected() {
         UUID id = UUID.randomUUID();
-        ExecuteOrderCommand command = new ExecuteOrderCommand(id, TRADER_A, null, "BankCo");
+        ExecuteOrderCommand command = new ExecuteOrderCommand(id, TRADER_A, null);
 
         assertThatThrownBy(() -> subject.execute(command)).isInstanceOf(InvalidOrderException.class);
 
         verifyNoInteractions(referenceGenerator);
         verify(orderRepository, never()).findById(any());
         verify(auditLogger, never()).log(any(), any(), any(), any());
-        verify(executionHandoffOutbox, never()).schedule(any());
+        verify(executionHandoffOutbox, never()).schedule(any(), any());
     }
 
     @Test
-    void execute_blank_counterparty_rejected() {
+    void execute_orderWithoutInstitutionCode_rejected() {
         UUID id = UUID.randomUUID();
-        ExecuteOrderCommand command =
-                new ExecuteOrderCommand(id, TRADER_A, new BigDecimal("3.55"), "   ");
+        MoneyMarketOrder assigned =
+                MoneyMarketOrder.reconstitute(
+                        id,
+                        new ExternalOrderReference("PM-NO-INST"),
+                        new LegalEntityCode("LOC"),
+                        OrderType.TERM,
+                        OrderOperation.SUBSCRIPTION,
+                        new PortfolioNumber("PF-1"),
+                        "EUR",
+                        new BigDecimal("1000000.00"),
+                        TODAY.plusDays(3),
+                        new BigDecimal("3.25"),
+                        Tenor._3M,
+                        null,
+                        null,
+                        "   ",
+                        "BankCo",
+                        OrderStatus.ASSIGNED,
+                        new Assignment(TRADER_A, FIXED_NOW),
+                        null,
+                        null,
+                        null,
+                        FIXED_NOW,
+                        FIXED_NOW);
+        when(orderRepository.findById(id)).thenReturn(Optional.of(assigned));
+
+        ExecuteOrderCommand command = new ExecuteOrderCommand(id, TRADER_A, new BigDecimal("3.55"));
 
         assertThatThrownBy(() -> subject.execute(command)).isInstanceOf(InvalidOrderException.class);
 
-        verifyNoInteractions(referenceGenerator);
+        verify(orderRepository, never()).save(any());
+        verify(executionHandoffOutbox, never()).schedule(any(), any());
+    }
+
+    @Test
+    void execute_empty_catalog_rejected() {
+        when(institutionRepository.existsAny()).thenReturn(false);
+        ExecuteOrderCommand command =
+                new ExecuteOrderCommand(UUID.randomUUID(), TRADER_A, new BigDecimal("3.55"));
+
+        assertThatThrownBy(() -> subject.execute(command))
+                .isInstanceOf(InvalidOrderException.class)
+                .hasMessageContaining("No institutions onboarded");
+
         verify(orderRepository, never()).findById(any());
-        verify(auditLogger, never()).log(any(), any(), any(), any());
-        verify(executionHandoffOutbox, never()).schedule(any());
+    }
+
+    @Test
+    void execute_unknown_institution_rejected() {
+        MoneyMarketOrder assigned = receivedOrderWithInstitution("NOPE-01", "Unknown Bank");
+        assigned.assign(TRADER_A, FIXED_NOW);
+        when(orderRepository.findById(assigned.getId())).thenReturn(Optional.of(assigned));
+        when(institutionRepository.findByInstitutionCode("NOPE-01")).thenReturn(Optional.empty());
+
+        ExecuteOrderCommand command =
+                new ExecuteOrderCommand(assigned.getId(), TRADER_A, new BigDecimal("3.55"));
+
+        assertThatThrownBy(() -> subject.execute(command))
+                .isInstanceOf(InvalidOrderException.class)
+                .hasMessageContaining("not found");
+    }
+
+    @Test
+    void execute_inactive_institution_rejected() {
+        when(institutionRepository.findByInstitutionCode("HSBC-01"))
+                .thenReturn(Optional.of(new Institution("HSBC-01", "BankCo International", false)));
+        MoneyMarketOrder assigned = receivedOrder();
+        assigned.assign(TRADER_A, FIXED_NOW);
+        when(orderRepository.findById(assigned.getId())).thenReturn(Optional.of(assigned));
+
+        ExecuteOrderCommand command =
+                new ExecuteOrderCommand(assigned.getId(), TRADER_A, new BigDecimal("3.55"));
+
+        assertThatThrownBy(() -> subject.execute(command))
+                .isInstanceOf(InvalidOrderException.class)
+                .hasMessageContaining("not active");
+    }
+
+    @Test
+    void execute_sets_counterparty_from_institution_display_name() {
+        MoneyMarketOrder assigned = receivedOrder();
+        assigned.assign(TRADER_A, FIXED_NOW);
+        when(orderRepository.findById(assigned.getId())).thenReturn(Optional.of(assigned));
+        when(orderRepository.save(any(MoneyMarketOrder.class))).then(returnsFirstArg());
+        when(referenceGenerator.generateDealingReference()).thenReturn(DEAL_REF);
+        when(referenceGenerator.generateContractNumber()).thenReturn(CONTRACT_REF);
+
+        MoneyMarketOrder result =
+                subject.execute(
+                        new ExecuteOrderCommand(assigned.getId(), TRADER_A, new BigDecimal("3.55")));
+
+        assertThat(result.getExecutionDetails().counterparty()).isEqualTo("BankCo International");
+        assertThat(result.getExecutionDetails().institutionCode()).isEqualTo("HSBC-01");
     }
 
     @Test
@@ -156,8 +284,7 @@ class ExecuteOrderServiceTest {
         when(referenceGenerator.generateContractNumber()).thenReturn(CONTRACT_REF);
 
         ExecuteOrderCommand command =
-                new ExecuteOrderCommand(
-                        assigned.getId(), TRADER_B, new BigDecimal("3.55"), "BankCo International");
+                new ExecuteOrderCommand(assigned.getId(), TRADER_B, new BigDecimal("3.55"));
 
         assertThatThrownBy(() -> subject.execute(command)).isInstanceOf(UnauthorizedTraderException.class);
 
@@ -165,7 +292,7 @@ class ExecuteOrderServiceTest {
         verify(referenceGenerator).generateContractNumber();
         verify(orderRepository, never()).save(any());
         verify(auditLogger, never()).log(any(), any(), any(), any());
-        verify(executionHandoffOutbox, never()).schedule(any());
+        verify(executionHandoffOutbox, never()).schedule(any(), any());
     }
 
     @Test
@@ -176,8 +303,7 @@ class ExecuteOrderServiceTest {
         when(referenceGenerator.generateContractNumber()).thenReturn(CONTRACT_REF);
 
         ExecuteOrderCommand command =
-                new ExecuteOrderCommand(
-                        received.getId(), TRADER_A, new BigDecimal("3.55"), "BankCo International");
+                new ExecuteOrderCommand(received.getId(), TRADER_A, new BigDecimal("3.55"));
 
         assertThatThrownBy(() -> subject.execute(command)).isInstanceOf(InvalidStatusTransitionException.class);
 
@@ -185,7 +311,7 @@ class ExecuteOrderServiceTest {
         verify(referenceGenerator).generateContractNumber();
         verify(orderRepository, never()).save(any());
         verify(auditLogger, never()).log(any(), any(), any(), any());
-        verify(executionHandoffOutbox, never()).schedule(any());
+        verify(executionHandoffOutbox, never()).schedule(any(), any());
     }
 
     @Test
@@ -193,12 +319,11 @@ class ExecuteOrderServiceTest {
         UUID id = UUID.randomUUID();
         when(orderRepository.findById(id)).thenReturn(Optional.empty());
 
-        ExecuteOrderCommand command =
-                new ExecuteOrderCommand(id, TRADER_A, new BigDecimal("3.55"), "BankCo International");
+        ExecuteOrderCommand command = new ExecuteOrderCommand(id, TRADER_A, new BigDecimal("3.55"));
 
         assertThatThrownBy(() -> subject.execute(command)).isInstanceOf(OrderNotFoundException.class);
 
-        verify(executionHandoffOutbox, never()).schedule(any());
+        verify(executionHandoffOutbox, never()).schedule(any(), any());
     }
 
     @Test
@@ -210,17 +335,13 @@ class ExecuteOrderServiceTest {
         when(referenceGenerator.generateContractNumber()).thenReturn(CONTRACT_REF);
 
         ExecuteOrderCommand command =
-                new ExecuteOrderCommand(
-                        assigned.getId(),
-                        TRADER_A,
-                        new BigDecimal("3.24000000"),
-                        "BankCo International");
+                new ExecuteOrderCommand(assigned.getId(), TRADER_A, new BigDecimal("3.24000000"));
 
         assertThatThrownBy(() -> subject.execute(command)).isInstanceOf(InvalidOrderException.class);
 
         verify(orderRepository, never()).save(any());
         verify(auditLogger, never()).log(any(), any(), any(), any());
-        verify(executionHandoffOutbox, never()).schedule(any());
+        verify(executionHandoffOutbox, never()).schedule(any(), any());
     }
 
     @Test
@@ -231,11 +352,7 @@ class ExecuteOrderServiceTest {
         when(referenceGenerator.generateDealingReference()).thenReturn(DEAL_REF);
 
         ExecuteOrderCommand command =
-                new ExecuteOrderCommand(
-                        assigned.getId(),
-                        TRADER_A,
-                        new BigDecimal("3.55000000"),
-                        "BankCo International");
+                new ExecuteOrderCommand(assigned.getId(), TRADER_A, new BigDecimal("3.55000000"));
 
         MoneyMarketOrder result = subject.execute(command);
 
@@ -245,7 +362,7 @@ class ExecuteOrderServiceTest {
 
         verify(referenceGenerator).generateDealingReference();
         verify(referenceGenerator, never()).generateContractNumber();
-        verify(executionHandoffOutbox).schedule(any(MoneyMarketOrder.class));
+        verify(executionHandoffOutbox).schedule(any(MoneyMarketOrder.class), any());
     }
 
     @Test
@@ -255,6 +372,7 @@ class ExecuteOrderServiceTest {
                 MoneyMarketOrder.reconstitute(
                         id,
                         new ExternalOrderReference("PM-BAD-SRC"),
+                        new LegalEntityCode("LOC"),
                         OrderType.ON_CALL,
                         OrderOperation.INCREASE,
                         new PortfolioNumber("PF-1"),
@@ -264,8 +382,7 @@ class ExecuteOrderServiceTest {
                         null,
                         null,
                         NoticePeriod._24H,
-                        null,
-                        null,
+                        null, "BNKCO", "BankCo",
                         OrderStatus.ASSIGNED,
                         new Assignment(TRADER_A, FIXED_NOW),
                         null,
@@ -276,9 +393,10 @@ class ExecuteOrderServiceTest {
 
         when(orderRepository.findById(id)).thenReturn(Optional.of(corrupted));
 
-        ExecuteOrderCommand command =
-                new ExecuteOrderCommand(
-                        id, TRADER_A, new BigDecimal("3.55"), "BankCo International");
+        when(institutionRepository.findByInstitutionCode("BNKCO"))
+                .thenReturn(Optional.of(new Institution("BNKCO", "BankCo", true)));
+
+        ExecuteOrderCommand command = new ExecuteOrderCommand(id, TRADER_A, new BigDecimal("3.55"));
 
         assertThatThrownBy(() -> subject.execute(command)).isInstanceOf(InvalidOrderException.class);
 
@@ -286,7 +404,7 @@ class ExecuteOrderServiceTest {
         verify(referenceGenerator, never()).generateContractNumber();
         verify(orderRepository, never()).save(any());
         verify(auditLogger, never()).log(any(), any(), any(), any());
-        verify(executionHandoffOutbox, never()).schedule(any());
+        verify(executionHandoffOutbox, never()).schedule(any(), any());
     }
 
     @Test
@@ -299,21 +417,221 @@ class ExecuteOrderServiceTest {
         when(referenceGenerator.generateContractNumber()).thenReturn(CONTRACT_REF);
 
         ExecuteOrderCommand command =
-                new ExecuteOrderCommand(
-                        open.getId(),
-                        TRADER_A,
-                        new BigDecimal("0.50000000"),
-                        "BankCo International");
+                new ExecuteOrderCommand(open.getId(), TRADER_A, new BigDecimal("0.50000000"));
 
         MoneyMarketOrder result = subject.execute(command);
 
         assertThat(result.getStatus().name()).isEqualTo("EXECUTED");
-        verify(executionHandoffOutbox).schedule(any(MoneyMarketOrder.class));
+        verify(executionHandoffOutbox).schedule(any(MoneyMarketOrder.class), any());
+    }
+
+    @Test
+    void execute_hubRoutedSubscription_propagatesExecutedToClientWithNewContractNumber() {
+        RoutedExecutePair pair = routedSubscriptionPair();
+        when(orderRepository.findById(pair.hub().getId())).thenReturn(Optional.of(pair.hub()));
+        when(orderRepository.findRoutedClientOrderByRoutingId(pair.routingId()))
+                .thenReturn(Optional.of(pair.client()));
+        when(orderRepository.save(any(MoneyMarketOrder.class))).then(returnsFirstArg());
+        when(referenceGenerator.generateDealingReference()).thenReturn(DEAL_REF);
+        when(referenceGenerator.generateContractNumber())
+                .thenReturn(CONTRACT_REF)
+                .thenReturn(new ContractNumber("CN-client-new"));
+
+        MoneyMarketOrder result =
+                subject.execute(
+                        new ExecuteOrderCommand(pair.hub().getId(), TRADER_A, new BigDecimal("3.55")));
+
+        assertThat(result.getStatus()).isEqualTo(OrderStatus.EXECUTED);
+        ArgumentCaptor<MoneyMarketOrder> saved = ArgumentCaptor.forClass(MoneyMarketOrder.class);
+        verify(orderRepository, times(2)).save(saved.capture());
+        MoneyMarketOrder savedClient = saved.getAllValues().get(1);
+        assertThat(savedClient.getStatus()).isEqualTo(OrderStatus.EXECUTED);
+        assertThat(savedClient.getExecutionDetails().generatedContractNumber())
+                .isEqualTo(new ContractNumber("CN-client-new"));
+        verify(referenceGenerator, times(2)).generateContractNumber();
+        verify(orderRepository, times(1)).findRoutedClientOrderByRoutingId(pair.routingId());
+    }
+
+    @Test
+    void execute_hubRoutedLifecycle_reusesClientSourceContractNumber() {
+        RoutedExecutePair pair = routedLifecyclePair();
+        when(orderRepository.findById(pair.hub().getId())).thenReturn(Optional.of(pair.hub()));
+        when(orderRepository.findRoutedClientOrderByRoutingId(pair.routingId()))
+                .thenReturn(Optional.of(pair.client()));
+        when(orderRepository.save(any(MoneyMarketOrder.class))).then(returnsFirstArg());
+        when(referenceGenerator.generateDealingReference()).thenReturn(DEAL_REF);
+
+        subject.execute(new ExecuteOrderCommand(pair.hub().getId(), TRADER_A, new BigDecimal("3.55")));
+
+        ArgumentCaptor<MoneyMarketOrder> saved = ArgumentCaptor.forClass(MoneyMarketOrder.class);
+        verify(orderRepository, times(2)).save(saved.capture());
+        assertThat(saved.getAllValues().get(1).getExecutionDetails().generatedContractNumber())
+                .isEqualTo(LIFECYCLE_SOURCE_REF);
+        verify(referenceGenerator, never()).generateContractNumber();
+        verify(orderRepository, times(1)).findRoutedClientOrderByRoutingId(pair.routingId());
+    }
+
+    @Test
+    void execute_hubRoutedOrder_remotePair_schedulesLegBOutcome_skipsLocalPropagation() {
+        RoutedExecutePair pair = routedSubscriptionPair();
+        when(routedPairLocalityResolver.resolve(pair.hub().getOriginatingLegalEntityCode()))
+                .thenReturn(HubLocality.REMOTE);
+        when(orderRepository.findById(pair.hub().getId())).thenReturn(Optional.of(pair.hub()));
+        when(orderRepository.save(any(MoneyMarketOrder.class))).then(returnsFirstArg());
+        when(referenceGenerator.generateDealingReference()).thenReturn(DEAL_REF);
+        when(referenceGenerator.generateContractNumber()).thenReturn(CONTRACT_REF);
+
+        MoneyMarketOrder result =
+                subject.execute(
+                        new ExecuteOrderCommand(pair.hub().getId(), TRADER_A, new BigDecimal("3.55")));
+
+        // The client-side order lives in the CGEG deployment: no in-process propagation attempt,
+        // and the leg-B EXECUTED outcome is committed in the same transaction.
+        assertThat(result.getStatus()).isEqualTo(OrderStatus.EXECUTED);
+        verify(orderRepository, never()).findRoutedClientOrderByRoutingId(any());
+        verify(routingOutcomeOutbox).scheduleExecuted(pair.hub(), FIXED_NOW);
+
+        // The hub-side back-office event still goes out (hub-side booking facts), carrying the
+        // cross-boundary correlation (routingId + originatingLegalEntityCode) — client fields are
+        // unknowable at the hub and omitted.
+        ArgumentCaptor<ExecutionHandoffRoutingContext> context =
+                ArgumentCaptor.forClass(ExecutionHandoffRoutingContext.class);
+        verify(executionHandoffOutbox).schedule(any(MoneyMarketOrder.class), context.capture());
+        assertThat(context.getValue().routingId()).isEqualTo(pair.routingId());
+        assertThat(context.getValue().originatingLegalEntityCode())
+                .isEqualTo(pair.hub().getOriginatingLegalEntityCode());
+        assertThat(context.getValue().clientOrderId()).isNull();
+        assertThat(context.getValue().clientPortfolioNumber()).isNull();
+        assertThat(context.getValue().clientCounterparty()).isNull();
+    }
+
+    @Test
+    void execute_hubRoutedOrder_missingClient_throwsPairIntegrityException() {
+        RoutedExecutePair pair = routedSubscriptionPair();
+        when(orderRepository.findById(pair.hub().getId())).thenReturn(Optional.of(pair.hub()));
+        when(orderRepository.findRoutedClientOrderByRoutingId(pair.routingId())).thenReturn(Optional.empty());
+        when(orderRepository.save(any(MoneyMarketOrder.class))).then(returnsFirstArg());
+        when(referenceGenerator.generateDealingReference()).thenReturn(DEAL_REF);
+        when(referenceGenerator.generateContractNumber()).thenReturn(CONTRACT_REF);
+
+        assertThatThrownBy(
+                        () ->
+                                subject.execute(
+                                        new ExecuteOrderCommand(
+                                                pair.hub().getId(), TRADER_A, new BigDecimal("3.55"))))
+                .isInstanceOf(RoutedOrderPairIntegrityException.class)
+                .hasMessageContaining("No client-side order");
+    }
+
+    private record RoutedExecutePair(MoneyMarketOrder hub, MoneyMarketOrder client, RoutingId routingId) {}
+
+    private static RoutedExecutePair routedSubscriptionPair() {
+        MoneyMarketOrder client =
+                MoneyMarketOrder.create(
+                        new ExternalOrderReference("PM-CLIENT-" + UUID.randomUUID()),
+                        new LegalEntityCode("PAR"),
+                        OrderType.TERM,
+                        OrderOperation.SUBSCRIPTION,
+                        new PortfolioNumber("PAR-PM-77"),
+                        "EUR",
+                        new BigDecimal("1000000.00"),
+                        TODAY.plusDays(5),
+                        new BigDecimal("3.25"),
+                        Tenor._3M,
+                        null,
+                        null,
+                        "BNPLOC",
+                        "BNP via LOC",
+                        TODAY);
+        RoutingId routingId = RoutingId.fromClientOrderId(client.getId());
+        client.markRouted(routingId, FIXED_NOW);
+        MoneyMarketOrder hub =
+                MoneyMarketOrder.createHubSideFromRouting(
+                        new RoutedHubOrderDraft(
+                                new LegalEntityCode("LOC"),
+                                new PortfolioNumber("PAR-EUR-001"),
+                                "HSBC-01",
+                                "BankCo International",
+                                "EUR",
+                                new BigDecimal("1000000.00"),
+                                TODAY.plusDays(5),
+                                OrderType.TERM,
+                                OrderOperation.SUBSCRIPTION,
+                                Tenor._3M,
+                                null,
+                                new BigDecimal("3.25"),
+                                null,
+                                routingId,
+                                new LegalEntityCode("PAR"),
+                                client.getExternalOrderReference()),
+                        TODAY);
+        hub.assign(TRADER_A, FIXED_NOW);
+        return new RoutedExecutePair(hub, client, routingId);
+    }
+
+    private static RoutedExecutePair routedLifecyclePair() {
+        MoneyMarketOrder client =
+                MoneyMarketOrder.create(
+                        new ExternalOrderReference("PM-CLIENT-LC-" + UUID.randomUUID()),
+                        new LegalEntityCode("PAR"),
+                        OrderType.ON_CALL,
+                        OrderOperation.INCREASE,
+                        new PortfolioNumber("PAR-PM-L"),
+                        "EUR",
+                        new BigDecimal("500000.00"),
+                        TODAY.plusDays(5),
+                        null,
+                        null,
+                        NoticePeriod._24H,
+                        LIFECYCLE_SOURCE_REF,
+                        "BNPLOC",
+                        "BNP via LOC",
+                        TODAY);
+        RoutingId routingId = RoutingId.fromClientOrderId(client.getId());
+        client.markRouted(routingId, FIXED_NOW);
+        MoneyMarketOrder hub =
+                MoneyMarketOrder.createHubSideFromRouting(
+                        new RoutedHubOrderDraft(
+                                new LegalEntityCode("LOC"),
+                                new PortfolioNumber("PAR-EUR-001"),
+                                "HSBC-01",
+                                "BankCo International",
+                                "EUR",
+                                new BigDecimal("500000.00"),
+                                TODAY.plusDays(5),
+                                OrderType.ON_CALL,
+                                OrderOperation.INCREASE,
+                                null,
+                                NoticePeriod._24H,
+                                null,
+                                LIFECYCLE_SOURCE_REF,
+                                routingId,
+                                new LegalEntityCode("PAR"),
+                                client.getExternalOrderReference()),
+                        TODAY);
+        hub.assign(TRADER_A, FIXED_NOW);
+        return new RoutedExecutePair(hub, client, routingId);
     }
 
     private static MoneyMarketOrder receivedOrder() {
         return MoneyMarketOrder.create(
                 new ExternalOrderReference("PM-EXEC-" + UUID.randomUUID()),
+                new LegalEntityCode("LOC"),
+                OrderType.TERM,
+                OrderOperation.SUBSCRIPTION,
+                new PortfolioNumber("PF-001"),
+                "EUR",
+                new BigDecimal("1000000.00"),
+                TODAY.plusDays(3),
+                new BigDecimal("3.25000000"),
+                Tenor._3M, null, null, "HSBC-01", "BankCo International",
+                TODAY);
+    }
+
+    private static MoneyMarketOrder receivedOrderWithInstitution(String institutionCode, String counterparty) {
+        return MoneyMarketOrder.create(
+                new ExternalOrderReference("PM-EXEC-" + UUID.randomUUID()),
+                new LegalEntityCode("LOC"),
                 OrderType.TERM,
                 OrderOperation.SUBSCRIPTION,
                 new PortfolioNumber("PF-001"),
@@ -324,7 +642,8 @@ class ExecuteOrderServiceTest {
                 Tenor._3M,
                 null,
                 null,
-                null,
+                institutionCode,
+                counterparty,
                 TODAY);
     }
 
@@ -332,6 +651,7 @@ class ExecuteOrderServiceTest {
         MoneyMarketOrder order =
                 MoneyMarketOrder.create(
                         new ExternalOrderReference("PM-LIFE-" + UUID.randomUUID()),
+                        new LegalEntityCode("LOC"),
                         OrderType.ON_CALL,
                         OrderOperation.INCREASE,
                         new PortfolioNumber("PF-L"),
@@ -342,7 +662,8 @@ class ExecuteOrderServiceTest {
                         null,
                         NoticePeriod._24H,
                         LIFECYCLE_SOURCE_REF,
-                        null,
+                        "HSBC-01",
+                        "BankCo International",
                         TODAY);
         order.assign(TRADER_A, FIXED_NOW);
         return order;
@@ -351,6 +672,7 @@ class ExecuteOrderServiceTest {
     private static MoneyMarketOrder receivedOrderWithoutMinimum() {
         return MoneyMarketOrder.create(
                 new ExternalOrderReference("PM-EXEC-OPEN-" + UUID.randomUUID()),
+                new LegalEntityCode("LOC"),
                 OrderType.TERM,
                 OrderOperation.SUBSCRIPTION,
                 new PortfolioNumber("PF-001"),
@@ -358,10 +680,7 @@ class ExecuteOrderServiceTest {
                 new BigDecimal("1000000.00"),
                 TODAY.plusDays(3),
                 null,
-                Tenor._3M,
-                null,
-                null,
-                null,
+                Tenor._3M, null, null, "HSBC-01", "BankCo International",
                 TODAY);
     }
 }

@@ -4,23 +4,31 @@ import com.mmx.order.application.command.CancelOrderCommand;
 import com.mmx.order.application.command.RejectOrderCommand;
 import com.mmx.order.application.port.out.AuditLogger;
 import com.mmx.order.application.port.out.Clock;
+import com.mmx.order.domain.model.HubLocality;
 import com.mmx.order.application.port.out.OrderRepository;
+import com.mmx.order.application.port.out.ReferenceGenerator;
+import com.mmx.order.application.port.out.RoutedPairLocalityResolver;
+import com.mmx.order.application.port.out.RoutingOutcomeOutbox;
 import com.mmx.order.domain.exception.InvalidOrderException;
 import com.mmx.order.domain.exception.InvalidStatusTransitionException;
 import com.mmx.order.domain.exception.OrderNotFoundException;
+import com.mmx.order.domain.exception.RoutedOrderPairIntegrityException;
 import com.mmx.order.domain.exception.UnauthorizedTraderException;
 import com.mmx.order.domain.model.ExternalOrderReference;
+import com.mmx.order.domain.model.LegalEntityCode;
 import com.mmx.order.domain.model.MoneyMarketOrder;
 import com.mmx.order.domain.model.OrderOperation;
 import com.mmx.order.domain.model.OrderStatus;
 import com.mmx.order.domain.model.OrderType;
 import com.mmx.order.domain.model.PortfolioNumber;
+import com.mmx.order.domain.model.RoutedHubOrderDraft;
+import com.mmx.order.domain.model.RoutingId;
 import com.mmx.order.domain.model.Tenor;
 import com.mmx.order.domain.model.TraderId;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -37,9 +45,13 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.AdditionalAnswers.returnsFirstArg;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import org.mockito.ArgumentCaptor;
+
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+@Tag("fast")
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -59,13 +71,32 @@ class OrderLifecycleServiceTest {
     @Mock
     Clock clock;
 
-    @InjectMocks
+    @Mock
+    ReferenceGenerator referenceGenerator;
+
+    @Mock
+    RoutingOutcomeOutbox routingOutcomeOutbox;
+
+    @Mock
+    RoutedPairLocalityResolver routedPairLocalityResolver;
+
     OrderLifecycleService subject;
 
     @BeforeEach
     void freezeClock() {
         when(clock.now()).thenReturn(FIXED_NOW);
         when(clock.today()).thenReturn(TODAY);
+        // Pairs whose originating client is not classified REMOTE keep the synchronous in-process
+        // propagation (local pair); remote-pair tests override this stub.
+        when(routedPairLocalityResolver.resolve(any())).thenReturn(HubLocality.LOCAL);
+        subject =
+                new OrderLifecycleService(
+                        orderRepository,
+                        auditLogger,
+                        clock,
+                        new RoutedOrderOutcomePropagationService(orderRepository, referenceGenerator),
+                        routingOutcomeOutbox,
+                        routedPairLocalityResolver);
     }
 
     @Test
@@ -179,9 +210,148 @@ class OrderLifecycleServiceTest {
                 .isInstanceOf(OrderNotFoundException.class);
     }
 
+    @Test
+    void cancel_hubRoutedOrder_propagatesCancelledToClient() {
+        RoutedPair pair = routedPair();
+        when(orderRepository.findById(pair.hub().getId())).thenReturn(Optional.of(pair.hub()));
+        when(orderRepository.findRoutedClientOrderByRoutingId(pair.routingId()))
+                .thenReturn(Optional.of(pair.client()));
+        when(orderRepository.save(any(MoneyMarketOrder.class))).then(returnsFirstArg());
+
+        MoneyMarketOrder result =
+                subject.cancel(new CancelOrderCommand(pair.hub().getId(), TRADER));
+
+        assertThat(result.getStatus()).isEqualTo(OrderStatus.CANCELLED);
+        ArgumentCaptor<MoneyMarketOrder> saved = ArgumentCaptor.forClass(MoneyMarketOrder.class);
+        verify(orderRepository, times(2)).save(saved.capture());
+        assertThat(saved.getAllValues().get(1).getStatus()).isEqualTo(OrderStatus.CANCELLED);
+        assertThat(saved.getAllValues().get(1).getId()).isEqualTo(pair.client().getId());
+    }
+
+    @Test
+    void reject_hubRoutedOrder_propagatesRejectedToClient() {
+        RoutedPair pair = routedPair();
+        when(orderRepository.findById(pair.hub().getId())).thenReturn(Optional.of(pair.hub()));
+        when(orderRepository.findRoutedClientOrderByRoutingId(pair.routingId()))
+                .thenReturn(Optional.of(pair.client()));
+        when(orderRepository.save(any(MoneyMarketOrder.class))).then(returnsFirstArg());
+
+        MoneyMarketOrder result =
+                subject.reject(new RejectOrderCommand(pair.hub().getId(), "No capacity", TRADER));
+
+        assertThat(result.getStatus()).isEqualTo(OrderStatus.REJECTED);
+        ArgumentCaptor<MoneyMarketOrder> saved = ArgumentCaptor.forClass(MoneyMarketOrder.class);
+        verify(orderRepository, times(2)).save(saved.capture());
+        assertThat(saved.getAllValues().get(1).getStatus()).isEqualTo(OrderStatus.REJECTED);
+        assertThat(saved.getAllValues().get(1).getRejectionReason()).isEqualTo("No capacity");
+    }
+
+    @Test
+    void cancel_hubRoutedOrder_missingClient_throwsPairIntegrityException() {
+        RoutedPair pair = routedPair();
+        when(orderRepository.findById(pair.hub().getId())).thenReturn(Optional.of(pair.hub()));
+        when(orderRepository.findRoutedClientOrderByRoutingId(pair.routingId())).thenReturn(Optional.empty());
+        when(orderRepository.save(any(MoneyMarketOrder.class))).then(returnsFirstArg());
+
+        assertThatThrownBy(() -> subject.cancel(new CancelOrderCommand(pair.hub().getId(), TRADER)))
+                .isInstanceOf(RoutedOrderPairIntegrityException.class);
+        verify(orderRepository, times(1)).save(any(MoneyMarketOrder.class));
+    }
+
+    @Test
+    void reject_hubRoutedOrder_missingClient_throwsPairIntegrityException() {
+        RoutedPair pair = routedPair();
+        when(orderRepository.findById(pair.hub().getId())).thenReturn(Optional.of(pair.hub()));
+        when(orderRepository.findRoutedClientOrderByRoutingId(pair.routingId())).thenReturn(Optional.empty());
+        when(orderRepository.save(any(MoneyMarketOrder.class))).then(returnsFirstArg());
+
+        assertThatThrownBy(
+                        () -> subject.reject(new RejectOrderCommand(pair.hub().getId(), "Declined", TRADER)))
+                .isInstanceOf(RoutedOrderPairIntegrityException.class);
+        verify(orderRepository, times(1)).save(any(MoneyMarketOrder.class));
+    }
+
+    @Test
+    void cancel_hubRoutedOrder_remotePair_schedulesLegBCancelled_skipsLocalPropagation() {
+        RoutedPair pair = routedPair();
+        when(routedPairLocalityResolver.resolve(pair.hub().getOriginatingLegalEntityCode()))
+                .thenReturn(HubLocality.REMOTE);
+        when(orderRepository.findById(pair.hub().getId())).thenReturn(Optional.of(pair.hub()));
+        when(orderRepository.save(any(MoneyMarketOrder.class))).then(returnsFirstArg());
+
+        MoneyMarketOrder result = subject.cancel(new CancelOrderCommand(pair.hub().getId(), TRADER));
+
+        assertThat(result.getStatus()).isEqualTo(OrderStatus.CANCELLED);
+        verify(orderRepository, never()).findRoutedClientOrderByRoutingId(any());
+        verify(routingOutcomeOutbox).scheduleCancelled(pair.hub(), FIXED_NOW);
+    }
+
+    @Test
+    void reject_hubRoutedOrder_remotePair_schedulesLegBRejectedWithReason_skipsLocalPropagation() {
+        RoutedPair pair = routedPair();
+        when(routedPairLocalityResolver.resolve(pair.hub().getOriginatingLegalEntityCode()))
+                .thenReturn(HubLocality.REMOTE);
+        pair.hub().assign(TRADER, FIXED_NOW);
+        when(orderRepository.findById(pair.hub().getId())).thenReturn(Optional.of(pair.hub()));
+        when(orderRepository.save(any(MoneyMarketOrder.class))).then(returnsFirstArg());
+
+        MoneyMarketOrder result =
+                subject.reject(new RejectOrderCommand(pair.hub().getId(), "Declined", TRADER));
+
+        assertThat(result.getStatus()).isEqualTo(OrderStatus.REJECTED);
+        verify(orderRepository, never()).findRoutedClientOrderByRoutingId(any());
+        verify(routingOutcomeOutbox).scheduleRejected(pair.hub(), "Declined", FIXED_NOW);
+    }
+
+    private record RoutedPair(MoneyMarketOrder hub, MoneyMarketOrder client, RoutingId routingId) {}
+
+    private static RoutedPair routedPair() {
+        MoneyMarketOrder client =
+                MoneyMarketOrder.create(
+                        new ExternalOrderReference("PM-CLIENT-" + UUID.randomUUID()),
+                        new LegalEntityCode("PAR"),
+                        OrderType.TERM,
+                        OrderOperation.SUBSCRIPTION,
+                        new PortfolioNumber("PAR-PM-77"),
+                        "EUR",
+                        new BigDecimal("1000000.00"),
+                        TODAY.plusDays(5),
+                        new BigDecimal("3.25"),
+                        Tenor._3M,
+                        null,
+                        null,
+                        "BNPLOC",
+                        "BNP via LOC",
+                        TODAY);
+        RoutingId routingId = RoutingId.fromClientOrderId(client.getId());
+        client.markRouted(routingId, FIXED_NOW);
+        MoneyMarketOrder hub =
+                MoneyMarketOrder.createHubSideFromRouting(
+                        new RoutedHubOrderDraft(
+                                new LegalEntityCode("LOC"),
+                                new PortfolioNumber("PAR-EUR-001"),
+                                "HSBC-01",
+                                "BankCo International",
+                                "EUR",
+                                new BigDecimal("1000000.00"),
+                                TODAY.plusDays(5),
+                                OrderType.TERM,
+                                OrderOperation.SUBSCRIPTION,
+                                Tenor._3M,
+                                null,
+                                new BigDecimal("3.25"),
+                                null,
+                                routingId,
+                                new LegalEntityCode("PAR"),
+                                client.getExternalOrderReference()),
+                        TODAY);
+        return new RoutedPair(hub, client, routingId);
+    }
+
     private static MoneyMarketOrder receivedOrder() {
         return MoneyMarketOrder.create(
                 new ExternalOrderReference("PM-LIFE-" + UUID.randomUUID()),
+                new LegalEntityCode("LOC"),
                 OrderType.TERM,
                 OrderOperation.SUBSCRIPTION,
                 new PortfolioNumber("PF-001"),
@@ -189,10 +359,7 @@ class OrderLifecycleServiceTest {
                 new BigDecimal("1000000.00"),
                 TODAY.plusDays(3),
                 new BigDecimal("3.25000000"),
-                Tenor._3M,
-                null,
-                null,
-                null,
+                Tenor._3M, null, null, "BNKCO", "BankCo",
                 TODAY);
     }
 }

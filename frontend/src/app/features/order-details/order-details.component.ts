@@ -10,6 +10,7 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, ParamMap, RouterLink } from '@angular/router';
 import { OrderApiService } from '../../core/api/order-api.service';
+import { formatHttpError } from '../../core/http/format-http-error';
 import type {
   ExecuteOrderRequest,
   OrderDetails,
@@ -22,6 +23,7 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog.c
 import { StatusBadgeComponent } from '../../shared/components/status-badge.component';
 import { OrderExecutionFormComponent } from './order-execution-form.component';
 import { OrderUpdateFormComponent } from './order-update-form.component';
+import { canShowAction, type OrderDetailAction } from './order-detail-actions';
 
 @Component({
   selector: 'mmx-order-details',
@@ -74,19 +76,22 @@ import { OrderUpdateFormComponent } from './order-update-form.component';
             <dt>Source contract</dt>
             <dd class="mono">{{ o.sourceContractNumber }}</dd>
           }
-          @if (o.desiredCounterpartyComment) {
-            <dt>Comment</dt>
-            <dd>{{ o.desiredCounterpartyComment }}</dd>
-          }
           @if (o.assignedTraderId) {
             <dt>Assigned trader</dt>
             <dd class="mono">{{ o.assignedTraderId }}</dd>
           }
+          @if (o.counterparty) {
+            <dt>Counterparty</dt>
+            <dd>
+              {{ o.counterparty }}
+              @if (o.institutionCode) {
+                <span class="mono muted">{{ o.institutionCode }}</span>
+              }
+            </dd>
+          }
           @if (o.status === executed || o.status === accounted) {
             <dt>Executed rate</dt>
             <dd class="mono">{{ o.executedRate | number: '1.2-8' }}</dd>
-            <dt>Counterparty</dt>
-            <dd>{{ o.counterparty }}</dd>
             <dt>Dealing reference</dt>
             <dd class="mono">{{ o.dealingReference }}</dd>
             <dt>Contract number</dt>
@@ -100,43 +105,45 @@ import { OrderUpdateFormComponent } from './order-update-form.component';
           }
         </dl>
 
-        @if (o.status === received) {
+        @if (
+          showAction(o, 'assign') ||
+          showAction(o, 'cancel') ||
+          showAction(o, 'unassign') ||
+          showAction(o, 'reject')
+        ) {
           <div class="actions">
-            <button type="button" class="btn primary" [disabled]="acting()" (click)="assign()">
-              Assign to me
-            </button>
-            <button type="button" class="btn secondary" [disabled]="acting()" (click)="openCancelDialog()">
-              Cancel order
-            </button>
-            <button type="button" class="btn danger-outline" [disabled]="acting()" (click)="openRejectDialog()">
-              Reject
-            </button>
-          </div>
-        }
-        @if (o.status === assigned) {
-          <div class="actions">
-            <button type="button" class="btn secondary" [disabled]="acting()" (click)="unassign()">
-              Unassign
-            </button>
-            @if (o.assignedTraderId === trader.traderId()) {
-              <button
-                type="button"
-                class="btn danger-outline"
-                [disabled]="acting()"
-                (click)="openRejectDialog()"
-              >
+            @if (showAction(o, 'assign')) {
+              <button type="button" class="btn primary" [disabled]="acting()" (click)="assign()">
+                Assign to me
+              </button>
+            }
+            @if (showAction(o, 'cancel')) {
+              <button type="button" class="btn secondary" [disabled]="acting()" (click)="openCancelDialog()">
+                Cancel order
+              </button>
+            }
+            @if (showAction(o, 'unassign')) {
+              <button type="button" class="btn secondary" [disabled]="acting()" (click)="unassign()">
+                Unassign
+              </button>
+            }
+            @if (showAction(o, 'reject')) {
+              <button type="button" class="btn danger-outline" [disabled]="acting()" (click)="openRejectDialog()">
                 Reject
               </button>
             }
           </div>
-          @if (o.assignedTraderId === trader.traderId()) {
-            <mmx-order-update-form
-              [order]="o"
-              [submitting]="acting()"
-              (submitUpdate)="updateOrder($event)"
-            />
-          }
+        }
+        @if (showAction(o, 'update')) {
+          <mmx-order-update-form
+            [order]="o"
+            [submitting]="acting()"
+            (submitUpdate)="updateOrder($event)"
+          />
+        }
+        @if (showAction(o, 'execute')) {
           <mmx-order-execution-form
+            [order]="o"
             [submitting]="acting()"
             (submitExecute)="execute($event)"
           />
@@ -418,6 +425,11 @@ import { OrderUpdateFormComponent } from './order-update-form.component';
       font-family: var(--font-mono);
       font-size: 0.875rem;
     }
+
+    .muted {
+      margin-left: 0.5rem;
+      color: var(--mmx-text-muted);
+    }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -427,8 +439,6 @@ export class OrderDetailsComponent implements OnInit {
   private readonly api = inject(OrderApiService);
   readonly trader = inject(TraderContextService);
 
-  readonly received = OrderStatus.RECEIVED;
-  readonly assigned = OrderStatus.ASSIGNED;
   readonly executed = OrderStatus.EXECUTED;
   readonly accounted = OrderStatus.ACCOUNTED;
   readonly rejected = OrderStatus.REJECTED;
@@ -624,6 +634,10 @@ export class OrderDetailsComponent implements OnInit {
     });
   }
 
+  showAction(o: OrderDetails, action: OrderDetailAction): boolean {
+    return canShowAction(o, this.trader.traderId(), action);
+  }
+
   private fetch(orderId: string): void {
     this.loading.set(true);
     this.error.set(null);
@@ -640,12 +654,6 @@ export class OrderDetailsComponent implements OnInit {
   }
 
   private formatHttpError(err: unknown): string {
-    if (err && typeof err === 'object' && 'error' in err) {
-      const body = (err as { error?: { message?: string } }).error;
-      if (body?.message) {
-        return body.message;
-      }
-    }
-    return 'Request failed. Check trader id and API availability.';
+    return formatHttpError(err, 'Request failed. Check trader id and API availability.');
   }
 }

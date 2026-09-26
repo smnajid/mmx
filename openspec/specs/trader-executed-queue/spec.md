@@ -72,3 +72,56 @@ The Executed list endpoints SHALL be query-only and SHALL NOT modify any order's
 
 - **WHEN** the trader requests an Executed list
 - **THEN** every order in the result has the same `status` and `updatedAt` after the request as before
+
+---
+
+### Requirement: Executed list rows expose handoffStatus (contract-first OpenAPI)
+
+For each row returned by a workspace Executed list endpoint (`GET /api/v1/orders/term/executed` and `GET /api/v1/orders/oncall/executed`), the response SHALL include `handoffStatus` with one of `PENDING`, `PUBLISHED`, or `FAILED` as defined in `contracts/002-trader-orders-views/openapi.yaml`. The field SHALL be added **contract-first** (OpenAPI and `api-v1.md` before implementation). For orders in `EXECUTED` status, `handoffStatus` SHALL reflect the integration handoff state distinct from lifecycle `status` (which remains `EXECUTED` until accounted).
+
+#### Scenario: PENDING visible while relay has not acked Kafka
+
+- **WHEN** an order is `EXECUTED` with `handoffStatus = PENDING`
+- **THEN** the Term or OnCall Executed list row includes `handoffStatus: PENDING`
+
+#### Scenario: PUBLISHED distinguishes awaiting accounting from handoff failure
+
+- **WHEN** an order is `EXECUTED` with `handoffStatus = PUBLISHED`
+- **THEN** the Executed list row includes `handoffStatus: PUBLISHED` (trader-visible "submitted toward back-office; awaiting accounting" per FR-013)
+
+#### Scenario: FAILED distinguishes integration problem from books delay
+
+- **WHEN** an order is `EXECUTED` with `handoffStatus = FAILED` after relay exhausted publish attempts
+- **THEN** the Executed list row includes `handoffStatus: FAILED` (trader-visible handoff/integration problem per FR-013)
+
+#### Scenario: handoffStatus is defined in OpenAPI before codegen
+
+- **WHEN** this capability is implemented
+- **THEN** `handoffStatus` exists on `OrderSummaryResponse` in `openapi.yaml` and the server uses generated or contract-aligned types — not a hand-maintained parallel DTO
+
+---
+
+### Requirement: Executed list conveys accounting staleness
+
+For executed-not-accounted rows where handoff has succeeded (`handoffStatus` is `PUBLISHED`), the Executed view SHALL convey how long execution has awaited accounting using one authoritative business timestamp per order (execution time). Longer-waiting items SHALL be more salient than fresher ones per desk-agreed presentation rules. The default list order SHALL favour longest-waiting first unless the trader chooses another sort.
+
+#### Scenario: Default sort longest-waiting first
+
+- **WHEN** the trader opens an Executed list with multiple `PUBLISHED` handoff rows of different execution ages
+- **THEN** the default row order places the longest-waiting order first
+
+#### Scenario: Staleness visible on row
+
+- **WHEN** an order has been `EXECUTED` with `handoffStatus = PUBLISHED` for an extended period
+- **THEN** the Executed list row conveys elapsed time since execution more prominently than fresher rows
+
+---
+
+### Requirement: Trader Executed list HTTP remains contract-first sync
+
+All Trader Executed list request and response shapes for this capability SHALL conform to the canonical OpenAPI 3 document. Async handoff payloads on Kafka remain governed by `asyncapi.yaml`; the Executed list exposes only the trader-appropriate `handoffStatus` summary, not the full `OrderExecutedV1` message body.
+
+#### Scenario: Executed endpoints documented in OpenAPI
+
+- **WHEN** a client integrates with Term or OnCall Executed lists including `handoffStatus`
+- **THEN** paths, parameters, and `OrderSummaryResponse` schemas are declared in `openapi.yaml`

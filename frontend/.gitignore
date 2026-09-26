@@ -6,6 +6,10 @@
 /out-tsc
 /bazel-out
 
+# Contract-generated API types (regenerated each build)
+/src/app/core/api/generated/
+/projects/order-creation-widget/src/lib/generated/
+
 # Node
 /node_modules
 npm-debug.log

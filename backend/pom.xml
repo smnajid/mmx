@@ -30,7 +30,25 @@
 
     <properties>
         <java.version>25</java.version>
+        <!--
+            JUnit 5 tag-expression selection (spec test-feedback-loop): `-Dgroups=fast`,
+            `-DexcludedGroups=...`, or composed expressions like `-Dgroups='fast|integration'`.
+            Empty defaults keep the unqualified `mvn test` running ALL categories (selection is
+            opt-in only). See AGENTS.md "Test feedback loop" for the taxonomy and loops.
+        -->
+        <groups/>
+        <excludedGroups/>
     </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>com.tngtech.archunit</groupId>
+                <artifactId>archunit-junit5</artifactId>
+                <version>1.4.2</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <!--
         All test dependency versions (JUnit 5, AssertJ, Mockito, Testcontainers, etc.)
@@ -53,6 +71,13 @@
                     <artifactId>maven-surefire-plugin</artifactId>
                     <configuration>
                         <useModulePath>false</useModulePath>
+                        <!--
+                            Tag-expression selection: passthrough the `groups` / `excludedGroups`
+                            user properties. Empty (default) runs all categories; see AGENTS.md
+                            "Test feedback loop". A later lifecycle phase wires these at runtime.
+                        -->
+                        <groups>${groups}</groups>
+                        <excludedGroups>${excludedGroups}</excludedGroups>
                     </configuration>
                 </plugin>
             </plugins>

@@ -1,5 +1,6 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
+import { userHeaders as buildUserHeaders } from './user-api-headers';
 import { Observable } from 'rxjs';
 import {
   OrderSummary,
@@ -47,7 +48,7 @@ export class OrderApiService {
   ): Observable<PagedResponse<OrderSummary>> {
     return this.http.get<PagedResponse<OrderSummary>>(
       `${BASE_URL}/term/received`,
-      { headers: this.traderHeaders(traderId), params: this.pageParams(params) }
+      { headers: buildUserHeaders(traderId), params: this.pageParams(params) }
     );
   }
 
@@ -59,7 +60,7 @@ export class OrderApiService {
   ): Observable<PagedResponse<OrderSummary>> {
     return this.http.get<PagedResponse<OrderSummary>>(
       `${BASE_URL}/oncall/received`,
-      { headers: this.traderHeaders(traderId), params: this.pageParams(params) }
+      { headers: buildUserHeaders(traderId), params: this.pageParams(params) }
     );
   }
 
@@ -67,7 +68,7 @@ export class OrderApiService {
 
   getOrderDetails(orderId: string, traderId: string): Observable<OrderDetails> {
     return this.http.get<OrderDetails>(`${BASE_URL}/${orderId}`, {
-      headers: this.traderHeaders(traderId),
+      headers: buildUserHeaders(traderId),
     });
   }
 
@@ -77,7 +78,7 @@ export class OrderApiService {
     return this.http.post<OrderDetails>(
       `${BASE_URL}/${orderId}/assign`,
       null,
-      { headers: this.traderHeaders(traderId) }
+      { headers: buildUserHeaders(traderId) }
     );
   }
 
@@ -87,7 +88,7 @@ export class OrderApiService {
     return this.http.post<OrderDetails>(
       `${BASE_URL}/${orderId}/unassign`,
       null,
-      { headers: this.traderHeaders(traderId) }
+      { headers: buildUserHeaders(traderId) }
     );
   }
 
@@ -99,7 +100,7 @@ export class OrderApiService {
   ): Observable<PagedResponse<OrderSummary>> {
     return this.http.get<PagedResponse<OrderSummary>>(
       `${BASE_URL}/assigned`,
-      { headers: this.traderHeaders(traderId), params: this.pageParams(params) }
+      { headers: buildUserHeaders(traderId), params: this.pageParams(params) }
     );
   }
 
@@ -109,7 +110,7 @@ export class OrderApiService {
   ): Observable<PagedResponse<OrderSummary>> {
     return this.http.get<PagedResponse<OrderSummary>>(
       `${BASE_URL}/term/assigned`,
-      { headers: this.traderHeaders(traderId), params: this.pageParams(params) }
+      { headers: buildUserHeaders(traderId), params: this.pageParams(params) }
     );
   }
 
@@ -119,7 +120,7 @@ export class OrderApiService {
   ): Observable<PagedResponse<OrderSummary>> {
     return this.http.get<PagedResponse<OrderSummary>>(
       `${BASE_URL}/oncall/assigned`,
-      { headers: this.traderHeaders(traderId), params: this.pageParams(params) }
+      { headers: buildUserHeaders(traderId), params: this.pageParams(params) }
     );
   }
 
@@ -129,7 +130,7 @@ export class OrderApiService {
   ): Observable<PagedResponse<OrderSummary>> {
     return this.http.get<PagedResponse<OrderSummary>>(
       `${BASE_URL}/term/executed`,
-      { headers: this.traderHeaders(traderId), params: this.pageParams(params) }
+      { headers: buildUserHeaders(traderId), params: this.pageParams(params) }
     );
   }
 
@@ -139,7 +140,7 @@ export class OrderApiService {
   ): Observable<PagedResponse<OrderSummary>> {
     return this.http.get<PagedResponse<OrderSummary>>(
       `${BASE_URL}/oncall/executed`,
-      { headers: this.traderHeaders(traderId), params: this.pageParams(params) }
+      { headers: buildUserHeaders(traderId), params: this.pageParams(params) }
     );
   }
 
@@ -151,7 +152,7 @@ export class OrderApiService {
     request: UpdateOrderRequest
   ): Observable<OrderDetails> {
     return this.http.put<OrderDetails>(`${BASE_URL}/${orderId}`, request, {
-      headers: this.traderHeaders(traderId),
+      headers: buildUserHeaders(traderId),
     });
   }
 
@@ -165,7 +166,7 @@ export class OrderApiService {
     return this.http.post<OrderDetails>(
       `${BASE_URL}/${orderId}/execute`,
       request,
-      { headers: this.traderHeaders(traderId) }
+      { headers: buildUserHeaders(traderId) }
     );
   }
 
@@ -175,7 +176,7 @@ export class OrderApiService {
     return this.http.post<OrderDetails>(
       `${BASE_URL}/${orderId}/cancel`,
       null,
-      { headers: this.traderHeaders(traderId) }
+      { headers: buildUserHeaders(traderId) }
     );
   }
 
@@ -189,15 +190,11 @@ export class OrderApiService {
     return this.http.post<OrderDetails>(
       `${BASE_URL}/${orderId}/reject`,
       request,
-      { headers: this.traderHeaders(traderId) }
+      { headers: buildUserHeaders(traderId) }
     );
   }
 
   // ── Private helpers ──────────────────────────────────────────────────────────
-
-  private traderHeaders(traderId: string): HttpHeaders {
-    return new HttpHeaders({ 'X-Trader-Id': traderId });
-  }
 
   private pageParams(params: PageParams): HttpParams {
     let httpParams = new HttpParams();

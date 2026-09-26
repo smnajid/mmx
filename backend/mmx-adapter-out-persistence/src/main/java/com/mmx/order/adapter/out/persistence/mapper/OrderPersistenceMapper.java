@@ -9,12 +9,14 @@ import com.mmx.order.domain.model.DealingReference;
 import com.mmx.order.domain.model.ExecutionDetails;
 import com.mmx.order.domain.model.ExternalOrderReference;
 import com.mmx.order.domain.model.HandoffStatus;
+import com.mmx.order.domain.model.LegalEntityCode;
 import com.mmx.order.domain.model.MoneyMarketOrder;
 import com.mmx.order.domain.model.NoticePeriod;
 import com.mmx.order.domain.model.OrderOperation;
 import com.mmx.order.domain.model.OrderStatus;
 import com.mmx.order.domain.model.OrderType;
 import com.mmx.order.domain.model.PortfolioNumber;
+import com.mmx.order.domain.model.RoutingId;
 import com.mmx.order.domain.model.Tenor;
 import com.mmx.order.domain.model.TraderId;
 
@@ -25,6 +27,7 @@ public class OrderPersistenceMapper {
         OrderEntity e = new OrderEntity();
         e.setId(order.getId());
         e.setExternalOrderReference(order.getExternalOrderReference().value());
+        e.setLegalEntityCode(order.getLegalEntityCode().value());
         e.setOrderType(order.getOrderType().name());
         e.setOrderOperation(order.getOrderOperation().name());
         e.setPortfolioNumber(order.getPortfolioNumber().value());
@@ -36,12 +39,24 @@ public class OrderPersistenceMapper {
         e.setNoticePeriod(order.getNoticePeriod() != null ? order.getNoticePeriod().name() : null);
         e.setSourceContractNumber(
                 order.getSourceContractNumber() != null ? order.getSourceContractNumber().value() : null);
-        e.setDesiredCounterpartyComment(order.getDesiredCounterpartyComment());
+        e.setInstitutionCode(order.getInstitutionCode());
+        e.setCounterparty(order.getCounterparty());
         e.setStatus(order.getStatus().name());
         e.setCreatedAt(order.getCreatedAt());
         e.setUpdatedAt(order.getUpdatedAt());
         e.setRejectionReason(order.getRejectionReason());
         e.setHandoffStatus(order.getHandoffStatus() != null ? order.getHandoffStatus().name() : null);
+        if (order.getRoutingId() != null) {
+            e.setRoutingId(order.getRoutingId().value());
+        }
+        if (order.getOriginatingLegalEntityCode() != null) {
+            e.setOriginatingLegalEntityCode(order.getOriginatingLegalEntityCode().value());
+        }
+        if (order.getOriginatingExternalOrderReference() != null) {
+            e.setOriginatingExternalOrderReference(order.getOriginatingExternalOrderReference().value());
+        }
+        e.setCounterpartyAccount(order.getCounterpartyAccount());
+        e.setClientCounterpartyAccount(order.getClientCounterpartyAccount());
 
         if (order.getAssignment() != null) {
             e.setAssignedTraderId(order.getAssignment().traderId().value());
@@ -52,6 +67,7 @@ public class OrderPersistenceMapper {
             ExecutionDetails ex = order.getExecutionDetails();
             e.setExecutedRate(ex.executedRate());
             e.setCounterparty(ex.counterparty());
+            e.setInstitutionCode(ex.institutionCode());
             e.setExecutionTime(ex.executionTime());
             e.setDealingReference(ex.dealingReference().value());
             e.setGeneratedContractNumber(ex.generatedContractNumber().value());
@@ -68,10 +84,20 @@ public class OrderPersistenceMapper {
 
         HandoffStatus handoff =
                 e.getHandoffStatus() != null ? HandoffStatus.valueOf(e.getHandoffStatus()) : null;
+        RoutingId routingId = e.getRoutingId() != null ? new RoutingId(e.getRoutingId()) : null;
+        LegalEntityCode originatingLegalEntity =
+                e.getOriginatingLegalEntityCode() != null
+                        ? new LegalEntityCode(e.getOriginatingLegalEntityCode())
+                        : null;
+        ExternalOrderReference originatingExternalRef =
+                e.getOriginatingExternalOrderReference() != null
+                        ? new ExternalOrderReference(e.getOriginatingExternalOrderReference())
+                        : null;
 
         MoneyMarketOrder order = MoneyMarketOrder.reconstitute(
                 e.getId(),
                 new ExternalOrderReference(e.getExternalOrderReference()),
+                legalEntityCodeFromEntity(e),
                 OrderType.valueOf(e.getOrderType()),
                 OrderOperation.valueOf(e.getOrderOperation()),
                 new PortfolioNumber(e.getPortfolioNumber()),
@@ -82,16 +108,26 @@ public class OrderPersistenceMapper {
                 tenor,
                 noticePeriod,
                 sourceContract,
-                e.getDesiredCounterpartyComment(),
+                e.getInstitutionCode(),
+                e.getCounterparty(),
                 OrderStatus.valueOf(e.getStatus()),
                 buildAssignment(e),
                 buildExecutionDetails(e),
                 e.getRejectionReason(),
+                null,
                 handoff,
+                routingId,
+                originatingLegalEntity,
+                originatingExternalRef,
                 e.getCreatedAt(),
-                e.getUpdatedAt()
-        );
+                e.getUpdatedAt());
+        order.restoreCounterpartyAccounts(e.getCounterpartyAccount(), e.getClientCounterpartyAccount());
         return order;
+    }
+
+    private static LegalEntityCode legalEntityCodeFromEntity(OrderEntity e) {
+        String code = e.getLegalEntityCode();
+        return code != null ? new LegalEntityCode(code) : new LegalEntityCode("LOC");
     }
 
     private Assignment buildAssignment(OrderEntity e) {
@@ -105,9 +141,9 @@ public class OrderPersistenceMapper {
                 ? new DealingReference(e.getDealingReference()) : null;
         ContractNumber contractNum = e.getGeneratedContractNumber() != null
                 ? new ContractNumber(e.getGeneratedContractNumber()) : null;
+        String institutionCode = e.getInstitutionCode() != null ? e.getInstitutionCode() : "LEGACY";
         return new ExecutionDetails(
-                e.getExecutedRate(), e.getCounterparty(),
-                e.getExecutionTime(), dealRef, contractNum
-        );
+                e.getExecutedRate(), e.getCounterparty(), institutionCode,
+                e.getExecutionTime(), dealRef, contractNum);
     }
 }

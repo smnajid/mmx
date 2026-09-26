@@ -17,4 +17,17 @@ public enum Tenor {
     public String getCode() {
         return code;
     }
+
+    public static java.util.Optional<Tenor> fromCode(String code) {
+        if (code == null || code.isBlank()) {
+            return java.util.Optional.empty();
+        }
+        String normalized = code.trim();
+        for (Tenor tenor : values()) {
+            if (tenor.code.equals(normalized)) {
+                return java.util.Optional.of(tenor);
+            }
+        }
+        return java.util.Optional.empty();
+    }
 }

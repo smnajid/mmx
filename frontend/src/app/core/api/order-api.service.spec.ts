@@ -25,7 +25,7 @@ describe('OrderApiService', () => {
       '/api/v1/orders/term/executed?page=2&size=10'
     );
     expect(req.request.method).toBe('GET');
-    expect(req.request.headers.get('X-Trader-Id')).toBe('t1');
+    expect(req.request.headers.get('X-User-Id')).toBe('t1');
     req.flush({ content: [], totalElements: 0, page: 2, size: 10 });
   });
 
@@ -33,7 +33,7 @@ describe('OrderApiService', () => {
     service.listExecutedOnCallOrders('t2').subscribe();
     const req = httpMock.expectOne('/api/v1/orders/oncall/executed');
     expect(req.request.method).toBe('GET');
-    expect(req.request.headers.get('X-Trader-Id')).toBe('t2');
+    expect(req.request.headers.get('X-User-Id')).toBe('t2');
     req.flush({ content: [], totalElements: 0, page: 0, size: 20 });
   });
 });

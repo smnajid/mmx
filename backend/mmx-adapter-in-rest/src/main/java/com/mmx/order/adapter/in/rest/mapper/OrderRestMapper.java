@@ -18,11 +18,13 @@ import com.mmx.order.application.command.ReceiveOrderCommand;
 import com.mmx.order.application.command.RejectOrderCommand;
 import com.mmx.order.application.command.UpdateOrderCommand;
 import com.mmx.order.application.port.in.OrderPage;
-import com.mmx.order.application.port.in.ReceiveOrderUseCase;
+import com.mmx.order.application.port.in.IntakeUseCase;
 import com.mmx.order.domain.model.Assignment;
+import com.mmx.order.domain.model.LegalEntityCode;
 import com.mmx.order.domain.model.ContractNumber;
 import com.mmx.order.domain.model.ExecutionDetails;
 import com.mmx.order.domain.model.ExternalOrderReference;
+import com.mmx.order.domain.model.LegalEntityCode;
 import com.mmx.order.domain.model.MoneyMarketOrder;
 import com.mmx.order.domain.model.NoticePeriod;
 import com.mmx.order.domain.model.PortfolioNumber;
@@ -61,10 +63,8 @@ public class OrderRestMapper {
                         .status(OrderStatus.fromValue(order.getStatus().name()))
                         .assignedTraderId(assignment != null ? assignment.traderId().value() : null)
                         .createdAt(OffsetDateTime.ofInstant(order.getCreatedAt(), UTC));
-        ExecutionDetails summaryEx = order.getExecutionDetails();
-        if (summaryEx != null) {
-            summary.setCounterparty(summaryEx.counterparty());
-        }
+        summary.setCounterparty(order.getCounterparty());
+        summary.setInstitutionCode(order.getInstitutionCode());
         if (order.getStatus() == com.mmx.order.domain.model.OrderStatus.EXECUTED
                 && order.getHandoffStatus() != null) {
             summary.setHandoffStatus(HandoffStatus.fromValue(order.getHandoffStatus().name()));
@@ -95,20 +95,19 @@ public class OrderRestMapper {
         d.setNoticePeriod(order.getNoticePeriod() != null ? order.getNoticePeriod().getCode() : null);
         d.setSourceContractNumber(
                 order.getSourceContractNumber() != null ? order.getSourceContractNumber().value() : null);
-        d.setDesiredCounterpartyComment(order.getDesiredCounterpartyComment());
         d.setAssignedTraderId(assignment != null ? assignment.traderId().value() : null);
         d.setAssignedAt(assignment != null
                 ? OffsetDateTime.ofInstant(assignment.assignedAt(), UTC)
                 : null);
+        d.setCounterparty(order.getCounterparty());
+        d.setInstitutionCode(order.getInstitutionCode());
         if (ex != null) {
             d.setExecutedRate(ex.executedRate().doubleValue());
-            d.setCounterparty(ex.counterparty());
             d.setExecutionTime(OffsetDateTime.ofInstant(ex.executionTime(), UTC));
             d.setDealingReference(ex.dealingReference().value());
             d.setGeneratedContractNumber(ex.generatedContractNumber().value());
         } else {
             d.setExecutedRate(null);
-            d.setCounterparty(null);
             d.setExecutionTime(null);
             d.setDealingReference(null);
             d.setGeneratedContractNumber(null);
@@ -122,7 +121,7 @@ public class OrderRestMapper {
                 request.getExecutedRate() != null
                         ? BigDecimal.valueOf(request.getExecutedRate())
                         : null;
-        return new ExecuteOrderCommand(orderId, new TraderId(xTraderId), executedRate, request.getCounterparty());
+        return new ExecuteOrderCommand(orderId, new TraderId(xTraderId), executedRate);
     }
 
     public CancelOrderCommand toCancelCommand(UUID orderId, String xTraderId) {
@@ -140,8 +139,13 @@ public class OrderRestMapper {
     }
 
     public ReceiveOrderCommand toCommand(ReceiveOrderRequest request) {
+        String legalEntityCode = request.getLegalEntityCode();
+        if (legalEntityCode == null || legalEntityCode.isBlank()) {
+            throw new InvalidOrderException("legalEntityCode is required");
+        }
         return new ReceiveOrderCommand(
                 new ExternalOrderReference(request.getExternalOrderReference()),
+                new LegalEntityCode(legalEntityCode),
                 com.mmx.order.domain.model.OrderType.valueOf(request.getOrderType().name()),
                 com.mmx.order.domain.model.OrderOperation.valueOf(request.getOrderOperation().name()),
                 new PortfolioNumber(request.getPortfolioNumber()),
@@ -156,13 +160,15 @@ public class OrderRestMapper {
                 request.getSourceContractNumber() == null
                         ? null
                         : new ContractNumber(request.getSourceContractNumber()),
-                request.getDesiredCounterpartyComment());
+                request.getInstitutionCode());
     }
 
-    public ReceiveOrderResponse toReceiveResponse(ReceiveOrderUseCase.Result result) {
+    public ReceiveOrderResponse toReceiveResponse(
+            IntakeUseCase.Result result, LegalEntityCode legalEntityCode) {
         return new ReceiveOrderResponse()
                 .orderId(result.orderId())
-                .status(OrderStatus.fromValue(result.status().name()));
+                .status(OrderStatus.fromValue(result.status().name()))
+                .legalEntityCode(legalEntityCode.value());
     }
 
     public OrderSummaryPage toSummaryPage(OrderPage page) {

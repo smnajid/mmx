@@ -17,6 +17,8 @@ spring:
       acks: all
 
 mmx:
+  organisation:
+    code: LODH
   backoffice:
     kafka:
       topic: mmx.order.executed

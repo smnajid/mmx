@@ -1,0 +1,22 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://mmx.local/schemas/OnCallRateCanceledV1.json",
+  "title": "OnCallRateCanceledV1",
+  "description": "Cancel notification for a pending OnCall rate segment; idempotent on segmentId.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "eventType",
+    "segmentId"
+  ],
+  "properties": {
+    "eventType": {
+      "type": "string",
+      "const": "OnCallRateCanceledV1"
+    },
+    "segmentId": {
+      "type": "string",
+      "format": "uuid"
+    }
+  }
+}

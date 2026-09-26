@@ -2,17 +2,20 @@ package com.mmx.order.adapter.in.rest;
 
 import com.mmx.order.adapter.in.rest.mapper.OrderRestMapper;
 import com.mmx.order.application.command.ExecuteOrderCommand;
+import com.mmx.order.application.port.in.AssignOrderUseCase;
 import com.mmx.order.application.port.in.CancelOrderUseCase;
-import com.mmx.order.application.port.in.OrderPage;
+import com.mmx.order.application.port.in.DeskOrderQueries;
 import com.mmx.order.application.port.in.ExecuteOrderUseCase;
+import com.mmx.order.application.port.in.OrderPage;
 import com.mmx.order.application.port.in.RejectOrderUseCase;
+import com.mmx.order.application.port.in.ResolveUserScopeUseCase;
+import com.mmx.order.application.port.in.UnassignOrderUseCase;
 import com.mmx.order.application.port.in.UpdateAssignedOrderUseCase;
-import com.mmx.order.application.service.AssignmentService;
-import com.mmx.order.application.service.OrderQueryService;
 import com.mmx.order.domain.exception.InvalidStatusTransitionException;
 import com.mmx.order.domain.exception.UnauthorizedTraderException;
 import com.mmx.order.domain.model.ContractNumber;
 import com.mmx.order.domain.model.DealingReference;
+import com.mmx.order.domain.model.LegalEntityCode;
 import com.mmx.order.domain.model.ExternalOrderReference;
 import com.mmx.order.domain.model.HandoffStatus;
 import com.mmx.order.domain.model.MoneyMarketOrder;
@@ -23,6 +26,7 @@ import com.mmx.order.domain.model.PortfolioNumber;
 import com.mmx.order.domain.model.Tenor;
 import com.mmx.order.domain.model.TraderId;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -45,6 +49,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup;
+@Tag("fast")
 
 @ExtendWith(MockitoExtension.class)
 class OrderExecutionControllerTest {
@@ -53,10 +58,16 @@ class OrderExecutionControllerTest {
     private static final Instant NOW = Instant.parse("2026-05-01T12:00:00Z");
 
     @Mock
-    OrderQueryService orderQueryService;
+    DeskOrderQueries deskOrderQueries;
 
     @Mock
-    AssignmentService assignmentService;
+    ResolveUserScopeUseCase resolveUserScopeUseCase;
+
+    @Mock
+    AssignOrderUseCase assignOrderUseCase;
+
+    @Mock
+    UnassignOrderUseCase unassignOrderUseCase;
 
     @Mock
     ExecuteOrderUseCase executeOrderUseCase;
@@ -74,12 +85,15 @@ class OrderExecutionControllerTest {
 
     @BeforeEach
     void setUp() {
+        OrderControllerTestSupport.stubDefaultScope(resolveUserScopeUseCase);
         OrderRestMapper mapper = new OrderRestMapper();
         mockMvc =
                 standaloneSetup(
                                 new OrderManagementController(
-                                        orderQueryService,
-                                        assignmentService,
+                                        deskOrderQueries,
+                                        resolveUserScopeUseCase,
+                                        assignOrderUseCase,
+                                        unassignOrderUseCase,
                                         executeOrderUseCase,
                                         cancelOrderUseCase,
                                         rejectOrderUseCase,
@@ -96,9 +110,9 @@ class OrderExecutionControllerTest {
 
         mockMvc.perform(
                         post("/api/v1/orders/" + order.getId() + "/execute")
-                                .header("X-Trader-Id", "trader-a")
+                                .header("X-User-Id", "trader-a")
                                 .contentType(APPLICATION_JSON)
-                                .content("{\"executedRate\":3.55,\"counterparty\":\"BankCo\"}"))
+                                .content("{\"executedRate\":3.55}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("EXECUTED"))
                 .andExpect(jsonPath("$.orderId").value(order.getId().toString()))
@@ -115,7 +129,7 @@ class OrderExecutionControllerTest {
         UUID id = UUID.randomUUID();
         mockMvc.perform(
                         post("/api/v1/orders/" + id + "/execute")
-                                .header("X-Trader-Id", "trader-a")
+                                .header("X-User-Id", "trader-a")
                                 .contentType(APPLICATION_JSON)
                                 .content("{}"))
                 .andExpect(status().isBadRequest())
@@ -130,9 +144,9 @@ class OrderExecutionControllerTest {
 
         mockMvc.perform(
                         post("/api/v1/orders/" + id + "/execute")
-                                .header("X-Trader-Id", "intruder")
+                                .header("X-User-Id", "intruder")
                                 .contentType(APPLICATION_JSON)
-                                .content("{\"executedRate\":3.5,\"counterparty\":\"BankCo\"}"))
+                                .content("{\"executedRate\":3.5}"))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.error").value("UNAUTHORIZED_TRADER"));
     }
@@ -145,55 +159,56 @@ class OrderExecutionControllerTest {
 
         mockMvc.perform(
                         post("/api/v1/orders/" + id + "/execute")
-                                .header("X-Trader-Id", "trader-a")
+                                .header("X-User-Id", "trader-a")
                                 .contentType(APPLICATION_JSON)
-                                .content("{\"executedRate\":3.5,\"counterparty\":\"BankCo\"}"))
+                                .content("{\"executedRate\":3.5}"))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.error").value("INVALID_STATUS_TRANSITION"));
     }
 
     @Test
-    void getExecutedTerm_delegatesToOrderQueryService() throws Exception {
-        when(orderQueryService.listExecutedTermOrders(eq(0), eq(20)))
+    void getExecutedTerm_delegatesToDeskOrderQueries() throws Exception {
+        when(deskOrderQueries.listExecutedTermOrders(eq(OrderControllerTestSupport.DEFAULT_SCOPE), eq(0), eq(20)))
                 .thenReturn(new OrderPage(List.of(), 0, 0, 20));
 
-        mockMvc.perform(get("/api/v1/orders/term/executed").header("X-Trader-Id", "alice"))
+        mockMvc.perform(get("/api/v1/orders/term/executed").header("X-User-Id", "alice"))
                 .andExpect(status().isOk());
 
-        verify(orderQueryService).listExecutedTermOrders(0, 20);
+        verify(deskOrderQueries).listExecutedTermOrders(OrderControllerTestSupport.DEFAULT_SCOPE, 0, 20);
     }
 
     @Test
     void getExecutedTerm_includesHandoffStatusOnSummaries() throws Exception {
         MoneyMarketOrder order = assignedOrderExecuted();
         assertThat(order.getHandoffStatus()).isEqualTo(HandoffStatus.PENDING);
-        when(orderQueryService.listExecutedTermOrders(eq(0), eq(20)))
+        when(deskOrderQueries.listExecutedTermOrders(eq(OrderControllerTestSupport.DEFAULT_SCOPE), eq(0), eq(20)))
                 .thenReturn(new OrderPage(List.of(order), 1, 0, 20));
 
-        mockMvc.perform(get("/api/v1/orders/term/executed").header("X-Trader-Id", "alice"))
+        mockMvc.perform(get("/api/v1/orders/term/executed").header("X-User-Id", "alice"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].handoffStatus").value("PENDING"));
     }
 
     @Test
-    void getExecutedOnCall_delegatesToOrderQueryService() throws Exception {
-        when(orderQueryService.listExecutedOnCallOrders(eq(0), eq(25)))
+    void getExecutedOnCall_delegatesToDeskOrderQueries() throws Exception {
+        when(deskOrderQueries.listExecutedOnCallOrders(eq(OrderControllerTestSupport.DEFAULT_SCOPE), eq(0), eq(25)))
                 .thenReturn(new OrderPage(List.of(), 0, 0, 25));
 
         mockMvc.perform(
                         get("/api/v1/orders/oncall/executed")
-                                .header("X-Trader-Id", "bob")
+                                .header("X-User-Id", "bob")
                                 .queryParam("page", "0")
                                 .queryParam("size", "25"))
                 .andExpect(status().isOk());
 
-        verify(orderQueryService).listExecutedOnCallOrders(0, 25);
+        verify(deskOrderQueries).listExecutedOnCallOrders(OrderControllerTestSupport.DEFAULT_SCOPE, 0, 25);
     }
 
     private static MoneyMarketOrder assignedOrderExecuted() {
         MoneyMarketOrder order =
                 MoneyMarketOrder.create(
                         new ExternalOrderReference("REF-EXEC-" + UUID.randomUUID()),
+                        new LegalEntityCode("LOC"),
                         OrderType.TERM,
                         OrderOperation.SUBSCRIPTION,
                         new PortfolioNumber("PF-1"),
@@ -201,15 +216,13 @@ class OrderExecutionControllerTest {
                         new BigDecimal("1000000.00"),
                         TODAY.plusDays(3),
                         new BigDecimal("3.25000000"),
-                        Tenor._3M,
-                        null,
-                        null,
-                        null,
+                        Tenor._3M, null, null, "BNKCO", "BankCo",
                         TODAY);
         order.assign(new TraderId("trader-a"), NOW);
         order.execute(
                 new BigDecimal("3.55000000"),
                 "BankCo International",
+                "HSBC-01",
                 new DealingReference("DL-exec-test"),
                 new ContractNumber("CN-exec-test"),
                 new TraderId("trader-a"),

@@ -6,6 +6,7 @@ import com.mmx.order.domain.exception.UnauthorizedTraderException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -14,6 +15,7 @@ import java.time.LocalDate;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+@Tag("fast")
 
 @DisplayName("MoneyMarketOrder lifecycle")
 class MoneyMarketOrderLifecycleTest {
@@ -29,6 +31,7 @@ class MoneyMarketOrderLifecycleTest {
     void setUp() {
         receivedOrder = MoneyMarketOrder.create(
                 new ExternalOrderReference("PM-LIFECYCLE-001"),
+                new LegalEntityCode("LOC"),
                 OrderType.TERM,
                 OrderOperation.SUBSCRIPTION,
                 new PortfolioNumber("PF-001"),
@@ -37,7 +40,7 @@ class MoneyMarketOrderLifecycleTest {
                 TODAY.plusDays(2),
                 new BigDecimal("3.25000000"),
                 Tenor._3M,
-                null, null, null,
+                null, null, "BNKCO", "BankCo",
                 TODAY
         );
     }
@@ -62,7 +65,7 @@ class MoneyMarketOrderLifecycleTest {
         void assign_from_executed_throws() {
             receivedOrder.assign(TRADER_A, NOW);
             receivedOrder.execute(
-                    new BigDecimal("3.50000000"), "BankCo",
+                    new BigDecimal("3.50000000"), "BankCo", "HSBC-01",
                     new DealingReference("DL-abc"), new ContractNumber("CN-abc"),
                     TRADER_A, NOW
             );
@@ -115,7 +118,7 @@ class MoneyMarketOrderLifecycleTest {
             ContractNumber contractNum = new ContractNumber("CN-exec-001");
 
             receivedOrder.execute(
-                    new BigDecimal("3.50000000"), "BankCo International",
+                    new BigDecimal("3.50000000"), "BankCo International", "HSBC-01",
                     dealRef, contractNum, TRADER_A, NOW
             );
 
@@ -132,7 +135,7 @@ class MoneyMarketOrderLifecycleTest {
         @Test
         void execute_by_wrong_trader_throws() {
             assertThatThrownBy(() -> receivedOrder.execute(
-                    new BigDecimal("3.50000000"), "BankCo",
+                    new BigDecimal("3.50000000"), "BankCo", "HSBC-01",
                     new DealingReference("DL-x"), new ContractNumber("CN-x"),
                     TRADER_B, NOW
             )).isInstanceOf(UnauthorizedTraderException.class);
@@ -143,6 +146,7 @@ class MoneyMarketOrderLifecycleTest {
             MoneyMarketOrder increase =
                     MoneyMarketOrder.create(
                             new ExternalOrderReference("PM-LC-NULL-CN"),
+                            new LegalEntityCode("LOC"),
                             OrderType.ON_CALL,
                             OrderOperation.INCREASE,
                             new PortfolioNumber("PF-001"),
@@ -152,8 +156,7 @@ class MoneyMarketOrderLifecycleTest {
                             null,
                             null,
                             NoticePeriod._24H,
-                            new ContractNumber("CN-SRC"),
-                            null,
+                            new ContractNumber("CN-SRC"), "BNKCO", "BankCo",
                             TODAY);
             increase.assign(TRADER_A, NOW);
 
@@ -162,6 +165,7 @@ class MoneyMarketOrderLifecycleTest {
                                     increase.execute(
                                             new BigDecimal("3.50000000"),
                                             "BankCo International",
+                                        "HSBC-01",
                                             new DealingReference("DL-x"),
                                             null,
                                             TRADER_A,
@@ -173,7 +177,7 @@ class MoneyMarketOrderLifecycleTest {
         @Test
         void execute_below_minimum_rate_throws_when_floor_present() {
             assertThatThrownBy(() -> receivedOrder.execute(
-                    new BigDecimal("3.24000000"), "BankCo",
+                    new BigDecimal("3.24000000"), "BankCo", "HSBC-01",
                     new DealingReference("DL-low"), new ContractNumber("CN-low"),
                     TRADER_A, NOW
             )).isInstanceOf(InvalidOrderException.class)
@@ -184,6 +188,7 @@ class MoneyMarketOrderLifecycleTest {
         void execute_succeeds_when_no_minimum_floor() {
             MoneyMarketOrder openFloor = MoneyMarketOrder.create(
                     new ExternalOrderReference("PM-NO-FLOOR"),
+                    new LegalEntityCode("LOC"),
                     OrderType.TERM,
                     OrderOperation.SUBSCRIPTION,
                     new PortfolioNumber("PF-001"),
@@ -191,15 +196,12 @@ class MoneyMarketOrderLifecycleTest {
                     new BigDecimal("5000000.00"),
                     TODAY.plusDays(2),
                     null,
-                    Tenor._3M,
-                    null,
-                    null,
-                    null,
+                    Tenor._3M, null, null, "BNKCO", "BankCo",
                     TODAY
             );
             openFloor.assign(TRADER_A, NOW);
             openFloor.execute(
-                    new BigDecimal("0.01000000"), "BankCo",
+                    new BigDecimal("0.01000000"), "BankCo", "HSBC-01",
                     new DealingReference("DL-any"), new ContractNumber("CN-any"),
                     TRADER_A, NOW
             );
@@ -210,6 +212,7 @@ class MoneyMarketOrderLifecycleTest {
         void execute_from_received_without_assign_throws_invalid_transition() {
             MoneyMarketOrder receivedOnly = MoneyMarketOrder.create(
                     new ExternalOrderReference("PM-EXEC-NO-ASSIGN"),
+                    new LegalEntityCode("LOC"),
                     OrderType.TERM,
                     OrderOperation.SUBSCRIPTION,
                     new PortfolioNumber("PF-001"),
@@ -217,10 +220,7 @@ class MoneyMarketOrderLifecycleTest {
                     new BigDecimal("5000000.00"),
                     TODAY.plusDays(2),
                     new BigDecimal("3.25000000"),
-                    Tenor._3M,
-                    null,
-                    null,
-                    null,
+                    Tenor._3M, null, null, "BNKCO", "BankCo",
                     TODAY
             );
             assertThatThrownBy(
@@ -228,6 +228,7 @@ class MoneyMarketOrderLifecycleTest {
                                     receivedOnly.execute(
                                             new BigDecimal("3.50000000"),
                                             "BankCo",
+                                    "HSBC-01",
                                             new DealingReference("DL-x"),
                                             new ContractNumber("CN-x"),
                                             TRADER_A,
@@ -298,7 +299,7 @@ class MoneyMarketOrderLifecycleTest {
         void reject_from_executed_throws() {
             receivedOrder.assign(TRADER_A, NOW);
             receivedOrder.execute(
-                    new BigDecimal("3.50000000"), "BankCo",
+                    new BigDecimal("3.50000000"), "BankCo", "HSBC-01",
                     new DealingReference("DL-z"), new ContractNumber("CN-z"),
                     TRADER_A, NOW
             );
