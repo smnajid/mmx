@@ -99,21 +99,41 @@ fi
 [[ -n "${INSTITUTION_CODE}" ]] || fail "could not resolve an active institution on LODH"
 ok "hub institution for the flow: ${INSTITUTION_CODE}"
 
-GRANT_ACTIVE="$(curl -sf -H "X-User-Id: ${USER_ID}" "${LODH_URL}/api/v1/settings/delegated-grants" | python3 -c "
+# Grant state for (institution, CGD, currency): absent / inactive / active; and whether it grants TENOR.
+read -r GRANT_STATE GRANT_HAS_TENOR GRANT_TENORS_WITH_TENOR <<< "$(curl -sf -H "X-User-Id: ${USER_ID}" "${LODH_URL}/api/v1/settings/delegated-grants" | python3 -c "
 import json, sys
-rows = json.load(sys.stdin)
-print(any(r.get('hubInstitutionCode') == sys.argv[1] and r.get('clientLegalEntityCode') == 'CGD'
-          and r.get('currency') == sys.argv[2] and r.get('active') for r in rows))
-" "${INSTITUTION_CODE}" "${CURRENCY}")"
-if [[ "${GRANT_ACTIVE}" == "True" ]]; then
-  ok "delegated grant ${INSTITUTION_CODE}→CGD/${CURRENCY} already active on LODH"
-else
-  GRANT_FILE="$(mktemp)"
+rows = [r for r in json.load(sys.stdin)
+        if r.get('hubInstitutionCode') == sys.argv[1] and r.get('clientLegalEntityCode') == 'CGD'
+        and r.get('currency') == sys.argv[2]]
+r = rows[0] if rows else None
+state = 'absent' if r is None else ('active' if r.get('active') else 'inactive')
+tenors = (r or {}).get('enabledTenors') or []
+print(state, str(sys.argv[3] in tenors).lower(), json.dumps(sorted(set(tenors) | {sys.argv[3]}), separators=(',', ':')))
+" "${INSTITUTION_CODE}" "${CURRENCY}" "${TENOR}")"
+GRANT_PATH="${LODH_URL}/api/v1/settings/delegated-grants/${INSTITUTION_CODE}/CGD/${CURRENCY}"
+GRANT_FILE="$(mktemp)"
+if [[ "${GRANT_STATE}" == "absent" ]]; then
   curl -sf -X POST "${LODH_URL}/api/v1/settings/delegated-grants" \
     -H "Content-Type: application/json" -H "X-User-Id: ${USER_ID}" \
     -d "{\"hubInstitutionCode\":\"${INSTITUTION_CODE}\",\"clientLegalEntityCode\":\"CGD\",\"currency\":\"${CURRENCY}\",\"enabledTenors\":[\"${TENOR}\"],\"enabledNoticePeriods\":[]}" \
     > "${GRANT_FILE}" || fail "could not create delegated grant on LODH: $(cat "${GRANT_FILE}")"
   ok "created delegated grant ${INSTITUTION_CODE}→CGD/${CURRENCY} (tenors: ${TENOR}) on LODH"
+else
+  if [[ "${GRANT_STATE}" == "inactive" ]]; then
+    curl -sf -X POST "${GRANT_PATH}/reactivate" -H "X-User-Id: ${USER_ID}" > "${GRANT_FILE}" \
+      || fail "could not reactivate delegated grant on LODH: $(cat "${GRANT_FILE}")"
+    ok "reactivated delegated grant ${INSTITUTION_CODE}→CGD/${CURRENCY} on LODH"
+  else
+    ok "delegated grant ${INSTITUTION_CODE}→CGD/${CURRENCY} already active on LODH"
+  fi
+  if [[ "${GRANT_HAS_TENOR}" != "true" ]]; then
+    # Client enablement can only switch on granted tenors; add the routed tenor, keeping the others.
+    curl -sf -X PATCH "${GRANT_PATH}" \
+      -H "Content-Type: application/json" -H "X-User-Id: ${USER_ID}" \
+      -d "{\"enabledTenors\":${GRANT_TENORS_WITH_TENOR}}" > "${GRANT_FILE}" \
+      || fail "could not grant ${TENOR} on ${INSTITUTION_CODE}→CGD/${CURRENCY}: $(cat "${GRANT_FILE}")"
+    ok "granted tenor ${TENOR} on ${INSTITUTION_CODE}→CGD/${CURRENCY}"
+  fi
 fi
 
 # LOC's own counterparty accounts: the hub refuses a routed order at Leg A without them.
@@ -197,7 +217,7 @@ HUB_ORDER_ID="$(python3 - "${DESK_FILE}" "${EXTERNAL_REF}" <<'PY'
 import json, sys
 rows = json.load(open(sys.argv[1]))
 items = rows.get("items") or rows.get("content") or rows
-match = [r for r in items if r.get("originatingExternalOrderReference") == sys.argv[1]]
+match = [r for r in items if r.get("originatingExternalOrderReference") == sys.argv[2]]
 match = match or [r for r in items if r.get("portfolioNumber", "").startswith("CGD-LOC")]
 print(match[0]["orderId"] if match else "")
 PY

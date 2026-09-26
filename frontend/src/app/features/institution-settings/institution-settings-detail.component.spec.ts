@@ -208,6 +208,97 @@ describe('InstitutionSettingsDetailComponent', () => {
     expect(el.querySelector('.status-badge')?.textContent?.trim()).toBe('Open');
   });
 
+  it('locks an enabled-not-granted tenor once it is switched off', async () => {
+    await render(true, CLIENT_INSTITUTION);
+    const panel = el.querySelector('[data-testid="enablement-EUR"]')!;
+
+    checkbox(panel, '6M').click();
+    await settle();
+
+    expect(checkbox(panel, '6M').checked).toBe(false);
+    expect(checkbox(panel, '6M').disabled).toBe(true);
+    expect(panel.querySelector('[data-testid="not-granted-6M"]')).toBeNull();
+  });
+
+  it('shows a currency kept only by client enablement after the grant is revoked', async () => {
+    await render(true, {
+      ...CLIENT_INSTITUTION,
+      enablements: [
+        {
+          currency: 'USD',
+          grantedTenors: [],
+          grantedNoticePeriods: [],
+          enabledTenors: ['1M'],
+          enabledNoticePeriods: [],
+        },
+      ],
+    });
+    const panel = el.querySelector('[data-testid="enablement-USD"]')!;
+
+    expect(panel.querySelector('[data-testid="not-granted-1M"]')).toBeTruthy();
+    expect(checkbox(panel, '3M').disabled).toBe(true);
+  });
+
+  it('keeps unsaved edits elsewhere on the page when one section is saved', async () => {
+    await render(true, {
+      ...CLIENT_INSTITUTION,
+      enablements: [
+        ...CLIENT_INSTITUTION.enablements,
+        {
+          currency: 'USD',
+          grantedTenors: ['1M'],
+          grantedNoticePeriods: [],
+          enabledTenors: [],
+          enabledNoticePeriods: [],
+        },
+      ],
+    });
+    fixture.componentInstance.accountsForm.patchValue({ onCallCounterpartyAccount: 'PAR-BNP-OC' });
+    checkbox(el.querySelector('[data-testid="enablement-USD"]')!, '1M').click();
+    await settle();
+
+    click('Save EUR');
+    httpMock.expectOne(`${BASE}/BVL-01/enablement/EUR`).flush(CLIENT_INSTITUTION);
+    await settle();
+
+    expect(fixture.componentInstance.accountsForm.value.onCallCounterpartyAccount).toBe(
+      'PAR-BNP-OC',
+    );
+    expect(checkbox(el.querySelector('[data-testid="enablement-USD"]')!, '1M').checked).toBe(true);
+  });
+
+  it('shows the API message when the institution cannot be loaded', async () => {
+    await TestBed.configureTestingModule({
+      imports: [InstitutionSettingsDetailComponent, HttpClientTestingModule],
+      providers: [
+        provideRouter([]),
+        { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => 'NOPE-01' } } } },
+        {
+          provide: TraderContextService,
+          useValue: {
+            userId: signal('demo-trader'),
+            isTrader: () => false,
+            isClientRepresentative: () => true,
+          },
+        },
+      ],
+    }).compileComponents();
+    httpMock = TestBed.inject(HttpTestingController);
+    fixture = TestBed.createComponent(InstitutionSettingsDetailComponent);
+    fixture.detectChanges();
+    httpMock
+      .expectOne(`${BASE}/NOPE-01`)
+      .flush(
+        { error: 'INSTITUTION_NOT_FOUND', message: 'Institution NOPE-01 not found' },
+        { status: 404, statusText: 'Not Found' },
+      );
+    await settle();
+
+    expect(el.querySelector('[role="alert"]')?.textContent).toContain(
+      'Institution NOPE-01 not found',
+    );
+  });
+
   it('keeps Deactivate for a Trader', async () => {
     await render(false, HUB_INSTITUTION);
 

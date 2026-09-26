@@ -114,7 +114,7 @@ export class InstitutionSettingsListComponent implements OnInit {
         this.loading.set(false);
       },
       error: (err) => {
-        this.error.set(err?.message ?? 'Failed to load institutions');
+        this.error.set(err?.error?.message ?? err?.message ?? 'Failed to load institutions');
         this.loading.set(false);
       },
     });

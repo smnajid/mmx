@@ -67,7 +67,7 @@ The system SHALL expose an authenticated operation for a `ClientRepresentative` 
 
 ### Requirement: Offboard and re-onboard an onboarded institution
 
-A `ClientRepresentative` SHALL **offboard** an onboarded institution of their TradingClient. The system SHALL NOT delete it: it SHALL mark it **closed to new business**, keep its counterparty accounts, and record an institution export. Offboarding an already-offboarded institution SHALL be an idempotent success. Offboarding SHALL NOT alter orders already `RECEIVED`, `ROUTED`, or `EXECUTED`. **Re-onboarding** SHALL reopen the same record (same `institutionCode`, same accounts) to new business and record an institution export. It SHALL require at least one active grant for the hub institution, as for first onboarding. A Trader SHALL NOT offboard or re-onboard a client institution.
+A `ClientRepresentative` SHALL **offboard** an onboarded institution of their TradingClient. The system SHALL NOT delete it: it SHALL mark it **closed to new business**, keep its counterparty accounts, and record an institution export. Offboarding an already-offboarded institution SHALL be an idempotent success. Offboarding SHALL NOT alter orders already `RECEIVED`, `ROUTED`, or `EXECUTED`. **Re-onboarding** SHALL reopen the same record (same `institutionCode`) to new business and record an institution export. It SHALL keep the stored counterparty accounts, except that an account supplied on the re-onboard request SHALL replace the stored one for its OrderType. It SHALL require at least one active grant for the hub institution, as for first onboarding. A Trader SHALL NOT offboard or re-onboard a client institution.
 
 #### Scenario: Offboard closes to new business
 
@@ -78,6 +78,11 @@ A `ClientRepresentative` SHALL **offboard** an onboarded institution of their Tr
 
 - **WHEN** the ClientRepresentative on `PAR` onboards `BNP` again after offboarding it, while grant `(BNP, PAR, EUR)` is active
 - **THEN** the same `institutionCode` is reopened with `closedToNewBusiness` false, its accounts intact, and an institution export is recorded
+
+#### Scenario: Re-onboard with a supplied account replaces only that account
+
+- **WHEN** `PAR` offboarded `BNP via LOC` holding `PAR-BNP-T` and `PAR-BNP-OC`, and the ClientRepresentative re-onboards `BNP` supplying `termCounterpartyAccount` `PAR-BNP-T2` only
+- **THEN** the reopened record holds `PAR-BNP-T2` and `PAR-BNP-OC`
 
 #### Scenario: Re-onboard without a grant rejected
 

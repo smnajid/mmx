@@ -61,7 +61,7 @@ paths:
               $ref: "#/components/schemas/OnboardInstitutionRequest"
       responses:
         "200":
-          description: Offboarded onboarded institution re-onboarded (same `institutionCode`, accounts kept)
+          description: Offboarded onboarded institution re-onboarded (same `institutionCode`; supplied accounts replace the stored ones, absent ones are kept)
           content:
             application/json:
               schema:

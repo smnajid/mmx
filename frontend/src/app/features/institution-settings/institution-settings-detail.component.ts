@@ -18,6 +18,10 @@ interface EnablementDraft {
   notices: NoticePeriodCode[];
 }
 
+function toDraft(grant: ClientEnablement): EnablementDraft {
+  return { grant, tenors: [...grant.enabledTenors], notices: [...grant.enabledNoticePeriods] };
+}
+
 @Component({
   selector: 'app-institution-settings-detail',
   standalone: true,
@@ -151,6 +155,8 @@ interface EnablementDraft {
             </button>
           }
         </div>
+      } @else if (error()) {
+        <p class="settings-error" role="alert">{{ error() }}</p>
       }
     </section>
   `,
@@ -269,7 +275,7 @@ export class InstitutionSettingsDetailComponent implements OnInit {
         this.loading.set(false);
       },
       error: (err) => {
-        this.error.set(err?.message ?? 'Failed to load institution');
+        this.error.set(err?.error?.message ?? err?.message ?? 'Failed to load institution');
         this.loading.set(false);
       },
     });
@@ -318,6 +324,12 @@ export class InstitutionSettingsDetailComponent implements OnInit {
           enabledNoticePeriods: d.notices,
         }),
       `Client enablement saved for ${d.grant.currency}`,
+      (updated) => {
+        const saved = (updated.enablements ?? []).find((e) => e.currency === d.grant.currency);
+        if (saved) {
+          this.replaceDraft(toDraft(saved));
+        }
+      },
     );
   }
 
@@ -335,6 +347,7 @@ export class InstitutionSettingsDetailComponent implements OnInit {
           onCallCounterpartyAccount: onCall || null,
         }),
       'Counterparty accounts saved',
+      (updated) => this.resetAccountsForm(updated),
     );
   }
 
@@ -356,17 +369,15 @@ export class InstitutionSettingsDetailComponent implements OnInit {
 
   private show(inst: Institution): void {
     this.institution.set(inst);
+    this.resetAccountsForm(inst);
+    this.drafts.set((inst.enablements ?? []).map(toDraft));
+  }
+
+  private resetAccountsForm(inst: Institution): void {
     this.accountsForm.reset({
       termCounterpartyAccount: inst.termCounterpartyAccount ?? '',
       onCallCounterpartyAccount: inst.onCallCounterpartyAccount ?? '',
     });
-    this.drafts.set(
-      (inst.enablements ?? []).map((grant) => ({
-        grant,
-        tenors: [...grant.enabledTenors],
-        notices: [...grant.enabledNoticePeriods],
-      })),
-    );
   }
 
   private replaceDraft(next: EnablementDraft): void {
@@ -375,13 +386,22 @@ export class InstitutionSettingsDetailComponent implements OnInit {
     );
   }
 
-  private run(call: () => Observable<Institution>, successNotice: string | null = null): void {
+  /**
+   * Runs a mutation and keeps the returned institution. `refresh` resets only the section that was
+   * saved, so unsaved edits elsewhere on the page survive; offboard / re-onboard touch no form.
+   */
+  private run(
+    call: () => Observable<Institution>,
+    successNotice: string | null = null,
+    refresh: (updated: Institution) => void = () => undefined,
+  ): void {
     this.acting.set(true);
     this.error.set(null);
     this.notice.set(null);
     call().subscribe({
       next: (updated) => {
-        this.show(updated);
+        this.institution.set(updated);
+        refresh(updated);
         this.notice.set(successNotice);
         this.acting.set(false);
       },

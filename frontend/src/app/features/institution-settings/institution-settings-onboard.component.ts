@@ -29,11 +29,6 @@ import { TraderContextService } from '../../core/trader/trader-context.service';
       @if (error()) {
         <p class="settings-error" role="alert">{{ error() }}</p>
       }
-      @if (createdCode()) {
-        <p class="settings-state" role="status">
-          Created with code <span class="mono">{{ createdCode() }}</span>
-        </p>
-      }
 
       <form class="settings-form" [formGroup]="form" (ngSubmit)="save()">
         @if (trader.isTrader()) {
@@ -68,13 +63,6 @@ import { TraderContextService } from '../../core/trader/trader-context.service';
       </form>
     </section>
   `,
-  styles: `
-    .mono {
-      font-family: var(--font-mono);
-      font-weight: 600;
-      color: var(--mmx-accent);
-    }
-  `,
 })
 export class InstitutionSettingsOnboardComponent implements OnInit {
   protected readonly trader = inject(TraderContextService);
@@ -94,7 +82,6 @@ export class InstitutionSettingsOnboardComponent implements OnInit {
   readonly grantedOptions = signal<GrantedInstitution[]>([]);
   readonly saving = signal(false);
   readonly error = signal<string | null>(null);
-  readonly createdCode = signal<string | null>(null);
 
   ngOnInit(): void {
     if (this.trader.isClientRepresentative()) {
@@ -115,7 +102,7 @@ export class InstitutionSettingsOnboardComponent implements OnInit {
         },
       });
     } else {
-      this.form.controls.displayName.setValidators([Validators.required, Validators.minLength(1)]);
+      this.form.controls.displayName.setValidators([Validators.required, Validators.pattern(/\S/)]);
       this.form.controls.hubInstitutionCode.clearValidators();
     }
     this.form.controls.displayName.updateValueAndValidity();
@@ -143,7 +130,6 @@ export class InstitutionSettingsOnboardComponent implements OnInit {
 
     this.api.onboard(userId, body).subscribe({
       next: (inst) => {
-        this.createdCode.set(inst.institutionCode);
         this.saving.set(false);
         void this.router.navigate(['/settings/institutions', inst.institutionCode]);
       },

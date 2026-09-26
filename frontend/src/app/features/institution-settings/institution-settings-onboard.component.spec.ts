@@ -143,6 +143,15 @@ describe('InstitutionSettingsOnboardComponent', () => {
     });
   });
 
+  it('rejects a whitespace-only Trader display name before submit', async () => {
+    await setUp(false);
+    fixture.componentInstance.form.patchValue({ displayName: '   ' });
+
+    expect(fixture.componentInstance.form.invalid).toBe(true);
+    fixture.componentInstance.save();
+    expect(onboard).not.toHaveBeenCalled();
+  });
+
   it('rejects an over-long counterparty account before submit', async () => {
     await setUp(false);
     fixture.componentInstance.form.patchValue({
