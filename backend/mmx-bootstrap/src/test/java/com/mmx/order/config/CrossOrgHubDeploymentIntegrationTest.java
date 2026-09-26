@@ -78,6 +78,7 @@ class CrossOrgHubDeploymentIntegrationTest extends SharedPostgresTestBase {
                   "routingId": "3f2b8c4e-1d5a-4c6b-9e2f-7a8b1c2d3e4f",
                   "portfolioNumber": "CGD-LOC-001",
                   "institutionCode": "BNP",
+                  "clientCounterpartyAccount": "CGD-BNP-T",
                   "originatingExternalOrderReference": "CGEG-TEST-0001",
                   "currency": "EUR",
                   "amount": 1000000,

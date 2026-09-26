@@ -27,14 +27,28 @@ TradingClient list (defense-in-depth: gateway early-reject + use-case membership
 ## Leg A — routed-order accept
 
 `POST /api/v1/cross-org/routed-orders` carries the CGED-resolved hub-side `portfolioNumber` (trusted,
-not revalidated), a hub-native `institutionCode`, the CGED-minted `routingId`, and the order fields.
+not revalidated), the hub-native `institutionCode` linked to the client's onboarded institution, the
+CGED-minted `routingId`, the required `clientCounterpartyAccount` (the client's counterparty account
+snapshot for the order's OrderType, taken at routing), and the order fields.
 
-- **Accept (`200`)**: the hub validates `(institution, currency, tenor|noticePeriod)` against the
-  originating client's grant in-process, creates the hub-side order in `RECEIVED`, commits a leg-B
+> **Upgrade note:** `clientCounterpartyAccount` is required. A client deployment on an older build gets
+> `400` from a hub on this build, so both deployments must be upgraded together.
+
+Before sending, the client validates what it owns: the institution is onboarded, open to new business,
+and (Subscription/Increase) the tenor/notice period is within its effective enablement; and its own
+counterparty account for the OrderType exists. A failure rejects the client-side order synchronously
+as a routing failure and nothing is sent.
+
+- **Accept (`200`)**: for a **Subscription or Increase** the hub validates `(institution, currency,
+  tenor|noticePeriod)` against the originating client's grant in-process and requires the hub
+  institution to be open to new business; a **Decrease or Redemption** skips both checks (it is
+  accepted on a revoked grant). For **every** operation the hub institution must hold the
+  counterparty account for the OrderType. The hub stores `clientCounterpartyAccount` read-only on the
+  hub-side order (checking only its presence), creates the hub-side order in `RECEIVED`, commits a leg-B
   `ACCEPTED` outbox row in the **same transaction**, and returns `outcome = ACCEPTED` with the proven
   `originatingLegalEntityCode`, `routingId`, and `acceptedAt`.
-- **Reject (`422`)**: a routing-failure (grant/currency/tenor invalid, or the proven legal entity is
-  not a TradingClient member). **No hub-side order is created and no leg-B event is emitted** — the
+- **Reject (`422`)**: a routing-failure (grant/currency/tenor invalid or hub institution closed to new
+  business for a Subscription/Increase, or a missing hub counterparty account). **No hub-side order is created and no leg-B event is emitted** — the
   reject is HTTP-only. The client closes `Received → Rejected` from this response directly.
 
 ### Idempotency
@@ -52,9 +66,11 @@ time, not as a routing reject. No deployment-internal order UUID crosses the bou
 
 ## Thin-client reference-data reads
 
-The client deployment stores **zero** hub reference data; it reads currencies, rates, grants, and
-counterparties **live from the hub** per request. Proxy indirection collapses: these endpoints return
-**hub-native** institution codes, and the client renders the `"via {hub}"` display name client-side.
+The client deployment stores **no hub-owned** reference data; it reads currencies, rates, and grants
+**live from the hub** per request. It does store its own **onboarded institutions**, their counterparty
+accounts, and its client enablement (client-owned facts, ADR 0008), each linked to a hub-native
+institution code. These endpoints return **hub-native** institution codes; `/reference/institutions`
+supplies the hub display names for the client's granted-institution list.
 Grants are scoped automatically to the proven `originatingLegalEntityCode`; the client cannot claim
 another client's grants.
 

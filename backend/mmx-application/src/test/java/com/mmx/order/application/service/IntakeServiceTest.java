@@ -14,11 +14,12 @@ import com.mmx.order.application.port.out.ManagedCurrencyRepository;
 import com.mmx.order.application.port.out.OpenPositionPort;
 import com.mmx.order.application.port.out.OrderRepository;
 import com.mmx.order.application.port.out.OrganisationRepository;
-import com.mmx.order.application.port.out.ProxyInstitutionRepository;
 import com.mmx.order.domain.exception.InvalidOrderException;
 import com.mmx.order.domain.model.ContractNumber;
 import com.mmx.order.domain.model.ExternalOrderReference;
 import com.mmx.order.domain.model.GlobalAccount;
+import com.mmx.order.domain.model.CounterpartyAccounts;
+import com.mmx.order.domain.model.HubInstitutionLink;
 import com.mmx.order.domain.model.Institution;
 import com.mmx.order.domain.model.LegalEntity;
 import com.mmx.order.domain.model.LegalEntityCode;
@@ -32,7 +33,6 @@ import com.mmx.order.domain.model.Organisation;
 import com.mmx.order.domain.model.OrganisationCode;
 import com.mmx.order.domain.model.PortfolioNumber;
 import com.mmx.order.domain.model.Tenor;
-import com.mmx.order.domain.model.ThinProxyInstitution;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -76,7 +76,6 @@ class IntakeServiceTest {
     @Mock Clock clock;
     @Mock ManagedCurrencyRepository managedCurrencyRepository;
     @Mock InstitutionRepository institutionRepository;
-    @Mock ProxyInstitutionRepository proxyInstitutionRepository;
     @Mock OpenPositionPort openPositionPort;
     @Mock OrganisationRepository organisationRepository;
     @Mock LegalEntityRepository legalEntityRepository;
@@ -102,13 +101,11 @@ class IntakeServiceTest {
         LegalEntity client = LegalEntity.tradingClient(PAR, PM_ORG, hub);
         when(legalEntityRepository.findByCode(PAR)).thenReturn(Optional.of(client));
         when(legalEntityRepository.belongsToOrganisation(PAR, PM_ORG)).thenReturn(true);
-        when(proxyInstitutionRepository.findByInstitutionCode("BNPLOC"))
+        when(institutionRepository.findByInstitutionCode("BNPLOC"))
                 .thenReturn(
                         Optional.of(
-                                ThinProxyInstitution.forHubInstitution(
-                                        "BNPLOC",
-                                        new Institution("BNP", "BNP", true),
-                                        LOC)));
+                                Institution.onboardFromGrant(
+                                        "BNPLOC", "BNP", new HubInstitutionLink(LOC, "BNP"), PAR, CounterpartyAccounts.none())));
         when(institutionRepository.findByInstitutionCode("BNP"))
                 .thenReturn(Optional.of(new Institution("BNP", "BNP", true)));
         when(delegatedGrantDirectory.resolveTenor(PAR, "BNPLOC", "EUR", Tenor._3M))
@@ -116,7 +113,6 @@ class IntakeServiceTest {
 
         RoutedOrderIntake routedOrderIntake =
                 new RoutedOrderIntake(
-                        proxyInstitutionRepository,
                         delegatedGrantDirectory,
                         globalAccountDirectory,
                         institutionRepository,
@@ -495,13 +491,11 @@ class IntakeServiceTest {
 
     @Test
     void routed_onCallIncrease_withMismatchedContractInstitution_isRejectedWithoutOrders() {
-        when(proxyInstitutionRepository.findByInstitutionCode("BNP-VIA-LOC"))
+        when(institutionRepository.findByInstitutionCode("BNP-VIA-LOC"))
                 .thenReturn(
                         Optional.of(
-                                ThinProxyInstitution.forHubInstitution(
-                                        "BNP-VIA-LOC",
-                                        new Institution("BNP", "BNP", true),
-                                        LOC)));
+                                Institution.onboardFromGrant(
+                                        "BNP-VIA-LOC", "BNP", new HubInstitutionLink(LOC, "BNP"), PAR, CounterpartyAccounts.none())));
         when(orderRepository.findByLegalEntityAndExternalReference(eq(PAR), any())).thenReturn(Optional.empty());
         when(orderRepository.findExecutedSubscriptionByContractNumber("CT-00042"))
                 .thenReturn(

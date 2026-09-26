@@ -55,6 +55,8 @@ public class OrderPersistenceMapper {
         if (order.getOriginatingExternalOrderReference() != null) {
             e.setOriginatingExternalOrderReference(order.getOriginatingExternalOrderReference().value());
         }
+        e.setCounterpartyAccount(order.getCounterpartyAccount());
+        e.setClientCounterpartyAccount(order.getClientCounterpartyAccount());
 
         if (order.getAssignment() != null) {
             e.setAssignedTraderId(order.getAssignment().traderId().value());
@@ -92,7 +94,7 @@ public class OrderPersistenceMapper {
                         ? new ExternalOrderReference(e.getOriginatingExternalOrderReference())
                         : null;
 
-        return MoneyMarketOrder.reconstitute(
+        MoneyMarketOrder order = MoneyMarketOrder.reconstitute(
                 e.getId(),
                 new ExternalOrderReference(e.getExternalOrderReference()),
                 legalEntityCodeFromEntity(e),
@@ -119,6 +121,8 @@ public class OrderPersistenceMapper {
                 originatingExternalRef,
                 e.getCreatedAt(),
                 e.getUpdatedAt());
+        order.restoreCounterpartyAccounts(e.getCounterpartyAccount(), e.getClientCounterpartyAccount());
+        return order;
     }
 
     private static LegalEntityCode legalEntityCodeFromEntity(OrderEntity e) {

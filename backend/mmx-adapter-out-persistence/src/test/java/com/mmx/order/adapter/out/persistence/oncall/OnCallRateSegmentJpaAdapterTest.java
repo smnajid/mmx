@@ -130,7 +130,7 @@ class OnCallRateSegmentJpaAdapterTest {
     private void seedInstitution(String code) {
         Instant now = Instant.parse("2026-01-01T00:00:00Z");
         InstitutionEntity entity =
-                institutionMapper.toEntity(new Institution(code, "HSBC", true), now);
+                institutionMapper.toEntity(new Institution(code, "HSBC", true), "LOC", now);
         springDataInstitutionRepository.save(entity);
     }
 }

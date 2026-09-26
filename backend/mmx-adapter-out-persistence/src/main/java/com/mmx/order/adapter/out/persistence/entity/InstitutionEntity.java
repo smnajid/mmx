@@ -29,6 +29,15 @@ public class InstitutionEntity {
     @Column(name = "hub_institution_code", length = 32)
     private String hubInstitutionCode;
 
+    @Column(name = "term_counterparty_account", length = 34)
+    private String termCounterpartyAccount;
+
+    @Column(name = "oncall_counterparty_account", length = 34)
+    private String onCallCounterpartyAccount;
+
+    @Column(name = "version", nullable = false)
+    private long version;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -83,6 +92,30 @@ public class InstitutionEntity {
 
     public void setHubInstitutionCode(String hubInstitutionCode) {
         this.hubInstitutionCode = hubInstitutionCode;
+    }
+
+    public String getTermCounterpartyAccount() {
+        return termCounterpartyAccount;
+    }
+
+    public void setTermCounterpartyAccount(String termCounterpartyAccount) {
+        this.termCounterpartyAccount = termCounterpartyAccount;
+    }
+
+    public String getOnCallCounterpartyAccount() {
+        return onCallCounterpartyAccount;
+    }
+
+    public void setOnCallCounterpartyAccount(String onCallCounterpartyAccount) {
+        this.onCallCounterpartyAccount = onCallCounterpartyAccount;
+    }
+
+    public long getVersion() {
+        return version;
+    }
+
+    public void setVersion(long version) {
+        this.version = version;
     }
 
     public Instant getCreatedAt() {

@@ -67,9 +67,13 @@ public final class ExecuteOrderService implements ExecuteOrderUseCase {
                 orderRepository.findById(command.orderId()).orElseThrow(() -> new OrderNotFoundException(command.orderId()));
 
         String institutionCode = order.getInstitutionCode();
-        var institutionOpt = institutionRepository.findByInstitutionCode(institutionCode);
-        institutionPolicy.validateExecute(institutionCode, institutionOpt);
-        Institution institution = institutionOpt.orElseThrow();
+        Institution institution =
+                institutionRepository
+                        .findByInstitutionCode(institutionCode)
+                        .orElseThrow(() -> new InvalidOrderException("Institution not found: " + institutionCode));
+        if (!institution.isActive()) {
+            throw new InvalidOrderException("Institution is not active: " + institutionCode);
+        }
 
         var now = clock.now();
         ContractNumber contractNumber = resolveExecutionContractNumber(order);

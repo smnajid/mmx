@@ -96,14 +96,12 @@ public class OrderModuleConfiguration {
 
     @Bean
     public RoutedOrderIntake routedOrderIntake(
-            ProxyInstitutionRepository proxyInstitutionRepository,
             DelegatedGrantDirectory delegatedGrantDirectory,
             GlobalAccountDirectory globalAccountDirectory,
             InstitutionRepository institutionRepository,
             OrderRepository orderRepository,
             Clock clock) {
         return new RoutedOrderIntake(
-                proxyInstitutionRepository,
                 delegatedGrantDirectory,
                 globalAccountDirectory,
                 institutionRepository,

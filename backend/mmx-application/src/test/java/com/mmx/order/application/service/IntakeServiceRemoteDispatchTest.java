@@ -15,11 +15,13 @@ import com.mmx.order.application.port.out.ManagedCurrencyRepository;
 import com.mmx.order.application.port.out.OpenPositionPort;
 import com.mmx.order.application.port.out.OrderRepository;
 import com.mmx.order.application.port.out.OrganisationRepository;
-import com.mmx.order.application.port.out.ProxyInstitutionRepository;
 import com.mmx.order.application.port.out.RemoteRoutingGateway;
 import com.mmx.order.application.port.out.RemoteRoutingRequest;
 import com.mmx.order.application.port.out.RemoteRoutingResponse;
+import com.mmx.order.domain.model.CounterpartyAccounts;
 import com.mmx.order.domain.model.ExternalOrderReference;
+import com.mmx.order.domain.model.HubInstitutionLink;
+import com.mmx.order.domain.model.Institution;
 import com.mmx.order.domain.model.HubLocality;
 import com.mmx.order.domain.model.LegalEntity;
 import com.mmx.order.domain.model.LegalEntityCode;
@@ -79,7 +81,6 @@ class IntakeServiceRemoteDispatchTest {
     @Mock Clock clock;
     @Mock ManagedCurrencyRepository managedCurrencyRepository;
     @Mock InstitutionRepository institutionRepository;
-    @Mock ProxyInstitutionRepository proxyInstitutionRepository;
     @Mock OpenPositionPort openPositionPort;
     @Mock OrganisationRepository organisationRepository;
     @Mock LegalEntityRepository legalEntityRepository;
@@ -115,7 +116,6 @@ class IntakeServiceRemoteDispatchTest {
                 new RemoteRoutedOrderIntake(externalIdentityGateway, remoteRoutingGateway, orderRepository, clock);
         RoutedOrderIntake localIntake =
                 new RoutedOrderIntake(
-                        proxyInstitutionRepository,
                         delegatedGrantDirectory,
                         globalAccountDirectory,
                         institutionRepository,
@@ -149,7 +149,7 @@ class IntakeServiceRemoteDispatchTest {
 
         verify(remoteRoutingGateway).route(any(RemoteRoutingRequest.class));
         verify(externalIdentityGateway).resolveHubSidePortfolioNumber(any(), any(), any());
-        verify(proxyInstitutionRepository, never()).findByInstitutionCode(any());
+        verify(institutionRepository, never()).findByInstitutionCode(any());
         verify(globalAccountDirectory, never()).resolve(any(), any(), any());
     }
 
@@ -161,7 +161,6 @@ class IntakeServiceRemoteDispatchTest {
         HubLocalityResolver localResolver = code -> HubLocality.LOCAL;
         RoutedOrderIntake localIntake =
                 new RoutedOrderIntake(
-                        proxyInstitutionRepository,
                         delegatedGrantDirectory,
                         globalAccountDirectory,
                         institutionRepository,
@@ -182,25 +181,22 @@ class IntakeServiceRemoteDispatchTest {
                         localResolver,
                         null);
 
-        when(proxyInstitutionRepository.findByInstitutionCode(any()))
+        when(institutionRepository.findByInstitutionCode("HSBC-01"))
                 .thenReturn(Optional.of(
-                        com.mmx.order.domain.model.ThinProxyInstitution.forHubInstitution(
-                                "HSBC-01",
-                                new com.mmx.order.domain.model.Institution("HSBC-01", "HSBC", true),
-                                LOC)));
+                        Institution.onboardFromGrant(
+                                "HSBC-01", "HSBC", new HubInstitutionLink(LOC, "HSBC"), CGD, CounterpartyAccounts.none())));
+        when(institutionRepository.findByInstitutionCode("HSBC"))
+                .thenReturn(Optional.of(new Institution("HSBC", "HSBC", true)));
         when(globalAccountDirectory.resolve(any(), any(), any()))
                 .thenReturn(Optional.of(new com.mmx.order.domain.model.GlobalAccount(
                         CGD, LOC, "EUR", "LOC-EUR-001")));
         when(delegatedGrantDirectory.resolveTenor(any(), any(), any(), any()))
                 .thenReturn(GrantResolution.GRANTED);
-        when(institutionRepository.findByInstitutionCode("HSBC-01"))
-                .thenReturn(Optional.of(
-                        new com.mmx.order.domain.model.Institution("HSBC-01", "HSBC", true)));
 
         ReceiveOrderCommand command = termSubscribeCommand();
         subject.receive(command);
 
-        verify(proxyInstitutionRepository).findByInstitutionCode(any());
+        verify(institutionRepository).findByInstitutionCode("HSBC-01");
         verify(remoteRoutingGateway, never()).route(any());
         verify(externalIdentityGateway, never()).resolveHubSidePortfolioNumber(any(), any(), any());
     }

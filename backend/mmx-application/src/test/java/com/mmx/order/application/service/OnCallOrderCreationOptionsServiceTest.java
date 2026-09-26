@@ -15,7 +15,6 @@ import com.mmx.order.application.port.out.LegalEntityRepository;
 import com.mmx.order.application.port.out.ManagedCurrencyRepository;
 import com.mmx.order.application.port.out.OnCallRateRepository;
 import com.mmx.order.application.port.out.OrderRepository;
-import com.mmx.order.application.port.out.ProxyInstitutionRepository;
 import com.mmx.order.domain.model.DelegatedInstitutionGrant;
 import com.mmx.order.domain.model.Institution;
 import com.mmx.order.domain.model.LegalEntity;
@@ -27,7 +26,6 @@ import com.mmx.order.domain.model.OnCallRateSegment;
 import com.mmx.order.domain.model.OnCallRateSegmentStatus;
 import com.mmx.order.domain.model.OrderOperation;
 import com.mmx.order.domain.model.Tenor;
-import com.mmx.order.domain.model.ThinProxyInstitution;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -74,9 +72,6 @@ class OnCallOrderCreationOptionsServiceTest {
     @Mock
     DelegatedGrantRepository delegatedGrantRepository;
 
-    @Mock
-    ProxyInstitutionRepository proxyInstitutionRepository;
-
     OnCallOrderCreationOptionsService subject;
 
     @BeforeEach
@@ -88,8 +83,7 @@ class OnCallOrderCreationOptionsServiceTest {
                         institutionRepository,
                         orderRepository,
                         legalEntityRepository,
-                        delegatedGrantRepository,
-                        proxyInstitutionRepository);
+                        delegatedGrantRepository);
     }
 
     @Test

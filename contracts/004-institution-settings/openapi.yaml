@@ -2,7 +2,11 @@ openapi: 3.0.3
 info:
   title: MMX Institution Settings API
   description: |
-    Trader-facing institution catalog for desk settings and execution selection. Mirror: [api-v1.md](./api-v1.md).
+    Institution catalog for desk settings and execution selection, role-scoped to the active
+    `(LegalEntity, role)`. A Trader on a TradingHub maintains native institutions; a
+    ClientRepresentative on a TradingClient onboards **granted institutions** into **onboarded
+    institutions**, maintains their **counterparty accounts**, and controls their **client
+    enablement**. Mirror: [api-v1.md](./api-v1.md). Institution export (async): [asyncapi.yaml](./asyncapi.yaml).
   version: 1.0.0
 
 servers:
@@ -11,7 +15,7 @@ servers:
 
 tags:
   - name: InstitutionSettings
-    description: Onboarded institution catalog
+    description: Native and onboarded institution catalog, counterparty accounts, client enablement
 
 paths:
   /api/v1/settings/institutions:
@@ -39,6 +43,13 @@ paths:
     post:
       tags: [InstitutionSettings]
       summary: Onboard an institution
+      description: |
+        Role-qualified. A Trader on a TradingHub onboards a native institution by `displayName`. A
+        ClientRepresentative on a TradingClient onboards a **granted institution** by
+        `hubInstitutionCode` (at least one active grant, any currency); the `displayName` is derived
+        as `"{hub displayName} via {hubLegalEntityCode}"`. Onboarding an offboarded institution
+        re-onboards (reopens) the same record and returns `200`; a new record returns `201`. Every
+        success records an institution export.
       operationId: onboardInstitution
       parameters:
         - $ref: "#/components/parameters/UserIdHeader"
@@ -49,6 +60,12 @@ paths:
             schema:
               $ref: "#/components/schemas/OnboardInstitutionRequest"
       responses:
+        "200":
+          description: Offboarded onboarded institution re-onboarded (same `institutionCode`, accounts kept)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InstitutionResponse"
         "201":
           description: Institution created
           content:
@@ -57,8 +74,33 @@ paths:
                 $ref: "#/components/schemas/InstitutionResponse"
         "400":
           $ref: "#/components/responses/ValidationError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
         "409":
-          $ref: "#/components/responses/SuffixOverflowError"
+          $ref: "#/components/responses/ConflictError"
+
+  /api/v1/settings/institutions/granted:
+    get:
+      tags: [InstitutionSettings]
+      summary: List granted institutions (ClientRepresentative)
+      description: |
+        Hub institutions for which the active TradingClient holds at least one active delegated grant
+        (any currency), joined with the hub display names and with the client's own onboarded
+        institutions. A remote client reads grants and hub names live from its hub. Trader → `403`.
+      operationId: listGrantedInstitutions
+      parameters:
+        - $ref: "#/components/parameters/UserIdHeader"
+      responses:
+        "200":
+          description: Granted institutions (may be empty)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GrantedInstitutionResponse"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
 
   /api/v1/settings/institutions/{institutionCode}:
     get:
@@ -81,36 +123,129 @@ paths:
   /api/v1/settings/institutions/{institutionCode}/deactivate:
     post:
       tags: [InstitutionSettings]
-      summary: Deactivate an institution
+      summary: Deactivate (Trader) or offboard (ClientRepresentative) an institution
+      description: |
+        Trader on a TradingHub: deactivates a native institution (closed to new business).
+        ClientRepresentative on a TradingClient: **offboards** an onboarded institution (closed to new
+        business, accounts kept, never deleted); idempotent. Records an institution export when the
+        state changes.
       operationId: deactivateInstitution
       parameters:
         - $ref: "#/components/parameters/UserIdHeader"
         - $ref: "#/components/parameters/InstitutionCode"
       responses:
         "200":
-          description: Institution deactivated
+          description: Institution deactivated / offboarded
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/InstitutionResponse"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
         "404":
           $ref: "#/components/responses/NotFoundError"
 
   /api/v1/settings/institutions/{institutionCode}/activate:
     post:
       tags: [InstitutionSettings]
-      summary: Reactivate an institution
+      summary: Reactivate (Trader) or re-onboard (ClientRepresentative) an institution
+      description: |
+        Trader on a TradingHub: reactivates a native institution. ClientRepresentative on a
+        TradingClient: **re-onboards** an offboarded onboarded institution (same record, same
+        accounts); requires at least one active grant for the linked hub institution. Records an
+        institution export when the state changes.
       operationId: activateInstitution
       parameters:
         - $ref: "#/components/parameters/UserIdHeader"
         - $ref: "#/components/parameters/InstitutionCode"
       responses:
         "200":
-          description: Institution activated
+          description: Institution activated / re-onboarded
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/InstitutionResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+
+  /api/v1/settings/institutions/{institutionCode}/counterparty-accounts:
+    put:
+      tags: [InstitutionSettings]
+      summary: Replace the Term and OnCall counterparty accounts
+      description: |
+        Full replacement; a null or absent account clears it. Only the owning scope's settings role
+        may call it (Trader on a TradingHub for native institutions, ClientRepresentative on a
+        TradingClient for onboarded institutions); an institution outside the active scope is `404`.
+        Allowed while closed to new business. Clearing an account is rejected (`409`) while any tenor
+        or notice period of that OrderType is client-enabled on the institution. Records an
+        institution export only when a value changes.
+      operationId: updateCounterpartyAccounts
+      parameters:
+        - $ref: "#/components/parameters/UserIdHeader"
+        - $ref: "#/components/parameters/InstitutionCode"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCounterpartyAccountsRequest"
+      responses:
+        "200":
+          description: Accounts stored
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InstitutionResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "409":
+          $ref: "#/components/responses/ConflictError"
+
+  /api/v1/settings/institutions/{institutionCode}/enablement/{currency}:
+    put:
+      tags: [InstitutionSettings]
+      summary: Replace the client enablement of an onboarded institution for one currency
+      description: |
+        ClientRepresentative only (Trader → `403`). Full replacement of the tenors (Term) and notice
+        periods (OnCall) switched on for new business for `(institutionCode, currency)`. Every value
+        must be enabled by the current active grant, and a Term tenor requires the Term counterparty
+        account (an OnCall notice period the OnCall account); otherwise `400`. Stored in the client's
+        own deployment only; never sent to the hub; records no institution export.
+      operationId: updateClientEnablement
+      parameters:
+        - $ref: "#/components/parameters/UserIdHeader"
+        - $ref: "#/components/parameters/InstitutionCode"
+        - name: currency
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^[A-Z]{3}$"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateClientEnablementRequest"
+      responses:
+        "200":
+          description: Client enablement stored
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InstitutionResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
         "404":
           $ref: "#/components/responses/NotFoundError"
 
@@ -140,8 +275,17 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/InstitutionSettingsErrorResponse"
-    SuffixOverflowError:
-      description: Cannot allocate another suffix for acronym base
+    ConflictError:
+      description: |
+        Suffix overflow for the acronym base (`INSTITUTION_SUFFIX_OVERFLOW`), duplicate onboarding of an
+        open onboarded institution (`INSTITUTION_ALREADY_ONBOARDED`), or clearing a counterparty account
+        still in use by client enablement (`COUNTERPARTY_ACCOUNT_IN_USE`)
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/InstitutionSettingsErrorResponse"
+    ForbiddenError:
+      description: The active role may not perform this operation
       content:
         application/json:
           schema:
@@ -154,9 +298,24 @@ components:
             $ref: "#/components/schemas/InstitutionSettingsErrorResponse"
 
   schemas:
+    TenorCode:
+      type: string
+      enum: ["1W", "2W", "1M", "3M", "6M", "1Y"]
+
+    NoticePeriodCode:
+      type: string
+      enum: ["24H", "48H"]
+
+    CounterpartyAccount:
+      type: string
+      minLength: 1
+      maxLength: 34
+      nullable: true
+      description: Non-blank reference (trimmed, at most 34 characters); no currency dimension. Null when unset.
+
     InstitutionResponse:
       type: object
-      required: [institutionCode, displayName, active]
+      required: [institutionCode, displayName, active, closedToNewBusiness]
       properties:
         institutionCode:
           type: string
@@ -166,14 +325,58 @@ components:
           maxLength: 128
         active:
           type: boolean
+          description: Legacy flag; `false` exactly when `closedToNewBusiness` is `true`.
+        closedToNewBusiness:
+          type: boolean
+          description: >
+            True for a deactivated native institution or an offboarded onboarded institution:
+            Subscription/Increase refused, Decrease/Redemption still accepted.
+        termCounterpartyAccount:
+          $ref: "#/components/schemas/CounterpartyAccount"
+        onCallCounterpartyAccount:
+          $ref: "#/components/schemas/CounterpartyAccount"
         hubInstitutionCode:
           type: string
           maxLength: 32
-          description: Present on thin-proxy institutions; the referenced hub native institution code.
+          description: Present on onboarded institutions; the linked hub-native institution code.
         hubLegalEntityCode:
           type: string
           pattern: "^[A-Z]{3}$"
-          description: Present on thin-proxy institutions; the hub TradingHub LegalEntity code.
+          description: Present on onboarded institutions; the linked TradingHub LegalEntity code.
+        enablements:
+          type: array
+          description: >
+            Onboarded institutions only: one entry per currency that is granted or client-enabled. A
+            value in `enabledTenors`/`enabledNoticePeriods` but not in the granted set is "enabled,
+            not granted" (capped out of the effective enablement).
+          items:
+            $ref: "#/components/schemas/ClientEnablementResponse"
+
+    ClientEnablementResponse:
+      type: object
+      required: [currency, grantedTenors, grantedNoticePeriods, enabledTenors, enabledNoticePeriods]
+      properties:
+        currency:
+          type: string
+          pattern: "^[A-Z]{3}$"
+        grantedTenors:
+          type: array
+          description: Tenors enabled by the active grant (empty when the grant is inactive or absent).
+          items:
+            $ref: "#/components/schemas/TenorCode"
+        grantedNoticePeriods:
+          type: array
+          items:
+            $ref: "#/components/schemas/NoticePeriodCode"
+        enabledTenors:
+          type: array
+          description: Tenors the ClientRepresentative switched on (client enablement).
+          items:
+            $ref: "#/components/schemas/TenorCode"
+        enabledNoticePeriods:
+          type: array
+          items:
+            $ref: "#/components/schemas/NoticePeriodCode"
 
     OnboardInstitutionRequest:
       type: object
@@ -182,13 +385,68 @@ components:
           type: string
           minLength: 1
           maxLength: 128
+          description: Trader native onboard only; rejected for a ClientRepresentative.
         hubInstitutionCode:
           type: string
           minLength: 1
           maxLength: 32
           description: >
-            ClientRepresentative proxy onboard — hub native institution from an active grant.
-            Mutually exclusive with a Trader native onboard by displayName.
+            ClientRepresentative institution onboarding — a granted hub-native institution. Mutually
+            exclusive with a Trader native onboard by displayName.
+        termCounterpartyAccount:
+          $ref: "#/components/schemas/CounterpartyAccount"
+        onCallCounterpartyAccount:
+          $ref: "#/components/schemas/CounterpartyAccount"
+
+    UpdateCounterpartyAccountsRequest:
+      type: object
+      description: Full replacement; null or absent clears the account.
+      properties:
+        termCounterpartyAccount:
+          $ref: "#/components/schemas/CounterpartyAccount"
+        onCallCounterpartyAccount:
+          $ref: "#/components/schemas/CounterpartyAccount"
+
+    UpdateClientEnablementRequest:
+      type: object
+      required: [enabledTenors, enabledNoticePeriods]
+      properties:
+        enabledTenors:
+          type: array
+          items:
+            $ref: "#/components/schemas/TenorCode"
+        enabledNoticePeriods:
+          type: array
+          items:
+            $ref: "#/components/schemas/NoticePeriodCode"
+
+    GrantedInstitutionResponse:
+      type: object
+      required: [hubLegalEntityCode, hubInstitutionCode, displayName, currencies]
+      properties:
+        hubLegalEntityCode:
+          type: string
+          pattern: "^[A-Z]{3}$"
+        hubInstitutionCode:
+          type: string
+          maxLength: 32
+        displayName:
+          type: string
+          maxLength: 128
+          description: Derived `"{hub displayName} via {hubLegalEntityCode}"`.
+        currencies:
+          type: array
+          description: Currencies with an active grant.
+          items:
+            type: string
+            pattern: "^[A-Z]{3}$"
+        onboardedInstitutionCode:
+          type: string
+          maxLength: 32
+          description: Present when the client has onboarded this hub institution.
+        closedToNewBusiness:
+          type: boolean
+          description: Present with `onboardedInstitutionCode`; true when offboarded.
 
     InstitutionSettingsErrorCode:
       type: string
@@ -196,6 +454,9 @@ components:
         - VALIDATION_ERROR
         - INSTITUTION_NOT_FOUND
         - INSTITUTION_SUFFIX_OVERFLOW
+        - INSTITUTION_ALREADY_ONBOARDED
+        - COUNTERPARTY_ACCOUNT_IN_USE
+        - FORBIDDEN
 
     InstitutionSettingsErrorResponse:
       type: object

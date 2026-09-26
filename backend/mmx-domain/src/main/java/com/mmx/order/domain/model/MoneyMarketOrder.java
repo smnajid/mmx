@@ -49,6 +49,8 @@ public class MoneyMarketOrder {
     private RoutingId routingId;
     private LegalEntityCode originatingLegalEntityCode;
     private ExternalOrderReference originatingExternalOrderReference;
+    private String counterpartyAccount;
+    private String clientCounterpartyAccount;
     private final Instant createdAt;
     private Instant updatedAt;
 
@@ -176,6 +178,7 @@ public class MoneyMarketOrder {
         order.routingId = draft.routingId();
         order.originatingLegalEntityCode = draft.originatingLegalEntityCode();
         order.originatingExternalOrderReference = draft.originatingExternalOrderReference();
+        order.clientCounterpartyAccount = draft.clientCounterpartyAccount();
         return order;
     }
 
@@ -400,6 +403,21 @@ public class MoneyMarketOrder {
             TraderId requestingTraderId,
             Instant now
     ) {
+        execute(executedRate, counterparty, institutionCode, null, dealingReference, generatedContractNumber,
+                requestingTraderId, now);
+    }
+
+    /** Executes and stamps the counterparty account snapshot for the order's OrderType. */
+    public void execute(
+            BigDecimal executedRate,
+            String counterparty,
+            String institutionCode,
+            String counterpartyAccount,
+            DealingReference dealingReference,
+            ContractNumber generatedContractNumber,
+            TraderId requestingTraderId,
+            Instant now
+    ) {
         Objects.requireNonNull(requestingTraderId);
         if (this.status != OrderStatus.ASSIGNED) {
             throw new InvalidStatusTransitionException(this.status, OrderStatus.EXECUTED);
@@ -418,7 +436,24 @@ public class MoneyMarketOrder {
         this.status = this.status.transitionTo(OrderStatus.EXECUTED);
         this.executionDetails = new ExecutionDetails(
                 executedRate, counterparty, institutionCode, now, dealingReference, generatedContractNumber);
+        this.counterpartyAccount = counterpartyAccount;
         this.updatedAt = now;
+    }
+
+    /** Persistence layer only: rehydrates the counterparty account snapshots. */
+    public void restoreCounterpartyAccounts(String counterpartyAccount, String clientCounterpartyAccount) {
+        this.counterpartyAccount = counterpartyAccount;
+        this.clientCounterpartyAccount = clientCounterpartyAccount;
+    }
+
+    /** The owning LegalEntity's counterparty account for the OrderType, stamped at execute. */
+    public String getCounterpartyAccount() {
+        return counterpartyAccount;
+    }
+
+    /** Hub-side routed orders: the client's counterparty account, snapshotted at routing. */
+    public String getClientCounterpartyAccount() {
+        return clientCounterpartyAccount;
     }
 
     /**

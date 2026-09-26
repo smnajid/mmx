@@ -17,7 +17,6 @@ import com.mmx.order.application.port.out.LegalEntityRepository;
 import com.mmx.order.application.port.out.ManagedCurrencyRepository;
 import com.mmx.order.application.port.out.OnCallRateRepository;
 import com.mmx.order.application.port.out.OrderRepository;
-import com.mmx.order.application.port.out.ProxyInstitutionRepository;
 import com.mmx.order.application.port.out.TermRateRepository;
 import com.mmx.order.application.service.ListLiveContractsService;
 import com.mmx.order.application.service.OnCallOrderCreationOptionsService;
@@ -35,7 +34,6 @@ public class OrderCreationModuleConfiguration {
             InstitutionRepository institutionRepository,
             LegalEntityRepository legalEntityRepository,
             DelegatedGrantRepository delegatedGrantRepository,
-            ProxyInstitutionRepository proxyInstitutionRepository,
             Clock clock) {
         return new TermOrderCreationOptionsService(
                 managedCurrencyRepository,
@@ -43,7 +41,6 @@ public class OrderCreationModuleConfiguration {
                 institutionRepository,
                 legalEntityRepository,
                 delegatedGrantRepository,
-                proxyInstitutionRepository,
                 clock);
     }
 
@@ -78,16 +75,14 @@ public class OrderCreationModuleConfiguration {
             InstitutionRepository institutionRepository,
             OrderRepository orderRepository,
             LegalEntityRepository legalEntityRepository,
-            DelegatedGrantRepository delegatedGrantRepository,
-            ProxyInstitutionRepository proxyInstitutionRepository) {
+            DelegatedGrantRepository delegatedGrantRepository) {
         return new OnCallOrderCreationOptionsService(
                 managedCurrencyRepository,
                 onCallRateRepository,
                 institutionRepository,
                 orderRepository,
                 legalEntityRepository,
-                delegatedGrantRepository,
-                proxyInstitutionRepository);
+                delegatedGrantRepository);
     }
 
     @Bean

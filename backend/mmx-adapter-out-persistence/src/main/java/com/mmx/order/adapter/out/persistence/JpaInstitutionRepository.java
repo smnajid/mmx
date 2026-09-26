@@ -5,6 +5,7 @@ import com.mmx.order.adapter.out.persistence.mapper.InstitutionPersistenceMapper
 import com.mmx.order.adapter.out.persistence.repository.SpringDataInstitutionRepository;
 import com.mmx.order.application.port.out.InstitutionRepository;
 import com.mmx.order.application.port.out.ScopeContextProvider;
+import com.mmx.order.domain.model.HubInstitutionLink;
 import com.mmx.order.domain.model.Institution;
 import com.mmx.order.domain.model.LegalEntityCode;
 
@@ -49,6 +50,23 @@ public class JpaInstitutionRepository implements InstitutionRepository {
     }
 
     @Override
+    public List<Institution> findOnboardedByLegalEntityCode(LegalEntityCode legalEntityCode) {
+        return springDataRepository
+                .findByLegalEntityCodeAndHubInstitutionCodeIsNotNullOrderByInstitutionCodeAsc(legalEntityCode.value())
+                .stream()
+                .map(mapper::toDomain)
+                .toList();
+    }
+
+    @Override
+    public Optional<Institution> findOnboarded(LegalEntityCode legalEntityCode, HubInstitutionLink hubLink) {
+        return springDataRepository
+                .findByLegalEntityCodeAndHubLegalEntityCodeAndHubInstitutionCode(
+                        legalEntityCode.value(), hubLink.hubLegalEntityCode().value(), hubLink.hubInstitutionCode())
+                .map(mapper::toDomain);
+    }
+
+    @Override
     public Optional<Institution> findByInstitutionCode(String institutionCode) {
         return springDataRepository.findById(institutionCode).map(mapper::toDomain);
     }
@@ -66,7 +84,10 @@ public class JpaInstitutionRepository implements InstitutionRepository {
     @Override
     public Institution save(Institution institution) {
         Instant now = Instant.now();
-        String ownerCode = scopeContextProvider.requireActiveScope().legalEntityCode().value();
+        String ownerCode =
+                institution.getOwningLegalEntityCode() != null
+                        ? institution.getOwningLegalEntityCode().value()
+                        : scopeContextProvider.requireActiveScope().legalEntityCode().value();
         Optional<InstitutionEntity> existing = springDataRepository.findById(institution.getInstitutionCode());
         InstitutionEntity entity;
         if (existing.isPresent()) {
@@ -75,6 +96,6 @@ public class JpaInstitutionRepository implements InstitutionRepository {
         } else {
             entity = mapper.toEntity(institution, ownerCode, now);
         }
-        return mapper.toDomain(springDataRepository.save(entity));
+        return mapper.toDomain(springDataRepository.saveAndFlush(entity));
     }
 }

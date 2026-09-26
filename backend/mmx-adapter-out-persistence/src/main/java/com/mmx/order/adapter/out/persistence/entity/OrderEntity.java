@@ -95,6 +95,12 @@ public class OrderEntity {
     @Column(name = "originating_external_order_reference", length = 100)
     private String originatingExternalOrderReference;
 
+    @Column(name = "counterparty_account", length = 34)
+    private String counterpartyAccount;
+
+    @Column(name = "client_counterparty_account", length = 34)
+    private String clientCounterpartyAccount;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -188,6 +194,12 @@ public class OrderEntity {
 
     public String getOriginatingExternalOrderReference() { return originatingExternalOrderReference; }
     public void setOriginatingExternalOrderReference(String v) { this.originatingExternalOrderReference = v; }
+
+    public String getCounterpartyAccount() { return counterpartyAccount; }
+    public void setCounterpartyAccount(String v) { this.counterpartyAccount = v; }
+
+    public String getClientCounterpartyAccount() { return clientCounterpartyAccount; }
+    public void setClientCounterpartyAccount(String v) { this.clientCounterpartyAccount = v; }
 
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant v) { this.createdAt = v; }

@@ -4,56 +4,56 @@ Strict TDD (no waiver): each "Write failing" task must be seen red before its "I
 
 ## 1. Contracts (contract-first, before any code)
 
-- [ ] 1.1 Update `contracts/004-institution-settings/openapi.yaml` and verify with the 1.6 codegen gate:
+- [x] 1.1 Update `contracts/004-institution-settings/openapi.yaml` and verify with the 1.6 codegen gate:
   - `InstitutionResponse`: add `termCounterpartyAccount`, `onCallCounterpartyAccount`, `closedToNewBusiness`, `hubLegalEntityCode`.
   - `OnboardInstitutionRequest`: add optional accounts; 200 on reopen, 201 on create.
   - Add `GET /api/v1/settings/institutions/granted` (`listGrantedInstitutions`), `PUT /api/v1/settings/institutions/{institutionCode}/counterparty-accounts` (`updateCounterpartyAccounts`), and `PUT /api/v1/settings/institutions/{institutionCode}/enablement/{currency}` (`updateClientEnablement`).
   - `InstitutionResponse.enablements[]`: per granted currency, `grantedTenors`, `grantedNoticePeriods`, `enabledTenors`, `enabledNoticePeriods`.
   - Document deactivate/activate as offboard/re-onboard for a ClientRepresentative.
-- [ ] 1.2 Mirror 1.1 in `contracts/004-institution-settings/api-v1.md` and remove "proxy" wording. Verify that every operationId and schema field in 1.1 appears in the prose.
-- [ ] 1.3 Create `contracts/004-institution-settings/schemas/InstitutionUpdatedV1.json`, `asyncapi.yaml` (channel `mmx.institution.{legalEntityCode}`, key `institutionCode`), and `asyncapi-v1.md` (latest-wins-by-`version` consumer contract, `closedToNewBusiness` semantics). Verify the schema is valid JSON Schema (draft used by `OrderExecutedV1.json`) and is the only file defining `InstitutionUpdatedV1` (`grep -rl InstitutionUpdatedV1 contracts`).
-- [ ] 1.4 Add optional `institutionCode`, `counterpartyAccount`, and routing-context `clientCounterpartyAccount` to `contracts/002-trader-orders-views/schemas/OrderExecutedV1.json`, and mirror them in `contracts/002-trader-orders-views/asyncapi-v1.md`. Verify that `required` is unchanged (`git diff` shows additions only).
-- [ ] 1.5 Update the cross-org and grants contracts. Verify with the 1.6 codegen gate:
+- [x] 1.2 Mirror 1.1 in `contracts/004-institution-settings/api-v1.md` and remove "proxy" wording. Verify that every operationId and schema field in 1.1 appears in the prose.
+- [x] 1.3 Create `contracts/004-institution-settings/schemas/InstitutionUpdatedV1.json`, `asyncapi.yaml` (channel `mmx.institution.{legalEntityCode}`, key `institutionCode`), and `asyncapi-v1.md` (latest-wins-by-`version` consumer contract, `closedToNewBusiness` semantics). Verify the schema is valid JSON Schema (draft used by `OrderExecutedV1.json`) and is the only file defining `InstitutionUpdatedV1` (`grep -rl InstitutionUpdatedV1 contracts`).
+- [x] 1.4 Add optional `institutionCode`, `counterpartyAccount`, and routing-context `clientCounterpartyAccount` to `contracts/002-trader-orders-views/schemas/OrderExecutedV1.json`, and mirror them in `contracts/002-trader-orders-views/asyncapi-v1.md`. Verify that `required` is unchanged (`git diff` shows additions only).
+- [x] 1.5 Update the cross-org and grants contracts. Verify with the 1.6 codegen gate:
   - `contracts/007-cross-org-routing/openapi.yaml` + `api-v1.md`: add required `AcceptRoutedOrderRequest.clientCounterpartyAccount`, and note that both deployments must be upgraded together.
   - `contracts/006-delegated-institution-grants/api-v1.md`: document the closed-to-new-business semantics and drop "proxy".
-- [ ] 1.6 Codegen gate: `mvn -q -pl mmx-adapter-in-rest -am compile -DskipTests` succeeds, then `npm run verify:contracts` in `frontend/` succeeds.
+- [x] 1.6 Codegen gate: `mvn -q -pl mmx-adapter-in-rest -am compile -DskipTests` succeeds, then `npm run verify:contracts` in `frontend/` succeeds.
 
 ## 2. Domain: Institution aggregate and policies (`mmx-domain`)
 
-- [ ] 2.1 Write failing `CounterpartyAccountsTest`: blank or over-34-character accounts are rejected; values are trimmed; term and onCall are independent and each optional. `mvn test -pl mmx-domain -Dtest=CounterpartyAccountsTest`
-- [ ] 2.2 Implement the `CounterpartyAccounts` value object until green.
-- [ ] 2.3 Write failing `InstitutionTest`. `mvn test -pl mmx-domain -Dtest=InstitutionTest`. Cover:
+- [x] 2.1 Write failing `CounterpartyAccountsTest`: blank or over-34-character accounts are rejected; values are trimmed; term and onCall are independent and each optional. `mvn test -pl mmx-domain -Dtest=CounterpartyAccountsTest`
+- [x] 2.2 Implement the `CounterpartyAccounts` value object until green.
+- [x] 2.3 Write failing `InstitutionTest`. `mvn test -pl mmx-domain -Dtest=InstitutionTest`. Cover:
   - `onboardFromGrant` derives "{name} via {hubLE}" and links `(hubLE, hubCode)`;
   - `offboard()`/`reopen()` flip `closedToNewBusiness` and report whether state changed;
   - `changeAccounts` reports no change when values are equal;
   - `version` increments only on an exported change.
-- [ ] 2.4 Fold `ThinProxyInstitution` into `Institution` (owning LE, optional `HubInstitutionLink`, accounts, version) until green, and delete `ThinProxyInstitution` and `ThinProxyInstitutionTest` (their behaviour is now covered by `InstitutionTest`).
-- [ ] 2.5 Write failing `NewBusinessPolicyTest`: SUBSCRIPTION and INCREASE add exposure; DECREASE and REDEMPTION do not; `requireOpenForNewBusiness` throws only for exposure-adding operations on a closed institution. `mvn test -pl mmx-domain -Dtest=NewBusinessPolicyTest`
-- [ ] 2.6 Implement `NewBusinessPolicy` until green.
-- [ ] 2.7 Write failing `CounterpartyAccountPolicyTest`: TERM requires the term account and ON_CALL the onCall account; it returns the account used as the snapshot and throws a clear counterparty-account error when missing. `mvn test -pl mmx-domain -Dtest=CounterpartyAccountPolicyTest`
-- [ ] 2.8 Implement `CounterpartyAccountPolicy` until green.
-- [ ] 2.9 Extend `OrderAgainstInstitutionPolicyTest`: execute of a Subscription on a closed institution is rejected, a Redemption on a closed institution is allowed, and a missing account for the OrderType is rejected. `mvn test -pl mmx-domain -Dtest=OrderAgainstInstitutionPolicyTest`
-- [ ] 2.10 Make `OrderAgainstInstitutionPolicy.validateExecute` delegate to both policies until green.
-- [ ] 2.11 Write failing `EffectiveEnablementTest`: the effective set is grant ∩ client enablement; an inactive grant yields empty; client-enabled-but-not-granted tenors are reported as such; enabling outside the current grant is rejected. `mvn test -pl mmx-domain -Dtest=EffectiveEnablementTest`
-- [ ] 2.12 Implement `ClientEnablement` and `EffectiveEnablement` until green.
-- [ ] 2.13 Architecture gate: `mvn test -pl mmx-domain -Dtest=DomainArchitectureTest` passes (the new domain types import no framework).
+- [x] 2.4 Fold `ThinProxyInstitution` into `Institution` (owning LE, optional `HubInstitutionLink`, accounts, version) until green, and delete `ThinProxyInstitution` and `ThinProxyInstitutionTest` (their behaviour is now covered by `InstitutionTest`).
+- [x] 2.5 Write failing `NewBusinessPolicyTest`: SUBSCRIPTION and INCREASE add exposure; DECREASE and REDEMPTION do not; `requireOpenForNewBusiness` throws only for exposure-adding operations on a closed institution. `mvn test -pl mmx-domain -Dtest=NewBusinessPolicyTest`
+- [x] 2.6 Implement `NewBusinessPolicy` until green.
+- [x] 2.7 Write failing `CounterpartyAccountPolicyTest`: TERM requires the term account and ON_CALL the onCall account; it returns the account used as the snapshot and throws a clear counterparty-account error when missing. `mvn test -pl mmx-domain -Dtest=CounterpartyAccountPolicyTest`
+- [x] 2.8 Implement `CounterpartyAccountPolicy` until green.
+- [x] 2.9 Extend `OrderAgainstInstitutionPolicyTest`: execute of a Subscription on a closed institution is rejected, a Redemption on a closed institution is allowed, and a missing account for the OrderType is rejected. `mvn test -pl mmx-domain -Dtest=OrderAgainstInstitutionPolicyTest`
+- [x] 2.10 Make `OrderAgainstInstitutionPolicy.validateExecute` delegate to both policies until green.
+- [x] 2.11 Write failing `EffectiveEnablementTest`: the effective set is grant ∩ client enablement; an inactive grant yields empty; client-enabled-but-not-granted tenors are reported as such; enabling outside the current grant is rejected. `mvn test -pl mmx-domain -Dtest=EffectiveEnablementTest`
+- [x] 2.12 Implement `ClientEnablement` and `EffectiveEnablement` until green.
+- [x] 2.13 Architecture gate: `mvn test -pl mmx-domain -Dtest=DomainArchitectureTest` passes (the new domain types import no framework).
 
 ## 3. Persistence: V27 and JPA mapping (`mmx-bootstrap` migration, `mmx-adapter-out-persistence`)
 
-- [ ] 3.1 Write failing `JpaInstitutionRepositoryIntegrationTest` (`@Tag("integration")`). `mvn test -pl mmx-adapter-out-persistence -am -Dtest=JpaInstitutionRepositoryIntegrationTest -Dsurefire.failIfNoSpecifiedTests=false`. Cover:
+- [x] 3.1 Write failing `JpaInstitutionRepositoryIntegrationTest` (`@Tag("integration")`). `mvn test -pl mmx-adapter-out-persistence -am -Dtest=JpaInstitutionRepositoryIntegrationTest -Dsurefire.failIfNoSpecifiedTests=false`. Cover:
   - accounts and version round-trip;
   - a second onboarded row for the same `(LE, hubLE, hubCode)` violates the unique index;
   - an onboarded row whose hub institution and hub LegalEntity are absent locally persists (remote-client shape);
   - order `counterparty_account` and `client_counterparty_account` round-trip.
-- [ ] 3.2 Implement until green:
+- [x] 3.2 Implement until green:
   - add `V27__institution_counterparty_accounts_and_export.sql` (per design D4: institution columns and partial unique index, drop `fk_institution_hub_institution`/`fk_institution_hub_entity`, order snapshot columns, `client_institution_enablement`, `institution_export_outbox`);
   - map the institution and order entities.
-- [ ] 3.3 Write failing `JpaClientEnablementRepositoryIntegrationTest` (`@Tag("integration")`): save/replace per currency, and read back an empty set when no row exists. `mvn test -pl mmx-adapter-out-persistence -am -Dtest=JpaClientEnablementRepositoryIntegrationTest -Dsurefire.failIfNoSpecifiedTests=false`
-- [ ] 3.4 Declare the `ClientEnablementRepository` out-port in `mmx-application` and implement `JpaClientEnablementRepository` (entity + Spring Data repo in `mmx-adapter-out-persistence`) until green.
+- [x] 3.3 Write failing `JpaClientEnablementRepositoryIntegrationTest` (`@Tag("integration")`): save/replace per currency, and read back an empty set when no row exists. `mvn test -pl mmx-adapter-out-persistence -am -Dtest=JpaClientEnablementRepositoryIntegrationTest -Dsurefire.failIfNoSpecifiedTests=false`
+- [x] 3.4 Declare the `ClientEnablementRepository` out-port in `mmx-application` and implement `JpaClientEnablementRepository` (entity + Spring Data repo in `mmx-adapter-out-persistence`) until green.
 
 ## 4. Application: institution settings use cases (`mmx-application`)
 
-- [ ] 4.1 Extend `OnboardInstitutionServiceTest`: rename the proxy tests to granted-institution vocabulary and add cases for:
+- [x] 4.1 Extend `OnboardInstitutionServiceTest`: rename the proxy tests to granted-institution vocabulary and add cases for:
   - optional accounts on onboard;
   - duplicate open onboarding → conflict;
   - re-onboarding an offboarded record reopens the same code (grant required);
@@ -61,12 +61,12 @@ Strict TDD (no waiver): each "Write failing" task must be seen red before its "I
   - an export is scheduled on every success (in-memory `InstitutionExportOutbox` fake).
 
   `mvn test -pl mmx-application -Dtest=OnboardInstitutionServiceTest`
-- [ ] 4.2 Implement the `InstitutionExportOutbox` port and the onboarding/re-onboarding changes in `OnboardInstitutionService` until green.
-- [ ] 4.3 Extend `ManageInstitutionSettingsServiceTest`. `mvn test -pl mmx-application -Dtest=ManageInstitutionSettingsServiceTest`. Cover:
+- [x] 4.2 Implement the `InstitutionExportOutbox` port and the onboarding/re-onboarding changes in `OnboardInstitutionService` until green.
+- [x] 4.3 Extend `ManageInstitutionSettingsServiceTest`. `mvn test -pl mmx-application -Dtest=ManageInstitutionSettingsServiceTest`. Cover:
   - hub deactivate/activate schedules DEACTIVATED/REACTIVATED exports;
   - ClientRepresentative deactivate = offboard (OFFBOARDED export, accounts kept, idempotent);
   - a Trader cannot offboard a client institution.
-- [ ] 4.4 Implement until green.
+- [x] 4.4 Implement until green.
 - [ ] 4.5 Write failing `UpdateCounterpartyAccountsServiceTest`: owning-scope role only (Trader on hub, ClientRepresentative on client); cross-scope → not found; unchanged values schedule no export; changed values schedule ACCOUNTS_CHANGED; allowed while closed to new business; clearing an account is rejected while any tenor of that OrderType is client-enabled. `mvn test -pl mmx-application -Dtest=UpdateCounterpartyAccountsServiceTest`
 - [ ] 4.6 Implement `UpdateCounterpartyAccountsUseCase` and its service until green.
 - [ ] 4.7 Write failing `ListGrantedInstitutionsServiceTest`: it joins active grants (any currency) with hub display names from a fake `HubInstitutionCatalog` and the client's onboarded institutions; revoked-everywhere institutions drop out; a Trader is rejected. `mvn test -pl mmx-application -Dtest=ListGrantedInstitutionsServiceTest`

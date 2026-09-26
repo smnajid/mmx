@@ -1,6 +1,7 @@
 package com.mmx.order.application.port.in;
 
 import com.mmx.order.domain.model.Institution;
+import com.mmx.order.domain.model.LegalEntityCode;
 
 import java.util.List;
 
@@ -10,11 +11,18 @@ public interface ManageInstitutionSettingsUseCase {
 
     Institution getByCode(String institutionCode);
 
+    /** Native institution onboarding for a TradingHub. */
     Institution onboard(OnboardCommand command);
 
-    Institution deactivate(String institutionCode);
+    /** Trader: deactivate a native institution. ClientRepresentative: offboard an onboarded institution. */
+    Institution deactivate(ScopeContext scope, String institutionCode);
 
-    Institution activate(String institutionCode);
+    /** Trader: reactivate a native institution. ClientRepresentative: re-onboard (grant required). */
+    Institution activate(ScopeContext scope, String institutionCode);
 
-    record OnboardCommand(String displayName) {}
+    record OnboardCommand(
+            LegalEntityCode owningLegalEntityCode,
+            String displayName,
+            String termCounterpartyAccount,
+            String onCallCounterpartyAccount) {}
 }

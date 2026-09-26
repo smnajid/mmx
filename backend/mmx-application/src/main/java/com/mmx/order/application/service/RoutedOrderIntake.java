@@ -8,7 +8,6 @@ import com.mmx.order.application.port.out.GlobalAccountDirectory;
 import com.mmx.order.application.port.out.GrantResolution;
 import com.mmx.order.application.port.out.InstitutionRepository;
 import com.mmx.order.application.port.out.OrderRepository;
-import com.mmx.order.application.port.out.ProxyInstitutionRepository;
 import com.mmx.order.domain.exception.InvalidOrderException;
 import com.mmx.order.domain.model.ContractNumber;
 import com.mmx.order.domain.model.GlobalAccount;
@@ -19,14 +18,12 @@ import com.mmx.order.domain.model.MoneyMarketOrder;
 import com.mmx.order.domain.model.OrderOperation;
 import com.mmx.order.domain.model.RoutedHubOrderDraft;
 import com.mmx.order.domain.model.RoutingId;
-import com.mmx.order.domain.model.ThinProxyInstitution;
 import com.mmx.order.domain.model.TradingClientRole;
 
 import java.util.Optional;
 
 public final class RoutedOrderIntake {
 
-    private final ProxyInstitutionRepository proxyInstitutionRepository;
     private final DelegatedGrantDirectory delegatedGrantDirectory;
     private final GlobalAccountDirectory globalAccountDirectory;
     private final InstitutionRepository institutionRepository;
@@ -34,13 +31,11 @@ public final class RoutedOrderIntake {
     private final Clock clock;
 
     public RoutedOrderIntake(
-            ProxyInstitutionRepository proxyInstitutionRepository,
             DelegatedGrantDirectory delegatedGrantDirectory,
             GlobalAccountDirectory globalAccountDirectory,
             InstitutionRepository institutionRepository,
             OrderRepository orderRepository,
             Clock clock) {
-        this.proxyInstitutionRepository = proxyInstitutionRepository;
         this.delegatedGrantDirectory = delegatedGrantDirectory;
         this.globalAccountDirectory = globalAccountDirectory;
         this.institutionRepository = institutionRepository;
@@ -48,16 +43,17 @@ public final class RoutedOrderIntake {
         this.clock = clock;
     }
 
-    public ThinProxyInstitution resolveProxy(String institutionCode) {
+    public Institution resolveProxy(String institutionCode) {
         if (institutionCode == null || institutionCode.isBlank()) {
             throw new InvalidOrderException("institutionCode is required");
         }
-        return proxyInstitutionRepository
+        return institutionRepository
                 .findByInstitutionCode(institutionCode)
+                .filter(Institution::isOnboarded)
                 .orElseThrow(() -> new InvalidOrderException("Unknown proxy institution: " + institutionCode));
     }
 
-    public GrantResolution resolveGrant(ReceiveOrderCommand command, ThinProxyInstitution proxy) {
+    public GrantResolution resolveGrant(ReceiveOrderCommand command, Institution proxy) {
         return switch (command.orderType()) {
             case TERM ->
                     delegatedGrantDirectory.resolveTenor(
@@ -80,7 +76,7 @@ public final class RoutedOrderIntake {
     }
 
     public IntakeUseCase.Result completeIntake(
-            ReceiveOrderCommand command, ThinProxyInstitution proxy, LegalEntity clientEntity) {
+            ReceiveOrderCommand command, Institution proxy, LegalEntity clientEntity) {
         GrantResolution grantResolution = resolveGrant(command, proxy);
         if (!grantResolution.isGranted()) {
             return rejectAtIntake(command, proxy, "Delegated grant validation failed: " + grantResolution);
@@ -94,12 +90,12 @@ public final class RoutedOrderIntake {
 
         Institution hubInstitution =
                 institutionRepository
-                        .findByInstitutionCode(proxy.getHubInstitutionCode())
+                        .findByInstitutionCode(proxy.getHubLink().orElseThrow().hubInstitutionCode())
                         .orElseThrow(
                                 () ->
                                         new InvalidOrderException(
                                                 "Hub native institution not found: "
-                                                        + proxy.getHubInstitutionCode()));
+                                                        + proxy.getHubLink().orElseThrow().hubInstitutionCode()));
 
         MoneyMarketOrder clientOrder = createClientOrder(command, proxy);
         RoutingId routingId = RoutingId.fromClientOrderId(clientOrder.getId());
@@ -127,7 +123,7 @@ public final class RoutedOrderIntake {
     }
 
     public IntakeUseCase.Result rejectAtIntake(
-            ReceiveOrderCommand command, ThinProxyInstitution proxy, String reason) {
+            ReceiveOrderCommand command, Institution proxy, String reason) {
         MoneyMarketOrder clientOrder = createClientOrder(command, proxy);
         clientOrder.reject(
                 new com.mmx.order.domain.model.TraderId(IntakeService.AUDIT_ACTOR_SYSTEM), reason, clock.now());
@@ -139,7 +135,7 @@ public final class RoutedOrderIntake {
         clientOrder.markRouted(routingId, clock.now());
     }
 
-    MoneyMarketOrder createClientOrder(ReceiveOrderCommand command, ThinProxyInstitution proxy) {
+    MoneyMarketOrder createClientOrder(ReceiveOrderCommand command, Institution proxy) {
         return MoneyMarketOrder.create(
                 command.externalOrderReference(),
                 command.legalEntityCode(),

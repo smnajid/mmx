@@ -11,10 +11,11 @@ import com.mmx.order.application.port.out.DelegatedGrantRepository;
 import com.mmx.order.application.port.out.InstitutionRepository;
 import com.mmx.order.application.port.out.LegalEntityRepository;
 import com.mmx.order.application.port.out.ManagedCurrencyRepository;
-import com.mmx.order.application.port.out.ProxyInstitutionRepository;
 import com.mmx.order.application.port.out.TermRateRepository;
 import com.mmx.order.application.termrate.TermRateAuditRow;
 import com.mmx.order.domain.model.DelegatedInstitutionGrant;
+import com.mmx.order.domain.model.CounterpartyAccounts;
+import com.mmx.order.domain.model.HubInstitutionLink;
 import com.mmx.order.domain.model.Institution;
 import com.mmx.order.domain.model.LegalEntity;
 import com.mmx.order.domain.model.LegalEntityCode;
@@ -22,7 +23,6 @@ import com.mmx.order.domain.model.ManagedCurrency;
 import com.mmx.order.domain.model.NoticePeriod;
 import com.mmx.order.domain.model.OrderOperation;
 import com.mmx.order.domain.model.Tenor;
-import com.mmx.order.domain.model.ThinProxyInstitution;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -65,9 +65,6 @@ class TermOrderCreationOptionsServiceTest {
     @Mock
     DelegatedGrantRepository delegatedGrantRepository;
 
-    @Mock
-    ProxyInstitutionRepository proxyInstitutionRepository;
-
     TermOrderCreationOptionsService subject;
 
     @BeforeEach
@@ -91,7 +88,6 @@ class TermOrderCreationOptionsServiceTest {
                         institutionRepository,
                         legalEntityRepository,
                         delegatedGrantRepository,
-                        proxyInstitutionRepository,
                         clock);
     }
 
@@ -219,10 +215,10 @@ class TermOrderCreationOptionsServiceTest {
                                         EnumSet.of(Tenor._3M),
                                         EnumSet.noneOf(NoticePeriod.class),
                                         true)));
-        ThinProxyInstitution bnpProxy =
-                ThinProxyInstitution.forHubInstitution(
-                        "BNPLOC", new Institution("BNP", "BNP Paribas", true), LOC);
-        when(proxyInstitutionRepository.findByClientLegalEntity(PAR)).thenReturn(List.of(bnpProxy));
+        Institution bnpProxy =
+                Institution.onboardFromGrant(
+                                        "BNPLOC", "BNP Paribas", new HubInstitutionLink(LOC, "BNP"), PAR, CounterpartyAccounts.none());
+        when(institutionRepository.findOnboardedByLegalEntityCode(PAR)).thenReturn(List.of(bnpProxy));
 
         CounterpartiesResult result = subject.listCounterparties(PAR, "EUR", Tenor._3M);
 

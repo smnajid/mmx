@@ -1,8 +1,11 @@
 package com.mmx.order.adapter.in.rest;
 
 import com.mmx.order.adapter.in.rest.generated.institution.api.InstitutionSettingsApi;
+import com.mmx.order.adapter.in.rest.generated.institution.model.GrantedInstitutionResponse;
 import com.mmx.order.adapter.in.rest.generated.institution.model.InstitutionResponse;
 import com.mmx.order.adapter.in.rest.generated.institution.model.OnboardInstitutionRequest;
+import com.mmx.order.adapter.in.rest.generated.institution.model.UpdateClientEnablementRequest;
+import com.mmx.order.adapter.in.rest.generated.institution.model.UpdateCounterpartyAccountsRequest;
 import com.mmx.order.adapter.in.rest.mapper.InstitutionSettingsRestMapper;
 import com.mmx.order.application.port.in.InstitutionListView;
 import com.mmx.order.application.port.in.ListInstitutionsUseCase;
@@ -10,7 +13,6 @@ import com.mmx.order.application.port.in.ManageInstitutionSettingsUseCase;
 import com.mmx.order.application.port.in.OnboardInstitutionUseCase;
 import com.mmx.order.application.port.in.ScopeContext;
 import com.mmx.order.application.port.out.ScopeContextProvider;
-import com.mmx.order.application.port.out.ReferenceDataMutationGuard;
 import com.mmx.order.domain.model.Institution;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -26,21 +28,18 @@ public class InstitutionSettingsController implements InstitutionSettingsApi {
     private final OnboardInstitutionUseCase onboardInstitutionUseCase;
     private final InstitutionSettingsRestMapper mapper;
     private final ScopeContextProvider scopeContextProvider;
-    private final ReferenceDataMutationGuard mutationGuard;
 
     public InstitutionSettingsController(
             ManageInstitutionSettingsUseCase manageInstitutionSettingsUseCase,
             ListInstitutionsUseCase listInstitutionsUseCase,
             OnboardInstitutionUseCase onboardInstitutionUseCase,
             InstitutionSettingsRestMapper mapper,
-            ScopeContextProvider scopeContextProvider,
-            ReferenceDataMutationGuard mutationGuard) {
+            ScopeContextProvider scopeContextProvider) {
         this.manageInstitutionSettingsUseCase = manageInstitutionSettingsUseCase;
         this.listInstitutionsUseCase = listInstitutionsUseCase;
         this.onboardInstitutionUseCase = onboardInstitutionUseCase;
         this.mapper = mapper;
         this.scopeContextProvider = scopeContextProvider;
-        this.mutationGuard = mutationGuard;
     }
 
     @Override
@@ -55,8 +54,8 @@ public class InstitutionSettingsController implements InstitutionSettingsApi {
                                     .filter(i -> !filterActive || i.isActive())
                                     .map(mapper::toResponse)
                                     .toList();
-                    case InstitutionListView.Proxies p ->
-                            p.proxies().stream()
+                    case InstitutionListView.Onboarded o ->
+                            o.institutions().stream()
                                     .filter(i -> !filterActive || i.isActive())
                                     .map(mapper::toResponse)
                                     .toList();
@@ -73,24 +72,41 @@ public class InstitutionSettingsController implements InstitutionSettingsApi {
     public ResponseEntity<InstitutionResponse> onboardInstitution(
             String xTraderId, OnboardInstitutionRequest onboardInstitutionRequest) {
         ScopeContext scope = scopeContextProvider.requireActiveScope();
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(mapper.toResponse(onboardInstitutionUseCase.onboard(
-                        mapper.toOnboardCommand(scope, onboardInstitutionRequest))));
+        OnboardInstitutionUseCase.Result result =
+                onboardInstitutionUseCase.onboard(mapper.toOnboardCommand(scope, onboardInstitutionRequest));
+        return ResponseEntity.status(result.created() ? HttpStatus.CREATED : HttpStatus.OK)
+                .body(mapper.toResponse(result.institution()));
     }
 
     @Override
     public ResponseEntity<InstitutionResponse> deactivateInstitution(String xTraderId, String institutionCode) {
         ScopeContext scope = scopeContextProvider.requireActiveScope();
-        mutationGuard.ensureTrader(scope);
-        Institution deactivated = manageInstitutionSettingsUseCase.deactivate(institutionCode);
+        Institution deactivated = manageInstitutionSettingsUseCase.deactivate(scope, institutionCode);
         return ResponseEntity.ok(mapper.toResponse(deactivated));
     }
 
     @Override
     public ResponseEntity<InstitutionResponse> activateInstitution(String xTraderId, String institutionCode) {
         ScopeContext scope = scopeContextProvider.requireActiveScope();
-        mutationGuard.ensureTrader(scope);
-        Institution activated = manageInstitutionSettingsUseCase.activate(institutionCode);
+        Institution activated = manageInstitutionSettingsUseCase.activate(scope, institutionCode);
         return ResponseEntity.ok(mapper.toResponse(activated));
+    }
+
+    // TODO(client-institution-onboarding 7.2): implemented red-first in group 7.
+    @Override
+    public ResponseEntity<List<GrantedInstitutionResponse>> listGrantedInstitutions(String xUserId) {
+        throw new UnsupportedOperationException("listGrantedInstitutions");
+    }
+
+    @Override
+    public ResponseEntity<InstitutionResponse> updateCounterpartyAccounts(
+            String xUserId, String institutionCode, UpdateCounterpartyAccountsRequest request) {
+        throw new UnsupportedOperationException("updateCounterpartyAccounts");
+    }
+
+    @Override
+    public ResponseEntity<InstitutionResponse> updateClientEnablement(
+            String xUserId, String institutionCode, String currency, UpdateClientEnablementRequest request) {
+        throw new UnsupportedOperationException("updateClientEnablement");
     }
 }

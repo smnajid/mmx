@@ -83,6 +83,17 @@
       "type": ["string", "null"],
       "description": "OnCall orders only; null for Term when not applicable."
     },
+    "institutionCode": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The order's institution at the LegalEntity that owns the order."
+    },
+    "counterpartyAccount": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 34,
+      "description": "Counterparty account snapshot: the owning LegalEntity's counterparty account for the order's OrderType, as it stood at execution."
+    },
     "routingId": {
       "type": "string",
       "format": "uuid",
@@ -104,7 +115,13 @@
     },
     "clientCounterparty": {
       "type": "string",
-      "description": "Client delegated-institution display name (via hub)."
+      "description": "Client onboarded-institution display name (e.g. BNP via LOC)."
+    },
+    "clientCounterpartyAccount": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 34,
+      "description": "Routed trades: the client's counterparty account snapshot for the order's OrderType, taken at routing and stored on the hub-side order."
     }
   }
 }

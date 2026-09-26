@@ -181,7 +181,7 @@ class OnCallRateRepositoryQueryTest {
     private void seedInstitution(String code, String displayName, boolean active) {
         Instant now = Instant.parse("2026-01-01T00:00:00Z");
         InstitutionEntity entity =
-                institutionMapper.toEntity(new Institution(code, displayName, active), now);
+                institutionMapper.toEntity(new Institution(code, displayName, active), "LOC", now);
         springDataInstitutionRepository.save(entity);
     }
 }

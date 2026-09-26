@@ -32,6 +32,13 @@ Required fields: `eventType` (const `OrderExecutedV1`), `orderId`, `executedAt`,
 
 Optional: `tenor`, `noticePeriod` (nullable).
 
+Counterparty account snapshot (every message; optional in the schema for backward compatibility):
+
+| Field | Description |
+|-------|-------------|
+| `institutionCode` | The order's institution at the LegalEntity that owns the order |
+| `counterpartyAccount` | That LegalEntity's counterparty account for the order's OrderType (Term or OnCall), as it stood at execution. The back office books against it; a later account change never rewrites it |
+
 ### Routing context (routed trades only)
 
 For a **routed** trade (TradingClient intake executed at the hub), mmx emits **exactly one** `OrderExecutedV1` from the **hub-side** `orderId`. The payload includes the hub booking facts plus an optional **routing-context block** so the back office can build both hub-side and originating client-side contracts without reading MMX routing tables:
@@ -42,7 +49,8 @@ For a **routed** trade (TradingClient intake executed at the hub), mmx emits **e
 | `originatingLegalEntityCode` | TradingClient `LegalEntityCode` |
 | `clientOrderId` | Client-side order UUID |
 | `clientPortfolioNumber` | Client PM portfolio at routing time |
-| `clientCounterparty` | Client delegated-institution display name (e.g. `BNP via LOC`) |
+| `clientCounterparty` | Client onboarded-institution display name (e.g. `BNP via LOC`) |
+| `clientCounterpartyAccount` | The client's counterparty account snapshot for the order's OrderType, taken at routing and stored read-only on the hub-side order |
 
 Native (non-routed) hub desk orders **omit** the routing-context block; behaviour is unchanged from v1.
 

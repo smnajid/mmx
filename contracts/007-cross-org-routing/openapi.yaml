@@ -17,9 +17,12 @@ info:
     ## Leg A — synchronous routed-order accept
 
     `POST /api/v1/cross-org/routed-orders` carries the CGED-resolved hub-side `portfolioNumber`
-    (trusted, not revalidated), a hub-native `institutionCode`, the CGED-minted `routingId`, and the
-    order fields. The hub validates `(institution, currency, tenor|noticePeriod)` against the
-    originating client's grant in-process, then returns accept (hub-side order created + leg-B
+    (trusted, not revalidated), a hub-native `institutionCode`, the CGED-minted `routingId`, the
+    client's `clientCounterpartyAccount` snapshot, and the order fields. For a Subscription or
+    Increase the hub validates `(institution, currency, tenor|noticePeriod)` against the originating
+    client's grant in-process and rejects a hub institution closed to new business; a Decrease or
+    Redemption skips both checks. Every operation requires the hub institution's counterparty account
+    for the OrderType. It then returns accept (hub-side order created + leg-B
     `ACCEPTED` outbox row committed same-tx) or reject (routing-failure; no hub-side order, no leg-B
     event). The cross-boundary idempotency key is `(originatingLegalEntityCode, routingId)`; a retry
     that collides on the partial unique index resolves idempotently to the existing accept.
@@ -28,7 +31,8 @@ info:
 
     The reference-data query endpoints return this hub's live reference data, scoped to the proven
     client (grants are filtered to `clientLegalEntityCode = proven originatingLegalEntityCode`).
-    Hub-native institution codes cross the boundary; the client renders `"via {hub}"` display names.
+    Hub-native institution codes cross the boundary. The client stores its own onboarded institutions
+    (and counterparty accounts and client enablement) locally, linked to those hub-native codes.
   version: 1.0.0
 
 servers:
@@ -51,8 +55,10 @@ paths:
       summary: Accept a cross-org routed order (leg A inbound)
       description: |
         Leg-A synchronous handshake. The proven `originatingLegalEntityCode` is bound from the
-        transport credential (NOT the payload). The hub validates the grant against its own reference
-        data; on success it creates the hub-side order in `RECEIVED`, commits a leg-B `ACCEPTED`
+        transport credential (NOT the payload). For a Subscription or Increase the hub validates the
+        grant against its own reference data and rejects a hub institution closed to new business;
+        Decrease and Redemption skip both checks. Every operation requires the hub institution's
+        counterparty account for the OrderType. On success it creates the hub-side order in `RECEIVED`, commits a leg-B `ACCEPTED`
         outbox row in the same transaction, and returns accept. On a grant/currency/tenor validation
         failure it returns reject, creates no hub-side order, and emits no leg-B event (the reject is
         HTTP-only). Idempotent on `(originatingLegalEntityCode, routingId)`: a leg-A retry that
@@ -80,7 +86,9 @@ paths:
         "422":
           description: |
             Routing-failure reject — the `(institution, currency, tenor|noticePeriod)` tuple is not
-            granted to the proven originating client. No hub-side order is created and no leg-B event
+            granted to the proven originating client (Subscription/Increase), the hub institution is
+            closed to new business (Subscription/Increase), or the hub institution lacks the
+            counterparty account for the OrderType. No hub-side order is created and no leg-B event
             is emitted; the client deployment closes `Received → Rejected` from this HTTP response
             directly. (Membership failures are NOT returned here — they are `403`.)
           content:
@@ -122,8 +130,9 @@ paths:
       tags: [CrossOrgReferenceData]
       summary: List this hub's institutions (hub-native codes)
       description: |
-        Institution catalog returning hub-native institution codes (proxy indirection collapses for
-        remote clients). The client renders the `"via {hub}"` display name client-side.
+        Institution catalog returning hub-native institution codes. The remote client uses it as the
+        source of hub display names for its granted-institution list and derives the
+        `"{name} via {hub}"` display name at onboarding.
       operationId: listCrossOrgInstitutions
       parameters:
         - name: activeOnly
@@ -266,6 +275,7 @@ components:
         - valueDate
         - orderType
         - orderOperation
+        - clientCounterpartyAccount
       properties:
         routingId:
           type: string
@@ -281,7 +291,9 @@ components:
           type: string
           minLength: 1
           maxLength: 32
-          description: Hub-native institution code (proxy indirection collapses at the boundary).
+          description: >
+            Hub-native institution code linked to the client's onboarded institution (the client's own
+            institution code never crosses the boundary).
         originatingExternalOrderReference:
           type: string
           minLength: 1
@@ -317,6 +329,14 @@ components:
           nullable: true
           maxLength: 50
           description: Required for INCREASE/DECREASE/REDEMPTION (existing MM contract).
+        clientCounterpartyAccount:
+          type: string
+          minLength: 1
+          maxLength: 34
+          description: >
+            The client's counterparty account snapshot for the order's OrderType, taken at routing.
+            Stored read-only on the hub-side order and returned on `OrderExecutedV1`; the hub checks
+            only its presence. Required: client and hub deployments must be upgraded together.
 
     RoutedOrderAcceptResponse:
       type: object

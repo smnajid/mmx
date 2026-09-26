@@ -34,7 +34,11 @@ public class RestTestInstitutionBootstrap implements ApplicationRunner {
         }
         var created =
                 manageInstitutionSettingsUseCase.onboard(
-                        new ManageInstitutionSettingsUseCase.OnboardCommand(displayName));
+                        new ManageInstitutionSettingsUseCase.OnboardCommand(
+                                new com.mmx.order.domain.model.LegalEntityCode("LOC"),
+                                displayName,
+                                "LOC-" + expectedCode + "-T",
+                                "LOC-" + expectedCode + "-OC"));
         if (!expectedCode.equals(created.getInstitutionCode())) {
             throw new IllegalStateException(
                     "Expected institution " + expectedCode + " but got " + created.getInstitutionCode());

@@ -107,6 +107,7 @@ class RoutedOrderAcceptControllerTest {
                   "routingId": "%s",
                   "portfolioNumber": "LOC-EUR-001",
                   "institutionCode": "HSBC-01",
+                  "clientCounterpartyAccount": "CGD-HSBC-T",
                   "originatingExternalOrderReference": "CGD-PM-1",
                   "currency": "EUR",
                   "amount": 1000000.00,

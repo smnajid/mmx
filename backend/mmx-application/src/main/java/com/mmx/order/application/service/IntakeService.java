@@ -22,7 +22,6 @@ import com.mmx.order.domain.model.OpenContractPosition;
 import com.mmx.order.domain.model.OrderOperation;
 import com.mmx.order.domain.model.OrderStatus;
 import com.mmx.order.domain.model.OrganisationCode;
-import com.mmx.order.domain.model.ThinProxyInstitution;
 import com.mmx.order.domain.policy.OrderAgainstCurrencyPolicy;
 import com.mmx.order.domain.policy.OrderAgainstInstitutionPolicy;
 
@@ -157,7 +156,7 @@ public final class IntakeService implements IntakeUseCase {
         if (isRemoteHub(clientEntity)) {
             return receiveRoutedRemote(command, clientEntity);
         }
-        ThinProxyInstitution proxy = routedOrderIntake.resolveProxy(command.institutionCode());
+        Institution proxy = routedOrderIntake.resolveProxy(command.institutionCode());
         validateLifecycleInstitutionMatchesContract(command, proxy.getInstitutionCode());
         validateCurrency(command);
 
@@ -221,9 +220,14 @@ public final class IntakeService implements IntakeUseCase {
         if (institutionCode == null || institutionCode.isBlank()) {
             throw new InvalidOrderException("institutionCode is required");
         }
-        var institutionOpt = institutionRepository.findByInstitutionCode(institutionCode);
-        institutionPolicy.validateExecute(institutionCode, institutionOpt);
-        return institutionOpt.orElseThrow();
+        Institution institution =
+                institutionRepository
+                        .findByInstitutionCode(institutionCode)
+                        .orElseThrow(() -> new InvalidOrderException("Institution not found: " + institutionCode));
+        if (!institution.isActive()) {
+            throw new InvalidOrderException("Institution is not active: " + institutionCode);
+        }
+        return institution;
     }
 
     private void validateLifecycleInstitutionMatchesContract(

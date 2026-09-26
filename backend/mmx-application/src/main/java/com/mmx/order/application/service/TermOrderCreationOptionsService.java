@@ -15,7 +15,6 @@ import com.mmx.order.application.port.out.DelegatedGrantRepository;
 import com.mmx.order.application.port.out.InstitutionRepository;
 import com.mmx.order.application.port.out.LegalEntityRepository;
 import com.mmx.order.application.port.out.ManagedCurrencyRepository;
-import com.mmx.order.application.port.out.ProxyInstitutionRepository;
 import com.mmx.order.application.port.out.TermRateRepository;
 import com.mmx.order.application.termrate.TermRateAuditRow;
 import com.mmx.order.domain.model.LegalEntity;
@@ -43,7 +42,6 @@ public final class TermOrderCreationOptionsService
     private final InstitutionRepository institutionRepository;
     private final LegalEntityRepository legalEntityRepository;
     private final DelegatedGrantRepository delegatedGrantRepository;
-    private final ProxyInstitutionRepository proxyInstitutionRepository;
     private final Clock clock;
 
     public TermOrderCreationOptionsService(
@@ -52,14 +50,12 @@ public final class TermOrderCreationOptionsService
             InstitutionRepository institutionRepository,
             LegalEntityRepository legalEntityRepository,
             DelegatedGrantRepository delegatedGrantRepository,
-            ProxyInstitutionRepository proxyInstitutionRepository,
             Clock clock) {
         this.managedCurrencyRepository = managedCurrencyRepository;
         this.termRateRepository = termRateRepository;
         this.institutionRepository = institutionRepository;
         this.legalEntityRepository = legalEntityRepository;
         this.delegatedGrantRepository = delegatedGrantRepository;
-        this.proxyInstitutionRepository = proxyInstitutionRepository;
         this.clock = clock;
     }
 
@@ -126,7 +122,7 @@ public final class TermOrderCreationOptionsService
                             currency,
                             tenor,
                             delegatedGrantRepository,
-                            proxyInstitutionRepository,
+                            institutionRepository,
                             hubRates,
                             clock.today()));
         }

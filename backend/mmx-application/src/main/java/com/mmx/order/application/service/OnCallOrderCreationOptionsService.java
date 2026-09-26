@@ -19,7 +19,6 @@ import com.mmx.order.application.port.out.LegalEntityRepository;
 import com.mmx.order.application.port.out.ManagedCurrencyRepository;
 import com.mmx.order.application.port.out.OnCallRateRepository;
 import com.mmx.order.application.port.out.OrderRepository;
-import com.mmx.order.application.port.out.ProxyInstitutionRepository;
 import com.mmx.order.domain.model.LegalEntity;
 import com.mmx.order.domain.model.LegalEntityCode;
 import com.mmx.order.domain.model.ManagedCurrency;
@@ -48,7 +47,6 @@ public final class OnCallOrderCreationOptionsService
     private final OrderRepository orderRepository;
     private final LegalEntityRepository legalEntityRepository;
     private final DelegatedGrantRepository delegatedGrantRepository;
-    private final ProxyInstitutionRepository proxyInstitutionRepository;
 
     public OnCallOrderCreationOptionsService(
             ManagedCurrencyRepository managedCurrencyRepository,
@@ -56,15 +54,13 @@ public final class OnCallOrderCreationOptionsService
             InstitutionRepository institutionRepository,
             OrderRepository orderRepository,
             LegalEntityRepository legalEntityRepository,
-            DelegatedGrantRepository delegatedGrantRepository,
-            ProxyInstitutionRepository proxyInstitutionRepository) {
+            DelegatedGrantRepository delegatedGrantRepository) {
         this.managedCurrencyRepository = managedCurrencyRepository;
         this.onCallRateRepository = onCallRateRepository;
         this.institutionRepository = institutionRepository;
         this.orderRepository = orderRepository;
         this.legalEntityRepository = legalEntityRepository;
         this.delegatedGrantRepository = delegatedGrantRepository;
-        this.proxyInstitutionRepository = proxyInstitutionRepository;
     }
 
     @Override
@@ -144,7 +140,7 @@ public final class OnCallOrderCreationOptionsService
                             currency,
                             noticePeriod,
                             delegatedGrantRepository,
-                            proxyInstitutionRepository,
+                            institutionRepository,
                             hubSegments,
                             LocalDate.now()));
         }

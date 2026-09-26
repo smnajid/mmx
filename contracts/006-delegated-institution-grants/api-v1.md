@@ -36,8 +36,18 @@ grants for the caller's client `LegalEntityCode`. The hub institution referenced
   its own desk, and vice versa. The only bounds are the hub managed-currency enabled sets.
 - **Prospective**: create/update/deactivate/reactivate do NOT alter already-routed or executed
   orders; historical orders keep the grant in effect when they were routed.
-- **Deactivation is not deletion**: `active` toggles false; new TradingClient intake for the tuple is
-  blocked, in-flight orders are untouched.
+- **Granted, not usable**: an active grant makes the hub institution a **granted institution** for the
+  client, eligible for institution onboarding (`contracts/004-institution-settings`). The client trades
+  only through its own **onboarded institution** (derived name `"{hub name} via {hub LegalEntityCode}"`),
+  and chooses its own **client enablement** within the grant. New business at the client uses the
+  **effective enablement**: grant ∩ client enablement. A grant expansion never switches anything on
+  at the client; a reduction caps the effective enablement without erasing the client's choice.
+- **Deactivation is not deletion**: `active` toggles false. Deactivating a grant, or removing a
+  tenor/notice period from it, makes the affected `(institution, client, currency, tenor|noticePeriod)`
+  **closed to new business**: the client's new Subscription/Increase intake (and the hub's leg-A
+  accept) is refused, while Decrease/Redemption against existing contracts is still accepted and
+  routed. In-flight orders are untouched, and the client's onboarded institution (with its
+  counterparty accounts) is never offboarded by a grant change.
 
 ## Error codes
 

@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface SpringDataInstitutionRepository extends JpaRepository<InstitutionEntity, String> {
 
@@ -16,6 +17,9 @@ public interface SpringDataInstitutionRepository extends JpaRepository<Instituti
 
     List<InstitutionEntity> findByLegalEntityCodeAndHubInstitutionCodeIsNotNullOrderByInstitutionCodeAsc(
             String legalEntityCode);
+
+    Optional<InstitutionEntity> findByLegalEntityCodeAndHubLegalEntityCodeAndHubInstitutionCode(
+            String legalEntityCode, String hubLegalEntityCode, String hubInstitutionCode);
 
     @Query(
             """
