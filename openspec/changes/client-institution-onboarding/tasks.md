@@ -167,26 +167,26 @@ Strict TDD (no waiver): each "Write failing" task must be seen red before its "I
 
 ## 9. Scripts and dev stack
 
-- [ ] 9.1 In `scripts/register-schemas.sh`, register `contracts/004-institution-settings/schemas/InstitutionUpdatedV1.json` under subject `mmx.institution-value` with `BACKWARD`. Verify that `./mmx-start.sh`, then `curl` of `/subjects/mmx.institution-value/versions`, returns a version.
-- [ ] 9.2 In `scripts/cross-org-smoke.sh`, set LOC counterparty accounts, onboard the granted institution at CGEG with accounts, and use the CGEG onboarded institution for intake. Verify that `./mmx-cross-org-start.sh`, then `./scripts/cross-org-smoke.sh`, completes the flow end to end.
-- [ ] 9.3 In `scripts/seed-demo-orders.sh`, set counterparty accounts on the institutions it uses. Verify that the script runs against `./mmx-start.sh` without intake rejections.
+- [x] 9.1 In `scripts/register-schemas.sh`, register `contracts/004-institution-settings/schemas/InstitutionUpdatedV1.json` under subject `mmx.institution-value` with `BACKWARD`. Verify that `./mmx-start.sh`, then `curl` of `/subjects/mmx.institution-value/versions`, returns a version.
+- [x] 9.2 In `scripts/cross-org-smoke.sh`, set LOC counterparty accounts, onboard the granted institution at CGEG with accounts, and use the CGEG onboarded institution for intake. Verify that `./mmx-cross-org-start.sh`, then `./scripts/cross-org-smoke.sh`, completes the flow end to end.
+- [x] 9.3 In `scripts/seed-demo-orders.sh`, set counterparty accounts on the institutions it uses. Verify that the script runs against `./mmx-start.sh` without intake rejections.
 
 ## 10. Frontend (`frontend/`, standalone components + existing API service conventions)
 
-- [ ] 10.1 Extend `institution-settings-api.service.ts` with `listGrantedInstitutions`, `updateCounterpartyAccounts`, and `updateClientEnablement` using the generated types, with a spec next to the service. `npx ng test --include='src/app/core/api/institution-settings-api.service.spec.ts'`
-- [ ] 10.2 Update `institution-settings-list.component.ts` (single "Institutions" heading, open/closed badge, accounts columns, no "proxy" text) and its spec, red-first. `npx ng test --include='src/app/features/institution-settings/institution-settings-list.component.spec.ts'`
-- [ ] 10.3 Update `institution-settings-onboard.component.ts` and its spec, red-first. `npx ng test --include='src/app/features/institution-settings/institution-settings-onboard.component.spec.ts'`. The client picks from granted institutions not yet open, with optional accounts; the Trader form is unchanged apart from optional accounts.
-- [ ] 10.4 Update `institution-settings-detail.component.ts` and its spec, red-first. `npx ng test --include='src/app/features/institution-settings/institution-settings-detail.component.spec.ts'`. Add an accounts edit form for both roles and offboard/re-onboard actions for a ClientRepresentative. The grant panel becomes per-currency client-enablement toggles: tenors outside the grant are disabled, "enabled, not granted" is flagged, and saving calls `updateClientEnablement`.
-- [ ] 10.5 Type gate: `npm run typecheck` succeeds.
+- [x] 10.1 Extend `institution-settings-api.service.ts` with `listGrantedInstitutions`, `updateCounterpartyAccounts`, and `updateClientEnablement` using the generated types, with a spec next to the service. `npx ng test --include='src/app/core/api/institution-settings-api.service.spec.ts'`
+- [x] 10.2 Update `institution-settings-list.component.ts` (single "Institutions" heading, open/closed badge, accounts columns, no "proxy" text) and its spec, red-first. `npx ng test --include='src/app/features/institution-settings/institution-settings-list.component.spec.ts'`
+- [x] 10.3 Update `institution-settings-onboard.component.ts` and its spec, red-first. `npx ng test --include='src/app/features/institution-settings/institution-settings-onboard.component.spec.ts'`. The client picks from granted institutions not yet open, with optional accounts; the Trader form is unchanged apart from optional accounts.
+- [x] 10.4 Update `institution-settings-detail.component.ts` and its spec, red-first. `npx ng test --include='src/app/features/institution-settings/institution-settings-detail.component.spec.ts'`. Add an accounts edit form for both roles and offboard/re-onboard actions for a ClientRepresentative. The grant panel becomes per-currency client-enablement toggles: tenors outside the grant are disabled, "enabled, not granted" is flagged, and saving calls `updateClientEnablement`.
+- [x] 10.5 Type gate: `npm run typecheck` succeeds.
 
 ## 11. Docs and agent memory
 
-- [ ] 11.1 Update `docs/agents/codebase-map.md` with the new outbox/relay, V27, client enablement (`ClientEnablement`/`EffectiveEnablement`), `HubInstitutionCatalog`, the institution-export contracts, and the retired `ThinProxyInstitution`. Verify that every path it names exists.
-- [ ] 11.2 Update the Serena memories (`mem:backend/core`, `mem:frontend/core` as relevant): the remote client now stores onboarded institutions, the new relay flag gotcha for client-role tests, and "closed to new business" operation-awareness. Verify by reading the memories back.
-- [ ] 11.3 Check the ADRs and glossary: ADR 0008 and `CONTEXT.md` match the delivered behaviour (accounts, export triggers, snapshot fields). Verify by searching the codebase for any leftover "proxy" in UI strings or error messages (`grep -rni proxy frontend/src/app backend/*/src/main`), apart from the dev-server proxy config.
+- [x] 11.1 Update `docs/agents/codebase-map.md` with the new outbox/relay, V27, client enablement (`ClientEnablement`/`EffectiveEnablement`), `HubInstitutionCatalog`, the institution-export contracts, and the retired `ThinProxyInstitution`. Verify that every path it names exists.
+- [x] 11.2 Update the Serena memories (`mem:backend/core`, `mem:frontend/core` as relevant): the remote client now stores onboarded institutions, the new relay flag gotcha for client-role tests, and "closed to new business" operation-awareness. Verify by reading the memories back.
+- [x] 11.3 Check the ADRs and glossary: ADR 0008 and `CONTEXT.md` match the delivered behaviour (accounts, export triggers, snapshot fields). Verify by searching the codebase for any leftover "proxy" in UI strings or error messages (`grep -rni proxy frontend/src/app backend/*/src/main`), apart from the dev-server proxy config.
 
 ## 12. Final verification
 
-- [ ] 12.1 Run full `cd backend && mvn test` — all modules green
-- [ ] 12.2 Run `npm run test` in `frontend/` — green
-- [ ] 12.3 `openspec validate client-institution-onboarding --strict` passes, and the contract prose mirrors (`api-v1.md`, `asyncapi-v1.md`) match their YAML (SDD parity).
+- [x] 12.1 Run full `cd backend && mvn test` — all modules green
+- [x] 12.2 Run `npm run test` in `frontend/` — green
+- [x] 12.3 `openspec validate client-institution-onboarding --strict` passes, and the contract prose mirrors (`api-v1.md`, `asyncapi-v1.md`) match their YAML (SDD parity).

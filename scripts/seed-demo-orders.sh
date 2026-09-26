@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Seed mmx demo orders for the trader desk (test env).
 #
-# Does NOT touch Settings (currencies, institutions, rates). Configure those separately.
+# Settings are read, not created: the only Settings write is the counterparty accounts on the
+# institutions it uses (intake refuses an order whose institution lacks the OrderType's account).
 # By default wipes all order rows via Postgres before seeding (WIPE_ORDERS=1).
 #
 # Populates desk queues — Received (near + far), Assigned (two traders), Executed, OnCall INCREASE
@@ -11,7 +12,7 @@
 #   - Postgres reachable (default: docker container mmx-postgres)
 #   - ≥1 active institution and onboarded currencies in Settings
 #
-# Use X-Trader-Id demo-trader in the SPA (or TRADER_ID below).
+# Use X-User-Id demo-trader in the SPA (or TRADER_ID below). Orders are taken for LEGAL_ENTITY_CODE.
 #
 # Intake: valueDate must be ≥ today + 2 calendar days.
 #
@@ -24,6 +25,7 @@
 #   POSTGRES_CONTAINER         Docker container for wipe (default mmx-postgres)
 #   INSTITUTION_PRIMARY_CODE   Override; else first active institution from Settings API
 #   INSTITUTION_SECONDARY_CODE Override; else second active institution (or primary again)
+#   LEGAL_ENTITY_CODE          TradingHub LegalEntity for intake + trader scope (default LOC)
 #
 # After seeding:
 #   ./scripts/bo-confirm.sh              # move Executed → Accounted (optional)
@@ -37,6 +39,7 @@ TRADER_ID_OTHER="${TRADER_ID_OTHER:-demo-trader-2}"
 ADVANCE_WORKFLOW="${ADVANCE_WORKFLOW:-1}"
 WIPE_ORDERS="${WIPE_ORDERS:-1}"
 POSTGRES_CONTAINER="${POSTGRES_CONTAINER:-mmx-postgres}"
+LEGAL_ENTITY_CODE="${LEGAL_ENTITY_CODE:-LOC}"
 RUN_ID="$(date +%s)"
 
 VALUE_DATE_NEAR="$(python3 -c "from datetime import date, timedelta; print((date.today() + timedelta(days=2)).isoformat())")"
@@ -59,7 +62,7 @@ trader_curl() {
   local trader="${3:-${TRADER_ID}}"
   shift 3
   curl -sS -X "${method}" "${BASE_URL}${path}" \
-    -H "X-Trader-Id: ${trader}" \
+    -H "X-User-Id: ${trader}" \
     "$@"
 }
 
@@ -70,10 +73,11 @@ wipe_order_data() {
   fi
   docker exec "${POSTGRES_CONTAINER}" psql -U mmx -d mmx -v ON_ERROR_STOP=1 -c "
     DELETE FROM back_office_outbox;
+    DELETE FROM routing_outcome_outbox;
     DELETE FROM order_audit_log;
     DELETE FROM money_market_order;
   " >/dev/null
-  echo "OK   wiped orders (money_market_order, order_audit_log, back_office_outbox)"
+  echo "OK   wiped orders (money_market_order, order_audit_log, back_office_outbox, routing_outcome_outbox)"
 }
 
 resolve_institution_codes() {
@@ -98,6 +102,33 @@ print(primary, secondary)
     echo "FAIL no active institutions in Settings — onboard at least one before seeding" >&2
     exit 1
   }
+}
+
+# Desk/settings default scope is resolution-order dependent: pin each trader to the hub's Trader scope.
+pin_scope() {
+  local trader="$1"
+  local code
+  code="$(trader_curl POST "/api/v1/session/scope" "${trader}" -o /dev/null -w "%{http_code}" \
+    -H "Content-Type: application/json" \
+    -d "{\"legalEntityCode\":\"${LEGAL_ENTITY_CODE}\",\"role\":\"TRADER\"}")"
+  if [[ "${code}" != "200" && "${code}" != "204" ]]; then
+    echo "FAIL pin scope ${trader} -> ${LEGAL_ENTITY_CODE}/TRADER (HTTP ${code})" >&2
+    exit 1
+  fi
+}
+
+# Intake refuses an order whose institution lacks the counterparty account for its OrderType.
+set_counterparty_accounts() {
+  local institution_code="$1"
+  local code
+  code="$(trader_curl PUT "/api/v1/settings/institutions/${institution_code}/counterparty-accounts" "${TRADER_ID}" \
+    -o /dev/null -w "%{http_code}" -H "Content-Type: application/json" \
+    -d "{\"termCounterpartyAccount\":\"${LEGAL_ENTITY_CODE}-${institution_code}-T\",\"onCallCounterpartyAccount\":\"${LEGAL_ENTITY_CODE}-${institution_code}-OC\"}")"
+  if [[ "${code}" != "200" ]]; then
+    echo "FAIL counterparty accounts on ${institution_code} -> HTTP ${code}" >&2
+    exit 1
+  fi
+  echo "OK   counterparty accounts set on ${institution_code}"
 }
 
 post_order() {
@@ -177,16 +208,17 @@ order_json() {
 
   python3 - "${external_ref}" "${order_type}" "${operation}" "${portfolio}" "${currency}" \
     "${amount}" "${value_date}" "${institution_code}" "${minimum_rate}" "${tenor}" "${notice}" \
-    "${source_contract}" <<'PY'
+    "${source_contract}" "${LEGAL_ENTITY_CODE}" <<'PY'
 import json, sys
 (
     external_ref, order_type, operation, portfolio, currency,
     amount, value_date, institution_code, minimum_rate, tenor, notice,
-    source_contract,
+    source_contract, legal_entity_code,
 ) = sys.argv[1:]
 
 payload = {
     "externalOrderReference": external_ref,
+    "legalEntityCode": legal_entity_code,
     "orderType": order_type,
     "orderOperation": operation,
     "portfolioNumber": portfolio,
@@ -218,9 +250,16 @@ if [[ "${WIPE_ORDERS}" == "1" ]]; then
   echo
 fi
 
-echo "--- Institutions (read from Settings; not modified) ---"
+pin_scope "${TRADER_ID}"
+pin_scope "${TRADER_ID_OTHER}"
+
+echo "--- Institutions (read from Settings; counterparty accounts set) ---"
 resolve_institution_codes
 echo "  primary=${INSTITUTION_PRIMARY}  secondary=${INSTITUTION_SECONDARY}"
+set_counterparty_accounts "${INSTITUTION_PRIMARY}"
+if [[ "${INSTITUTION_SECONDARY}" != "${INSTITUTION_PRIMARY}" ]]; then
+  set_counterparty_accounts "${INSTITUTION_SECONDARY}"
+fi
 echo
 
 echo "--- Orders: Received (near-term — default Received view) ---"

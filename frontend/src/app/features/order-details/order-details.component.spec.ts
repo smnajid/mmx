@@ -109,7 +109,13 @@ describe('OrderDetailsComponent', () => {
             listOnCallCounterparties,
           },
         },
-        { provide: TraderContextService, useValue: { traderId: signal('trader-self') } },
+        {
+          provide: TraderContextService,
+          useValue: {
+            traderId: signal('trader-self'),
+            activeScope: signal({ legalEntityCode: 'LOC', role: 'TRADER' }),
+          },
+        },
         {
           provide: ActivatedRoute,
           useValue: {

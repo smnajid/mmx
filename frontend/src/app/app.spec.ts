@@ -121,7 +121,7 @@ describe('App', () => {
     const hub = fixture.nativeElement.querySelector('.settings-hub-nav');
     expect(hub).toBeTruthy();
     const tabs = hub?.querySelectorAll('a') ?? [];
-    expect(tabs.length).toBe(5);
+    expect(tabs.length).toBe(6);
     expect(tabs[1].classList.contains('active')).toBe(true);
   });
 

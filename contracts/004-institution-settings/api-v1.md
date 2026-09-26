@@ -43,7 +43,7 @@ and onboarded institutions alike. BNP at `LOC` and `BNP via LOC` at `PAR` hold i
 - `termCounterpartyAccount`, `onCallCounterpartyAccount` — optional.
 
 Responses: `201` with the new entry; `200` when the ClientRepresentative onboards a hub institution
-it had onboarded and then offboarded (the same record is reopened with its accounts intact).
+it had onboarded and then offboarded (the same record is reopened with its accounts intact; accounts supplied on the re-onboard request replace the stored ones, absent ones are kept).
 
 ## GrantedInstitutionResponse
 

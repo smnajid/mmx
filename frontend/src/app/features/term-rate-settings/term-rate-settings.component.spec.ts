@@ -17,6 +17,7 @@ describe('TermRateSettingsComponent', () => {
     institutionCode: 'HSBC-01',
     displayName: 'HSBC',
     active: true,
+    closedToNewBusiness: false,
   };
 
   beforeEach(async () => {

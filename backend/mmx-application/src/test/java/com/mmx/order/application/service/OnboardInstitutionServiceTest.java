@@ -225,6 +225,23 @@ class OnboardInstitutionServiceTest {
     }
 
     @Test
+    void client_reonboardingWithAccounts_replacesSuppliedAndKeepsAbsentOnes() {
+        grantBnpToPar(true);
+        Institution first =
+                service.onboard(new OnboardCommand(clientRepresentative(), null, "BNP", "PAR-BNP-T", "PAR-BNP-OC"))
+                        .institution();
+        first.offboard();
+        institutionRepository.save(first);
+
+        Institution again =
+                service.onboard(new OnboardCommand(clientRepresentative(), null, "BNP", "PAR-BNP-T2", null))
+                        .institution();
+
+        assertThat(again.getCounterpartyAccounts().term()).contains("PAR-BNP-T2");
+        assertThat(again.getCounterpartyAccounts().onCall()).contains("PAR-BNP-OC");
+    }
+
+    @Test
     void client_reonboardingWithoutAnActiveGrant_isRejectedAndStaysClosed() {
         grantBnpToPar(true);
         Institution first = onboardBnp().institution();

@@ -39,7 +39,7 @@ const NOTICE_PERIODS: OnCallNoticePeriod[] = ['24H', '48H'];
 
       <p class="settings-lede">
         @if (trader.isClientRepresentative()) {
-          Read-only view of hub OnCall rate curves for your proxy institutions.
+          Read-only view of hub OnCall rate curves for your onboarded institutions.
         } @else {
           Maintain value-dated OnCall rate curves per institution. Pending segments price new orders
           immediately; back office confirmation refreshes in-life contracts.

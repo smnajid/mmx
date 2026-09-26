@@ -79,8 +79,9 @@ describe('SettingsShellComponent', () => {
     expect(links[0].getAttribute('href')).toContain('/settings/currencies');
     expect(links[1].getAttribute('href')).toContain('/settings/institutions');
     expect(links[2].getAttribute('href')).toContain('/settings/delegated-grants');
-    expect(links[3].getAttribute('href')).toContain('/settings/term-rates');
-    expect(links[4].getAttribute('href')).toContain('/settings/oncall-rates');
+    expect(links[3].getAttribute('href')).toContain('/settings/global-accounts');
+    expect(links[4].getAttribute('href')).toContain('/settings/term-rates');
+    expect(links[5].getAttribute('href')).toContain('/settings/oncall-rates');
     expect(router.isActive('/settings/currencies', false)).toBe(true);
     expect(router.isActive('/settings/institutions', false)).toBe(false);
   });

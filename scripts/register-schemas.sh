@@ -12,6 +12,7 @@ REGISTRY_URL="${1:-${SCHEMA_REGISTRY_URL:-http://localhost:18081}}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCHEMAS_DIR="$SCRIPT_DIR/../contracts/002-trader-orders-views/schemas"
 CROSSORG_SCHEMAS_DIR="$SCRIPT_DIR/../contracts/007-cross-org-routing/schemas"
+INSTITUTION_SCHEMAS_DIR="$SCRIPT_DIR/../contracts/004-institution-settings/schemas"
 
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -127,6 +128,10 @@ log "Schema Registry is reachable."
 register_schema "mmx.order.executed-value" "$SCHEMAS_DIR/OrderExecutedV1.json"
 register_schema "mmx.oncall.rate.handoff-value" "$SCHEMAS_DIR/OnCallRateUpdatedV1.json"
 register_schema "mmx.oncall.rate.canceled-value" "$SCHEMAS_DIR/OnCallRateCanceledV1.json"
+
+# Institution export. Topics are per LegalEntity (mmx.institution.{legalEntityCode}); MMX serialises
+# JSON itself, so the registry is only a compatibility gate and one subject governs every topic.
+register_schema "mmx.institution-value" "$INSTITUTION_SCHEMAS_DIR/InstitutionUpdatedV1.json"
 
 # Cross-org routed-order outcome (leg B). The topic is LODH-owned and org-suffixed
 # (mmx.routed-order-outcome.LODH); CGED holds a consume-only ACL. Subject follows the same

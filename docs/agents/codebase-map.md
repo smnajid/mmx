@@ -42,13 +42,14 @@ mmx/
 | `001-mm-order-processing/` | Core order domain, intake, lifecycle | `openapi.yaml` (superseded for desk by 002) |
 | `002-trader-orders-views/` | Desk queues, order detail, session scope, on-call rates API, order-creation options, async handoff | `openapi.yaml` + `api-v1.md` |
 | `003-managed-currency-settings/` | Managed currency catalog | `openapi.yaml` |
-| `004-institution-settings/` | Institution onboarding | `openapi.yaml` |
+| `004-institution-settings/` | Institution onboarding, granted list, counterparty accounts, client enablement; institution export (`asyncapi.yaml`, `schemas/InstitutionUpdatedV1.json`) | `openapi.yaml` + `api-v1.md` (+ `asyncapi-v1.md`) |
 | `005-term-rate-settings/` | Term rate CSV upload & day view | `openapi.yaml` |
 | `006-delegated-institution-grants/` | Hub → client delegated institution grants | `openapi.yaml` + `api-v1.md` |
+| `007-cross-org-routing/` | Cross-org leg A (`AcceptRoutedOrderRequest`, incl. `clientCounterpartyAccount`) and leg B (`RoutingOutcomeV1`) | `openapi.yaml` + `api-v1.md` |
 
 **Active desk + session + on-call rates + order-creation options:** treat **`002`** OpenAPI as the primary product contract for orders, `/api/v1/session/scope`, and `OnCallRateSettings` paths.
 
-**Async handoff:** `002-trader-orders-views/asyncapi.yaml` + JSON schemas under `schemas/` (`OrderExecutedV1`, `OnCallRateUpdatedV1`, `OnCallRateCanceledV1`).
+**Async handoff:** `002-trader-orders-views/asyncapi.yaml` + JSON schemas under `schemas/` (`OrderExecutedV1`, `OnCallRateUpdatedV1`, `OnCallRateCanceledV1`). **Institution export:** `004-institution-settings/asyncapi.yaml` + `schemas/InstitutionUpdatedV1.json` — topic `mmx.institution.{legalEntityCode}`, key `institutionCode`, latest-wins by `version`; registry subject `mmx.institution-value` (`scripts/register-schemas.sh`).
 
 **Codegen (backend):** `backend/mmx-adapter-in-rest/pom.xml` runs OpenAPI Generator per spec (002, 003, 004, 005, 006). Generated Java lives under `target/generated-sources/` after `mvn compile` — not committed. Packages are namespaced (`generated.model`, `generated.settings`, `generated.grants`, …).
 
@@ -68,14 +69,14 @@ Use when behaviour is specified as a **capability** rather than a single feature
 |------|------------------|---------------------------|
 | Architecture | `backend-hexagonal-architecture` | `ArchitectureRules`, `DomainArchitectureTest`, `HexagonalArchitectureTest` |
 | Identity & tenancy | `user-identity-and-scoping`, `legal-entity-tenancy` | `SessionScopeController`, `ReScopeService`, `ScopeContextProvider`, `TraderContextService`, `X-User-Id` header |
-| Order lifecycle & routing | `money-market-order-lifecycle`, `order-routing`, `execution-contract-number` | `ReceiveOrderService`, `RouteOrderService`, `RoutedOrderLink`, routing columns on orders |
+| Order lifecycle & routing | `money-market-order-lifecycle`, `order-routing`, `execution-contract-number` | `IntakeService`, `RoutedOrderIntake` (local routing), `RemoteRoutedOrderIntake` + `AcceptRoutedHubOrderService` (cross-org leg A), `RoutedOrderLink`, routing columns on orders |
 | Desk UX | `trader-desk-navigation`, `trader-order-detail-actions`, `desk-order-queries`, `trader-received-queue`, `trader-executed-queue` | `app.routes.ts`, `trader-desk.guard.ts`, `features/order-details/`, `DeskOrderQueryService` |
-| Settings & reference data | `managed-currency-settings`, `institution-onboarding`, `term-rate-daily-upload`, `delegated-institution-grants` | settings controllers + `features/*-settings/`, `features/delegated-grants/` |
+| Settings & reference data | `managed-currency-settings`, `institution-onboarding`, `institution-counterparty-accounts`, `term-rate-daily-upload`, `delegated-institution-grants` | settings controllers + `features/*-settings/`, `features/delegated-grants/` |
 | Settings UI | `currency-settings-ui`, `term-rate-settings-ui`, `oncall-rate-settings-ui` | matching `features/` folders |
 | On-call rates | `oncall-rate-curve-management` | `OnCallRateSegment`, `AddOnCallRateService`, on-call handoff outbox |
 | PM intake widget | `pm-order-creation-widget`, `pm-order-creation-options` | `projects/order-creation-widget/`, `OrderCreationOptionsController`, `features/widget-playground/` |
 | Back office | `back-office-outbound-messaging`, `back-office-accounting-handoff` | `mmx-adapter-out-messaging`, callback controllers, outbox tables |
-| Constraints | `order-currency-constraints`, `order-institution-constraints` | intake validation in `ReceiveOrderService`, creation-options services |
+| Constraints | `order-currency-constraints`, `order-institution-constraints` | intake validation in `IntakeService` (via `OrderAgainstInstitutionPolicy`, `NewBusinessPolicy`, `CounterpartyAccountPolicy`), creation-options services |
 | Contract governance | `frontend-contract-codegen`, `async-schema-registry-governance`, `order-adapter-mapping` | `npm run generate:api`, `scripts/register-schemas.sh` |
 
 Project defaults: [openspec/config.yaml](../../openspec/config.yaml).
@@ -97,12 +98,12 @@ mmx-bootstrap
 
 | Module | Role | Start here for… |
 |--------|------|------------------|
-| `mmx-domain` | Entities, enums, policies, domain exceptions | Status rules, `MoneyMarketOrder`, `OnCallRateSegment`, `TermRate`, `UserScope`, `DelegatedGrantKey`, `GlobalAccount`, `RoutedOrderLink` |
+| `mmx-domain` | Entities, enums, policies, domain exceptions | Status rules, `MoneyMarketOrder`, `Institution` (+ `HubInstitutionLink`, `CounterpartyAccounts`), `ClientEnablement`/`EffectiveEnablement`, `NewBusinessPolicy`, `CounterpartyAccountPolicy`, `OnCallRateSegment`, `TermRate`, `UserScope`, `DelegatedGrantKey`, `GlobalAccount`, `RoutedOrderLink` |
 | `mmx-application` | Use cases (`port/in`), ports (`port/out`), services, commands | Business orchestration — **prefer over adapters** |
 | `mmx-adapter-in-rest` | REST controllers, mappers, `GlobalExceptionHandler` | HTTP surface (thin — no business rules) |
 | `mmx-adapter-out-persistence` | JPA entities, Spring Data repos, `Jpa*Repository` adapters, `RequestScopeContextProvider` | DB mapping, Flyway-backed tables, tenancy-scoped queries |
-| `mmx-adapter-out-messaging` | Outbox, handoff relay workers, payload mappers | Async back-office publish |
-| `mmx-adapter-out-integration` | `UuidReferenceGenerator`, external stubs | Reference generation, external APIs |
+| `mmx-adapter-out-messaging` | Outbox, handoff relay workers, payload mappers | Async back-office publish; institution export (`InstitutionExportOutboxAdapter`, `InstitutionUpdatedV1PayloadMapper`, `InstitutionExportRelay`/`InstitutionExportRelayWorker`, toggle `mmx.institution.outbox.relay-enabled`) |
+| `mmx-adapter-out-integration` | `UuidReferenceGenerator`, cross-org REST adapters | Reference generation, leg-A client, `RemoteHubInstitutionCatalog` (remote client's read of the hub's `/cross-org/reference/institutions`) |
 | `mmx-bootstrap` | `*ModuleConfiguration`, transactional use-case wrappers, `application.yml` | Wiring beans, Flyway migrations |
 
 **Package root:** `com.mmx.order` in all modules.
@@ -149,11 +150,12 @@ Implements generated `*Api` interfaces from OpenAPI (under `adapter/in/rest/gene
 
 ### Application layer patterns
 
-- **Orders:** `DeskOrderQueryService`, `AssignmentService`, `ExecuteOrderService`, `OrderLifecycleService`, `UpdateOrderService`, `RouteOrderService`, `ListLiveContractsService`, …
+- **Orders:** `DeskOrderQueryService`, `AssignmentService`, `ExecuteOrderService`, `OrderLifecycleService`, `UpdateOrderService`, `IntakeService`, `ListLiveContractsService`, …
 - **Identity:** `ResolveUserScopeService`, `ReScopeService`; port `ScopeContextProvider`
 - **On-call rates:** `AddOnCallRateService`, `ConfirmOnCallRateService`, `ListOnCallRateSegmentsService`, `CancelOnCallRateService`, …
 - **Term rates:** `UploadTermRatesService`, `ListTermRatesForDayService`, … + `application/termrate/` CSV parsing
-- **Settings:** `ManageCurrencySettingsService`, `ManageInstitutionSettingsService`, `OnboardInstitutionService`, `ManageDelegatedGrantsService`, `ManageGlobalAccountsService`, …
+- **Settings:** `ManageCurrencySettingsService`, `ManageInstitutionSettingsService`, `OnboardInstitutionService`, `ListGrantedInstitutionsService`, `UpdateCounterpartyAccountsService`, `ManageClientEnablementService`, `ManageDelegatedGrantsService`, `ManageGlobalAccountsService`, …
+- **Institutions:** one `Institution` aggregate for hub-native and client-onboarded institutions (the retired `ThinProxyInstitution` is folded in). Out-ports: `InstitutionRepository` (local JPA in every deployment, remote client included), `ClientEnablementRepository`, `InstitutionExportOutbox`, `HubInstitutionCatalog` (hub display names for the granted list: remote on a cross-Org client, in-process in `InstitutionSettingsModuleConfiguration` otherwise).
 - **PM widget options:** `TermOrderCreationOptionsService`, `OnCallOrderCreationOptionsService`
 
 ### Persistence & schema
@@ -173,9 +175,10 @@ Implements generated `*Api` interfaces from OpenAPI (under `adapter/in/rest/gene
 | V16 | live-contract query indexes |
 | V18 | `organisation`, `legal_entity`, `mmx_user`, tenancy columns |
 | V19 | demo user seed data |
-| V20 | `delegated_institution_grant`, proxy institution columns |
+| V20 | `delegated_institution_grant`, institution hub-link columns (`hub_legal_entity_code`, `hub_institution_code`) |
 | V21 | order routing columns (`routing_id`, originating entity/ref) |
 | V22 | `global_account` |
+| V27 | institution counterparty accounts + `version`, onboarded-institution unique index (hub FKs dropped), order `counterparty_account`/`client_counterparty_account` snapshots, `client_institution_enablement`, `institution_export_outbox` |
 
 ### Tests (backend)
 

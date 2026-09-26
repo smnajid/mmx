@@ -12,8 +12,8 @@ describe('OnCallRateSettingsComponent', () => {
   let fixture: ComponentFixture<OnCallRateSettingsComponent>;
   let http: HttpTestingController;
 
-  const HSBC: Institution = { institutionCode: 'HSBC-01', displayName: 'HSBC', active: true };
-  const CITI: Institution = { institutionCode: 'CITI-01', displayName: 'Citi', active: true };
+  const HSBC: Institution = { institutionCode: 'HSBC-01', displayName: 'HSBC', active: true, closedToNewBusiness: false };
+  const CITI: Institution = { institutionCode: 'CITI-01', displayName: 'Citi', active: true, closedToNewBusiness: false };
 
   const pendingSegment: OnCallRateSegment = {
     segmentId: '11111111-1111-1111-1111-111111111111',
@@ -280,7 +280,7 @@ describe('OnCallRateSettingsComponent ClientRepresentative', () => {
       ],
     }).compileComponents();
 
-    const HSBC: Institution = { institutionCode: 'HSBC-01', displayName: 'HSBC', active: true };
+    const HSBC: Institution = { institutionCode: 'HSBC-01', displayName: 'HSBC', active: true, closedToNewBusiness: false };
     const pendingSegment: OnCallRateSegment = {
       segmentId: '11111111-1111-1111-1111-111111111111',
       institutionCode: 'HSBC-01',
