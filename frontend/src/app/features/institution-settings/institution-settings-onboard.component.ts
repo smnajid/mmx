@@ -1,8 +1,11 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { DelegatedGrantsApiService } from '../../core/api/delegated-grants-api.service';
-import { InstitutionSettingsApiService } from '../../core/api/institution-settings-api.service';
+import {
+  GrantedInstitution,
+  InstitutionSettingsApiService,
+  OnboardInstitutionRequest,
+} from '../../core/api/institution-settings-api.service';
 import { TraderContextService } from '../../core/trader/trader-context.service';
 
 @Component({
@@ -12,14 +15,14 @@ import { TraderContextService } from '../../core/trader/trader-context.service';
   template: `
     <section class="settings-panel">
       <a routerLink="/settings/institutions" class="settings-back">← Back to list</a>
-      <h1>{{ trader.isClientRepresentative() ? 'Onboard proxy institution' : 'Onboard institution' }}</h1>
+      <h1>Onboard institution</h1>
 
       @if (trader.isTrader()) {
         <p class="settings-state">Institution code is assigned by the system after you save.</p>
       } @else {
         <p class="settings-state">
-          Select a hub institution from an active delegation grant. The proxy name is derived by the
-          system.
+          Select one of your granted institutions. Its name is derived by the system; an offboarded
+          institution is re-onboarded with its code and accounts.
         </p>
       }
 
@@ -40,15 +43,25 @@ import { TraderContextService } from '../../core/trader/trader-context.service';
           </label>
         } @else {
           <label>
-            Hub institution (from grant)
+            Granted institution
             <select formControlName="hubInstitutionCode">
               <option value="" disabled>Select…</option>
-              @for (hub of grantHubOptions(); track hub) {
-                <option [value]="hub">{{ hub }}</option>
+              @for (g of grantedOptions(); track g.hubInstitutionCode) {
+                <option [value]="g.hubInstitutionCode">
+                  {{ g.displayName }}{{ g.onboardedInstitutionCode ? ' (re-onboard)' : '' }}
+                </option>
               }
             </select>
           </label>
         }
+        <label>
+          Term counterparty account (optional)
+          <input formControlName="termCounterpartyAccount" maxlength="34" />
+        </label>
+        <label>
+          OnCall counterparty account (optional)
+          <input formControlName="onCallCounterpartyAccount" maxlength="34" />
+        </label>
         <div class="actions">
           <button type="submit" [disabled]="form.invalid || saving()">Onboard</button>
         </div>
@@ -67,16 +80,18 @@ export class InstitutionSettingsOnboardComponent implements OnInit {
   protected readonly trader = inject(TraderContextService);
 
   private readonly api = inject(InstitutionSettingsApiService);
-  private readonly grantsApi = inject(DelegatedGrantsApiService);
   private readonly router = inject(Router);
   private readonly fb = inject(FormBuilder);
 
   readonly form = this.fb.group({
     displayName: [''],
     hubInstitutionCode: [''],
+    termCounterpartyAccount: ['', Validators.maxLength(34)],
+    onCallCounterpartyAccount: ['', Validators.maxLength(34)],
   });
 
-  readonly grantHubOptions = signal<string[]>([]);
+  /** Granted institutions not yet open for the client: never onboarded, or offboarded (re-onboard). */
+  readonly grantedOptions = signal<GrantedInstitution[]>([]);
   readonly saving = signal(false);
   readonly error = signal<string | null>(null);
   readonly createdCode = signal<string | null>(null);
@@ -85,17 +100,18 @@ export class InstitutionSettingsOnboardComponent implements OnInit {
     if (this.trader.isClientRepresentative()) {
       this.form.controls.displayName.clearValidators();
       this.form.controls.hubInstitutionCode.setValidators([Validators.required]);
-      this.grantsApi.listClientGrants(this.trader.userId()).subscribe({
-        next: (grants) => {
-          const hubs = [
-            ...new Set(
-              grants.filter((g) => g.active).map((g) => g.hubInstitutionCode)
-            ),
-          ];
-          this.grantHubOptions.set(hubs);
+      this.api.listGrantedInstitutions(this.trader.userId()).subscribe({
+        next: (granted) => {
+          this.grantedOptions.set(
+            granted
+              .filter((g) => !g.onboardedInstitutionCode || g.closedToNewBusiness)
+              .sort((a, b) => a.displayName.localeCompare(b.displayName))
+          );
         },
         error: (err) => {
-          this.error.set(err?.error?.message ?? err?.message ?? 'Failed to load grants');
+          this.error.set(
+            err?.error?.message ?? err?.message ?? 'Failed to load granted institutions'
+          );
         },
       });
     } else {
@@ -113,9 +129,17 @@ export class InstitutionSettingsOnboardComponent implements OnInit {
     this.saving.set(true);
     this.error.set(null);
     const userId = this.trader.userId();
-    const body = this.trader.isClientRepresentative()
+    const body: OnboardInstitutionRequest = this.trader.isClientRepresentative()
       ? { hubInstitutionCode: this.form.value.hubInstitutionCode! }
       : { displayName: (this.form.value.displayName ?? '').trim() };
+    const term = (this.form.value.termCounterpartyAccount ?? '').trim();
+    const onCall = (this.form.value.onCallCounterpartyAccount ?? '').trim();
+    if (term) {
+      body.termCounterpartyAccount = term;
+    }
+    if (onCall) {
+      body.onCallCounterpartyAccount = onCall;
+    }
 
     this.api.onboard(userId, body).subscribe({
       next: (inst) => {

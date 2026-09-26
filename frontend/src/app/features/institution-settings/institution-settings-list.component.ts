@@ -18,10 +18,8 @@ import { TraderContextService } from '../../core/trader/trader-context.service';
       </nav>
 
       <header class="settings-header">
-        <h1>{{ trader.isClientRepresentative() ? 'Proxy institutions' : 'Institutions' }}</h1>
-        <a routerLink="/settings/institutions/new" class="btn-primary">
-          {{ trader.isClientRepresentative() ? 'Onboard proxy' : 'Onboard institution' }}
-        </a>
+        <h1>Institutions</h1>
+        <a routerLink="/settings/institutions/new" class="btn-primary">Onboard institution</a>
       </header>
 
       @if (error()) {
@@ -33,7 +31,7 @@ import { TraderContextService } from '../../core/trader/trader-context.service';
       } @else if (institutions().length === 0) {
         <p class="settings-state">
           @if (trader.isClientRepresentative()) {
-            No proxy institutions yet. Onboard one from an active hub grant.
+            No institutions onboarded yet. Onboard one of your granted institutions.
           } @else {
             No institutions onboarded. Execute is blocked until you add at least one.
           }
@@ -46,6 +44,8 @@ import { TraderContextService } from '../../core/trader/trader-context.service';
                 <th>Code</th>
                 <th>Display name</th>
                 <th>Status</th>
+                <th>Term account</th>
+                <th>OnCall account</th>
                 <th></th>
               </tr>
             </thead>
@@ -57,11 +57,23 @@ import { TraderContextService } from '../../core/trader/trader-context.service';
                   <td>
                     <span
                       class="status-badge"
-                      [class.status-badge--active]="i.active"
-                      [class.status-badge--inactive]="!i.active"
+                      [class.status-badge--active]="!i.closedToNewBusiness"
+                      [class.status-badge--inactive]="i.closedToNewBusiness"
                     >
-                      {{ i.active ? 'Active' : 'Inactive' }}
+                      {{ i.closedToNewBusiness ? 'Closed to new business' : 'Open' }}
                     </span>
+                  </td>
+                  <td class="mono">
+                    {{ i.termCounterpartyAccount }}
+                    @if (!i.termCounterpartyAccount) {
+                      <span class="account-missing" data-testid="account-missing">Not set</span>
+                    }
+                  </td>
+                  <td class="mono">
+                    {{ i.onCallCounterpartyAccount }}
+                    @if (!i.onCallCounterpartyAccount) {
+                      <span class="account-missing" data-testid="account-missing">Not set</span>
+                    }
                   </td>
                   <td>
                     <a [routerLink]="['/settings/institutions', i.institutionCode]">View</a>
@@ -73,6 +85,16 @@ import { TraderContextService } from '../../core/trader/trader-context.service';
         </div>
       }
     </section>
+  `,
+  styles: `
+    .mono {
+      font-family: var(--font-mono);
+    }
+
+    .account-missing {
+      color: var(--mmx-text-muted);
+      font-style: italic;
+    }
   `,
 })
 export class InstitutionSettingsListComponent implements OnInit {

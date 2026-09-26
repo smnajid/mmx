@@ -173,11 +173,11 @@ Strict TDD (no waiver): each "Write failing" task must be seen red before its "I
 
 ## 10. Frontend (`frontend/`, standalone components + existing API service conventions)
 
-- [ ] 10.1 Extend `institution-settings-api.service.ts` with `listGrantedInstitutions`, `updateCounterpartyAccounts`, and `updateClientEnablement` using the generated types, with a spec next to the service. `npx ng test --include='src/app/core/api/institution-settings-api.service.spec.ts'`
-- [ ] 10.2 Update `institution-settings-list.component.ts` (single "Institutions" heading, open/closed badge, accounts columns, no "proxy" text) and its spec, red-first. `npx ng test --include='src/app/features/institution-settings/institution-settings-list.component.spec.ts'`
-- [ ] 10.3 Update `institution-settings-onboard.component.ts` and its spec, red-first. `npx ng test --include='src/app/features/institution-settings/institution-settings-onboard.component.spec.ts'`. The client picks from granted institutions not yet open, with optional accounts; the Trader form is unchanged apart from optional accounts.
-- [ ] 10.4 Update `institution-settings-detail.component.ts` and its spec, red-first. `npx ng test --include='src/app/features/institution-settings/institution-settings-detail.component.spec.ts'`. Add an accounts edit form for both roles and offboard/re-onboard actions for a ClientRepresentative. The grant panel becomes per-currency client-enablement toggles: tenors outside the grant are disabled, "enabled, not granted" is flagged, and saving calls `updateClientEnablement`.
-- [ ] 10.5 Type gate: `npm run typecheck` succeeds.
+- [x] 10.1 Extend `institution-settings-api.service.ts` with `listGrantedInstitutions`, `updateCounterpartyAccounts`, and `updateClientEnablement` using the generated types, with a spec next to the service. `npx ng test --include='src/app/core/api/institution-settings-api.service.spec.ts'`
+- [x] 10.2 Update `institution-settings-list.component.ts` (single "Institutions" heading, open/closed badge, accounts columns, no "proxy" text) and its spec, red-first. `npx ng test --include='src/app/features/institution-settings/institution-settings-list.component.spec.ts'`
+- [x] 10.3 Update `institution-settings-onboard.component.ts` and its spec, red-first. `npx ng test --include='src/app/features/institution-settings/institution-settings-onboard.component.spec.ts'`. The client picks from granted institutions not yet open, with optional accounts; the Trader form is unchanged apart from optional accounts.
+- [x] 10.4 Update `institution-settings-detail.component.ts` and its spec, red-first. `npx ng test --include='src/app/features/institution-settings/institution-settings-detail.component.spec.ts'`. Add an accounts edit form for both roles and offboard/re-onboard actions for a ClientRepresentative. The grant panel becomes per-currency client-enablement toggles: tenors outside the grant are disabled, "enabled, not granted" is flagged, and saving calls `updateClientEnablement`.
+- [x] 10.5 Type gate: `npm run typecheck` succeeds.
 
 ## 11. Docs and agent memory
 
