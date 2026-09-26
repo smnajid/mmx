@@ -34,6 +34,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 @Transactional
 class OnCallRateRepositoryQueryTest {
 
+    @Autowired
+    org.springframework.jdbc.core.JdbcTemplate cleanupJdbc;
+
     private static final OnCallCurveKey EUR_24H = new OnCallCurveKey("BNKCO", "EUR", NoticePeriod._24H);
     private static final OnCallCurveKey EUR_24H_CDNRD = new OnCallCurveKey("CDNRD", "EUR", NoticePeriod._24H);
 
@@ -56,8 +59,7 @@ class OnCallRateRepositoryQueryTest {
         repository =
                 new JpaOnCallRateRepository(
                         springDataRepository, new OnCallRateSegmentPersistenceMapper());
-        PersistenceTestCleanup.clearInstitutionsAndOnCall(
-                grantRepository, springDataRepository, springDataInstitutionRepository);
+        PersistenceTestCleanup.clearInstitutionsAndDependents(cleanupJdbc);
         seedInstitution("BNKCO", "BankCo", true);
         seedInstitution("CDNRD", "Canada Rd", true);
         seedInstitution("DEAD-01", "Dead Bank", false);

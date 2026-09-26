@@ -33,6 +33,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ActiveProfiles("test")
 class JpaDelegatedGrantDirectoryIntegrationTest {
 
+    @Autowired
+    org.springframework.jdbc.core.JdbcTemplate cleanupJdbc;
+
     private static final LegalEntityCode LOC = new LegalEntityCode("LOC");
     private static final LegalEntityCode PAR = new LegalEntityCode("PAR");
 
@@ -55,7 +58,7 @@ class JpaDelegatedGrantDirectoryIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        PersistenceTestCleanup.clearGrantsAndInstitutions(grantSpringData, institutionRepository);
+        PersistenceTestCleanup.clearInstitutionsAndDependents(cleanupJdbc);
         scopeProvider = new FixedScopeContextProvider();
         nativeRepository = new JpaInstitutionRepository(institutionRepository, institutionMapper, scopeProvider);
         grantRepository = new JpaDelegatedGrantRepository(grantSpringData, grantMapper);

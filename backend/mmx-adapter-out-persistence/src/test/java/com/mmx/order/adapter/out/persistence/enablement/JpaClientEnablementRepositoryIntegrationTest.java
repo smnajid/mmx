@@ -33,6 +33,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ActiveProfiles("test")
 class JpaClientEnablementRepositoryIntegrationTest {
 
+    @Autowired
+    org.springframework.jdbc.core.JdbcTemplate cleanupJdbc;
+
     private static final LegalEntityCode LOC = new LegalEntityCode("LOC");
     private static final LegalEntityCode PAR = new LegalEntityCode("PAR");
 
@@ -47,7 +50,7 @@ class JpaClientEnablementRepositoryIntegrationTest {
     @BeforeEach
     void setUp() {
         springDataRepository.deleteAll();
-        PersistenceTestCleanup.clearInstitutionsAndOnCall(grantRepository, onCallRateSegmentRepository, institutionSpringData);
+        PersistenceTestCleanup.clearInstitutionsAndDependents(cleanupJdbc);
         new JpaInstitutionRepository(institutionSpringData, institutionMapper, new FixedScopeContextProvider())
                 .save(Institution.onboardFromGrant(
                         "BVL-01", "BNP", new HubInstitutionLink(LOC, "BNP"), PAR, CounterpartyAccounts.none()));

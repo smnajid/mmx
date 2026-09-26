@@ -46,6 +46,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @ActiveProfiles("test")
 class JpaInstitutionRepositoryIntegrationTest {
 
+    @Autowired
+    org.springframework.jdbc.core.JdbcTemplate cleanupJdbc;
+
     private static final LegalEntityCode LOC = new LegalEntityCode("LOC");
     private static final LegalEntityCode PAR = new LegalEntityCode("PAR");
 
@@ -64,8 +67,7 @@ class JpaInstitutionRepositoryIntegrationTest {
         repository = new JpaInstitutionRepository(springDataRepository, mapper, new FixedScopeContextProvider());
         orderRepository = new JpaOrderRepository(springDataOrderRepository, orderMapper);
         springDataOrderRepository.deleteAll();
-        PersistenceTestCleanup.clearInstitutionsAndOnCall(
-                grantRepository, onCallRateSegmentRepository, springDataRepository);
+        PersistenceTestCleanup.clearInstitutionsAndDependents(cleanupJdbc);
     }
 
     @Test

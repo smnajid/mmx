@@ -34,6 +34,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 class TermRateRepositoryQueryTest {
 
     @Autowired
+    org.springframework.jdbc.core.JdbcTemplate cleanupJdbc;
+
+    @Autowired
     SpringDataTermRateRepository springDataTermRateRepository;
 
     @Autowired
@@ -62,11 +65,7 @@ class TermRateRepositoryQueryTest {
                         springDataTermRateRepository,
                         new TermRatePersistenceMapper(),
                         new TransactionTemplate(transactionManager));
-        PersistenceTestCleanup.clearInstitutionsAndRates(
-                grantRepository,
-                onCallRateSegmentRepository,
-                springDataTermRateRepository,
-                springDataInstitutionRepository);
+        PersistenceTestCleanup.clearInstitutionsAndDependents(cleanupJdbc);
     }
 
     @Test
