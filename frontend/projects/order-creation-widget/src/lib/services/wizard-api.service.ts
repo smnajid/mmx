@@ -21,15 +21,17 @@ export class WizardApiService {
   private readonly injectedBaseUrl = inject(ORDER_CREATION_API_BASE_URL, { optional: true });
   private readonly hostConfig = inject(WizardHostConfigService, { optional: true });
 
-  listTermCurrencies(): Observable<TermCurrenciesResponse> {
+  listTermCurrencies(legalEntityCode: string): Observable<TermCurrenciesResponse> {
     return this.http.get<TermCurrenciesResponse>(
       this.url('/api/v1/order-creation/term/currencies'),
+      { params: new HttpParams().set('legalEntityCode', legalEntityCode) },
     );
   }
 
-  listOnCallCurrencies(): Observable<OnCallCurrenciesResponse> {
+  listOnCallCurrencies(legalEntityCode: string): Observable<OnCallCurrenciesResponse> {
     return this.http.get<OnCallCurrenciesResponse>(
       this.url('/api/v1/order-creation/oncall/currencies'),
+      { params: new HttpParams().set('legalEntityCode', legalEntityCode) },
     );
   }
 
@@ -47,16 +49,19 @@ export class WizardApiService {
     );
   }
 
-  listTermTenors(currency: string): Observable<TenorsResponse> {
+  listTermTenors(currency: string, legalEntityCode: string): Observable<TenorsResponse> {
     return this.http.get<TenorsResponse>(this.url('/api/v1/order-creation/term/tenors'), {
-      params: new HttpParams().set('currency', currency),
+      params: new HttpParams().set('legalEntityCode', legalEntityCode).set('currency', currency),
     });
   }
 
-  listOnCallNoticePeriods(currency: string): Observable<NoticePeriodsResponse> {
+  listOnCallNoticePeriods(
+    currency: string,
+    legalEntityCode: string,
+  ): Observable<NoticePeriodsResponse> {
     return this.http.get<NoticePeriodsResponse>(
       this.url('/api/v1/order-creation/oncall/notice-periods'),
-      { params: new HttpParams().set('currency', currency) },
+      { params: new HttpParams().set('legalEntityCode', legalEntityCode).set('currency', currency) },
     );
   }
 

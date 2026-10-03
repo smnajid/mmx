@@ -7,6 +7,7 @@ import {
 import { WizardStepId } from '../models/wizard-state.model';
 import { WizardApiService } from '../services/wizard-api.service';
 import { WizardStateService } from '../services/wizard-state.service';
+import { WizardHostConfigService } from '../services/wizard-host-config.service';
 import { ORDER_CREATION_API_BASE_URL } from '../tokens/order-creation-api-base-url.token';
 import { WizardShellComponent } from './wizard-shell.component';
 
@@ -25,6 +26,7 @@ describe('WizardShellComponent', () => {
         { provide: ORDER_CREATION_API_BASE_URL, useValue: apiBaseUrl },
         WizardApiService,
         WizardStateService,
+        { provide: WizardHostConfigService, useValue: { legalEntityCode: 'LOC', apiBaseUrl: '' } },
       ],
     }).compileComponents();
 
@@ -43,7 +45,7 @@ describe('WizardShellComponent', () => {
 
   function flushCurrencyRequest(): void {
     http
-      .expectOne(`${apiBaseUrl}/api/v1/order-creation/term/currencies`)
+      .expectOne(`${apiBaseUrl}/api/v1/order-creation/term/currencies?legalEntityCode=LOC`)
       .flush({ tradingDate: '2026-06-07', currencies: ['EUR'] });
     fixture.detectChanges();
   }

@@ -29,7 +29,7 @@ describe('OrderCreationWizardComponent', () => {
     componentFixture: ComponentFixture<OrderCreationWizardComponent>,
     baseUrl = apiBaseUrl,
   ): void {
-    const req = http.expectOne(`${baseUrl}/api/v1/order-creation/term/currencies`);
+    const req = http.expectOne(`${baseUrl}/api/v1/order-creation/term/currencies?legalEntityCode=LOC`);
     req.flush({ tradingDate: '2026-06-07', currencies: ['EUR'] });
     componentFixture.detectChanges();
   }

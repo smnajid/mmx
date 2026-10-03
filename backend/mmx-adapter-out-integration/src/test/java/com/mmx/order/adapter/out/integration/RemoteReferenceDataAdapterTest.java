@@ -1,13 +1,20 @@
 package com.mmx.order.adapter.out.integration;
 
+import com.mmx.order.application.exception.HubReferenceDataUnavailableException;
 import com.mmx.order.application.port.out.DelegatedGrantRepository;
 import com.mmx.order.application.port.out.HubInstitutionCatalog;
 import com.mmx.order.application.port.out.ManagedCurrencyRepository;
+import com.mmx.order.application.port.out.OnCallRateRepository;
 import com.mmx.order.application.port.out.TermRateRepository;
 import com.mmx.order.domain.model.DelegatedInstitutionGrant;
 import com.mmx.order.domain.model.Institution;
 import com.mmx.order.domain.model.LegalEntityCode;
 import com.mmx.order.domain.model.ManagedCurrency;
+import com.mmx.order.domain.model.NoticePeriod;
+import com.mmx.order.domain.model.OnCallCurveKey;
+import com.mmx.order.domain.model.OnCallRateSegment;
+import com.mmx.order.domain.model.OnCallRateSegmentStatus;
+import com.mmx.order.domain.model.Tenor;
 import com.mmx.order.application.termrate.TermRateAuditRow;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
@@ -21,10 +28,12 @@ import java.io.OutputStream;
 import java.math.BigDecimal;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Remote-backed reference-data adapters: CGED reads currencies / institutions / term-rates / grants
@@ -173,12 +182,135 @@ class RemoteReferenceDataAdapterTest {
     }
 
     @Test
-    void adapters_returnEmptyList_onServerError() {
+    void everyRemoteRead_throwsHubReferenceDataUnavailable_onAnErrorStatus() {
         server.createContext("/", exchange -> respond(exchange, 503, ""));
 
-        var ctx = new RemoteReferenceDataContext("http://localhost:" + port, CREDENTIAL);
-        assertThat(new RemoteManagedCurrencyRepository(ctx).findAll()).isEmpty();
-        assertThat(new RemoteHubInstitutionCatalog(ctx).findAll()).isEmpty();
+        assertEveryReadThrowsUnavailable(new RemoteReferenceDataContext("http://localhost:" + port, CREDENTIAL));
+    }
+
+    @Test
+    void everyRemoteRead_throwsHubReferenceDataUnavailable_whenTheHubIsUnreachable() {
+        int closedPort = port;
+        server.stop(0);
+        server = null;
+
+        assertEveryReadThrowsUnavailable(new RemoteReferenceDataContext("http://localhost:" + closedPort, CREDENTIAL));
+    }
+
+    @Test
+    void everyRemoteRead_throwsHubReferenceDataUnavailable_onATimeout() {
+        server.createContext("/", exchange -> {
+            try {
+                Thread.sleep(600);
+            } catch (InterruptedException ignored) {
+                Thread.currentThread().interrupt();
+            }
+            respond(exchange, 200, "[]");
+        });
+
+        assertEveryReadThrowsUnavailable(
+                new RemoteReferenceDataContext("http://localhost:" + port, CREDENTIAL, Duration.ofMillis(100)));
+    }
+
+    @Test
+    void everyRemoteRead_throwsHubReferenceDataUnavailable_onAnUnparsableBody() {
+        server.createContext("/", exchange -> respond(exchange, 200, "not json"));
+
+        assertEveryReadThrowsUnavailable(new RemoteReferenceDataContext("http://localhost:" + port, CREDENTIAL));
+    }
+
+    private static void assertEveryReadThrowsUnavailable(RemoteReferenceDataContext ctx) {
+        assertThatThrownBy(() -> new RemoteManagedCurrencyRepository(ctx).findAll())
+                .isInstanceOf(HubReferenceDataUnavailableException.class);
+        assertThatThrownBy(() -> new RemoteDelegatedGrantRepository(ctx).findByClientLegalEntityCode(CLIENT_LE))
+                .isInstanceOf(HubReferenceDataUnavailableException.class);
+        assertThatThrownBy(() -> new RemoteHubInstitutionCatalog(ctx).findAll())
+                .isInstanceOf(HubReferenceDataUnavailableException.class);
+        assertThatThrownBy(() -> new RemoteTermRateRepository(ctx).findByTradingDate(LocalDate.of(2026, 8, 1)))
+                .isInstanceOf(HubReferenceDataUnavailableException.class);
+        assertThatThrownBy(() -> new RemoteTermRateRepository(ctx).findLatestRatePerInstitution("EUR", Tenor._3M))
+                .isInstanceOf(HubReferenceDataUnavailableException.class);
+        assertThatThrownBy(() -> new RemoteOnCallRateRepository(ctx).findOpenSegmentsByCurrencyAndNoticePeriod("EUR", NoticePeriod._24H))
+                .isInstanceOf(HubReferenceDataUnavailableException.class);
+        assertThatThrownBy(() -> new RemoteOnCallRateRepository(ctx).findSegmentsCoveringDate("EUR", NoticePeriod._24H, LocalDate.of(2026, 8, 3)))
+                .isInstanceOf(HubReferenceDataUnavailableException.class);
+    }
+
+    @Test
+    void remoteTermRateRepository_readsTheLatestRatePerInstitutionForACurrencyAndTenor() {
+        server.createContext("/api/v1/cross-org/reference/term-rates/latest", exchange -> {
+            assertThat(exchange.getRequestHeaders().getFirst("X-MMX-CrossOrg-Key")).isEqualTo(CREDENTIAL);
+            assertThat(exchange.getRequestURI().getQuery()).contains("currency=EUR").contains("tenor=3M");
+            respond(exchange, 200, """
+                    [{"tradingDate":"2026-08-01","institutionCode":"BNP","currency":"EUR","tenor":"3M","rate":3.5}]
+                    """);
+        });
+
+        TermRateRepository repo = new RemoteTermRateRepository(new RemoteReferenceDataContext("http://localhost:" + port, CREDENTIAL));
+
+        List<TermRateAuditRow> result = repo.findLatestRatePerInstitution("EUR", Tenor._3M);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.getFirst().institutionCode()).isEqualTo("BNP");
+        assertThat(result.getFirst().tradingDate()).isEqualTo(LocalDate.of(2026, 8, 1));
+        assertThat(result.getFirst().rate()).isEqualByComparingTo("3.5");
+    }
+
+    @Test
+    void remoteTermRateRepository_refusesTheHubOnlyDistinctCurrenciesQuery() {
+        var repo = new RemoteTermRateRepository(new RemoteReferenceDataContext("http://localhost:" + port, CREDENTIAL));
+
+        assertThatThrownBy(repo::findDistinctCurrenciesWithTermRates).isInstanceOf(UnsupportedOperationException.class);
+    }
+
+    @Test
+    void remoteOnCallRateRepository_readsOpenSegmentsForACurrencyAndNoticePeriod() {
+        server.createContext("/api/v1/cross-org/reference/oncall-segments", exchange -> {
+            assertThat(exchange.getRequestHeaders().getFirst("X-MMX-CrossOrg-Key")).isEqualTo(CREDENTIAL);
+            assertThat(exchange.getRequestURI().getQuery()).contains("currency=EUR").contains("noticePeriod=24H").doesNotContain("valueDate");
+            respond(exchange, 200, """
+                    [{"institutionCode":"BNP","currency":"EUR","noticePeriod":"24H","rate":2.9,"valueDate":"2026-06-01","endDate":"2999-12-31","status":"PENDING_CONFIRMATION"}]
+                    """);
+        });
+
+        OnCallRateRepository repo = new RemoteOnCallRateRepository(new RemoteReferenceDataContext("http://localhost:" + port, CREDENTIAL));
+
+        List<OnCallRateSegment> result = repo.findOpenSegmentsByCurrencyAndNoticePeriod("EUR", NoticePeriod._24H);
+
+        assertThat(result).hasSize(1);
+        OnCallRateSegment segment = result.getFirst();
+        assertThat(segment.getCurveKey()).isEqualTo(new OnCallCurveKey("BNP", "EUR", NoticePeriod._24H));
+        assertThat(segment.getRate()).isEqualByComparingTo("2.9");
+        assertThat(segment.getValueDate()).isEqualTo(LocalDate.of(2026, 6, 1));
+        assertThat(segment.getEndDate()).isEqualTo(OnCallRateSegment.NO_END_DATE);
+        assertThat(segment.getStatus()).isEqualTo(OnCallRateSegmentStatus.PENDING_CONFIRMATION);
+    }
+
+    @Test
+    void remoteOnCallRateRepository_readsSegmentsCoveringAValueDate() {
+        server.createContext("/api/v1/cross-org/reference/oncall-segments", exchange -> {
+            assertThat(exchange.getRequestURI().getQuery()).contains("valueDate=2026-06-09");
+            respond(exchange, 200, """
+                    [{"institutionCode":"BNP","currency":"EUR","noticePeriod":"24H","rate":2.9,"valueDate":"2026-06-01","endDate":"2999-12-31","status":"VALID"}]
+                    """);
+        });
+
+        OnCallRateRepository repo = new RemoteOnCallRateRepository(new RemoteReferenceDataContext("http://localhost:" + port, CREDENTIAL));
+
+        assertThat(repo.findSegmentsCoveringDate("EUR", NoticePeriod._24H, LocalDate.of(2026, 6, 9)))
+                .extracting(segment -> segment.getCurveKey().institutionCode())
+                .containsExactly("BNP");
+    }
+
+    @Test
+    void remoteOnCallRateRepository_hasNoLocalRatesWritesOrDistinctCurrencies() {
+        OnCallRateRepository repo = new RemoteOnCallRateRepository(new RemoteReferenceDataContext("http://localhost:" + port, CREDENTIAL));
+
+        assertThat(repo.findByInstitutionCode("HVL-01")).isEmpty();
+        assertThatThrownBy(repo::findDistinctCurrenciesWithOpenOnCallSegments).isInstanceOf(UnsupportedOperationException.class);
+        assertThatThrownBy(() -> repo.save(null)).isInstanceOf(UnsupportedOperationException.class);
+        assertThatThrownBy(() -> repo.compareAndConfirmPending(java.util.UUID.randomUUID(), java.time.Instant.now()))
+                .isInstanceOf(UnsupportedOperationException.class);
     }
 
     private static void respond(HttpExchange exchange, int status, String body) throws IOException {

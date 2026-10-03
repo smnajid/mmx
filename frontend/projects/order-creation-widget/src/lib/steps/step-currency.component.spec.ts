@@ -7,6 +7,7 @@ import {
 import { WizardStepId } from '../models/wizard-state.model';
 import { WizardApiService } from '../services/wizard-api.service';
 import { WizardStateService } from '../services/wizard-state.service';
+import { WizardHostConfigService } from '../services/wizard-host-config.service';
 import { ORDER_CREATION_API_BASE_URL } from '../tokens/order-creation-api-base-url.token';
 import { StepCurrencyComponent } from './step-currency.component';
 
@@ -25,6 +26,7 @@ describe('StepCurrencyComponent', () => {
         { provide: ORDER_CREATION_API_BASE_URL, useValue: apiBaseUrl },
         WizardApiService,
         WizardStateService,
+        { provide: WizardHostConfigService, useValue: { legalEntityCode: 'LOC', apiBaseUrl: '' } },
       ],
     }).compileComponents();
 
@@ -46,7 +48,7 @@ describe('StepCurrencyComponent', () => {
   it('shows loading state while fetching currencies', () => {
     fixture = createWithOrderType('TERM');
     expect(fixture.nativeElement.querySelector('[data-testid="currency-loading"]')).toBeTruthy();
-    http.expectOne(`${apiBaseUrl}/api/v1/order-creation/term/currencies`).flush({
+    http.expectOne(`${apiBaseUrl}/api/v1/order-creation/term/currencies?legalEntityCode=LOC`).flush({
       tradingDate: '2026-06-07',
       currencies: ['EUR'],
     });
@@ -56,7 +58,7 @@ describe('StepCurrencyComponent', () => {
 
   it('calls term currencies endpoint for TERM orders', () => {
     fixture = createWithOrderType('TERM');
-    const req = http.expectOne(`${apiBaseUrl}/api/v1/order-creation/term/currencies`);
+    const req = http.expectOne(`${apiBaseUrl}/api/v1/order-creation/term/currencies?legalEntityCode=LOC`);
     expect(req.request.method).toBe('GET');
     req.flush({ tradingDate: '2026-06-07', currencies: ['EUR', 'USD'] });
     fixture.detectChanges();
@@ -66,7 +68,7 @@ describe('StepCurrencyComponent', () => {
 
   it('calls oncall currencies endpoint for ON_CALL orders', () => {
     fixture = createWithOrderType('ON_CALL');
-    const req = http.expectOne(`${apiBaseUrl}/api/v1/order-creation/oncall/currencies`);
+    const req = http.expectOne(`${apiBaseUrl}/api/v1/order-creation/oncall/currencies?legalEntityCode=LOC`);
     expect(req.request.method).toBe('GET');
     req.flush({ currencies: ['CHF'] });
     fixture.detectChanges();
@@ -75,7 +77,7 @@ describe('StepCurrencyComponent', () => {
 
   it('selecting a currency updates state and emits navigation', () => {
     fixture = createWithOrderType('TERM');
-    http.expectOne(`${apiBaseUrl}/api/v1/order-creation/term/currencies`).flush({
+    http.expectOne(`${apiBaseUrl}/api/v1/order-creation/term/currencies?legalEntityCode=LOC`).flush({
       tradingDate: '2026-06-07',
       currencies: ['EUR'],
     });
@@ -93,14 +95,14 @@ describe('StepCurrencyComponent', () => {
 
   it('shows empty state when no currencies are available', () => {
     fixture = createWithOrderType('ON_CALL');
-    http.expectOne(`${apiBaseUrl}/api/v1/order-creation/oncall/currencies`).flush({ currencies: [] });
+    http.expectOne(`${apiBaseUrl}/api/v1/order-creation/oncall/currencies?legalEntityCode=LOC`).flush({ currencies: [] });
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('[data-testid="currency-empty"]')).toBeTruthy();
   });
 
   it('shows error with retry on API failure and reloads on retry', () => {
     fixture = createWithOrderType('TERM');
-    http.expectOne(`${apiBaseUrl}/api/v1/order-creation/term/currencies`).flush(
+    http.expectOne(`${apiBaseUrl}/api/v1/order-creation/term/currencies?legalEntityCode=LOC`).flush(
       'Server error',
       { status: 500, statusText: 'Internal Server Error' },
     );
@@ -111,11 +113,26 @@ describe('StepCurrencyComponent', () => {
     fixture.detectChanges();
 
     expect(fixture.nativeElement.querySelector('[data-testid="currency-loading"]')).toBeTruthy();
-    http.expectOne(`${apiBaseUrl}/api/v1/order-creation/term/currencies`).flush({
+    http.expectOne(`${apiBaseUrl}/api/v1/order-creation/term/currencies?legalEntityCode=LOC`).flush({
       tradingDate: '2026-06-07',
       currencies: ['EUR'],
     });
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('[data-testid="currency-EUR"]')).toBeTruthy();
+  });
+
+  it('shows the error with retry, not the empty message, when the hub is unavailable (503)', () => {
+    fixture = createWithOrderType('TERM');
+    http
+      .expectOne(`${apiBaseUrl}/api/v1/order-creation/term/currencies?legalEntityCode=LOC`)
+      .flush(
+        { error: 'HUB_REFERENCE_DATA_UNAVAILABLE', message: 'hub down' },
+        { status: 503, statusText: 'Service Unavailable' },
+      );
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('[data-testid="currency-error"]')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('[data-testid="currency-retry"]')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('[data-testid="currency-empty"]')).toBeFalsy();
   });
 });

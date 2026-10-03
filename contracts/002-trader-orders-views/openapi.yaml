@@ -637,6 +637,15 @@ paths:
       tags: [OrderCreation]
       summary: List currencies available for Term order creation
       operationId: listTermCurrencies
+      parameters:
+        - name: legalEntityCode
+          in: query
+          required: true
+          description: Owning LegalEntity (3 chars). A TradingClient is bounded by its effective enablement; a TradingHub by its own intake enablement.
+          schema:
+            type: string
+            minLength: 3
+            maxLength: 3
       responses:
         "200":
           description: Currencies with at least one viable Term counterparty
@@ -644,12 +653,23 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/TermCurrenciesResponse"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
 
   /api/v1/order-creation/oncall/currencies:
     get:
       tags: [OrderCreation]
       summary: List currencies available for OnCall order creation
       operationId: listOnCallCurrencies
+      parameters:
+        - name: legalEntityCode
+          in: query
+          required: true
+          description: Owning LegalEntity (3 chars). A TradingClient is bounded by its effective enablement; a TradingHub by its own intake enablement.
+          schema:
+            type: string
+            minLength: 3
+            maxLength: 3
       responses:
         "200":
           description: Currencies with at least one viable OnCall counterparty
@@ -657,6 +677,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/OnCallCurrenciesResponse"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
 
   /api/v1/order-creation/term/operations:
     get:
@@ -678,6 +700,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/OperationsResponse"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
 
   /api/v1/order-creation/oncall/operations:
     get:
@@ -699,6 +723,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/OperationsResponse"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
 
   /api/v1/order-creation/term/tenors:
     get:
@@ -706,6 +732,14 @@ paths:
       summary: List Term tenors for a currency
       operationId: listTermTenors
       parameters:
+        - name: legalEntityCode
+          in: query
+          required: true
+          description: Owning LegalEntity (3 chars). A TradingClient is bounded by its effective enablement; a TradingHub by its own intake enablement.
+          schema:
+            type: string
+            minLength: 3
+            maxLength: 3
         - name: currency
           in: query
           required: true
@@ -720,6 +754,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/TenorsResponse"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
 
   /api/v1/order-creation/oncall/notice-periods:
     get:
@@ -727,6 +763,14 @@ paths:
       summary: List OnCall notice periods for a currency
       operationId: listOnCallNoticePeriods
       parameters:
+        - name: legalEntityCode
+          in: query
+          required: true
+          description: Owning LegalEntity (3 chars). A TradingClient is bounded by its effective enablement; a TradingHub by its own intake enablement.
+          schema:
+            type: string
+            minLength: 3
+            maxLength: 3
         - name: currency
           in: query
           required: true
@@ -741,6 +785,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/NoticePeriodsResponse"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
 
   /api/v1/order-creation/term/counterparties:
     get:
@@ -774,6 +820,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/CounterpartiesResponse"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
 
   /api/v1/order-creation/oncall/counterparties:
     get:
@@ -813,6 +861,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/CounterpartiesResponse"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
 
   /api/v1/order-creation/contracts:
     get:
@@ -839,6 +889,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/LiveContractsResponse"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
 
   /api/v1/order-creation/oncall/contract-info:
     get:
@@ -866,8 +918,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
 
 components:
+  responses:
+    ServiceUnavailable:
+      description: A TradingClient deployment could not read hub reference data (hub unreachable, timed out, credential rejected, or non-success response).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
   parameters:
     UserIdHeader:
       name: X-User-Id
@@ -950,6 +1012,7 @@ components:
         - ONCALL_BACKDATED_VALUE_DATE
         - ONCALL_INVALID_SEGMENT_STATUS
         - ONCALL_SEGMENT_CANCELED
+        - HUB_REFERENCE_DATA_UNAVAILABLE
 
     FieldError:
       type: object

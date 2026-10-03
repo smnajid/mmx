@@ -27,6 +27,7 @@ import com.mmx.order.domain.model.Tenor;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -64,16 +65,31 @@ public final class TermOrderCreationOptionsService
     }
 
     @Override
-    public TermCurrenciesResult listCurrencies() {
-        Set<String> currenciesWithRates = new HashSet<>(termRateRepository.findDistinctCurrenciesWithTermRates());
-        List<String> currencies =
-                managedCurrencyRepository.findAll().stream()
-                        .filter(ManagedCurrency::isActive)
-                        .filter(currency -> !currency.getEnabledTenors().isEmpty())
-                        .map(ManagedCurrency::getCode)
-                        .filter(currenciesWithRates::contains)
-                        .sorted()
-                        .toList();
+    public TermCurrenciesResult listCurrencies(LegalEntityCode legalEntityCode) {
+        Optional<LegalEntity> legalEntity = legalEntityRepository.findByCode(legalEntityCode);
+        if (legalEntity.isEmpty()) {
+            return new TermCurrenciesResult(clock.today(), List.of());
+        }
+        List<String> currencies;
+        if (legalEntity.get().isTradingClient()) {
+            currencies =
+                    managedCurrencyRepository.findAll().stream()
+                            .filter(ManagedCurrency::isActive)
+                            .map(ManagedCurrency::getCode)
+                            .filter(currency -> !clientTenors(legalEntityCode, currency).isEmpty())
+                            .sorted()
+                            .toList();
+        } else {
+            Set<String> currenciesWithRates = new HashSet<>(termRateRepository.findDistinctCurrenciesWithTermRates());
+            currencies =
+                    managedCurrencyRepository.findAll().stream()
+                            .filter(ManagedCurrency::isActive)
+                            .filter(currency -> !currency.getEnabledTenors().isEmpty())
+                            .map(ManagedCurrency::getCode)
+                            .filter(currenciesWithRates::contains)
+                            .sorted()
+                            .toList();
+        }
         return new TermCurrenciesResult(clock.today(), currencies);
     }
 
@@ -93,11 +109,45 @@ public final class TermOrderCreationOptionsService
     }
 
     @Override
-    public TenorsResult listTenors(String currency) {
+    public TenorsResult listTenors(LegalEntityCode legalEntityCode, String currency) {
+        Optional<LegalEntity> legalEntity = legalEntityRepository.findByCode(legalEntityCode);
+        if (legalEntity.isEmpty()) {
+            return new TenorsResult(List.of());
+        }
+        if (legalEntity.get().isTradingClient()) {
+            return new TenorsResult(
+                    managedCurrencyRepository
+                            .findByCode(currency)
+                            .filter(ManagedCurrency::isActive)
+                            .map(managed -> clientTenors(legalEntityCode, managed.getCode()))
+                            .orElseGet(List::of));
+        }
         return managedCurrencyRepository
                 .findByCode(currency)
                 .map(this::availableTenorsForCurrency)
                 .orElseGet(() -> new TenorsResult(List.of()));
+    }
+
+    /** Tenors some open onboarded institution may trade (effective enablement) and the hub has a rate for. */
+    private List<Tenor> clientTenors(LegalEntityCode clientCode, String currency) {
+        List<OrderCreationDelegatedCounterpartySupport.ClientCandidate> candidates =
+                OrderCreationDelegatedCounterpartySupport.clientCandidates(
+                        clientCode, currency, OrderType.TERM, delegatedGrantRepository, institutionRepository, clientEnablementRepository);
+        Set<Tenor> permitted = EnumSet.noneOf(Tenor.class);
+        candidates.forEach(candidate -> permitted.addAll(candidate.effective().tenors()));
+        List<Tenor> tenors = new ArrayList<>();
+        for (Tenor tenor : permitted) {
+            List<RateQuote> hubQuotes =
+                    termRateRepository.findLatestRatePerInstitution(currency, tenor).stream()
+                            .map(row -> new RateQuote(row.institutionCode(), row.rate(), row.tradingDate()))
+                            .toList();
+            if (OrderCreationDelegatedCounterpartySupport.anyCandidateHasQuote(
+                    candidates, effective -> effective.permits(tenor), hubQuotes, OrderType.TERM, institutionRepository)) {
+                tenors.add(tenor);
+            }
+        }
+        tenors.sort(Comparator.comparing(Tenor::getCode));
+        return tenors;
     }
 
     private TenorsResult availableTenorsForCurrency(ManagedCurrency managed) {

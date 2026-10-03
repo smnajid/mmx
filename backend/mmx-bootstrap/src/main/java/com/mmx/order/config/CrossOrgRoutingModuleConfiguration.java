@@ -6,6 +6,7 @@ import com.mmx.order.adapter.out.integration.LoggingOperationalSignalAdapter;
 import com.mmx.order.adapter.out.integration.RemoteManagedCurrencyRepository;
 import com.mmx.order.adapter.out.integration.RemoteDelegatedGrantRepository;
 import com.mmx.order.adapter.out.integration.RemoteHubInstitutionCatalog;
+import com.mmx.order.adapter.out.integration.RemoteOnCallRateRepository;
 import com.mmx.order.adapter.out.integration.RemoteReferenceDataContext;
 import com.mmx.order.adapter.out.integration.RemoteRoutingGatewayRestAdapter;
 import com.mmx.order.adapter.out.integration.RemoteTermRateRepository;
@@ -25,6 +26,7 @@ import com.mmx.order.application.port.out.HubInstitutionCatalog;
 import com.mmx.order.application.port.out.InstitutionRepository;
 import com.mmx.order.application.port.out.LegalEntityRepository;
 import com.mmx.order.application.port.out.ManagedCurrencyRepository;
+import com.mmx.order.application.port.out.OnCallRateRepository;
 import com.mmx.order.application.port.out.OperationalSignalPort;
 import com.mmx.order.application.port.out.OrderRepository;
 import com.mmx.order.application.port.out.ReferenceGenerator;
@@ -258,6 +260,13 @@ public class CrossOrgRoutingModuleConfiguration {
     @org.springframework.context.annotation.Primary
     public TermRateRepository remoteTermRateRepository(RemoteReferenceDataContext ctx) {
         return new RemoteTermRateRepository(ctx);
+    }
+
+    @Bean
+    @ConditionalOnProperty(prefix = "mmx.cross-org", name = "reference-data-remote", havingValue = "true")
+    @org.springframework.context.annotation.Primary
+    public OnCallRateRepository remoteOnCallRateRepository(RemoteReferenceDataContext ctx) {
+        return new RemoteOnCallRateRepository(ctx);
     }
 
     @Bean

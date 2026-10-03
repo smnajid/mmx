@@ -1,6 +1,7 @@
 import { Component, inject, OnInit, output, signal } from '@angular/core';
 import type { NoticePeriod, Tenor } from '../models/order-creation-payload.model';
 import { WizardApiService } from '../services/wizard-api.service';
+import { WizardHostConfigService } from '../services/wizard-host-config.service';
 import { WizardStateService } from '../services/wizard-state.service';
 
 @Component({
@@ -113,6 +114,7 @@ import { WizardStateService } from '../services/wizard-state.service';
 export class StepTenorNoticePeriodComponent implements OnInit {
   protected readonly wizardState = inject(WizardStateService);
   private readonly api = inject(WizardApiService);
+  private readonly hostConfig = inject(WizardHostConfigService);
 
   readonly stepComplete = output<void>();
 
@@ -144,8 +146,9 @@ export class StepTenorNoticePeriodComponent implements OnInit {
     this.error.set(null);
     this.options.set([]);
 
+    const legalEntityCode = this.hostConfig.legalEntityCode;
     if (orderType === 'TERM') {
-      this.api.listTermTenors(currency).subscribe({
+      this.api.listTermTenors(currency, legalEntityCode).subscribe({
         next: (response) => {
           this.options.set(response.tenors);
           this.loading.set(false);
@@ -158,7 +161,7 @@ export class StepTenorNoticePeriodComponent implements OnInit {
       return;
     }
 
-    this.api.listOnCallNoticePeriods(currency).subscribe({
+    this.api.listOnCallNoticePeriods(currency, legalEntityCode).subscribe({
       next: (response) => {
         this.options.set(response.noticePeriods);
         this.loading.set(false);

@@ -1,11 +1,13 @@
 package com.mmx.order.adapter.in.rest.crossorg;
 
+import com.mmx.order.adapter.in.rest.config.ApiEnumConverterConfiguration;
 import com.mmx.order.adapter.in.rest.mapper.CrossOrgReferenceDataMapper;
 import com.mmx.order.application.port.out.CrossOrgCredentialBinder;
 import com.mmx.order.application.port.out.CrossOrgMembershipPort;
 import com.mmx.order.application.port.out.DelegatedGrantRepository;
 import com.mmx.order.application.port.out.InstitutionRepository;
 import com.mmx.order.application.port.out.ManagedCurrencyRepository;
+import com.mmx.order.application.port.out.OnCallRateRepository;
 import com.mmx.order.application.port.out.TermRateRepository;
 import com.mmx.order.application.termrate.TermRateAuditRow;
 import com.mmx.order.domain.model.DelegatedInstitutionGrant;
@@ -13,6 +15,9 @@ import com.mmx.order.domain.model.Institution;
 import com.mmx.order.domain.model.LegalEntityCode;
 import com.mmx.order.domain.model.ManagedCurrency;
 import com.mmx.order.domain.model.NoticePeriod;
+import com.mmx.order.domain.model.OnCallCurveKey;
+import com.mmx.order.domain.model.OnCallRateSegment;
+import com.mmx.order.domain.model.OnCallRateSegmentStatus;
 import com.mmx.order.domain.model.Tenor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
@@ -20,6 +25,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.format.support.DefaultFormattingConversionService;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -28,8 +34,11 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -63,6 +72,8 @@ class CrossOrgReferenceDataControllerTest {
     TermRateRepository termRateRepository;
     @Mock
     DelegatedGrantRepository delegatedGrantRepository;
+    @Mock
+    OnCallRateRepository onCallRateRepository;
 
     MockMvc mockMvc;
 
@@ -72,8 +83,11 @@ class CrossOrgReferenceDataControllerTest {
         CrossOrgReferenceDataMapper mapper = new CrossOrgReferenceDataMapper();
         CrossOrgReferenceDataController controller = new CrossOrgReferenceDataController(
                 resolver, currencyRepository, institutionRepository, termRateRepository,
-                delegatedGrantRepository, mapper);
+                onCallRateRepository, delegatedGrantRepository, mapper);
+        DefaultFormattingConversionService conversionService = new DefaultFormattingConversionService();
+        new ApiEnumConverterConfiguration().addFormatters(conversionService);
         mockMvc = standaloneSetup(controller)
+                .setConversionService(conversionService)
                 .setControllerAdvice(new CrossOrgExceptionHandler())
                 .build();
         lenient().when(credentialBinder.bindOriginatingLegalEntity(CREDENTIAL)).thenReturn(Optional.of(PROVEN));
@@ -138,6 +152,7 @@ class CrossOrgReferenceDataControllerTest {
     @Test
     void listTermRates_returnsRatesForTradingDate() throws Exception {
         LocalDate date = LocalDate.of(2026, 8, 1);
+        givenGrants(grant("HSBC-01", "EUR"));
         when(termRateRepository.findByTradingDate(date)).thenReturn(List.of(
                 new TermRateAuditRow(date, "HSBC-01", "EUR", Tenor._3M,
                         new BigDecimal("3.25"), null, null)));
@@ -171,5 +186,134 @@ class CrossOrgReferenceDataControllerTest {
                 .andExpect(jsonPath("$[0].active").value(true));
 
         verify(delegatedGrantRepository).findByClientLegalEntityCode(PROVEN);
+    }
+
+    @Test
+    void listTermRates_returnsOnlyRowsGrantedToTheProvenClient() throws Exception {
+        LocalDate date = LocalDate.of(2026, 10, 2);
+        givenGrants(grant("BNP", "EUR"));
+        when(termRateRepository.findByTradingDate(date)).thenReturn(List.of(
+                rate(date, "BNP", "EUR", Tenor._3M, "3.50"),
+                rate(date, "BNP", "USD", Tenor._3M, "4.10"),
+                rate(date, "SGFR", "EUR", Tenor._3M, "3.70")));
+
+        mockMvc.perform(get("/api/v1/cross-org/reference/term-rates")
+                        .param("tradingDate", "2026-10-02")
+                        .header("X-MMX-CrossOrg-Key", CREDENTIAL))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(1)))
+                .andExpect(jsonPath("$[0].institutionCode").value("BNP"))
+                .andExpect(jsonPath("$[0].currency").value("EUR"));
+    }
+
+    @Test
+    void listLatestTermRates_returnsOnlyGrantedInstitutionsForTheCurrencyAndTenor() throws Exception {
+        LocalDate date = LocalDate.of(2026, 10, 2);
+        givenGrants(grant("BNP", "EUR"));
+        when(termRateRepository.findLatestRatePerInstitution("EUR", Tenor._3M)).thenReturn(List.of(
+                rate(date, "BNP", "EUR", Tenor._3M, "3.50"),
+                rate(date, "SGFR", "EUR", Tenor._3M, "3.70")));
+
+        mockMvc.perform(get("/api/v1/cross-org/reference/term-rates/latest")
+                        .param("currency", "EUR")
+                        .param("tenor", "3M")
+                        .header("X-MMX-CrossOrg-Key", CREDENTIAL))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(1)))
+                .andExpect(jsonPath("$[0].institutionCode").value("BNP"))
+                .andExpect(jsonPath("$[0].tradingDate").value("2026-10-02"))
+                .andExpect(jsonPath("$[0].rate").value(3.5));
+    }
+
+    @Test
+    void listLatestTermRates_ignoresAnInactiveGrant() throws Exception {
+        givenGrants(new DelegatedInstitutionGrant("BNP", PROVEN, "EUR", Set.of(Tenor._3M), Set.of(), false));
+        when(termRateRepository.findLatestRatePerInstitution("EUR", Tenor._3M))
+                .thenReturn(List.of(rate(LocalDate.of(2026, 10, 2), "BNP", "EUR", Tenor._3M, "3.50")));
+
+        mockMvc.perform(get("/api/v1/cross-org/reference/term-rates/latest")
+                        .param("currency", "EUR")
+                        .param("tenor", "3M")
+                        .header("X-MMX-CrossOrg-Key", CREDENTIAL))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
+    }
+
+    @Test
+    void listOnCallSegments_withoutValueDate_returnsGrantedOpenSegments() throws Exception {
+        givenGrants(grant("BNP", "EUR"));
+        when(onCallRateRepository.findOpenSegmentsByCurrencyAndNoticePeriod("EUR", NoticePeriod._24H)).thenReturn(List.of(
+                segment("BNP", OnCallRateSegmentStatus.PENDING_CONFIRMATION, "2.90"),
+                segment("SGFR", OnCallRateSegmentStatus.VALID, "2.95")));
+
+        mockMvc.perform(get("/api/v1/cross-org/reference/oncall-segments")
+                        .param("currency", "EUR")
+                        .param("noticePeriod", "24H")
+                        .header("X-MMX-CrossOrg-Key", CREDENTIAL))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(1)))
+                .andExpect(jsonPath("$[0].institutionCode").value("BNP"))
+                .andExpect(jsonPath("$[0].currency").value("EUR"))
+                .andExpect(jsonPath("$[0].noticePeriod").value("24H"))
+                .andExpect(jsonPath("$[0].rate").value(2.9))
+                .andExpect(jsonPath("$[0].valueDate").value("2026-06-01"))
+                .andExpect(jsonPath("$[0].endDate").value("2999-12-31"))
+                .andExpect(jsonPath("$[0].status").value("PENDING_CONFIRMATION"));
+        verify(onCallRateRepository, never()).findSegmentsCoveringDate(any(), any(), any());
+    }
+
+    @Test
+    void listOnCallSegments_withValueDate_returnsGrantedSegmentsCoveringIt() throws Exception {
+        LocalDate valueDate = LocalDate.of(2026, 6, 9);
+        givenGrants(grant("BNP", "EUR"));
+        when(onCallRateRepository.findSegmentsCoveringDate("EUR", NoticePeriod._24H, valueDate)).thenReturn(List.of(
+                segment("BNP", OnCallRateSegmentStatus.VALID, "2.90"),
+                segment("SGFR", OnCallRateSegmentStatus.VALID, "2.95")));
+
+        mockMvc.perform(get("/api/v1/cross-org/reference/oncall-segments")
+                        .param("currency", "EUR")
+                        .param("noticePeriod", "24H")
+                        .param("valueDate", "2026-06-09")
+                        .header("X-MMX-CrossOrg-Key", CREDENTIAL))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(1)))
+                .andExpect(jsonPath("$[0].institutionCode").value("BNP"));
+        verify(onCallRateRepository, never()).findOpenSegmentsByCurrencyAndNoticePeriod(any(), any());
+    }
+
+    @Test
+    void newRateReads_rejectAnUnknownCredential() throws Exception {
+        when(credentialBinder.bindOriginatingLegalEntity("bad")).thenReturn(Optional.empty());
+
+        mockMvc.perform(get("/api/v1/cross-org/reference/term-rates/latest")
+                        .param("currency", "EUR").param("tenor", "3M").header("X-MMX-CrossOrg-Key", "bad"))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/v1/cross-org/reference/oncall-segments")
+                        .param("currency", "EUR").param("noticePeriod", "24H").header("X-MMX-CrossOrg-Key", "bad"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    private void givenGrants(DelegatedInstitutionGrant... grants) {
+        when(delegatedGrantRepository.findByClientLegalEntityCode(PROVEN)).thenReturn(List.of(grants));
+    }
+
+    private static DelegatedInstitutionGrant grant(String hubInstitutionCode, String currency) {
+        return new DelegatedInstitutionGrant(
+                hubInstitutionCode, PROVEN, currency, Set.of(Tenor._3M), Set.of(NoticePeriod._24H), true);
+    }
+
+    private static TermRateAuditRow rate(LocalDate date, String institution, String currency, Tenor tenor, String rate) {
+        return new TermRateAuditRow(date, institution, currency, tenor, new BigDecimal(rate), null, null);
+    }
+
+    private static OnCallRateSegment segment(String institution, OnCallRateSegmentStatus status, String rate) {
+        return new OnCallRateSegment(
+                UUID.randomUUID(),
+                new OnCallCurveKey(institution, "EUR", NoticePeriod._24H),
+                new BigDecimal(rate),
+                LocalDate.of(2026, 6, 1),
+                OnCallRateSegment.NO_END_DATE,
+                status,
+                null);
     }
 }

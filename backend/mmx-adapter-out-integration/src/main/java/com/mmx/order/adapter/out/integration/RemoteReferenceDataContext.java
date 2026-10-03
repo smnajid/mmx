@@ -1,10 +1,14 @@
 package com.mmx.order.adapter.out.integration;
 
+import java.time.Duration;
+
 /**
  * Shared connection context for all remote-backed reference-data adapters: the LODH base URL and the
  * {@code X-MMX-CrossOrg-Key} transport credential that binds to the proven client principal.
  */
-public record RemoteReferenceDataContext(String baseUrl, String credentialKey) {
+public record RemoteReferenceDataContext(String baseUrl, String credentialKey, Duration requestTimeout) {
+
+    static final Duration DEFAULT_REQUEST_TIMEOUT = Duration.ofSeconds(5);
 
     public RemoteReferenceDataContext {
         if (baseUrl == null || baseUrl.isBlank()) {
@@ -13,6 +17,13 @@ public record RemoteReferenceDataContext(String baseUrl, String credentialKey) {
         if (credentialKey == null || credentialKey.isBlank()) {
             throw new IllegalArgumentException("credentialKey must not be blank");
         }
+        if (requestTimeout == null) {
+            throw new IllegalArgumentException("requestTimeout must not be null");
+        }
+    }
+
+    public RemoteReferenceDataContext(String baseUrl, String credentialKey) {
+        this(baseUrl, credentialKey, DEFAULT_REQUEST_TIMEOUT);
     }
 
     public String normalizedBaseUrl() {

@@ -21,7 +21,9 @@ TradingClient list (defense-in-depth: gateway early-reject + use-case membership
 | POST | `/api/v1/cross-org/routed-orders` | Leg-A routed-order accept (idempotent on `(originatingLegalEntityCode, routingId)`) |
 | GET | `/api/v1/cross-org/reference/currencies` | Live managed-currency catalog |
 | GET | `/api/v1/cross-org/reference/institutions` | Hub-native institution catalog (`activeOnly` query) |
-| GET | `/api/v1/cross-org/reference/term-rates` | Term rate sheet for a `tradingDate` |
+| GET | `/api/v1/cross-org/reference/term-rates` | Term rate sheet for a `tradingDate` (grant-scoped) |
+| GET | `/api/v1/cross-org/reference/term-rates/latest` | Latest Term rate per institution for `currency` + `tenor` (grant-scoped) |
+| GET | `/api/v1/cross-org/reference/oncall-segments` | OnCall segments for `currency` + `noticePeriod`; open segments, or those covering `valueDate` (grant-scoped) |
 | GET | `/api/v1/cross-org/reference/grants` | Delegated grants scoped to the proven client |
 
 ## Leg A — routed-order accept
@@ -72,7 +74,11 @@ accounts, and its client enablement (client-owned facts, ADR 0008), each linked 
 institution code. These endpoints return **hub-native** institution codes; `/reference/institutions`
 supplies the hub display names for the client's granted-institution list.
 Grants are scoped automatically to the proven `originatingLegalEntityCode`; the client cannot claim
-another client's grants.
+another client's grants. Every rate read (`/term-rates`, `/term-rates/latest`, `/oncall-segments`)
+returns only rows whose `(institution, currency)` is covered by an active grant to the proven client;
+tenor / notice-period permission is evaluated on the client through effective enablement. Rate
+definitions are the hub's own: latest uploaded Term rate; OnCall segment status `VALID` or
+`PENDING_CONFIRMATION`. The client reports a failed read of any of these as `503` on its own API.
 
 ## Error codes
 

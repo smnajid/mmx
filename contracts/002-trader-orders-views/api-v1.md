@@ -569,11 +569,13 @@ All list endpoints use Spring's page-based pagination:
 
 Read-only endpoints consumed by the external Portfolio Management application to build a step-by-step order creation wizard. **No `X-User-Id` header** required. The surface comprises **ten** GET operations (currencies, operations, tenors, notice-periods, counterparties, contract-info, and live contracts).
 
+**`503 Service Unavailable`** (every order-creation operation): on a TradingClient deployment, a failed read of hub reference data (hub unreachable, timeout, credential rejected, or non-success response) returns `503` with the standard `ErrorResponse` body (`error: HUB_REFERENCE_DATA_UNAVAILABLE`), never an empty list.
+
 #### Term currencies
 
-**GET** `/api/v1/order-creation/term/currencies`
+**GET** `/api/v1/order-creation/term/currencies?legalEntityCode=LOC`
 
-Returns currencies where the managed currency is active, has enabled tenors, and at least one active institution has a term rate.
+`legalEntityCode` (required, 3 chars) is the owning LegalEntity. For a **TradingHub**: currencies where the managed currency is active, has enabled tenors, and at least one active institution has a term rate. For a **TradingClient**: currencies for which an onboarded institution open to new business has an **effective enablement** (grant ∩ client enablement) containing a tenor for which the linked hub institution has a term rate; the hub's own enabled tenors do not restrict a client.
 
 ```json
 {
@@ -584,9 +586,9 @@ Returns currencies where the managed currency is active, has enabled tenors, and
 
 #### OnCall currencies
 
-**GET** `/api/v1/order-creation/oncall/currencies`
+**GET** `/api/v1/order-creation/oncall/currencies?legalEntityCode=LOC`
 
-Returns currencies with at least one open on-call segment from an active institution.
+`legalEntityCode` is required. For a **TradingHub**: currencies with at least one open on-call segment from an active institution. For a **TradingClient**: currencies for which an onboarded institution open to new business has an effective enablement containing a notice period for which the linked hub institution has an open segment (`VALID` or `PENDING_CONFIRMATION`).
 
 ```json
 {
@@ -616,9 +618,9 @@ Returns all four OnCall operations with their minimum amounts.
 
 #### Term tenors
 
-**GET** `/api/v1/order-creation/term/tenors?currency=EUR`
+**GET** `/api/v1/order-creation/term/tenors?legalEntityCode=LOC&currency=EUR`
 
-Returns enabled tenors with at least one counterparty rate.
+`legalEntityCode` is required. For a **TradingHub**: enabled tenors with at least one counterparty rate. For a **TradingClient**: tenors in the effective enablement of an onboarded institution open to new business for which the linked hub institution has a rate.
 
 ```json
 {
@@ -628,9 +630,9 @@ Returns enabled tenors with at least one counterparty rate.
 
 #### OnCall notice periods
 
-**GET** `/api/v1/order-creation/oncall/notice-periods?currency=EUR`
+**GET** `/api/v1/order-creation/oncall/notice-periods?legalEntityCode=LOC&currency=EUR`
 
-Returns enabled notice periods with at least one open counterparty segment.
+`legalEntityCode` is required. For a **TradingHub**: enabled notice periods with at least one open counterparty segment. For a **TradingClient**: notice periods in the effective enablement of an onboarded institution open to new business for which the linked hub institution has an open segment.
 
 ```json
 {

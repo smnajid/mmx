@@ -1,6 +1,7 @@
 package com.mmx.order.adapter.in.rest;
 
 import com.mmx.order.adapter.in.rest.generated.model.ErrorCode;
+import com.mmx.order.application.exception.HubReferenceDataUnavailableException;
 import com.mmx.order.adapter.in.rest.generated.model.ErrorResponse;
 import com.mmx.order.adapter.in.rest.generated.model.FieldError;
 import com.mmx.order.adapter.in.rest.generated.settings.model.SettingsErrorCode;
@@ -48,6 +49,15 @@ import java.util.stream.Collectors;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(HubReferenceDataUnavailableException.class)
+    public ResponseEntity<ErrorResponse> handleHubReferenceDataUnavailable(HubReferenceDataUnavailableException ex) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(
+                        new ErrorResponse()
+                                .error(ErrorCode.HUB_REFERENCE_DATA_UNAVAILABLE)
+                                .message(ex.getMessage()));
+    }
 
     @ExceptionHandler(InvalidLegalEntityException.class)
     public ResponseEntity<ErrorResponse> handleInvalidLegalEntity(InvalidLegalEntityException ex) {

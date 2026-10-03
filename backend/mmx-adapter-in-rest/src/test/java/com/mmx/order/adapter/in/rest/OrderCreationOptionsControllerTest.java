@@ -1,8 +1,13 @@
 package com.mmx.order.adapter.in.rest;
 
 import com.mmx.order.adapter.in.rest.mapper.OrderCreationRestMapper;
+import com.mmx.order.application.exception.HubReferenceDataUnavailableException;
 import com.mmx.order.application.ordercreation.LiveContractResult;
 import com.mmx.order.application.ordercreation.LiveContractsResult;
+import com.mmx.order.application.ordercreation.NoticePeriodsResult;
+import com.mmx.order.application.ordercreation.OnCallCurrenciesResult;
+import com.mmx.order.application.ordercreation.TenorsResult;
+import com.mmx.order.application.ordercreation.TermCurrenciesResult;
 import com.mmx.order.application.port.in.GetContractInfoUseCase;
 import com.mmx.order.application.port.in.ListLiveContractsUseCase;
 import com.mmx.order.application.port.in.ListOnCallCounterpartiesUseCase;
@@ -13,8 +18,10 @@ import com.mmx.order.application.port.in.ListTermCounterpartiesUseCase;
 import com.mmx.order.application.port.in.ListTermCurrenciesUseCase;
 import com.mmx.order.application.port.in.ListTermOperationsUseCase;
 import com.mmx.order.application.port.in.ListTermTenorsUseCase;
+import com.mmx.order.domain.model.LegalEntityCode;
 import com.mmx.order.domain.model.NoticePeriod;
 import com.mmx.order.domain.model.OrderType;
+import com.mmx.order.domain.model.Tenor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -87,6 +94,68 @@ class OrderCreationOptionsControllerTest {
                                         new OrderCreationRestMapper()))
                         .setControllerAdvice(new GlobalExceptionHandler())
                         .build();
+    }
+
+    private static final LegalEntityCode CGD = new LegalEntityCode("CGD");
+
+    @Test
+    void listTermCurrencies_passesLegalEntityCodeToTheUseCase() throws Exception {
+        when(listTermCurrenciesUseCase.listCurrencies(CGD))
+                .thenReturn(new TermCurrenciesResult(LocalDate.of(2026, 6, 6), List.of("EUR")));
+
+        mockMvc.perform(get("/api/v1/order-creation/term/currencies").param("legalEntityCode", "CGD"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.currencies[0]").value("EUR"));
+    }
+
+    @Test
+    void listOnCallCurrencies_passesLegalEntityCodeToTheUseCase() throws Exception {
+        when(listOnCallCurrenciesUseCase.listCurrencies(CGD)).thenReturn(new OnCallCurrenciesResult(List.of("EUR")));
+
+        mockMvc.perform(get("/api/v1/order-creation/oncall/currencies").param("legalEntityCode", "CGD"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.currencies[0]").value("EUR"));
+    }
+
+    @Test
+    void listTermTenors_passesLegalEntityCodeToTheUseCase() throws Exception {
+        when(listTermTenorsUseCase.listTenors(CGD, "EUR")).thenReturn(new TenorsResult(List.of(Tenor._3M)));
+
+        mockMvc.perform(get("/api/v1/order-creation/term/tenors").param("legalEntityCode", "CGD").param("currency", "EUR"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.tenors[0]").value("3M"));
+    }
+
+    @Test
+    void listOnCallNoticePeriods_passesLegalEntityCodeToTheUseCase() throws Exception {
+        when(listOnCallNoticePeriodsUseCase.listNoticePeriods(CGD, "EUR"))
+                .thenReturn(new NoticePeriodsResult(List.of(NoticePeriod._48H)));
+
+        mockMvc.perform(
+                        get("/api/v1/order-creation/oncall/notice-periods")
+                                .param("legalEntityCode", "CGD")
+                                .param("currency", "EUR"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.noticePeriods[0]").value("48H"));
+    }
+
+    @Test
+    void theFourListOperations_rejectAMissingLegalEntityCode() throws Exception {
+        mockMvc.perform(get("/api/v1/order-creation/term/currencies")).andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/v1/order-creation/oncall/currencies")).andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/v1/order-creation/term/tenors").param("currency", "EUR")).andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/v1/order-creation/oncall/notice-periods").param("currency", "EUR"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void hubReferenceDataUnavailable_isReportedAs503WithTheStandardErrorBody() throws Exception {
+        when(listTermCurrenciesUseCase.listCurrencies(CGD)).thenThrow(new HubReferenceDataUnavailableException("hub down"));
+
+        mockMvc.perform(get("/api/v1/order-creation/term/currencies").param("legalEntityCode", "CGD"))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.error").value("HUB_REFERENCE_DATA_UNAVAILABLE"))
+                .andExpect(jsonPath("$.message").value("hub down"));
     }
 
     @Test
