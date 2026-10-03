@@ -9,15 +9,12 @@ import com.mmx.order.adapter.in.rest.generated.crossorg.model.CrossOrgTermRateRe
 import com.mmx.order.adapter.in.rest.generated.crossorg.model.NoticePeriodCode;
 import com.mmx.order.adapter.in.rest.generated.crossorg.model.TenorCode;
 import com.mmx.order.adapter.in.rest.mapper.CrossOrgReferenceDataMapper;
+import com.mmx.order.application.port.in.ListGrantedHubRatesUseCase;
 import com.mmx.order.application.port.out.DelegatedGrantRepository;
 import com.mmx.order.application.port.out.InstitutionRepository;
 import com.mmx.order.application.port.out.ManagedCurrencyRepository;
-import com.mmx.order.application.port.out.OnCallRateRepository;
-import com.mmx.order.application.port.out.TermRateRepository;
-import com.mmx.order.domain.model.DelegatedInstitutionGrant;
 import com.mmx.order.domain.model.LegalEntityCode;
 import com.mmx.order.domain.model.NoticePeriod;
-import com.mmx.order.domain.model.OnCallRateSegment;
 import com.mmx.order.domain.model.Tenor;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -28,8 +25,6 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * LODH inbound reference-data reads for thin remote clients. Every endpoint resolves the transport
@@ -48,8 +43,7 @@ public class CrossOrgReferenceDataController implements CrossOrgReferenceDataApi
     private final CrossOrgIdentityResolver identityResolver;
     private final ManagedCurrencyRepository currencyRepository;
     private final InstitutionRepository institutionRepository;
-    private final TermRateRepository termRateRepository;
-    private final OnCallRateRepository onCallRateRepository;
+    private final ListGrantedHubRatesUseCase grantedHubRates;
     private final DelegatedGrantRepository delegatedGrantRepository;
     private final CrossOrgReferenceDataMapper mapper;
 
@@ -57,15 +51,13 @@ public class CrossOrgReferenceDataController implements CrossOrgReferenceDataApi
             CrossOrgIdentityResolver identityResolver,
             ManagedCurrencyRepository currencyRepository,
             InstitutionRepository institutionRepository,
-            TermRateRepository termRateRepository,
-            OnCallRateRepository onCallRateRepository,
+            ListGrantedHubRatesUseCase grantedHubRates,
             DelegatedGrantRepository delegatedGrantRepository,
             CrossOrgReferenceDataMapper mapper) {
         this.identityResolver = identityResolver;
         this.currencyRepository = currencyRepository;
         this.institutionRepository = institutionRepository;
-        this.termRateRepository = termRateRepository;
-        this.onCallRateRepository = onCallRateRepository;
+        this.grantedHubRates = grantedHubRates;
         this.delegatedGrantRepository = delegatedGrantRepository;
         this.mapper = mapper;
     }
@@ -88,39 +80,28 @@ public class CrossOrgReferenceDataController implements CrossOrgReferenceDataApi
 
     @Override
     public ResponseEntity<List<CrossOrgTermRateResponse>> listCrossOrgTermRates(LocalDate tradingDate) {
-        GrantedPairs granted = grantedPairs(resolveProven());
-        return ResponseEntity.ok(
-                mapper.toTermRateResponses(
-                        termRateRepository.findByTradingDate(tradingDate).stream()
-                                .filter(row -> granted.covers(row.institutionCode(), row.currency()))
-                                .toList()));
+        return ResponseEntity.ok(mapper.toTermRateResponses(grantedHubRates.termRatesForDay(resolveProven(), tradingDate)));
     }
 
     @Override
     public ResponseEntity<List<CrossOrgTermRateResponse>> listCrossOrgLatestTermRates(
             String currency, TenorCode tenor) {
-        GrantedPairs granted = grantedPairs(resolveProven());
         return ResponseEntity.ok(
                 mapper.toTermRateResponses(
-                        termRateRepository.findLatestRatePerInstitution(currency, Tenor.fromCode(tenor.getValue()).orElseThrow()).stream()
-                                .filter(row -> granted.covers(row.institutionCode(), row.currency()))
-                                .toList()));
+                        grantedHubRates.latestTermRates(
+                                resolveProven(), currency, Tenor.fromCode(tenor.getValue()).orElseThrow())));
     }
 
     @Override
     public ResponseEntity<List<CrossOrgOnCallSegmentResponse>> listCrossOrgOnCallSegments(
             String currency, NoticePeriodCode noticePeriod, LocalDate valueDate) {
-        GrantedPairs granted = grantedPairs(resolveProven());
+        LegalEntityCode proven = resolveProven();
         NoticePeriod domainNoticePeriod = NoticePeriod.fromCode(noticePeriod.getValue()).orElseThrow();
-        List<OnCallRateSegment> segments =
-                valueDate == null
-                        ? onCallRateRepository.findOpenSegmentsByCurrencyAndNoticePeriod(currency, domainNoticePeriod)
-                        : onCallRateRepository.findSegmentsCoveringDate(currency, domainNoticePeriod, valueDate);
         return ResponseEntity.ok(
                 mapper.toOnCallSegmentResponses(
-                        segments.stream()
-                                .filter(s -> granted.covers(s.getCurveKey().institutionCode(), s.getCurveKey().currency()))
-                                .toList()));
+                        valueDate == null
+                                ? grantedHubRates.openOnCallSegments(proven, currency, domainNoticePeriod)
+                                : grantedHubRates.onCallSegmentsCovering(proven, currency, domainNoticePeriod, valueDate)));
     }
 
     @Override
@@ -128,23 +109,6 @@ public class CrossOrgReferenceDataController implements CrossOrgReferenceDataApi
         LegalEntityCode proven = resolveProven();
         return ResponseEntity.ok(
                 mapper.toGrantResponses(delegatedGrantRepository.findByClientLegalEntityCode(proven)));
-    }
-
-    /** Active grants to the proven client as {@code (hubInstitutionCode, currency)} pairs: the rate-read scope. */
-    private GrantedPairs grantedPairs(LegalEntityCode proven) {
-        return new GrantedPairs(
-                delegatedGrantRepository.findByClientLegalEntityCode(proven).stream()
-                        .filter(DelegatedInstitutionGrant::isActive)
-                        .map(grant -> new GrantKey(grant.getHubInstitutionCode(), grant.getCurrency()))
-                        .collect(Collectors.toSet()));
-    }
-
-    private record GrantKey(String hubInstitutionCode, String currency) {}
-
-    private record GrantedPairs(Set<GrantKey> keys) {
-        boolean covers(String institutionCode, String currency) {
-            return keys.contains(new GrantKey(institutionCode, currency));
-        }
     }
 
     private LegalEntityCode resolveProven() {

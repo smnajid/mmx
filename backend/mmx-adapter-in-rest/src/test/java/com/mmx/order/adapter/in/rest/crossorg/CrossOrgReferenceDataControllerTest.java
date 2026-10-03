@@ -2,13 +2,12 @@ package com.mmx.order.adapter.in.rest.crossorg;
 
 import com.mmx.order.adapter.in.rest.config.ApiEnumConverterConfiguration;
 import com.mmx.order.adapter.in.rest.mapper.CrossOrgReferenceDataMapper;
+import com.mmx.order.application.port.in.ListGrantedHubRatesUseCase;
 import com.mmx.order.application.port.out.CrossOrgCredentialBinder;
 import com.mmx.order.application.port.out.CrossOrgMembershipPort;
 import com.mmx.order.application.port.out.DelegatedGrantRepository;
 import com.mmx.order.application.port.out.InstitutionRepository;
 import com.mmx.order.application.port.out.ManagedCurrencyRepository;
-import com.mmx.order.application.port.out.OnCallRateRepository;
-import com.mmx.order.application.port.out.TermRateRepository;
 import com.mmx.order.application.termrate.TermRateAuditRow;
 import com.mmx.order.domain.model.DelegatedInstitutionGrant;
 import com.mmx.order.domain.model.Institution;
@@ -40,6 +39,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -69,11 +69,9 @@ class CrossOrgReferenceDataControllerTest {
     @Mock
     InstitutionRepository institutionRepository;
     @Mock
-    TermRateRepository termRateRepository;
-    @Mock
     DelegatedGrantRepository delegatedGrantRepository;
     @Mock
-    OnCallRateRepository onCallRateRepository;
+    ListGrantedHubRatesUseCase grantedHubRates;
 
     MockMvc mockMvc;
 
@@ -82,8 +80,8 @@ class CrossOrgReferenceDataControllerTest {
         CrossOrgIdentityResolver resolver = new CrossOrgIdentityResolver(credentialBinder, membershipPort);
         CrossOrgReferenceDataMapper mapper = new CrossOrgReferenceDataMapper();
         CrossOrgReferenceDataController controller = new CrossOrgReferenceDataController(
-                resolver, currencyRepository, institutionRepository, termRateRepository,
-                onCallRateRepository, delegatedGrantRepository, mapper);
+                resolver, currencyRepository, institutionRepository, grantedHubRates,
+                delegatedGrantRepository, mapper);
         DefaultFormattingConversionService conversionService = new DefaultFormattingConversionService();
         new ApiEnumConverterConfiguration().addFormatters(conversionService);
         mockMvc = standaloneSetup(controller)
@@ -152,8 +150,7 @@ class CrossOrgReferenceDataControllerTest {
     @Test
     void listTermRates_returnsRatesForTradingDate() throws Exception {
         LocalDate date = LocalDate.of(2026, 8, 1);
-        givenGrants(grant("HSBC-01", "EUR"));
-        when(termRateRepository.findByTradingDate(date)).thenReturn(List.of(
+        when(grantedHubRates.termRatesForDay(PROVEN, date)).thenReturn(List.of(
                 new TermRateAuditRow(date, "HSBC-01", "EUR", Tenor._3M,
                         new BigDecimal("3.25"), null, null)));
 
@@ -189,30 +186,10 @@ class CrossOrgReferenceDataControllerTest {
     }
 
     @Test
-    void listTermRates_returnsOnlyRowsGrantedToTheProvenClient() throws Exception {
+    void listLatestTermRates_readsThroughTheGrantScopedUseCaseForTheProvenClient() throws Exception {
         LocalDate date = LocalDate.of(2026, 10, 2);
-        givenGrants(grant("BNP", "EUR"));
-        when(termRateRepository.findByTradingDate(date)).thenReturn(List.of(
-                rate(date, "BNP", "EUR", Tenor._3M, "3.50"),
-                rate(date, "BNP", "USD", Tenor._3M, "4.10"),
-                rate(date, "SGFR", "EUR", Tenor._3M, "3.70")));
-
-        mockMvc.perform(get("/api/v1/cross-org/reference/term-rates")
-                        .param("tradingDate", "2026-10-02")
-                        .header("X-MMX-CrossOrg-Key", CREDENTIAL))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(1)))
-                .andExpect(jsonPath("$[0].institutionCode").value("BNP"))
-                .andExpect(jsonPath("$[0].currency").value("EUR"));
-    }
-
-    @Test
-    void listLatestTermRates_returnsOnlyGrantedInstitutionsForTheCurrencyAndTenor() throws Exception {
-        LocalDate date = LocalDate.of(2026, 10, 2);
-        givenGrants(grant("BNP", "EUR"));
-        when(termRateRepository.findLatestRatePerInstitution("EUR", Tenor._3M)).thenReturn(List.of(
-                rate(date, "BNP", "EUR", Tenor._3M, "3.50"),
-                rate(date, "SGFR", "EUR", Tenor._3M, "3.70")));
+        when(grantedHubRates.latestTermRates(PROVEN, "EUR", Tenor._3M))
+                .thenReturn(List.of(rate(date, "BNP", "EUR", Tenor._3M, "3.50")));
 
         mockMvc.perform(get("/api/v1/cross-org/reference/term-rates/latest")
                         .param("currency", "EUR")
@@ -226,25 +203,9 @@ class CrossOrgReferenceDataControllerTest {
     }
 
     @Test
-    void listLatestTermRates_ignoresAnInactiveGrant() throws Exception {
-        givenGrants(new DelegatedInstitutionGrant("BNP", PROVEN, "EUR", Set.of(Tenor._3M), Set.of(), false));
-        when(termRateRepository.findLatestRatePerInstitution("EUR", Tenor._3M))
-                .thenReturn(List.of(rate(LocalDate.of(2026, 10, 2), "BNP", "EUR", Tenor._3M, "3.50")));
-
-        mockMvc.perform(get("/api/v1/cross-org/reference/term-rates/latest")
-                        .param("currency", "EUR")
-                        .param("tenor", "3M")
-                        .header("X-MMX-CrossOrg-Key", CREDENTIAL))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isEmpty());
-    }
-
-    @Test
-    void listOnCallSegments_withoutValueDate_returnsGrantedOpenSegments() throws Exception {
-        givenGrants(grant("BNP", "EUR"));
-        when(onCallRateRepository.findOpenSegmentsByCurrencyAndNoticePeriod("EUR", NoticePeriod._24H)).thenReturn(List.of(
-                segment("BNP", OnCallRateSegmentStatus.PENDING_CONFIRMATION, "2.90"),
-                segment("SGFR", OnCallRateSegmentStatus.VALID, "2.95")));
+    void listOnCallSegments_withoutValueDate_readsTheOpenSegments() throws Exception {
+        when(grantedHubRates.openOnCallSegments(PROVEN, "EUR", NoticePeriod._24H))
+                .thenReturn(List.of(segment("BNP", OnCallRateSegmentStatus.PENDING_CONFIRMATION, "2.90")));
 
         mockMvc.perform(get("/api/v1/cross-org/reference/oncall-segments")
                         .param("currency", "EUR")
@@ -259,16 +220,14 @@ class CrossOrgReferenceDataControllerTest {
                 .andExpect(jsonPath("$[0].valueDate").value("2026-06-01"))
                 .andExpect(jsonPath("$[0].endDate").value("2999-12-31"))
                 .andExpect(jsonPath("$[0].status").value("PENDING_CONFIRMATION"));
-        verify(onCallRateRepository, never()).findSegmentsCoveringDate(any(), any(), any());
+        verify(grantedHubRates, never()).onCallSegmentsCovering(any(), any(), any(), any());
     }
 
     @Test
-    void listOnCallSegments_withValueDate_returnsGrantedSegmentsCoveringIt() throws Exception {
+    void listOnCallSegments_withValueDate_readsTheSegmentsCoveringIt() throws Exception {
         LocalDate valueDate = LocalDate.of(2026, 6, 9);
-        givenGrants(grant("BNP", "EUR"));
-        when(onCallRateRepository.findSegmentsCoveringDate("EUR", NoticePeriod._24H, valueDate)).thenReturn(List.of(
-                segment("BNP", OnCallRateSegmentStatus.VALID, "2.90"),
-                segment("SGFR", OnCallRateSegmentStatus.VALID, "2.95")));
+        when(grantedHubRates.onCallSegmentsCovering(PROVEN, "EUR", NoticePeriod._24H, valueDate))
+                .thenReturn(List.of(segment("BNP", OnCallRateSegmentStatus.VALID, "2.90")));
 
         mockMvc.perform(get("/api/v1/cross-org/reference/oncall-segments")
                         .param("currency", "EUR")
@@ -278,7 +237,7 @@ class CrossOrgReferenceDataControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(1)))
                 .andExpect(jsonPath("$[0].institutionCode").value("BNP"));
-        verify(onCallRateRepository, never()).findOpenSegmentsByCurrencyAndNoticePeriod(any(), any());
+        verify(grantedHubRates, never()).openOnCallSegments(any(), any(), any());
     }
 
     @Test
@@ -291,15 +250,7 @@ class CrossOrgReferenceDataControllerTest {
         mockMvc.perform(get("/api/v1/cross-org/reference/oncall-segments")
                         .param("currency", "EUR").param("noticePeriod", "24H").header("X-MMX-CrossOrg-Key", "bad"))
                 .andExpect(status().isUnauthorized());
-    }
-
-    private void givenGrants(DelegatedInstitutionGrant... grants) {
-        when(delegatedGrantRepository.findByClientLegalEntityCode(PROVEN)).thenReturn(List.of(grants));
-    }
-
-    private static DelegatedInstitutionGrant grant(String hubInstitutionCode, String currency) {
-        return new DelegatedInstitutionGrant(
-                hubInstitutionCode, PROVEN, currency, Set.of(Tenor._3M), Set.of(NoticePeriod._24H), true);
+        verifyNoInteractions(grantedHubRates);
     }
 
     private static TermRateAuditRow rate(LocalDate date, String institution, String currency, Tenor tenor, String rate) {

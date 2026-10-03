@@ -15,6 +15,7 @@ import com.mmx.order.adapter.out.messaging.RoutingOutcomeOutboxAdapter;
 import com.mmx.order.adapter.out.persistence.JpaCrossOrgMembershipAdapter;
 import com.mmx.order.application.port.in.AcceptRoutedHubOrderUseCase;
 import com.mmx.order.application.port.in.ApplyRemoteOrderOutcomeUseCase;
+import com.mmx.order.application.port.in.ListGrantedHubRatesUseCase;
 import com.mmx.order.application.port.out.Clock;
 import com.mmx.order.application.port.out.CrossOrgCredentialBinder;
 import com.mmx.order.application.port.out.CrossOrgMembershipPort;
@@ -36,6 +37,7 @@ import com.mmx.order.application.port.out.RoutingOutcomeOutbox;
 import com.mmx.order.application.port.out.Sleeper;
 import com.mmx.order.application.port.out.TermRateRepository;
 import com.mmx.order.application.service.AcceptRoutedHubOrderService;
+import com.mmx.order.application.service.GrantedHubRatesService;
 import com.mmx.order.application.service.ApplyRemoteOrderOutcomeService;
 import com.mmx.order.application.service.RemoteRoutedOrderIntake;
 import com.mmx.order.application.service.ResilientRemoteRoutingGateway;
@@ -128,6 +130,15 @@ public class CrossOrgRoutingModuleConfiguration {
                 orderRepository,
                 routingOutcomeOutbox,
                 clock);
+    }
+
+    @Bean
+    @ConditionalOnProperty(prefix = "mmx.cross-org", name = "role", havingValue = "hub")
+    public ListGrantedHubRatesUseCase listGrantedHubRatesUseCase(
+            DelegatedGrantRepository delegatedGrantRepository,
+            TermRateRepository termRateRepository,
+            OnCallRateRepository onCallRateRepository) {
+        return new GrantedHubRatesService(delegatedGrantRepository, termRateRepository, onCallRateRepository);
     }
 
     // ─── Client-side beans (CGED) ───────────────────────────────────────────
