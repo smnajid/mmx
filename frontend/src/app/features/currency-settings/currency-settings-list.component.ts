@@ -90,7 +90,7 @@ export class CurrencySettingsListComponent implements OnInit {
         this.loading.set(false);
       },
       error: (err) => {
-        this.error.set(err?.message ?? 'Failed to load currencies');
+        this.error.set(err?.error?.message ?? err?.message ?? 'Failed to load currencies');
         this.loading.set(false);
       },
     });

@@ -17,19 +17,16 @@ import com.mmx.order.application.port.out.LegalEntityRepository;
 import com.mmx.order.application.port.out.ManagedCurrencyRepository;
 import com.mmx.order.application.port.out.TermRateRepository;
 import com.mmx.order.application.service.OrderCreationDelegatedCounterpartySupport.RateQuote;
-import com.mmx.order.application.termrate.TermRateAuditRow;
-import com.mmx.order.domain.model.LegalEntity;
+import com.mmx.order.domain.model.EffectiveEnablement;
 import com.mmx.order.domain.model.LegalEntityCode;
 import com.mmx.order.domain.model.ManagedCurrency;
 import com.mmx.order.domain.model.OrderOperation;
 import com.mmx.order.domain.model.OrderType;
 import com.mmx.order.domain.model.Tenor;
 
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 
 public final class TermOrderCreationOptionsService
@@ -64,16 +61,24 @@ public final class TermOrderCreationOptionsService
     }
 
     @Override
-    public TermCurrenciesResult listCurrencies() {
-        Set<String> currenciesWithRates = new HashSet<>(termRateRepository.findDistinctCurrenciesWithTermRates());
+    public TermCurrenciesResult listCurrencies(LegalEntityCode legalEntityCode) {
         List<String> currencies =
-                managedCurrencyRepository.findAll().stream()
-                        .filter(ManagedCurrency::isActive)
-                        .filter(currency -> !currency.getEnabledTenors().isEmpty())
-                        .map(ManagedCurrency::getCode)
-                        .filter(currenciesWithRates::contains)
-                        .sorted()
-                        .toList();
+                OrderCreationDelegatedCounterpartySupport.byRole(
+                        legalEntityRepository.findByCode(legalEntityCode),
+                        List.of(),
+                        () ->
+                                OrderCreationDelegatedCounterpartySupport.offeredCurrencies(
+                                        managedCurrencyRepository,
+                                        currency -> !clientTenors(legalEntityCode, currency.getCode()).isEmpty()),
+                        () -> {
+                            Set<String> currenciesWithRates =
+                                    new HashSet<>(termRateRepository.findDistinctCurrenciesWithTermRates());
+                            return OrderCreationDelegatedCounterpartySupport.offeredCurrencies(
+                                    managedCurrencyRepository,
+                                    currency ->
+                                            !currency.getEnabledTenors().isEmpty()
+                                                    && currenciesWithRates.contains(currency.getCode()));
+                        });
         return new TermCurrenciesResult(clock.today(), currencies);
     }
 
@@ -93,50 +98,70 @@ public final class TermOrderCreationOptionsService
     }
 
     @Override
-    public TenorsResult listTenors(String currency) {
-        return managedCurrencyRepository
-                .findByCode(currency)
-                .map(this::availableTenorsForCurrency)
-                .orElseGet(() -> new TenorsResult(List.of()));
+    public TenorsResult listTenors(LegalEntityCode legalEntityCode, String currency) {
+        return new TenorsResult(
+                OrderCreationDelegatedCounterpartySupport.byRole(
+                        legalEntityRepository.findByCode(legalEntityCode),
+                        List.of(),
+                        () ->
+                                managedCurrencyRepository
+                                        .findByCode(currency)
+                                        .filter(ManagedCurrency::isActive)
+                                        .map(managed -> clientTenors(legalEntityCode, managed.getCode()))
+                                        .orElseGet(List::of),
+                        () ->
+                                managedCurrencyRepository
+                                        .findByCode(currency)
+                                        .map(this::hubTenors)
+                                        .orElseGet(List::of)));
     }
 
-    private TenorsResult availableTenorsForCurrency(ManagedCurrency managed) {
-        List<Tenor> tenors = new ArrayList<>();
-        for (Tenor tenor : managed.getEnabledTenors()) {
-            if (!termRateRepository.findLatestRatePerInstitution(managed.getCode(), tenor).isEmpty()) {
-                tenors.add(tenor);
-            }
-        }
-        tenors.sort(Comparator.comparing(Tenor::getCode));
-        return new TenorsResult(tenors);
+    /** Tenors some open onboarded institution may trade (effective enablement) and the hub has a rate for. */
+    private List<Tenor> clientTenors(LegalEntityCode clientCode, String currency) {
+        return OrderCreationDelegatedCounterpartySupport.clientTerms(
+                OrderCreationDelegatedCounterpartySupport.clientCandidates(
+                        clientCode, currency, OrderType.TERM, delegatedGrantRepository, institutionRepository, clientEnablementRepository),
+                EffectiveEnablement::tenors,
+                tenor -> hubQuotes(currency, tenor),
+                OrderType.TERM,
+                institutionRepository,
+                Comparator.comparing(Tenor::getCode));
+    }
+
+    private List<Tenor> hubTenors(ManagedCurrency managed) {
+        return managed.getEnabledTenors().stream()
+                .filter(tenor -> !termRateRepository.findLatestRatePerInstitution(managed.getCode(), tenor).isEmpty())
+                .sorted(Comparator.comparing(Tenor::getCode))
+                .toList();
     }
 
     @Override
     public CounterpartiesResult listCounterparties(
             LegalEntityCode legalEntityCode, String currency, Tenor tenor) {
-        Optional<LegalEntity> legalEntity = legalEntityRepository.findByCode(legalEntityCode);
-        if (legalEntity.isEmpty()) {
-            return new CounterpartiesResult(List.of());
-        }
-        List<RateQuote> hubQuotes =
-                termRateRepository.findLatestRatePerInstitution(currency, tenor).stream()
-                        .map(row -> new RateQuote(row.institutionCode(), row.rate(), row.tradingDate()))
-                        .toList();
-        if (legalEntity.get().isTradingClient()) {
-            return new CounterpartiesResult(
-                    OrderCreationDelegatedCounterpartySupport.forClient(
-                            legalEntityCode,
-                            currency,
-                            OrderType.TERM,
-                            effective -> effective.permits(tenor),
-                            hubQuotes,
-                            delegatedGrantRepository,
-                            institutionRepository,
-                            clientEnablementRepository,
-                            clock.today()));
-        }
         return new CounterpartiesResult(
-                OrderCreationDelegatedCounterpartySupport.forHub(
-                        OrderType.TERM, hubQuotes, institutionRepository, clock.today()));
+                OrderCreationDelegatedCounterpartySupport.byRole(
+                        legalEntityRepository.findByCode(legalEntityCode),
+                        List.of(),
+                        () ->
+                                OrderCreationDelegatedCounterpartySupport.forClient(
+                                        legalEntityCode,
+                                        currency,
+                                        OrderType.TERM,
+                                        effective -> effective.permits(tenor),
+                                        hubQuotes(currency, tenor),
+                                        delegatedGrantRepository,
+                                        institutionRepository,
+                                        clientEnablementRepository,
+                                        clock.today()),
+                        () ->
+                                OrderCreationDelegatedCounterpartySupport.forHub(
+                                        OrderType.TERM, hubQuotes(currency, tenor), institutionRepository, clock.today())));
+    }
+
+    /** The hub's latest rate per institution for the currency and tenor. */
+    private List<RateQuote> hubQuotes(String currency, Tenor tenor) {
+        return termRateRepository.findLatestRatePerInstitution(currency, tenor).stream()
+                .map(row -> new RateQuote(row.institutionCode(), row.rate(), row.tradingDate()))
+                .toList();
     }
 }

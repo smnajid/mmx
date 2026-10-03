@@ -4,13 +4,18 @@ import com.mmx.order.adapter.in.rest.generated.crossorg.api.CrossOrgReferenceDat
 import com.mmx.order.adapter.in.rest.generated.crossorg.model.CrossOrgCurrencyResponse;
 import com.mmx.order.adapter.in.rest.generated.crossorg.model.CrossOrgGrantResponse;
 import com.mmx.order.adapter.in.rest.generated.crossorg.model.CrossOrgInstitutionResponse;
+import com.mmx.order.adapter.in.rest.generated.crossorg.model.CrossOrgOnCallSegmentResponse;
 import com.mmx.order.adapter.in.rest.generated.crossorg.model.CrossOrgTermRateResponse;
+import com.mmx.order.adapter.in.rest.generated.crossorg.model.NoticePeriodCode;
+import com.mmx.order.adapter.in.rest.generated.crossorg.model.TenorCode;
 import com.mmx.order.adapter.in.rest.mapper.CrossOrgReferenceDataMapper;
+import com.mmx.order.application.port.in.ListGrantedHubRatesUseCase;
 import com.mmx.order.application.port.out.DelegatedGrantRepository;
 import com.mmx.order.application.port.out.InstitutionRepository;
 import com.mmx.order.application.port.out.ManagedCurrencyRepository;
-import com.mmx.order.application.port.out.TermRateRepository;
 import com.mmx.order.domain.model.LegalEntityCode;
+import com.mmx.order.domain.model.NoticePeriod;
+import com.mmx.order.domain.model.Tenor;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.ResponseEntity;
@@ -24,8 +29,8 @@ import java.util.List;
 /**
  * LODH inbound reference-data reads for thin remote clients. Every endpoint resolves the transport
  * credential to a proven principal via {@link CrossOrgIdentityResolver} (same 401/403 trust boundary as
- * routed-order intake). Grants are auto-scoped to the proven client; currencies, institutions, and
- * rates are hub-global (the client's own grant filter narrows what it can actually use).
+ * routed-order intake). Grants and every rate read are scoped to the proven client's active grants;
+ * currencies and institutions are hub-global.
  *
  * <p>Spec: {@code order-routing} — thin-client reference-data reads.
  */
@@ -38,7 +43,7 @@ public class CrossOrgReferenceDataController implements CrossOrgReferenceDataApi
     private final CrossOrgIdentityResolver identityResolver;
     private final ManagedCurrencyRepository currencyRepository;
     private final InstitutionRepository institutionRepository;
-    private final TermRateRepository termRateRepository;
+    private final ListGrantedHubRatesUseCase grantedHubRates;
     private final DelegatedGrantRepository delegatedGrantRepository;
     private final CrossOrgReferenceDataMapper mapper;
 
@@ -46,13 +51,13 @@ public class CrossOrgReferenceDataController implements CrossOrgReferenceDataApi
             CrossOrgIdentityResolver identityResolver,
             ManagedCurrencyRepository currencyRepository,
             InstitutionRepository institutionRepository,
-            TermRateRepository termRateRepository,
+            ListGrantedHubRatesUseCase grantedHubRates,
             DelegatedGrantRepository delegatedGrantRepository,
             CrossOrgReferenceDataMapper mapper) {
         this.identityResolver = identityResolver;
         this.currencyRepository = currencyRepository;
         this.institutionRepository = institutionRepository;
-        this.termRateRepository = termRateRepository;
+        this.grantedHubRates = grantedHubRates;
         this.delegatedGrantRepository = delegatedGrantRepository;
         this.mapper = mapper;
     }
@@ -75,8 +80,28 @@ public class CrossOrgReferenceDataController implements CrossOrgReferenceDataApi
 
     @Override
     public ResponseEntity<List<CrossOrgTermRateResponse>> listCrossOrgTermRates(LocalDate tradingDate) {
-        resolveProven();
-        return ResponseEntity.ok(mapper.toTermRateResponses(termRateRepository.findByTradingDate(tradingDate)));
+        return ResponseEntity.ok(mapper.toTermRateResponses(grantedHubRates.termRatesForDay(resolveProven(), tradingDate)));
+    }
+
+    @Override
+    public ResponseEntity<List<CrossOrgTermRateResponse>> listCrossOrgLatestTermRates(
+            String currency, TenorCode tenor) {
+        return ResponseEntity.ok(
+                mapper.toTermRateResponses(
+                        grantedHubRates.latestTermRates(
+                                resolveProven(), currency, Tenor.fromCode(tenor.getValue()).orElseThrow())));
+    }
+
+    @Override
+    public ResponseEntity<List<CrossOrgOnCallSegmentResponse>> listCrossOrgOnCallSegments(
+            String currency, NoticePeriodCode noticePeriod, LocalDate valueDate) {
+        LegalEntityCode proven = resolveProven();
+        NoticePeriod domainNoticePeriod = NoticePeriod.fromCode(noticePeriod.getValue()).orElseThrow();
+        return ResponseEntity.ok(
+                mapper.toOnCallSegmentResponses(
+                        valueDate == null
+                                ? grantedHubRates.openOnCallSegments(proven, currency, domainNoticePeriod)
+                                : grantedHubRates.onCallSegmentsCovering(proven, currency, domainNoticePeriod, valueDate)));
     }
 
     @Override

@@ -56,6 +56,18 @@ describe('CurrencySettingsListComponent', () => {
     expect(el.textContent).toContain('OnCall:');
   });
 
+  it('shows the hub-unavailable message when the hub cannot be reached (503)', async () => {
+    fixture.detectChanges();
+    httpMock.expectOne('/api/v1/settings/currencies').flush(
+      { error: 'HUB_REFERENCE_DATA_UNAVAILABLE', message: 'Hub reference data is unavailable' },
+      { status: 503, statusText: 'Service Unavailable' },
+    );
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const alert = (fixture.nativeElement as HTMLElement).querySelector('[role="alert"]');
+    expect(alert?.textContent).toContain('Hub reference data is unavailable');
+  });
+
   it('shows inactive badge for deactivated currency', async () => {
     fixture.detectChanges();
     const req = httpMock.expectOne('/api/v1/settings/currencies');

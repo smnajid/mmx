@@ -1,5 +1,7 @@
 package com.mmx.order.adapter.in.rest.config;
 
+import com.mmx.order.adapter.in.rest.generated.crossorg.model.NoticePeriodCode;
+import com.mmx.order.adapter.in.rest.generated.crossorg.model.TenorCode;
 import com.mmx.order.adapter.in.rest.generated.model.NoticePeriod;
 import com.mmx.order.adapter.in.rest.generated.model.Tenor;
 import org.springframework.context.annotation.Configuration;
@@ -13,5 +15,7 @@ public class ApiEnumConverterConfiguration implements WebMvcConfigurer {
     public void addFormatters(FormatterRegistry registry) {
         registry.addConverter(String.class, Tenor.class, Tenor::fromValue);
         registry.addConverter(String.class, NoticePeriod.class, NoticePeriod::fromValue);
+        registry.addConverter(String.class, TenorCode.class, TenorCode::fromValue);
+        registry.addConverter(String.class, NoticePeriodCode.class, NoticePeriodCode::fromValue);
     }
 }

@@ -78,6 +78,8 @@ paths:
           $ref: "#/components/responses/ForbiddenError"
         "409":
           $ref: "#/components/responses/ConflictError"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
 
   /api/v1/settings/institutions/granted:
     get:
@@ -101,6 +103,8 @@ paths:
                   $ref: "#/components/schemas/GrantedInstitutionResponse"
         "403":
           $ref: "#/components/responses/ForbiddenError"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
 
   /api/v1/settings/institutions/{institutionCode}:
     get:
@@ -252,6 +256,8 @@ paths:
           $ref: "#/components/responses/ForbiddenError"
         "404":
           $ref: "#/components/responses/NotFoundError"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
 
 components:
   parameters:
@@ -296,6 +302,12 @@ components:
             $ref: "#/components/schemas/InstitutionSettingsErrorResponse"
     NotFoundError:
       description: Institution not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/InstitutionSettingsErrorResponse"
+    ServiceUnavailable:
+      description: A TradingClient deployment could not read hub reference data (hub unreachable, timed out, credential rejected, or non-success response).
       content:
         application/json:
           schema:
@@ -463,6 +475,7 @@ components:
         - INSTITUTION_ALREADY_ONBOARDED
         - COUNTERPARTY_ACCOUNT_IN_USE
         - FORBIDDEN
+        - HUB_REFERENCE_DATA_UNAVAILABLE
 
     InstitutionSettingsErrorResponse:
       type: object

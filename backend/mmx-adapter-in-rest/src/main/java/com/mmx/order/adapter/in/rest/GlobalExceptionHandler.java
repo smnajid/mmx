@@ -14,6 +14,7 @@ import com.mmx.order.adapter.in.rest.generated.grants.model.GrantErrorResponse;
 import com.mmx.order.application.exception.ContractNotFoundException;
 import com.mmx.order.application.exception.CurrencyNotFoundException;
 import com.mmx.order.application.exception.GrantNotFoundException;
+import com.mmx.order.application.exception.HubReferenceDataUnavailableException;
 import com.mmx.order.application.exception.InstitutionNotFoundException;
 import com.mmx.order.application.termrate.TermRateCsvStructuralException;
 import com.mmx.order.application.termrate.TermRateIngestFailedException;
@@ -48,6 +49,15 @@ import java.util.stream.Collectors;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(HubReferenceDataUnavailableException.class)
+    public ResponseEntity<ErrorResponse> handleHubReferenceDataUnavailable(HubReferenceDataUnavailableException ex) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(
+                        new ErrorResponse()
+                                .error(ErrorCode.HUB_REFERENCE_DATA_UNAVAILABLE)
+                                .message(ex.getMessage()));
+    }
 
     @ExceptionHandler(InvalidLegalEntityException.class)
     public ResponseEntity<ErrorResponse> handleInvalidLegalEntity(InvalidLegalEntityException ex) {

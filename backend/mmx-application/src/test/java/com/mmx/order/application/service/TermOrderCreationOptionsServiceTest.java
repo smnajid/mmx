@@ -41,6 +41,9 @@ import java.util.Optional;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @Tag("fast")
@@ -132,10 +135,12 @@ class TermOrderCreationOptionsServiceTest {
                         EnumSet.noneOf(Tenor.class),
                         EnumSet.of(NoticePeriod._24H));
 
+        when(legalEntityRepository.findByCode(LOC))
+                .thenReturn(Optional.of(LegalEntity.tradingHub(LOC, new com.mmx.order.domain.model.OrganisationCode("LODH"))));
         when(managedCurrencyRepository.findAll()).thenReturn(List.of(eur, chf, jpy, gbp));
         when(termRateRepository.findDistinctCurrenciesWithTermRates()).thenReturn(List.of("EUR"));
 
-        TermCurrenciesResult result = subject.listCurrencies();
+        TermCurrenciesResult result = subject.listCurrencies(LOC);
 
         assertThat(result.tradingDate()).isEqualTo(TODAY);
         assertThat(result.currencies()).containsExactly("EUR");
@@ -151,6 +156,8 @@ class TermOrderCreationOptionsServiceTest {
                         new BigDecimal("100000"),
                         EnumSet.of(Tenor._1M, Tenor._3M, Tenor._6M),
                         EnumSet.noneOf(NoticePeriod.class));
+        when(legalEntityRepository.findByCode(LOC))
+                .thenReturn(Optional.of(LegalEntity.tradingHub(LOC, new com.mmx.order.domain.model.OrganisationCode("LODH"))));
         when(managedCurrencyRepository.findByCode("EUR")).thenReturn(Optional.of(eur));
         when(termRateRepository.findLatestRatePerInstitution("EUR", Tenor._1M))
                 .thenReturn(List.of(rateRow("BNKCO", Tenor._1M, TODAY, "3.10")));
@@ -158,7 +165,7 @@ class TermOrderCreationOptionsServiceTest {
                 .thenReturn(List.of(rateRow("BNKCO", Tenor._3M, TODAY, "3.20")));
         when(termRateRepository.findLatestRatePerInstitution("EUR", Tenor._6M)).thenReturn(List.of());
 
-        TenorsResult result = subject.listTenors("EUR");
+        TenorsResult result = subject.listTenors(LOC, "EUR");
 
         assertThat(result.tenors()).containsExactly(Tenor._1M, Tenor._3M);
     }
@@ -294,6 +301,104 @@ class TermOrderCreationOptionsServiceTest {
         assertThat(subject.listCounterparties(PAR, "EUR", Tenor._3M).counterparties())
                 .extracting(OrderCreationCounterparty::institutionCode)
                 .containsExactly("HVL-01");
+    }
+
+    private static final LegalEntityCode CGD = new LegalEntityCode("CGD");
+
+    @Test
+    void listCurrencies_forARemoteClient_includesACurrencyThroughEffectiveEnablement_whenTheHubHasNoEnabledTenors() {
+        givenCgdRemoteClientWithHubRates();
+        when(managedCurrencyRepository.findAll()).thenReturn(List.of(activeCurrency("EUR", EnumSet.noneOf(Tenor.class))));
+
+        assertThat(subject.listCurrencies(CGD).currencies()).containsExactly("EUR");
+        verify(termRateRepository, never()).findDistinctCurrenciesWithTermRates();
+    }
+
+    @Test
+    void listCurrencies_forARemoteClient_excludesACurrencyWithoutClientEnablement() {
+        givenCgdRemoteClientWithHubRates();
+        clientEnablementRepository.save(CGD, new ClientEnablement("HVL-01", "EUR", Set.of(), Set.of()));
+        when(managedCurrencyRepository.findAll()).thenReturn(List.of(activeCurrency("EUR", EnumSet.of(Tenor._3M))));
+
+        assertThat(subject.listCurrencies(CGD).currencies()).isEmpty();
+    }
+
+    @Test
+    void listCurrencies_forARemoteClient_excludesAnOffboardedInstitution() {
+        givenCgdRemoteClientWithHubRates();
+        institutionRepository.findByInstitutionCode("HVL-01").orElseThrow().offboard();
+        when(managedCurrencyRepository.findAll()).thenReturn(List.of(activeCurrency("EUR", EnumSet.of(Tenor._3M))));
+
+        assertThat(subject.listCurrencies(CGD).currencies()).isEmpty();
+    }
+
+    @Test
+    void listCurrencies_forARemoteClient_excludesACurrencyWhenTheHubHasNoRateForTheEnabledTenor() {
+        givenCgdRemoteClientWithHubRates();
+        when(termRateRepository.findLatestRatePerInstitution("EUR", Tenor._3M)).thenReturn(List.of());
+        when(managedCurrencyRepository.findAll()).thenReturn(List.of(activeCurrency("EUR", EnumSet.of(Tenor._3M))));
+
+        assertThat(subject.listCurrencies(CGD).currencies()).isEmpty();
+    }
+
+    @Test
+    void listCurrencies_forAnUnknownLegalEntity_isEmpty() {
+        when(legalEntityRepository.findByCode(CGD)).thenReturn(Optional.empty());
+
+        assertThat(subject.listCurrencies(CGD).currencies()).isEmpty();
+    }
+
+    @Test
+    void listTenors_forARemoteClient_intersectsGrantClientEnablementAndHubRates() {
+        givenCgdRemoteClientWithHubRates();
+        when(delegatedGrantRepository.findByClientLegalEntityCode(CGD))
+                .thenReturn(List.of(grant(CGD, "BNP", EnumSet.of(Tenor._1M, Tenor._3M, Tenor._6M))));
+        clientEnablementRepository.save(CGD, new ClientEnablement("HVL-01", "EUR", Set.of(Tenor._3M, Tenor._6M), Set.of()));
+        when(managedCurrencyRepository.findByCode("EUR")).thenReturn(Optional.of(activeCurrency("EUR", EnumSet.noneOf(Tenor.class))));
+        when(termRateRepository.findLatestRatePerInstitution("EUR", Tenor._6M)).thenReturn(List.of());
+
+        assertThat(subject.listTenors(CGD, "EUR").tenors()).containsExactly(Tenor._3M);
+    }
+
+    @Test
+    void listTenors_forAnUnknownLegalEntity_isEmpty() {
+        when(legalEntityRepository.findByCode(CGD)).thenReturn(Optional.empty());
+
+        assertThat(subject.listTenors(CGD, "EUR").tenors()).isEmpty();
+    }
+
+    @Test
+    void listTenors_forARemoteClient_isEmptyForAnInactiveHubCurrency() {
+        givenCgdRemoteClientWithHubRates();
+        when(managedCurrencyRepository.findByCode("EUR"))
+                .thenReturn(Optional.of(new ManagedCurrency(
+                        "EUR", false, new BigDecimal("500000"), new BigDecimal("100000"), EnumSet.of(Tenor._3M), EnumSet.noneOf(NoticePeriod.class))));
+
+        assertThat(subject.listTenors(CGD, "EUR").tenors()).isEmpty();
+    }
+
+    private void givenCgdRemoteClientWithHubRates() {
+        LegalEntity loc = LegalEntity.tradingHub(LOC, new com.mmx.order.domain.model.OrganisationCode("LODH"));
+        LegalEntity cgd = LegalEntity.tradingClient(CGD, new com.mmx.order.domain.model.OrganisationCode("CGEG"), loc);
+        when(legalEntityRepository.findByCode(CGD)).thenReturn(Optional.of(cgd));
+        lenient().when(delegatedGrantRepository.findByClientLegalEntityCode(CGD))
+                .thenReturn(List.of(grant(CGD, "BNP", EnumSet.of(Tenor._3M))));
+        lenient().when(termRateRepository.findLatestRatePerInstitution("EUR", Tenor._3M))
+                .thenReturn(List.of(rateRow("BNP", Tenor._3M, TODAY, "3.50")));
+        institutionRepository.put(
+                Institution.onboardFromGrant(
+                        "HVL-01", "BNP via LOC", new HubInstitutionLink(LOC, "BNP"), CGD, CounterpartyAccounts.of("CGD-BNP-T", null)));
+        clientEnablementRepository.save(CGD, new ClientEnablement("HVL-01", "EUR", Set.of(Tenor._3M), Set.of()));
+    }
+
+    private static ManagedCurrency activeCurrency(String code, Set<Tenor> tenors) {
+        Set<NoticePeriod> noticePeriods = tenors.isEmpty() ? EnumSet.of(NoticePeriod._24H) : EnumSet.noneOf(NoticePeriod.class);
+        return new ManagedCurrency(code, true, new BigDecimal("500000"), new BigDecimal("100000"), tenors, noticePeriods);
+    }
+
+    private static DelegatedInstitutionGrant grant(LegalEntityCode client, String hubInstitutionCode, Set<Tenor> tenors) {
+        return new DelegatedInstitutionGrant(
+                hubInstitutionCode, client, "EUR", EnumSet.copyOf(tenors), EnumSet.noneOf(NoticePeriod.class), true);
     }
 
     private void givenParClientWithHubRates() {

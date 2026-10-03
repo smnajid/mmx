@@ -6,6 +6,7 @@ import com.mmx.order.adapter.out.integration.LoggingOperationalSignalAdapter;
 import com.mmx.order.adapter.out.integration.RemoteManagedCurrencyRepository;
 import com.mmx.order.adapter.out.integration.RemoteDelegatedGrantRepository;
 import com.mmx.order.adapter.out.integration.RemoteHubInstitutionCatalog;
+import com.mmx.order.adapter.out.integration.RemoteOnCallRateRepository;
 import com.mmx.order.adapter.out.integration.RemoteReferenceDataContext;
 import com.mmx.order.adapter.out.integration.RemoteRoutingGatewayRestAdapter;
 import com.mmx.order.adapter.out.integration.RemoteTermRateRepository;
@@ -14,6 +15,7 @@ import com.mmx.order.adapter.out.messaging.RoutingOutcomeOutboxAdapter;
 import com.mmx.order.adapter.out.persistence.JpaCrossOrgMembershipAdapter;
 import com.mmx.order.application.port.in.AcceptRoutedHubOrderUseCase;
 import com.mmx.order.application.port.in.ApplyRemoteOrderOutcomeUseCase;
+import com.mmx.order.application.port.in.ListGrantedHubRatesUseCase;
 import com.mmx.order.application.port.out.Clock;
 import com.mmx.order.application.port.out.CrossOrgCredentialBinder;
 import com.mmx.order.application.port.out.CrossOrgMembershipPort;
@@ -25,6 +27,7 @@ import com.mmx.order.application.port.out.HubInstitutionCatalog;
 import com.mmx.order.application.port.out.InstitutionRepository;
 import com.mmx.order.application.port.out.LegalEntityRepository;
 import com.mmx.order.application.port.out.ManagedCurrencyRepository;
+import com.mmx.order.application.port.out.OnCallRateRepository;
 import com.mmx.order.application.port.out.OperationalSignalPort;
 import com.mmx.order.application.port.out.OrderRepository;
 import com.mmx.order.application.port.out.ReferenceGenerator;
@@ -34,6 +37,7 @@ import com.mmx.order.application.port.out.RoutingOutcomeOutbox;
 import com.mmx.order.application.port.out.Sleeper;
 import com.mmx.order.application.port.out.TermRateRepository;
 import com.mmx.order.application.service.AcceptRoutedHubOrderService;
+import com.mmx.order.application.service.GrantedHubRatesService;
 import com.mmx.order.application.service.ApplyRemoteOrderOutcomeService;
 import com.mmx.order.application.service.RemoteRoutedOrderIntake;
 import com.mmx.order.application.service.ResilientRemoteRoutingGateway;
@@ -126,6 +130,15 @@ public class CrossOrgRoutingModuleConfiguration {
                 orderRepository,
                 routingOutcomeOutbox,
                 clock);
+    }
+
+    @Bean
+    @ConditionalOnProperty(prefix = "mmx.cross-org", name = "role", havingValue = "hub")
+    public ListGrantedHubRatesUseCase listGrantedHubRatesUseCase(
+            DelegatedGrantRepository delegatedGrantRepository,
+            TermRateRepository termRateRepository,
+            OnCallRateRepository onCallRateRepository) {
+        return new GrantedHubRatesService(delegatedGrantRepository, termRateRepository, onCallRateRepository);
     }
 
     // ─── Client-side beans (CGED) ───────────────────────────────────────────
@@ -258,6 +271,13 @@ public class CrossOrgRoutingModuleConfiguration {
     @org.springframework.context.annotation.Primary
     public TermRateRepository remoteTermRateRepository(RemoteReferenceDataContext ctx) {
         return new RemoteTermRateRepository(ctx);
+    }
+
+    @Bean
+    @ConditionalOnProperty(prefix = "mmx.cross-org", name = "reference-data-remote", havingValue = "true")
+    @org.springframework.context.annotation.Primary
+    public OnCallRateRepository remoteOnCallRateRepository(RemoteReferenceDataContext ctx) {
+        return new RemoteOnCallRateRepository(ctx);
     }
 
     @Bean

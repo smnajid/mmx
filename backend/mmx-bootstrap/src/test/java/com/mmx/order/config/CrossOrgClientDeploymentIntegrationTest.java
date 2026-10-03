@@ -4,7 +4,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mmx.order.MmxApplication;
 import com.mmx.order.application.port.out.ExternalIdentityGateway;
+import com.mmx.order.adapter.out.integration.RemoteOnCallRateRepository;
 import com.mmx.order.application.port.out.HubLocalityResolver;
+import com.mmx.order.application.port.out.OnCallRateRepository;
 import com.mmx.order.domain.model.HubLocality;
 import com.mmx.order.domain.model.LegalEntityCode;
 import com.mmx.order.application.port.out.RemoteRoutingGateway;
@@ -109,6 +111,9 @@ class CrossOrgClientDeploymentIntegrationTest extends SharedPostgresTestBase {
     @Autowired
     JdbcTemplate jdbcTemplate;
 
+    @Autowired
+    OnCallRateRepository onCallRateRepository;
+
     @LocalServerPort
     int port;
 
@@ -165,6 +170,47 @@ class CrossOrgClientDeploymentIntegrationTest extends SharedPostgresTestBase {
         assertThat(legA.path("clientCounterpartyAccount").asText()).isEqualTo("CGD-SGX-T");
     }
 
+    @Test
+    void remoteClient_readsOnCallRatesFromTheHub_notFromItsOwnEmptyTable() {
+        assertThat(onCallRateRepository).isInstanceOf(RemoteOnCallRateRepository.class);
+    }
+
+    @Test
+    void remoteClient_termCurrenciesComeFromItsEffectiveEnablementAndTheHubRates() throws Exception {
+        asCgdClientRepresentative();
+        enableEurThreeMonthOnOnboardedHubInstitution();
+
+        HttpResponse<String> res = call("GET", "/api/v1/order-creation/term/currencies?legalEntityCode=CGD", null);
+
+        assertThat(res.statusCode()).as(res.body()).isEqualTo(200);
+        assertThat(json.readTree(res.body()).path("currencies").toString()).isEqualTo("[\"EUR\"]");
+        HttpResponse<String> tenors = call("GET", "/api/v1/order-creation/term/tenors?legalEntityCode=CGD&currency=EUR", null);
+        assertThat(json.readTree(tenors.body()).path("tenors").toString()).isEqualTo("[\"3M\"]");
+    }
+
+    @Test
+    void remoteClient_reportsServiceUnavailable_whenTheHubReadFails() throws Exception {
+        asCgdClientRepresentative();
+        enableEurThreeMonthOnOnboardedHubInstitution();
+        HUB.failReferenceReads(true);
+        try {
+            HttpResponse<String> res = call("GET", "/api/v1/order-creation/term/currencies?legalEntityCode=CGD", null);
+
+            assertThat(res.statusCode()).as(res.body()).isEqualTo(503);
+            assertThat(json.readTree(res.body()).path("error").asText()).isEqualTo("HUB_REFERENCE_DATA_UNAVAILABLE");
+        } finally {
+            HUB.failReferenceReads(false);
+        }
+    }
+
+    private void enableEurThreeMonthOnOnboardedHubInstitution() throws Exception {
+        String code = onboard();
+        HttpResponse<String> enabled =
+                call("PUT", "/api/v1/settings/institutions/" + code + "/enablement/EUR",
+                        "{\"enabledTenors\":[\"3M\"],\"enabledNoticePeriods\":[]}");
+        assertThat(enabled.statusCode()).as(enabled.body()).isEqualTo(200);
+    }
+
     private String onboard() throws Exception {
         HttpResponse<String> res =
                 call("POST", "/api/v1/settings/institutions",
@@ -172,6 +218,13 @@ class CrossOrgClientDeploymentIntegrationTest extends SharedPostgresTestBase {
                         {"hubInstitutionCode":"%s","termCounterpartyAccount":"CGD-SGX-T","onCallCounterpartyAccount":"CGD-SGX-OC"}
                         """
                                 .formatted(HUB_ONLY_INSTITUTION));
+        if (res.statusCode() == 409) {
+            // Another test in this class already onboarded the hub institution (shared schema, undefined order).
+            return jdbcTemplate.queryForObject(
+                    "SELECT institution_code FROM institution WHERE legal_entity_code = 'CGD' AND hub_institution_code = ?",
+                    String.class,
+                    HUB_ONLY_INSTITUTION);
+        }
         assertThat(res.statusCode()).as(res.body()).isIn(200, 201);
         return json.readTree(res.body()).path("institutionCode").asText();
     }
@@ -218,6 +271,7 @@ class CrossOrgClientDeploymentIntegrationTest extends SharedPostgresTestBase {
         private final HttpServer server;
         private final List<String> writes = new CopyOnWriteArrayList<>();
         private final List<String> legABodies = new CopyOnWriteArrayList<>();
+        private volatile boolean failReferenceReads;
 
         private StubHub(HttpServer server) {
             this.server = server;
@@ -237,6 +291,10 @@ class CrossOrgClientDeploymentIntegrationTest extends SharedPostgresTestBase {
 
         String baseUrl() {
             return "http://localhost:" + server.getAddress().getPort();
+        }
+
+        void failReferenceReads(boolean fail) {
+            this.failReferenceReads = fail;
         }
 
         List<String> writes() {
@@ -259,6 +317,10 @@ class CrossOrgClientDeploymentIntegrationTest extends SharedPostgresTestBase {
                     [{"hubInstitutionCode":"%s","clientLegalEntityCode":"CGD","currency":"EUR",
                       "enabledTenors":["3M"],"enabledNoticePeriods":[],"active":true}]
                     """.formatted(HUB_ONLY_INSTITUTION)));
+            server.createContext("/api/v1/cross-org/reference/term-rates/latest", ex -> reply(ex, 200, """
+                    [{"tradingDate":"%s","institutionCode":"%s","currency":"EUR","tenor":"3M","rate":3.5}]
+                    """.formatted(LocalDate.now(), HUB_ONLY_INSTITUTION)));
+            server.createContext("/api/v1/cross-org/reference/oncall-segments", ex -> reply(ex, 200, "[]"));
             server.createContext("/api/v1/cross-org/reference/currencies", ex -> reply(ex, 200, """
                     [{"code":"EUR","active":true,"minSubscriptionAmount":1.00,"minIncreaseDecreaseAmount":1.00,
                       "enabledTenors":["1W","2W","1M","3M","6M","1Y"],"enabledNoticePeriods":["24H","48H"]}]
@@ -275,6 +337,10 @@ class CrossOrgClientDeploymentIntegrationTest extends SharedPostgresTestBase {
             if (!"GET".equals(exchange.getRequestMethod())
                     && !exchange.getRequestURI().getPath().endsWith("/routed-orders")) {
                 writes.add(exchange.getRequestMethod() + " " + exchange.getRequestURI());
+            }
+            if (failReferenceReads && exchange.getRequestURI().getPath().contains("/cross-org/reference/")) {
+                status = 503;
+                body = "";
             }
             byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().add("Content-Type", "application/json");

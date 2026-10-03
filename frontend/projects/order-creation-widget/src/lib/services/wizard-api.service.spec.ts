@@ -31,9 +31,9 @@ describe('WizardApiService', () => {
     http.verify();
   });
 
-  it('listTermCurrencies calls GET /api/v1/order-creation/term/currencies', async () => {
-    const promise = firstValueFrom(service.listTermCurrencies());
-    const req = http.expectOne(`${apiBaseUrl}/api/v1/order-creation/term/currencies`);
+  it('listTermCurrencies sends legalEntityCode to GET /api/v1/order-creation/term/currencies', async () => {
+    const promise = firstValueFrom(service.listTermCurrencies('LOC'));
+    const req = http.expectOne(`${apiBaseUrl}/api/v1/order-creation/term/currencies?legalEntityCode=LOC`);
     expect(req.request.method).toBe('GET');
     req.flush({ tradingDate: '2026-06-07', currencies: ['EUR', 'USD'] });
     await expect(promise).resolves.toEqual({
@@ -42,9 +42,9 @@ describe('WizardApiService', () => {
     });
   });
 
-  it('listOnCallCurrencies calls GET /api/v1/order-creation/oncall/currencies', async () => {
-    const promise = firstValueFrom(service.listOnCallCurrencies());
-    const req = http.expectOne(`${apiBaseUrl}/api/v1/order-creation/oncall/currencies`);
+  it('listOnCallCurrencies sends legalEntityCode to GET /api/v1/order-creation/oncall/currencies', async () => {
+    const promise = firstValueFrom(service.listOnCallCurrencies('LOC'));
+    const req = http.expectOne(`${apiBaseUrl}/api/v1/order-creation/oncall/currencies?legalEntityCode=LOC`);
     expect(req.request.method).toBe('GET');
     req.flush({ currencies: ['EUR'] });
     await expect(promise).resolves.toEqual({ currencies: ['EUR'] });
@@ -82,20 +82,20 @@ describe('WizardApiService', () => {
     });
   });
 
-  it('listTermTenors calls GET with currency query param', async () => {
-    const promise = firstValueFrom(service.listTermTenors('EUR'));
+  it('listTermTenors sends legalEntityCode and currency', async () => {
+    const promise = firstValueFrom(service.listTermTenors('EUR', 'LOC'));
     const req = http.expectOne(
-      `${apiBaseUrl}/api/v1/order-creation/term/tenors?currency=EUR`,
+      `${apiBaseUrl}/api/v1/order-creation/term/tenors?legalEntityCode=LOC&currency=EUR`,
     );
     expect(req.request.method).toBe('GET');
     req.flush({ tenors: ['1M', '3M'] });
     await expect(promise).resolves.toEqual({ tenors: ['1M', '3M'] });
   });
 
-  it('listOnCallNoticePeriods calls GET with currency query param', async () => {
-    const promise = firstValueFrom(service.listOnCallNoticePeriods('EUR'));
+  it('listOnCallNoticePeriods sends legalEntityCode and currency', async () => {
+    const promise = firstValueFrom(service.listOnCallNoticePeriods('EUR', 'LOC'));
     const req = http.expectOne(
-      `${apiBaseUrl}/api/v1/order-creation/oncall/notice-periods?currency=EUR`,
+      `${apiBaseUrl}/api/v1/order-creation/oncall/notice-periods?legalEntityCode=LOC&currency=EUR`,
     );
     expect(req.request.method).toBe('GET');
     req.flush({ noticePeriods: ['24H', '48H'] });

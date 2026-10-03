@@ -3,6 +3,7 @@ package com.mmx.order.adapter.in.rest.mapper;
 import com.mmx.order.adapter.in.rest.generated.crossorg.model.CrossOrgCurrencyResponse;
 import com.mmx.order.adapter.in.rest.generated.crossorg.model.CrossOrgGrantResponse;
 import com.mmx.order.adapter.in.rest.generated.crossorg.model.CrossOrgInstitutionResponse;
+import com.mmx.order.adapter.in.rest.generated.crossorg.model.CrossOrgOnCallSegmentResponse;
 import com.mmx.order.adapter.in.rest.generated.crossorg.model.CrossOrgTermRateResponse;
 import com.mmx.order.adapter.in.rest.generated.crossorg.model.NoticePeriodCode;
 import com.mmx.order.adapter.in.rest.generated.crossorg.model.TenorCode;
@@ -11,6 +12,7 @@ import com.mmx.order.domain.model.DelegatedInstitutionGrant;
 import com.mmx.order.domain.model.Institution;
 import com.mmx.order.domain.model.ManagedCurrency;
 import com.mmx.order.domain.model.NoticePeriod;
+import com.mmx.order.domain.model.OnCallRateSegment;
 import com.mmx.order.domain.model.Tenor;
 import org.springframework.stereotype.Component;
 
@@ -30,6 +32,10 @@ public class CrossOrgReferenceDataMapper {
 
     public List<CrossOrgTermRateResponse> toTermRateResponses(List<TermRateAuditRow> rows) {
         return rows.stream().map(this::toTermRateResponse).toList();
+    }
+
+    public List<CrossOrgOnCallSegmentResponse> toOnCallSegmentResponses(List<OnCallRateSegment> segments) {
+        return segments.stream().map(this::toOnCallSegmentResponse).toList();
     }
 
     public List<CrossOrgGrantResponse> toGrantResponses(List<DelegatedInstitutionGrant> grants) {
@@ -65,6 +71,17 @@ public class CrossOrgReferenceDataMapper {
                 .currency(row.currency())
                 .tenor(toTenorCode(row.tenor()))
                 .rate(row.rate().doubleValue());
+    }
+
+    private CrossOrgOnCallSegmentResponse toOnCallSegmentResponse(OnCallRateSegment segment) {
+        return new CrossOrgOnCallSegmentResponse()
+                .institutionCode(segment.getCurveKey().institutionCode())
+                .currency(segment.getCurveKey().currency())
+                .noticePeriod(toNoticePeriodCode(segment.getCurveKey().noticePeriod()))
+                .rate(segment.getRate().doubleValue())
+                .valueDate(segment.getValueDate())
+                .endDate(segment.getEndDate())
+                .status(CrossOrgOnCallSegmentResponse.StatusEnum.fromValue(segment.getStatus().name()));
     }
 
     private CrossOrgGrantResponse toGrantResponse(DelegatedInstitutionGrant g) {

@@ -47,6 +47,9 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @Tag("fast")
@@ -112,10 +115,12 @@ class OnCallOrderCreationOptionsServiceTest {
                         new BigDecimal("100000"),
                         EnumSet.noneOf(Tenor.class),
                         EnumSet.of(NoticePeriod._24H));
+        when(legalEntityRepository.findByCode(LOC))
+                .thenReturn(Optional.of(LegalEntity.tradingHub(LOC, new com.mmx.order.domain.model.OrganisationCode("LODH"))));
         when(managedCurrencyRepository.findAll()).thenReturn(List.of(eur, usd));
         when(onCallRateRepository.findDistinctCurrenciesWithOpenOnCallSegments()).thenReturn(List.of("EUR"));
 
-        OnCallCurrenciesResult result = subject.listCurrencies();
+        OnCallCurrenciesResult result = subject.listCurrencies(LOC);
 
         assertThat(result.currencies()).containsExactly("EUR");
     }
@@ -130,13 +135,15 @@ class OnCallOrderCreationOptionsServiceTest {
                         new BigDecimal("100000"),
                         EnumSet.noneOf(Tenor.class),
                         EnumSet.of(NoticePeriod._24H, NoticePeriod._48H));
+        when(legalEntityRepository.findByCode(LOC))
+                .thenReturn(Optional.of(LegalEntity.tradingHub(LOC, new com.mmx.order.domain.model.OrganisationCode("LODH"))));
         when(managedCurrencyRepository.findByCode("EUR")).thenReturn(Optional.of(eur));
         when(onCallRateRepository.findOpenSegmentsByCurrencyAndNoticePeriod("EUR", NoticePeriod._24H))
                 .thenReturn(List.of(openSegment("BNKCO", NoticePeriod._24H, "2.85")));
         when(onCallRateRepository.findOpenSegmentsByCurrencyAndNoticePeriod("EUR", NoticePeriod._48H))
                 .thenReturn(List.of());
 
-        NoticePeriodsResult result = subject.listNoticePeriods("EUR");
+        NoticePeriodsResult result = subject.listNoticePeriods(LOC, "EUR");
 
         assertThat(result.noticePeriods()).containsExactly(NoticePeriod._24H);
     }
@@ -214,6 +221,101 @@ class OnCallOrderCreationOptionsServiceTest {
                 .changeAccounts(CounterpartyAccounts.of("PAR-BNP-T", null));
 
         assertThat(subject.listCounterparties(PAR, "EUR", NoticePeriod._24H, VALUE_DATE).counterparties()).isEmpty();
+    }
+
+    private static final LegalEntityCode CGD = new LegalEntityCode("CGD");
+
+    @Test
+    void listCurrencies_forARemoteClient_includesACurrencyThroughAPendingConfirmationSegmentAndEffectiveEnablement() {
+        givenCgdRemoteClient(Set.of(NoticePeriod._24H), Set.of(NoticePeriod._24H));
+        when(managedCurrencyRepository.findAll()).thenReturn(List.of(activeTermOnlyCurrency("EUR")));
+        when(onCallRateRepository.findOpenSegmentsByCurrencyAndNoticePeriod("EUR", NoticePeriod._24H))
+                .thenReturn(List.of(segment("BNP", NoticePeriod._24H, "2.90", OnCallRateSegmentStatus.PENDING_CONFIRMATION)));
+
+        assertThat(subject.listCurrencies(CGD).currencies()).containsExactly("EUR");
+        verify(onCallRateRepository, never()).findDistinctCurrenciesWithOpenOnCallSegments();
+    }
+
+    @Test
+    void listCurrencies_forARemoteClient_excludesACurrencyWithoutClientEnablement() {
+        givenCgdRemoteClient(Set.of(NoticePeriod._24H), Set.of());
+        when(managedCurrencyRepository.findAll()).thenReturn(List.of(activeTermOnlyCurrency("EUR")));
+
+        assertThat(subject.listCurrencies(CGD).currencies()).isEmpty();
+    }
+
+    @Test
+    void listCurrencies_forARemoteClient_excludesAnOffboardedInstitution() {
+        givenCgdRemoteClient(Set.of(NoticePeriod._24H), Set.of(NoticePeriod._24H));
+        institutionRepository.findByInstitutionCode("HVL-01").orElseThrow().offboard();
+        when(managedCurrencyRepository.findAll()).thenReturn(List.of(activeTermOnlyCurrency("EUR")));
+
+        assertThat(subject.listCurrencies(CGD).currencies()).isEmpty();
+    }
+
+    @Test
+    void listNoticePeriods_forARemoteClient_intersectsGrantClientEnablementAndHubSegments() {
+        givenCgdRemoteClient(Set.of(NoticePeriod._24H, NoticePeriod._48H), Set.of(NoticePeriod._48H));
+        when(managedCurrencyRepository.findByCode("EUR")).thenReturn(Optional.of(activeTermOnlyCurrency("EUR")));
+        when(onCallRateRepository.findOpenSegmentsByCurrencyAndNoticePeriod("EUR", NoticePeriod._48H))
+                .thenReturn(List.of(segment("BNP", NoticePeriod._48H, "2.95", OnCallRateSegmentStatus.VALID)));
+
+        assertThat(subject.listNoticePeriods(CGD, "EUR").noticePeriods()).containsExactly(NoticePeriod._48H);
+    }
+
+    @Test
+    void listCurrencies_forAnUnknownLegalEntity_isEmpty() {
+        when(legalEntityRepository.findByCode(CGD)).thenReturn(Optional.empty());
+
+        assertThat(subject.listCurrencies(CGD).currencies()).isEmpty();
+    }
+
+    @Test
+    void listNoticePeriods_forAnUnknownLegalEntity_isEmpty() {
+        when(legalEntityRepository.findByCode(CGD)).thenReturn(Optional.empty());
+
+        assertThat(subject.listNoticePeriods(CGD, "EUR").noticePeriods()).isEmpty();
+    }
+
+    @Test
+    void listNoticePeriods_forARemoteClient_isEmptyForAnInactiveHubCurrency() {
+        givenCgdRemoteClient(Set.of(NoticePeriod._24H), Set.of(NoticePeriod._24H));
+        when(managedCurrencyRepository.findByCode("EUR"))
+                .thenReturn(Optional.of(new ManagedCurrency(
+                        "EUR", false, new BigDecimal("500000"), new BigDecimal("100000"), EnumSet.noneOf(Tenor.class), EnumSet.of(NoticePeriod._24H))));
+
+        assertThat(subject.listNoticePeriods(CGD, "EUR").noticePeriods()).isEmpty();
+    }
+
+    private void givenCgdRemoteClient(Set<NoticePeriod> granted, Set<NoticePeriod> clientEnabled) {
+        LegalEntity loc = LegalEntity.tradingHub(LOC, new com.mmx.order.domain.model.OrganisationCode("LODH"));
+        LegalEntity cgd = LegalEntity.tradingClient(CGD, new com.mmx.order.domain.model.OrganisationCode("CGEG"), loc);
+        when(legalEntityRepository.findByCode(CGD)).thenReturn(Optional.of(cgd));
+        lenient().when(delegatedGrantRepository.findByClientLegalEntityCode(CGD))
+                .thenReturn(List.of(new DelegatedInstitutionGrant("BNP", CGD, "EUR", EnumSet.noneOf(Tenor.class), EnumSet.copyOf(granted), true)));
+        institutionRepository.put(
+                Institution.onboardFromGrant(
+                        "HVL-01", "BNP via LOC", new HubInstitutionLink(LOC, "BNP"), CGD, CounterpartyAccounts.of(null, "CGD-BNP-OC")));
+        clientEnablementRepository.save(CGD, new ClientEnablement("HVL-01", "EUR", Set.of(), clientEnabled));
+        lenient().when(onCallRateRepository.findOpenSegmentsByCurrencyAndNoticePeriod(org.mockito.ArgumentMatchers.eq("EUR"), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(List.of());
+    }
+
+    private static ManagedCurrency activeTermOnlyCurrency(String code) {
+        // The hub's own OnCall enablement is irrelevant to a client; only its active flag matters.
+        return new ManagedCurrency(
+                code, true, new BigDecimal("500000"), new BigDecimal("100000"), EnumSet.of(Tenor._3M), EnumSet.noneOf(NoticePeriod.class));
+    }
+
+    private static OnCallRateSegment segment(String institutionCode, NoticePeriod noticePeriod, String rate, OnCallRateSegmentStatus status) {
+        return new OnCallRateSegment(
+                UUID.randomUUID(),
+                new OnCallCurveKey(institutionCode, "EUR", noticePeriod),
+                new BigDecimal(rate),
+                LocalDate.of(2026, 6, 1),
+                OnCallRateSegment.NO_END_DATE,
+                status,
+                null);
     }
 
     private void givenParClient() {

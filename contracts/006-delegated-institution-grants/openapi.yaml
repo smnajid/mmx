@@ -95,6 +95,8 @@ paths:
                   $ref: "#/components/schemas/DelegatedGrantResponse"
         "403":
           $ref: "#/components/responses/ForbiddenError"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
 
   /api/v1/settings/delegated-grants/{hubInstitutionCode}/{clientLegalEntityCode}/{currency}:
     get:
@@ -258,6 +260,12 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/GrantErrorResponse"
+    ServiceUnavailable:
+      description: A TradingClient deployment could not read hub reference data (hub unreachable, timed out, credential rejected, or non-success response).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/GrantErrorResponse"
 
   schemas:
     TenorCode:
@@ -353,6 +361,7 @@ components:
         - GRANT_NOT_FOUND
         - DUPLICATE_GRANT
         - UNAUTHORIZED
+        - HUB_REFERENCE_DATA_UNAVAILABLE
 
     GrantErrorResponse:
       type: object

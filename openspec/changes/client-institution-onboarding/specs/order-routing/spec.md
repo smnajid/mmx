@@ -114,6 +114,10 @@ For a remote TradingClient, the client deployment SHALL store **no hub-owned ref
 - **At the hub:** the hub deployment's in-process grant check at leg-A accept SHALL remain the **one true validation** of the grant.
 - **On the wire:** the leg-A request SHALL carry the hub-native institution code linked to the onboarded institution.
 
+The hub deployment SHALL serve, to a transport-proven client, the rate reads order creation needs: the **latest Term rate per institution** for a `(currency, tenor)`, the **open OnCall segments** (`VALID` or `PENDING_CONFIRMATION`) for a `(currency, noticePeriod)`, and the **OnCall segments covering a `valueDate`** for a `(currency, noticePeriod)`. Every cross-org rate read — these and the Term rate sheet for a trading date — SHALL return only rows whose `(institution, currency)` is covered by an active delegated grant to the proven client. Rate definitions SHALL be the hub's own (latest uploaded Term rate; OnCall segment status `VALID` or `PENDING_CONFIRMATION`).
+
+A failed remote read (hub unreachable, timeout, credential rejected, or any non-success response) SHALL be reported by the client deployment as unavailable (`503 Service Unavailable` on its own API), never as an empty result.
+
 #### Scenario: A remote client reads reference data live from the hub
 
 - **WHEN** a CGD ClientRepresentative opens the order-creation form
@@ -133,6 +137,26 @@ For a remote TradingClient, the client deployment SHALL store **no hub-owned ref
 
 - **WHEN** CGD holds a grant for `SG` at `LOC` but has not onboarded `SG`, and Portfolio Management submits a CGD order on `SG`
 - **THEN** the client-side order is `REJECTED` with a routing-failure reason and no leg-A request is sent
+
+#### Scenario: Hub rate reads are scoped to the proven client's grants
+
+- **WHEN** LODH has EUR/3M Term rates for BNP and SGFR and CGD holds an active grant only for `(BNP, EUR)`
+- **THEN** a cross-org latest-Term-rate read for EUR/3M authenticated as CGD returns BNP's rate only
+
+#### Scenario: Term rate sheet is scoped to the proven client's grants
+
+- **WHEN** LODH's rate sheet for 2026-10-02 holds rows for BNP and SGFR in EUR and CGD holds an active grant only for `(BNP, EUR)`
+- **THEN** `GET /api/v1/cross-org/reference/term-rates?tradingDate=2026-10-02` authenticated as CGD returns only the BNP EUR rows
+
+#### Scenario: Hub OnCall segments are served to the remote client
+
+- **WHEN** LODH's BNP has a PENDING_CONFIRMATION open segment for EUR/24H and CGD holds an active grant for `(BNP, EUR)`
+- **THEN** the cross-org open-OnCall-segments read for EUR/24H authenticated as CGD returns that segment
+
+#### Scenario: Unreachable hub is not an empty answer
+
+- **WHEN** CGEG's read of LODH's currencies, institutions, grants or rates times out
+- **THEN** the CGEG endpoint that needed it returns `503 Service Unavailable` instead of `200` with an empty list
 
 ---
 

@@ -1,10 +1,4 @@
-# pm-order-creation-options Specification
-
-## Purpose
-
-Read-only REST API exposing available order creation options for the Portfolio Management wizard. Endpoints under `/api/v1/order-creation/` return currencies, operations (with minimum amounts), tenors/notice periods, and counterparties with rates — filtered at each step so only combinations with at least one available counterparty are presented. Includes contract-info lookup for OnCall lifecycle operations.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Term currencies filtered by counterparty availability
 
@@ -85,33 +79,6 @@ For a **TradingClient**, a currency is included when the hub's managed currency 
 
 - **WHEN** the PM requests oncall currencies without `legalEntityCode`
 - **THEN** the system returns `400 Bad Request`
-
----
-
-### Requirement: Term operations return allowed operations with minimum amounts
-
-`GET /api/v1/order-creation/term/operations?currency={currency}` SHALL return the operations allowed for Term orders with the minimum amount for each operation. For Term, only SUBSCRIPTION is allowed. The minimum amount SHALL come from `ManagedCurrency.minSubscriptionAmount` for the given currency.
-
-#### Scenario: Term operations for a valid currency
-
-- **WHEN** the PM requests term operations for currency EUR with minSubscriptionAmount 500000
-- **THEN** the response contains exactly one entry: operation SUBSCRIPTION with minAmount 500000
-
-#### Scenario: Term operations for unknown currency returns empty
-
-- **WHEN** the PM requests term operations for currency XYZ which is not in the managed catalog
-- **THEN** the response returns an error or empty result
-
----
-
-### Requirement: OnCall operations return allowed operations with minimum amounts
-
-`GET /api/v1/order-creation/oncall/operations?currency={currency}` SHALL return the operations allowed for OnCall orders with the minimum amount for each. SUBSCRIPTION uses `minSubscriptionAmount`; INCREASE, DECREASE, and REDEMPTION use `minIncreaseDecreaseAmount`. The PM application filters which operations to show based on its context (portfolio-only → SUBSCRIPTION; portfolio+contract → INCREASE, DECREASE, REDEMPTION).
-
-#### Scenario: OnCall operations for a valid currency
-
-- **WHEN** the PM requests oncall operations for currency EUR with minSubscriptionAmount 500000 and minIncreaseDecreaseAmount 100000
-- **THEN** the response contains four entries: SUBSCRIPTION (min 500000), INCREASE (min 100000), DECREASE (min 100000), REDEMPTION (min 100000)
 
 ---
 
@@ -241,80 +208,7 @@ For a **TradingClient**, a notice period is included when at least one of the cl
 - **WHEN** the PM requests oncall counterparties without `legalEntityCode`
 - **THEN** the system returns `400 Bad Request`
 
----
-
-### Requirement: Contract-info lookup for OnCall lifecycle operations
-
-`GET /api/v1/order-creation/oncall/contract-info?contractNumber={contractNumber}` SHALL look up the original executed Subscription order in mmx by `generatedContractNumber` and return the order's `currency`, `noticePeriod`, `institutionCode`, and `counterparty` (display name from the executed subscription). The system SHALL return 404 when no matching executed Subscription order is found.
-
-#### Scenario: Valid contract number returns currency, notice period, and institution
-
-- **WHEN** the PM requests contract info for CT-00042 and an executed OnCall Subscription order exists with generatedContractNumber CT-00042, currency EUR, noticePeriod 24H, institutionCode BNKCO, and counterparty BankCo
-- **THEN** the response contains currency EUR, noticePeriod 24H, institutionCode BNKCO, and counterparty BankCo
-
-#### Scenario: Unknown contract number returns 404
-
-- **WHEN** the PM requests contract info for CT-99999 and no executed Subscription order has that contract number
-- **THEN** the system returns 404
-
-#### Scenario: Non-subscription order is not matched
-
-- **WHEN** the PM requests contract info for CT-00043 and the only order with that contract number is an executed Increase (not a Subscription)
-- **THEN** the system returns 404 (only original Subscription allocations are matched)
-
----
-
----
-
-### Requirement: Live contracts listing for a portfolio
-
-`GET /api/v1/order-creation/contracts?portfolioNumber={portfolioNumber}&orderType={orderType}` SHALL return the **live** contracts for the given portfolio and order type. A contract is materialised by an **executed Subscription** order (its `generatedContractNumber`). Both `portfolioNumber` and `orderType` (`TERM` or `ON_CALL`) are required. Each returned `LiveContract` SHALL include `contractNumber`, `orderType`, `currency`, `valueDate`, and `originalAmount`; OnCall entries SHALL include `noticePeriod`; Term entries SHALL include `tenor` and `endDate`. The endpoint SHALL NOT require an `X-Trader-Id` header.
-
-#### Scenario: OnCall contract with no redemption is live
-
-- **WHEN** portfolio PF-001 has an executed OnCall Subscription with generatedContractNumber CT-00042 and no redemption order references CT-00042
-- **AND** the PM requests `contracts?portfolioNumber=PF-001&orderType=ON_CALL`
-- **THEN** the response includes CT-00042 with its currency and noticePeriod
-
-#### Scenario: OnCall contract with an existing redemption is excluded
-
-- **WHEN** portfolio PF-001 has an executed OnCall Subscription CT-00042 and a redemption order (received or executed, not cancelled) with sourceContractNumber CT-00042
-- **THEN** the response does not include CT-00042
-
-#### Scenario: Term contract whose end date is in the future is live
-
-- **WHEN** portfolio PF-001 has an executed Term Subscription CT-00100 with valueDate 2026-06-01 and tenor 3M (end date 2026-09-01) and today is 2026-06-13
-- **AND** the PM requests `contracts?portfolioNumber=PF-001&orderType=TERM`
-- **THEN** the response includes CT-00100 with tenor 3M and endDate 2026-09-01
-
-#### Scenario: Request without X-Trader-Id succeeds
-
-- **WHEN** the PM system calls the contracts endpoint without an X-Trader-Id header
-- **THEN** the request succeeds (200) with the live contracts data
-
----
-
-### Requirement: Order creation API is contract-first
-
-All endpoints under `/api/v1/order-creation/` SHALL be defined in the canonical OpenAPI (`contracts/002-trader-orders-views/openapi.yaml`) under tag `OrderCreation`. Prose mirror `api-v1.md` SHALL match. Generated server interfaces and controller implementation MUST align with the published contract. The surface comprises **ten** GET operations: currencies (term, oncall), operations (term, oncall), tenors (term), notice-periods (oncall), counterparties (term, oncall), contract-info (oncall), and live contracts listing.
-
-#### Scenario: OpenAPI documents all order creation endpoints
-
-- **WHEN** a consumer reads the OpenAPI specification
-- **THEN** ten GET operations are defined under `/api/v1/order-creation/`, including `contracts` with `LiveContract` / `LiveContractsResponse` schemas alongside the existing currency, operation, tenor, notice-period, counterparty, and contract-info operations
-
----
-
-### Requirement: No authentication required for order creation options
-
-Order creation endpoints SHALL NOT require `X-Trader-Id` header. They are consumed by the external Portfolio Management system, not by traders.
-
-#### Scenario: Request without X-Trader-Id succeeds
-
-- **WHEN** the PM system calls any order creation endpoint without X-Trader-Id header
-- **THEN** the request succeeds (200) with the appropriate options data
-
----
+## ADDED Requirements
 
 ### Requirement: Unreachable hub reference data is reported as unavailable
 

@@ -159,7 +159,9 @@ paths:
     get:
       tags: [CrossOrgReferenceData]
       summary: List this hub's Term rates for a trading day
-      description: Live Term rate sheet for the thin remote client's order-form rate display.
+      description: |
+        Live Term rate sheet for the thin remote client's order-form rate display. Rows are restricted
+        to `(institution, currency)` pairs covered by an active delegated grant to the proven client.
       operationId: listCrossOrgTermRates
       parameters:
         - name: tradingDate
@@ -177,6 +179,87 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/CrossOrgTermRateResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+
+  /api/v1/cross-org/reference/term-rates/latest:
+    get:
+      tags: [CrossOrgReferenceData]
+      summary: Latest Term rate per institution for a currency and tenor
+      description: |
+        The most recent uploaded Term rate per hub institution for `(currency, tenor)`, restricted to
+        `(institution, currency)` pairs covered by an active delegated grant to the proven client.
+        Tenor permission is evaluated on the client via effective enablement.
+      operationId: listCrossOrgLatestTermRates
+      parameters:
+        - name: currency
+          in: query
+          required: true
+          schema:
+            type: string
+            pattern: "^[A-Z]{3}$"
+        - name: tenor
+          in: query
+          required: true
+          schema:
+            $ref: "#/components/schemas/TenorCode"
+      responses:
+        "200":
+          description: One rate per granted institution that has one (may be empty)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CrossOrgTermRateResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+
+  /api/v1/cross-org/reference/oncall-segments:
+    get:
+      tags: [CrossOrgReferenceData]
+      summary: OnCall rate segments for a currency and notice period
+      description: |
+        Without `valueDate`: the open segments (`VALID` or `PENDING_CONFIRMATION`). With `valueDate`:
+        the segments covering that date (`valueDate <= requested <= endDate`, status `VALID` or
+        `PENDING_CONFIRMATION`). Restricted to `(institution, currency)` pairs covered by an active
+        delegated grant to the proven client.
+      operationId: listCrossOrgOnCallSegments
+      parameters:
+        - name: currency
+          in: query
+          required: true
+          schema:
+            type: string
+            pattern: "^[A-Z]{3}$"
+        - name: noticePeriod
+          in: query
+          required: true
+          schema:
+            $ref: "#/components/schemas/NoticePeriodCode"
+        - name: valueDate
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Matching segments of granted institutions (may be empty)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CrossOrgOnCallSegmentResponse"
         "400":
           $ref: "#/components/responses/ValidationError"
         "401":
@@ -452,6 +535,39 @@ components:
           type: number
           format: double
           exclusiveMinimum: 0
+
+    CrossOrgOnCallSegmentResponse:
+      type: object
+      required:
+        - institutionCode
+        - currency
+        - noticePeriod
+        - rate
+        - valueDate
+        - endDate
+        - status
+      properties:
+        institutionCode:
+          type: string
+          maxLength: 32
+        currency:
+          type: string
+          pattern: "^[A-Z]{3}$"
+        noticePeriod:
+          $ref: "#/components/schemas/NoticePeriodCode"
+        rate:
+          type: number
+          format: double
+          exclusiveMinimum: 0
+        valueDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        status:
+          type: string
+          enum: [PENDING_CONFIRMATION, VALID]
 
     CrossOrgGrantResponse:
       type: object

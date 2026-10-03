@@ -70,14 +70,14 @@ public class OrderCreationOptionsController implements OrderCreationApi {
     }
 
     @Override
-    public ResponseEntity<TermCurrenciesResponse> listTermCurrencies() {
-        return ResponseEntity.ok(mapper.toTermCurrenciesResponse(listTermCurrenciesUseCase.listCurrencies()));
+    public ResponseEntity<TermCurrenciesResponse> listTermCurrencies(String legalEntityCode) {
+        return ResponseEntity.ok(mapper.toTermCurrenciesResponse(listTermCurrenciesUseCase.listCurrencies(new LegalEntityCode(legalEntityCode))));
     }
 
     @Override
-    public ResponseEntity<OnCallCurrenciesResponse> listOnCallCurrencies() {
+    public ResponseEntity<OnCallCurrenciesResponse> listOnCallCurrencies(String legalEntityCode) {
         return ResponseEntity.ok(
-                mapper.toOnCallCurrenciesResponse(listOnCallCurrenciesUseCase.listCurrencies()));
+                mapper.toOnCallCurrenciesResponse(listOnCallCurrenciesUseCase.listCurrencies(new LegalEntityCode(legalEntityCode))));
     }
 
     @Override
@@ -93,14 +93,14 @@ public class OrderCreationOptionsController implements OrderCreationApi {
     }
 
     @Override
-    public ResponseEntity<TenorsResponse> listTermTenors(String currency) {
-        return ResponseEntity.ok(mapper.toTenorsResponse(listTermTenorsUseCase.listTenors(currency)));
+    public ResponseEntity<TenorsResponse> listTermTenors(String legalEntityCode, String currency) {
+        return ResponseEntity.ok(mapper.toTenorsResponse(listTermTenorsUseCase.listTenors(new LegalEntityCode(legalEntityCode), currency)));
     }
 
     @Override
-    public ResponseEntity<NoticePeriodsResponse> listOnCallNoticePeriods(String currency) {
+    public ResponseEntity<NoticePeriodsResponse> listOnCallNoticePeriods(String legalEntityCode, String currency) {
         return ResponseEntity.ok(
-                mapper.toNoticePeriodsResponse(listOnCallNoticePeriodsUseCase.listNoticePeriods(currency)));
+                mapper.toNoticePeriodsResponse(listOnCallNoticePeriodsUseCase.listNoticePeriods(new LegalEntityCode(legalEntityCode), currency)));
     }
 
     @Override

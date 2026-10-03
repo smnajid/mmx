@@ -1,5 +1,6 @@
 import { Component, inject, OnInit, output, signal } from '@angular/core';
 import { WizardApiService } from '../services/wizard-api.service';
+import { WizardHostConfigService } from '../services/wizard-host-config.service';
 import { WizardStateService } from '../services/wizard-state.service';
 
 @Component({
@@ -108,6 +109,7 @@ import { WizardStateService } from '../services/wizard-state.service';
 export class StepCurrencyComponent implements OnInit {
   private readonly wizardState = inject(WizardStateService);
   private readonly api = inject(WizardApiService);
+  private readonly hostConfig = inject(WizardHostConfigService);
 
   readonly stepComplete = output<void>();
 
@@ -131,8 +133,11 @@ export class StepCurrencyComponent implements OnInit {
     this.error.set(null);
     this.currencies.set([]);
 
+    const legalEntityCode = this.hostConfig.legalEntityCode;
     const request$ =
-      orderType === 'TERM' ? this.api.listTermCurrencies() : this.api.listOnCallCurrencies();
+      orderType === 'TERM'
+        ? this.api.listTermCurrencies(legalEntityCode)
+        : this.api.listOnCallCurrencies(legalEntityCode);
 
     request$.subscribe({
       next: (response) => {

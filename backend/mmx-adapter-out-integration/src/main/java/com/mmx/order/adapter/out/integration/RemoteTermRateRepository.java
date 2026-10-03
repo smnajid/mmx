@@ -41,12 +41,18 @@ public final class RemoteTermRateRepository implements TermRateRepository {
 
     @Override
     public List<TermRateAuditRow> findLatestRatePerInstitution(String currency, Tenor tenor) {
-        return List.of();
+        String path = "/api/v1/cross-org/reference/term-rates/latest?currency=" + currency
+                + "&tenor=" + tenor.getCode();
+        return RemoteReferenceDataHttp.getList(ctx, path, TermRateDto.class).stream()
+                .map(TermRateDto::toDomain)
+                .toList();
     }
 
+    /** Hub-only query: a client derives its currencies per enabled term, so a silent empty here would hide a bug. */
     @Override
     public List<String> findDistinctCurrenciesWithTermRates() {
-        return List.of();
+        throw new UnsupportedOperationException(
+                "Remote-backed TermRateRepository has no hub-wide currency listing; clients read per (currency, tenor)");
     }
 
     @Override

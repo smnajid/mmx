@@ -52,7 +52,7 @@ class OrderCreationOptionsRestApiIntegrationTest {
                 """
                         .formatted(segmentStart, RestTestInstitutions.BANKCO_CODE));
 
-        HttpResponse<String> res = getWithoutTraderHeader("/api/v1/order-creation/term/currencies");
+        HttpResponse<String> res = getWithoutTraderHeader("/api/v1/order-creation/term/currencies?legalEntityCode=LOC");
         assertThat(res.statusCode()).isEqualTo(200);
         JsonNode body = objectMapper.readTree(res.body());
         assertThat(body.path("currencies").isArray()).isTrue();
@@ -64,6 +64,15 @@ class OrderCreationOptionsRestApiIntegrationTest {
             }
         }
         assertThat(hasEur).isTrue();
+    }
+
+    @Test
+    void theFourListEndpoints_rejectAMissingLegalEntityCode() throws Exception {
+        assertThat(getWithoutTraderHeader("/api/v1/order-creation/term/currencies").statusCode()).isEqualTo(400);
+        assertThat(getWithoutTraderHeader("/api/v1/order-creation/oncall/currencies").statusCode()).isEqualTo(400);
+        assertThat(getWithoutTraderHeader("/api/v1/order-creation/term/tenors?currency=EUR").statusCode()).isEqualTo(400);
+        assertThat(getWithoutTraderHeader("/api/v1/order-creation/oncall/notice-periods?currency=EUR").statusCode())
+                .isEqualTo(400);
     }
 
     @Test
@@ -161,9 +170,9 @@ class OrderCreationOptionsRestApiIntegrationTest {
                 """
                         .formatted(segmentStart, RestTestInstitutions.BANKCO_CODE));
 
-        assertThat(getWithoutTraderHeader("/api/v1/order-creation/term/currencies").statusCode())
+        assertThat(getWithoutTraderHeader("/api/v1/order-creation/term/currencies?legalEntityCode=LOC").statusCode())
                 .isEqualTo(200);
-        assertThat(getWithoutTraderHeader("/api/v1/order-creation/oncall/currencies").statusCode())
+        assertThat(getWithoutTraderHeader("/api/v1/order-creation/oncall/currencies?legalEntityCode=LOC").statusCode())
                 .isEqualTo(200);
         assertThat(getWithoutTraderHeader("/api/v1/order-creation/term/operations?currency=EUR")
                         .statusCode())

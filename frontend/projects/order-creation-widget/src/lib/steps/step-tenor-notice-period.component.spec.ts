@@ -7,6 +7,7 @@ import {
 import { WizardStepId } from '../models/wizard-state.model';
 import { WizardApiService } from '../services/wizard-api.service';
 import { WizardStateService } from '../services/wizard-state.service';
+import { WizardHostConfigService } from '../services/wizard-host-config.service';
 import { ORDER_CREATION_API_BASE_URL } from '../tokens/order-creation-api-base-url.token';
 import { StepTenorNoticePeriodComponent } from './step-tenor-notice-period.component';
 
@@ -25,6 +26,7 @@ describe('StepTenorNoticePeriodComponent', () => {
         { provide: ORDER_CREATION_API_BASE_URL, useValue: apiBaseUrl },
         WizardApiService,
         WizardStateService,
+        { provide: WizardHostConfigService, useValue: { legalEntityCode: 'LOC', apiBaseUrl: '' } },
       ],
     }).compileComponents();
 
@@ -46,7 +48,7 @@ describe('StepTenorNoticePeriodComponent', () => {
     fixture.detectChanges();
 
     http
-      .expectOne(`${apiBaseUrl}/api/v1/order-creation/term/tenors?currency=EUR`)
+      .expectOne(`${apiBaseUrl}/api/v1/order-creation/term/tenors?legalEntityCode=LOC&currency=EUR`)
       .flush({ tenors: ['1M', '3M'] });
     fixture.detectChanges();
 
@@ -64,7 +66,7 @@ describe('StepTenorNoticePeriodComponent', () => {
     fixture.detectChanges();
 
     http
-      .expectOne(`${apiBaseUrl}/api/v1/order-creation/oncall/notice-periods?currency=EUR`)
+      .expectOne(`${apiBaseUrl}/api/v1/order-creation/oncall/notice-periods?legalEntityCode=LOC&currency=EUR`)
       .flush({ noticePeriods: ['24H', '48H'] });
     fixture.detectChanges();
 
@@ -78,7 +80,7 @@ describe('StepTenorNoticePeriodComponent', () => {
     fixture.detectChanges();
 
     expect(fixture.nativeElement.querySelector('[data-testid="tenor-skipped"]')).toBeTruthy();
-    http.expectNone(`${apiBaseUrl}/api/v1/order-creation/oncall/notice-periods?currency=EUR`);
+    http.expectNone(`${apiBaseUrl}/api/v1/order-creation/oncall/notice-periods?legalEntityCode=LOC&currency=EUR`);
   });
 
   it('selecting a tenor updates state and emits navigation', () => {
@@ -91,7 +93,7 @@ describe('StepTenorNoticePeriodComponent', () => {
     fixture.detectChanges();
 
     http
-      .expectOne(`${apiBaseUrl}/api/v1/order-creation/term/tenors?currency=EUR`)
+      .expectOne(`${apiBaseUrl}/api/v1/order-creation/term/tenors?legalEntityCode=LOC&currency=EUR`)
       .flush({ tenors: ['3M'] });
     fixture.detectChanges();
 
@@ -115,7 +117,7 @@ describe('StepTenorNoticePeriodComponent', () => {
     fixture.detectChanges();
 
     http
-      .expectOne(`${apiBaseUrl}/api/v1/order-creation/oncall/notice-periods?currency=EUR`)
+      .expectOne(`${apiBaseUrl}/api/v1/order-creation/oncall/notice-periods?legalEntityCode=LOC&currency=EUR`)
       .flush({ noticePeriods: ['48H'] });
     fixture.detectChanges();
 

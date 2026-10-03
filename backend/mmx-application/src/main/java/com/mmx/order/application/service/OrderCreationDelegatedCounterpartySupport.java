@@ -4,10 +4,13 @@ import com.mmx.order.application.ordercreation.OrderCreationCounterparty;
 import com.mmx.order.application.port.out.ClientEnablementRepository;
 import com.mmx.order.application.port.out.DelegatedGrantRepository;
 import com.mmx.order.application.port.out.InstitutionRepository;
+import com.mmx.order.application.port.out.ManagedCurrencyRepository;
 import com.mmx.order.domain.model.DelegatedInstitutionGrant;
 import com.mmx.order.domain.model.EffectiveEnablement;
 import com.mmx.order.domain.model.Institution;
+import com.mmx.order.domain.model.LegalEntity;
 import com.mmx.order.domain.model.LegalEntityCode;
+import com.mmx.order.domain.model.ManagedCurrency;
 import com.mmx.order.domain.model.OrderOperation;
 import com.mmx.order.domain.model.OrderType;
 import com.mmx.order.domain.policy.OrderAgainstInstitutionPolicy;
@@ -20,7 +23,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /**
@@ -38,6 +44,51 @@ final class OrderCreationDelegatedCounterpartySupport {
 
     private OrderCreationDelegatedCounterpartySupport() {}
 
+    /** Runs the branch for the LegalEntity's role, or returns {@code unknown} when the LegalEntity does not exist. */
+    static <R> R byRole(Optional<LegalEntity> legalEntity, R unknown, Supplier<R> forClient, Supplier<R> forHub) {
+        if (legalEntity.isEmpty()) {
+            return unknown;
+        }
+        return legalEntity.get().isTradingClient() ? forClient.get() : forHub.get();
+    }
+
+    /** Codes of the active managed currencies that {@code offered} accepts, sorted. */
+    static List<String> offeredCurrencies(ManagedCurrencyRepository managedCurrencyRepository, Predicate<ManagedCurrency> offered) {
+        return managedCurrencyRepository.findAll().stream()
+                .filter(ManagedCurrency::isActive)
+                .filter(offered)
+                .map(ManagedCurrency::getCode)
+                .sorted()
+                .toList();
+    }
+
+    /**
+     * The terms (tenors, or notice periods) a TradingClient may order: some candidate's effective enablement
+     * includes the term and its linked hub institution holds one of the hub's quotes for it. Sorted by
+     * {@code byCode}.
+     */
+    static <T> List<T> clientTerms(
+            List<ClientCandidate> candidates,
+            Function<EffectiveEnablement, Set<T>> termsOf,
+            Function<T, List<RateQuote>> hubQuotesFor,
+            OrderType orderType,
+            InstitutionRepository institutionRepository,
+            Comparator<T> byCode) {
+        return candidates.stream()
+                .flatMap(candidate -> termsOf.apply(candidate.effective()).stream())
+                .distinct()
+                .filter(
+                        term ->
+                                anyCandidateHasQuote(
+                                        candidates,
+                                        effective -> termsOf.apply(effective).contains(term),
+                                        hubQuotesFor.apply(term),
+                                        orderType,
+                                        institutionRepository))
+                .sorted(byCode)
+                .toList();
+    }
+
     static List<OrderCreationCounterparty> forHub(
             OrderType orderType, List<RateQuote> quotes, InstitutionRepository institutionRepository, LocalDate today) {
         List<OrderCreationCounterparty> counterparties = new ArrayList<>();
@@ -50,6 +101,56 @@ final class OrderCreationDelegatedCounterpartySupport {
         return sortedByBestRate(counterparties);
     }
 
+    /** An onboarded institution of a TradingClient that is open for new business, with its effective enablement. */
+    record ClientCandidate(Institution onboarded, String hubInstitutionCode, EffectiveEnablement effective) {}
+
+    /**
+     * The client's onboarded institutions open to new business with the OrderType's counterparty account, each
+     * with its {@link EffectiveEnablement} for the currency, in onboarding order.
+     */
+    static List<ClientCandidate> clientCandidates(
+            LegalEntityCode clientCode,
+            String currency,
+            OrderType orderType,
+            DelegatedGrantRepository grantRepository,
+            InstitutionRepository institutionRepository,
+            ClientEnablementRepository clientEnablementRepository) {
+        Map<String, DelegatedInstitutionGrant> grantsByHubInstitution =
+                grantRepository.findByClientLegalEntityCode(clientCode).stream()
+                        .filter(grant -> grant.getCurrency().equals(currency))
+                        .collect(Collectors.toMap(DelegatedInstitutionGrant::getHubInstitutionCode, g -> g, (a, b) -> a));
+        List<ClientCandidate> candidates = new ArrayList<>();
+        for (Institution onboarded : institutionRepository.findOnboardedByLegalEntityCode(clientCode)) {
+            if (!isOpenWithAccount(onboarded, orderType)) {
+                continue;
+            }
+            String hubInstitutionCode = onboarded.getHubLink().orElseThrow().hubInstitutionCode();
+            EffectiveEnablement effective =
+                    EffectiveEnablement.of(
+                            Optional.ofNullable(grantsByHubInstitution.get(hubInstitutionCode)),
+                            clientEnablementRepository.find(onboarded.getInstitutionCode(), currency));
+            candidates.add(new ClientCandidate(onboarded, hubInstitutionCode, effective));
+        }
+        return candidates;
+    }
+
+    /**
+     * Whether some candidate permits the term and its linked hub institution holds one of the hub's quotes for
+     * it (and, for a same-Organisation client, admits the order type).
+     */
+    static boolean anyCandidateHasQuote(
+            List<ClientCandidate> candidates,
+            Predicate<EffectiveEnablement> permitsTerm,
+            List<RateQuote> hubQuotes,
+            OrderType orderType,
+            InstitutionRepository institutionRepository) {
+        Set<String> quotedHubInstitutions = hubQuotes.stream().map(RateQuote::hubInstitutionCode).collect(Collectors.toSet());
+        return candidates.stream()
+                .filter(candidate -> permitsTerm.test(candidate.effective()))
+                .filter(candidate -> quotedHubInstitutions.contains(candidate.hubInstitutionCode()))
+                .anyMatch(candidate -> linkedHubInstitutionAdmits(candidate.hubInstitutionCode(), orderType, institutionRepository));
+    }
+
     static List<OrderCreationCounterparty> forClient(
             LegalEntityCode clientCode,
             String currency,
@@ -60,19 +161,11 @@ final class OrderCreationDelegatedCounterpartySupport {
             InstitutionRepository institutionRepository,
             ClientEnablementRepository clientEnablementRepository,
             LocalDate today) {
-        Map<String, DelegatedInstitutionGrant> grantsByHubInstitution =
-                grantRepository.findByClientLegalEntityCode(clientCode).stream()
-                        .filter(grant -> grant.getCurrency().equals(currency))
-                        .collect(Collectors.toMap(DelegatedInstitutionGrant::getHubInstitutionCode, g -> g, (a, b) -> a));
         Map<String, Institution> onboardedByHub = new HashMap<>();
-        for (Institution onboarded : institutionRepository.findOnboardedByLegalEntityCode(clientCode)) {
-            String hubInstitutionCode = onboarded.getHubLink().orElseThrow().hubInstitutionCode();
-            EffectiveEnablement effective =
-                    EffectiveEnablement.of(
-                            Optional.ofNullable(grantsByHubInstitution.get(hubInstitutionCode)),
-                            clientEnablementRepository.find(onboarded.getInstitutionCode(), currency));
-            if (isOpenWithAccount(onboarded, orderType) && permitsTerm.test(effective)) {
-                onboardedByHub.putIfAbsent(hubInstitutionCode, onboarded);
+        for (ClientCandidate candidate :
+                clientCandidates(clientCode, currency, orderType, grantRepository, institutionRepository, clientEnablementRepository)) {
+            if (permitsTerm.test(candidate.effective())) {
+                onboardedByHub.putIfAbsent(candidate.hubInstitutionCode(), candidate.onboarded());
             }
         }
 

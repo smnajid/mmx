@@ -17,6 +17,8 @@ active `(LegalEntity, role)` comes from the session scope. Institution export (a
 | PUT | `/api/v1/settings/institutions/{institutionCode}/counterparty-accounts` | `updateCounterpartyAccounts` | Replace the Term and OnCall counterparty accounts |
 | PUT | `/api/v1/settings/institutions/{institutionCode}/enablement/{currency}` | `updateClientEnablement` | ClientRepresentative: replace the client enablement for one currency |
 
+**`503 Service Unavailable`** (`listGrantedInstitutions`, `onboardInstitution`, `updateClientEnablement`): on a TradingClient deployment whose hub is remote, a failed read of hub data (grants, hub institution catalog) returns `503` with body `{error: HUB_REFERENCE_DATA_UNAVAILABLE, message}`, never an empty list or a missing grant.
+
 ## InstitutionResponse
 
 - `institutionCode` — system-generated immutable id (`{ACRONYM}-{nn}`)

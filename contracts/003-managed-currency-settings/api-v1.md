@@ -13,6 +13,8 @@ Canonical OpenAPI: [openapi.yaml](./openapi.yaml). All trader operations require
 | POST | `/api/v1/settings/currencies/{code}/disable` | Deactivate |
 | POST | `/api/v1/settings/currencies/{code}/enable` | Reactivate (set `active` true) |
 
+**`503 Service Unavailable`** (`listManagedCurrencies`, `getManagedCurrency`): on a TradingClient deployment whose hub is remote, a failed read of the hub's managed-currency catalog (hub unreachable, timeout, credential rejected, or non-success response) returns `503` with body `{error: HUB_REFERENCE_DATA_UNAVAILABLE, message}`, never an empty list.
+
 ## ManagedCurrencyResponse
 
 - `code`, `active`, `minSubscriptionAmount`, `minIncreaseDecreaseAmount`
