@@ -270,6 +270,23 @@ class OnCallOrderCreationOptionsServiceTest {
         assertThat(subject.listCurrencies(CGD).currencies()).isEmpty();
     }
 
+    @Test
+    void listNoticePeriods_forAnUnknownLegalEntity_isEmpty() {
+        when(legalEntityRepository.findByCode(CGD)).thenReturn(Optional.empty());
+
+        assertThat(subject.listNoticePeriods(CGD, "EUR").noticePeriods()).isEmpty();
+    }
+
+    @Test
+    void listNoticePeriods_forARemoteClient_isEmptyForAnInactiveHubCurrency() {
+        givenCgdRemoteClient(Set.of(NoticePeriod._24H), Set.of(NoticePeriod._24H));
+        when(managedCurrencyRepository.findByCode("EUR"))
+                .thenReturn(Optional.of(new ManagedCurrency(
+                        "EUR", false, new BigDecimal("500000"), new BigDecimal("100000"), EnumSet.noneOf(Tenor.class), EnumSet.of(NoticePeriod._24H))));
+
+        assertThat(subject.listNoticePeriods(CGD, "EUR").noticePeriods()).isEmpty();
+    }
+
     private void givenCgdRemoteClient(Set<NoticePeriod> granted, Set<NoticePeriod> clientEnabled) {
         LegalEntity loc = LegalEntity.tradingHub(LOC, new com.mmx.order.domain.model.OrganisationCode("LODH"));
         LegalEntity cgd = LegalEntity.tradingClient(CGD, new com.mmx.order.domain.model.OrganisationCode("CGEG"), loc);

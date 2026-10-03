@@ -360,6 +360,23 @@ class TermOrderCreationOptionsServiceTest {
         assertThat(subject.listTenors(CGD, "EUR").tenors()).containsExactly(Tenor._3M);
     }
 
+    @Test
+    void listTenors_forAnUnknownLegalEntity_isEmpty() {
+        when(legalEntityRepository.findByCode(CGD)).thenReturn(Optional.empty());
+
+        assertThat(subject.listTenors(CGD, "EUR").tenors()).isEmpty();
+    }
+
+    @Test
+    void listTenors_forARemoteClient_isEmptyForAnInactiveHubCurrency() {
+        givenCgdRemoteClientWithHubRates();
+        when(managedCurrencyRepository.findByCode("EUR"))
+                .thenReturn(Optional.of(new ManagedCurrency(
+                        "EUR", false, new BigDecimal("500000"), new BigDecimal("100000"), EnumSet.of(Tenor._3M), EnumSet.noneOf(NoticePeriod.class))));
+
+        assertThat(subject.listTenors(CGD, "EUR").tenors()).isEmpty();
+    }
+
     private void givenCgdRemoteClientWithHubRates() {
         LegalEntity loc = LegalEntity.tradingHub(LOC, new com.mmx.order.domain.model.OrganisationCode("LODH"));
         LegalEntity cgd = LegalEntity.tradingClient(CGD, new com.mmx.order.domain.model.OrganisationCode("CGEG"), loc);

@@ -6,7 +6,6 @@ import com.mmx.order.application.ordercreation.CounterpartiesResult;
 import com.mmx.order.application.ordercreation.NoticePeriodsResult;
 import com.mmx.order.application.ordercreation.OnCallCurrenciesResult;
 import com.mmx.order.application.ordercreation.OperationsResult;
-import com.mmx.order.application.ordercreation.OrderCreationCounterparty;
 import com.mmx.order.application.ordercreation.OrderCreationOperation;
 import com.mmx.order.application.port.in.GetContractInfoUseCase;
 import com.mmx.order.application.port.in.ListOnCallCounterpartiesUseCase;
@@ -21,7 +20,7 @@ import com.mmx.order.application.port.out.LegalEntityRepository;
 import com.mmx.order.application.port.out.ManagedCurrencyRepository;
 import com.mmx.order.application.port.out.OnCallRateRepository;
 import com.mmx.order.application.port.out.OrderRepository;
-import com.mmx.order.domain.model.LegalEntity;
+import com.mmx.order.domain.model.EffectiveEnablement;
 import com.mmx.order.domain.model.LegalEntityCode;
 import com.mmx.order.domain.model.ManagedCurrency;
 import com.mmx.order.domain.model.NoticePeriod;
@@ -30,12 +29,9 @@ import com.mmx.order.domain.model.OrderOperation;
 import com.mmx.order.domain.model.OrderType;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 
 public final class OnCallOrderCreationOptionsService
@@ -72,32 +68,23 @@ public final class OnCallOrderCreationOptionsService
 
     @Override
     public OnCallCurrenciesResult listCurrencies(LegalEntityCode legalEntityCode) {
-        Optional<LegalEntity> legalEntity = legalEntityRepository.findByCode(legalEntityCode);
-        if (legalEntity.isEmpty()) {
-            return new OnCallCurrenciesResult(List.of());
-        }
-        List<String> currencies;
-        if (legalEntity.get().isTradingClient()) {
-            currencies =
-                    managedCurrencyRepository.findAll().stream()
-                            .filter(ManagedCurrency::isActive)
-                            .map(ManagedCurrency::getCode)
-                            .filter(currency -> !clientNoticePeriods(legalEntityCode, currency).isEmpty())
-                            .sorted()
-                            .toList();
-        } else {
-            Set<String> currenciesWithSegments =
-                    new HashSet<>(onCallRateRepository.findDistinctCurrenciesWithOpenOnCallSegments());
-            currencies =
-                    managedCurrencyRepository.findAll().stream()
-                            .filter(ManagedCurrency::isActive)
-                            .filter(currency -> !currency.getEnabledNoticePeriods().isEmpty())
-                            .map(ManagedCurrency::getCode)
-                            .filter(currenciesWithSegments::contains)
-                            .sorted()
-                            .toList();
-        }
-        return new OnCallCurrenciesResult(currencies);
+        return new OnCallCurrenciesResult(
+                OrderCreationDelegatedCounterpartySupport.byRole(
+                        legalEntityRepository.findByCode(legalEntityCode),
+                        List.of(),
+                        () ->
+                                OrderCreationDelegatedCounterpartySupport.offeredCurrencies(
+                                        managedCurrencyRepository,
+                                        currency -> !clientNoticePeriods(legalEntityCode, currency.getCode()).isEmpty()),
+                        () -> {
+                            Set<String> currenciesWithSegments =
+                                    new HashSet<>(onCallRateRepository.findDistinctCurrenciesWithOpenOnCallSegments());
+                            return OrderCreationDelegatedCounterpartySupport.offeredCurrencies(
+                                    managedCurrencyRepository,
+                                    currency ->
+                                            !currency.getEnabledNoticePeriods().isEmpty()
+                                                    && currenciesWithSegments.contains(currency.getCode()));
+                        }));
     }
 
     @Override
@@ -124,58 +111,44 @@ public final class OnCallOrderCreationOptionsService
 
     @Override
     public NoticePeriodsResult listNoticePeriods(LegalEntityCode legalEntityCode, String currency) {
-        Optional<LegalEntity> legalEntity = legalEntityRepository.findByCode(legalEntityCode);
-        if (legalEntity.isEmpty()) {
-            return new NoticePeriodsResult(List.of());
-        }
-        if (legalEntity.get().isTradingClient()) {
-            return new NoticePeriodsResult(
-                    managedCurrencyRepository
-                            .findByCode(currency)
-                            .filter(ManagedCurrency::isActive)
-                            .map(managed -> clientNoticePeriods(legalEntityCode, managed.getCode()))
-                            .orElseGet(List::of));
-        }
-        return managedCurrencyRepository
-                .findByCode(currency)
-                .map(this::availableNoticePeriodsForCurrency)
-                .orElseGet(() -> new NoticePeriodsResult(List.of()));
+        return new NoticePeriodsResult(
+                OrderCreationDelegatedCounterpartySupport.byRole(
+                        legalEntityRepository.findByCode(legalEntityCode),
+                        List.of(),
+                        () ->
+                                managedCurrencyRepository
+                                        .findByCode(currency)
+                                        .filter(ManagedCurrency::isActive)
+                                        .map(managed -> clientNoticePeriods(legalEntityCode, managed.getCode()))
+                                        .orElseGet(List::of),
+                        () ->
+                                managedCurrencyRepository
+                                        .findByCode(currency)
+                                        .map(this::hubNoticePeriods)
+                                        .orElseGet(List::of)));
     }
 
     /** Notice periods some open onboarded institution may trade (effective enablement) and the hub has an open segment for. */
     private List<NoticePeriod> clientNoticePeriods(LegalEntityCode clientCode, String currency) {
-        List<OrderCreationDelegatedCounterpartySupport.ClientCandidate> candidates =
+        return OrderCreationDelegatedCounterpartySupport.clientTerms(
                 OrderCreationDelegatedCounterpartySupport.clientCandidates(
-                        clientCode, currency, OrderType.ON_CALL, delegatedGrantRepository, institutionRepository, clientEnablementRepository);
-        Set<NoticePeriod> permitted = EnumSet.noneOf(NoticePeriod.class);
-        candidates.forEach(candidate -> permitted.addAll(candidate.effective().noticePeriods()));
-        List<NoticePeriod> noticePeriods = new ArrayList<>();
-        for (NoticePeriod noticePeriod : permitted) {
-            List<RateQuote> hubQuotes =
-                    onCallRateRepository.findOpenSegmentsByCurrencyAndNoticePeriod(currency, noticePeriod).stream()
-                            .map(segment -> new RateQuote(
-                                    segment.getCurveKey().institutionCode(), segment.getRate(), segment.getValueDate()))
-                            .toList();
-            if (OrderCreationDelegatedCounterpartySupport.anyCandidateHasQuote(
-                    candidates, effective -> effective.permits(noticePeriod), hubQuotes, OrderType.ON_CALL, institutionRepository)) {
-                noticePeriods.add(noticePeriod);
-            }
-        }
-        noticePeriods.sort(Comparator.comparing(NoticePeriod::getCode));
-        return noticePeriods;
+                        clientCode, currency, OrderType.ON_CALL, delegatedGrantRepository, institutionRepository, clientEnablementRepository),
+                EffectiveEnablement::noticePeriods,
+                noticePeriod -> quotesOf(onCallRateRepository.findOpenSegmentsByCurrencyAndNoticePeriod(currency, noticePeriod)),
+                OrderType.ON_CALL,
+                institutionRepository,
+                Comparator.comparing(NoticePeriod::getCode));
     }
 
-    private NoticePeriodsResult availableNoticePeriodsForCurrency(ManagedCurrency managed) {
-        List<NoticePeriod> noticePeriods = new ArrayList<>();
-        for (NoticePeriod noticePeriod : managed.getEnabledNoticePeriods()) {
-            if (!onCallRateRepository
-                    .findOpenSegmentsByCurrencyAndNoticePeriod(managed.getCode(), noticePeriod)
-                    .isEmpty()) {
-                noticePeriods.add(noticePeriod);
-            }
-        }
-        noticePeriods.sort(Comparator.comparing(NoticePeriod::getCode));
-        return new NoticePeriodsResult(noticePeriods);
+    private List<NoticePeriod> hubNoticePeriods(ManagedCurrency managed) {
+        return managed.getEnabledNoticePeriods().stream()
+                .filter(
+                        noticePeriod ->
+                                !onCallRateRepository
+                                        .findOpenSegmentsByCurrencyAndNoticePeriod(managed.getCode(), noticePeriod)
+                                        .isEmpty())
+                .sorted(Comparator.comparing(NoticePeriod::getCode))
+                .toList();
     }
 
     @Override
@@ -184,31 +157,38 @@ public final class OnCallOrderCreationOptionsService
             String currency,
             NoticePeriod noticePeriod,
             LocalDate valueDate) {
-        Optional<LegalEntity> legalEntity = legalEntityRepository.findByCode(legalEntityCode);
-        if (legalEntity.isEmpty()) {
-            return new CounterpartiesResult(List.of());
-        }
-        List<RateQuote> hubQuotes =
-                onCallRateRepository.findSegmentsCoveringDate(currency, noticePeriod, valueDate).stream()
-                        .map(segment -> new RateQuote(
-                                segment.getCurveKey().institutionCode(), segment.getRate(), segment.getValueDate()))
-                        .toList();
-        if (legalEntity.get().isTradingClient()) {
-            return new CounterpartiesResult(
-                    OrderCreationDelegatedCounterpartySupport.forClient(
-                            legalEntityCode,
-                            currency,
-                            OrderType.ON_CALL,
-                            effective -> effective.permits(noticePeriod),
-                            hubQuotes,
-                            delegatedGrantRepository,
-                            institutionRepository,
-                            clientEnablementRepository,
-                            LocalDate.now()));
-        }
         return new CounterpartiesResult(
-                OrderCreationDelegatedCounterpartySupport.forHub(
-                        OrderType.ON_CALL, hubQuotes, institutionRepository, LocalDate.now()));
+                OrderCreationDelegatedCounterpartySupport.byRole(
+                        legalEntityRepository.findByCode(legalEntityCode),
+                        List.of(),
+                        () ->
+                                OrderCreationDelegatedCounterpartySupport.forClient(
+                                        legalEntityCode,
+                                        currency,
+                                        OrderType.ON_CALL,
+                                        effective -> effective.permits(noticePeriod),
+                                        coveringQuotes(currency, noticePeriod, valueDate),
+                                        delegatedGrantRepository,
+                                        institutionRepository,
+                                        clientEnablementRepository,
+                                        LocalDate.now()),
+                        () ->
+                                OrderCreationDelegatedCounterpartySupport.forHub(
+                                        OrderType.ON_CALL,
+                                        coveringQuotes(currency, noticePeriod, valueDate),
+                                        institutionRepository,
+                                        LocalDate.now())));
+    }
+
+    /** The hub's open and pending segments covering the value date, as quotes. */
+    private List<RateQuote> coveringQuotes(String currency, NoticePeriod noticePeriod, LocalDate valueDate) {
+        return quotesOf(onCallRateRepository.findSegmentsCoveringDate(currency, noticePeriod, valueDate));
+    }
+
+    private static List<RateQuote> quotesOf(List<OnCallRateSegment> segments) {
+        return segments.stream()
+                .map(segment -> new RateQuote(segment.getCurveKey().institutionCode(), segment.getRate(), segment.getValueDate()))
+                .toList();
     }
 
     @Override
