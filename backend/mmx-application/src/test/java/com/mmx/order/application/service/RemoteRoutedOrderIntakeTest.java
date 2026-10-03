@@ -51,7 +51,7 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.lenient;
 
 /**
- * Client-deployment (CGED) leg-A outbound orchestration: {@code RemoteRoutedOrderIntake} resolves the
+ * Client-deployment (CGEG) leg-A outbound orchestration: {@code RemoteRoutedOrderIntake} resolves the
  * hub-side account via {@code ExternalIdentityGateway} <em>before</em> send, builds a
  * {@link RemoteRoutingRequest} carrying the resolved account + hub-native institution code, calls
  * {@link RemoteRoutingGateway#route(RemoteRoutingRequest)}, and transitions the client-side order
@@ -69,7 +69,7 @@ class RemoteRoutedOrderIntakeTest {
     private static final LocalDate TODAY = LocalDate.of(2026, 5, 1);
     private static final LegalEntityCode CLIENT_LE = new LegalEntityCode("CGD");
     private static final LegalEntityCode HUB_LE = new LegalEntityCode("LOC");
-    private static final OrganisationCode CLIENT_ORG = new OrganisationCode("CGED");
+    private static final OrganisationCode CLIENT_ORG = new OrganisationCode("CGEG");
     private static final OrganisationCode HUB_ORG = new OrganisationCode("LODH");
     private static final String HUB_INSTITUTION_CODE = "HSBC";
     private static final String ONBOARDED_CODE = "HVL-01";

@@ -18,7 +18,7 @@ import java.util.stream.Collectors;
 /**
  * Remote-backed {@link DelegatedGrantRepository}: reads delegated institution grants live from LODH
  * via REST. LODH auto-scopes the returned grants to the proven {@code X-MMX-CrossOrg-Key} client.
- * Read-only; CGED does not master delegated grants.
+ * Read-only; CGEG does not master delegated grants.
  */
 public final class RemoteDelegatedGrantRepository implements DelegatedGrantRepository {
 
@@ -68,7 +68,7 @@ public final class RemoteDelegatedGrantRepository implements DelegatedGrantRepos
     @Override
     public DelegatedInstitutionGrant save(DelegatedInstitutionGrant grant) {
         throw new UnsupportedOperationException(
-                "Remote-backed DelegatedGrantRepository is read-only; CGED does not master hub grants");
+                "Remote-backed DelegatedGrantRepository is read-only; CGEG does not master hub grants");
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

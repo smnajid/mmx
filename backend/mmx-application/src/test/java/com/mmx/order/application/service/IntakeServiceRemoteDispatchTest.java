@@ -76,7 +76,7 @@ class IntakeServiceRemoteDispatchTest {
 
     private static final Instant FIXED_NOW = Instant.parse("2026-05-01T12:00:00Z");
     private static final LocalDate TODAY = LocalDate.of(2026, 5, 1);
-    private static final OrganisationCode CGED_ORG = new OrganisationCode("CGED");
+    private static final OrganisationCode CGEG_ORG = new OrganisationCode("CGEG");
     private static final LegalEntityCode CGD = new LegalEntityCode("CGD");
     private static final LegalEntityCode LOC = new LegalEntityCode("LOC");
 
@@ -102,13 +102,13 @@ class IntakeServiceRemoteDispatchTest {
         when(orderRepository.save(any())).thenAnswer(returnsFirstArg());
         when(orderRepository.findByLegalEntityAndExternalReference(any(), any()))
                 .thenReturn(Optional.empty());
-        when(organisationRepository.findByCode(CGED_ORG))
-                .thenReturn(Optional.of(new Organisation(CGED_ORG)));
+        when(organisationRepository.findByCode(CGEG_ORG))
+                .thenReturn(Optional.of(new Organisation(CGEG_ORG)));
 
         LegalEntity hub = LegalEntity.tradingHub(LOC, new OrganisationCode("LODH"));
-        LegalEntity client = LegalEntity.tradingClient(CGD, CGED_ORG, hub);
+        LegalEntity client = LegalEntity.tradingClient(CGD, CGEG_ORG, hub);
         when(legalEntityRepository.findByCode(CGD)).thenReturn(Optional.of(client));
-        when(legalEntityRepository.belongsToOrganisation(CGD, CGED_ORG)).thenReturn(true);
+        when(legalEntityRepository.belongsToOrganisation(CGD, CGEG_ORG)).thenReturn(true);
 
         when(externalIdentityGateway.resolveHubSidePortfolioNumber(any(), any(), any()))
                 .thenReturn(Optional.of(new PortfolioNumber("LOC-EUR-001")));
@@ -152,7 +152,7 @@ class IntakeServiceRemoteDispatchTest {
                         openPositionPort,
                         organisationRepository,
                         legalEntityRepository,
-                        CGED_ORG,
+                        CGEG_ORG,
                         localIntake,
                         auditLogger,
                         clock,
@@ -225,7 +225,7 @@ class IntakeServiceRemoteDispatchTest {
                         openPositionPort,
                         organisationRepository,
                         legalEntityRepository,
-                        CGED_ORG,
+                        CGEG_ORG,
                         localIntake,
                         auditLogger,
                         clock,

@@ -13,7 +13,7 @@ import java.util.List;
 
 /**
  * Remote-backed {@link TermRateRepository}: reads term-rate snapshots for a trading date live from
- * LODH via REST. Read-only; CGED does not persist hub term-rate audit data.
+ * LODH via REST. Read-only; CGEG does not persist hub term-rate audit data.
  */
 public final class RemoteTermRateRepository implements TermRateRepository {
 
@@ -58,7 +58,7 @@ public final class RemoteTermRateRepository implements TermRateRepository {
     @Override
     public void replaceAllForDate(LocalDate tradingDate, List<TermRateAuditRow> rows) {
         throw new UnsupportedOperationException(
-                "Remote-backed TermRateRepository is read-only; CGED does not master hub term-rate data");
+                "Remote-backed TermRateRepository is read-only; CGEG does not master hub term-rate data");
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

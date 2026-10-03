@@ -1,7 +1,7 @@
 package com.mmx.order.application.port.out;
 
 /**
- * CGED's leg-A outbound port — sends a {@link RemoteRoutingRequest} to the connected hub
+ * CGEG's leg-A outbound port — sends a {@link RemoteRoutingRequest} to the connected hub
  * deployment's inbound REST endpoint and returns the {@link RemoteRoutingResponse}.
  *
  * <p>Spec: {@code order-routing} — cross-org routing transport backbone. Implementations own the

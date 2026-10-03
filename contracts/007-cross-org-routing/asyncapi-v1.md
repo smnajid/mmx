@@ -23,7 +23,7 @@ changes.
 - **Owner / publisher**: the **hub deployment** (e.g. LODH), via the existing transactional outbox +
   relay. `{orgCode}` is the owning hub's `OrganisationCode` (e.g. `LODH` →
   `mmx.routed-order-outcome.LODH`).
-- **Consumer**: the originating client deployment (e.g. CGED), under a **consume-only ACL**.
+- **Consumer**: the originating client deployment (e.g. CGEG), under a **consume-only ACL**.
 - **Addressing inverts**: the hub publishes to its own topic blind to who is listening; the client's
   consumer is pre-subscribed and filters `originatingLegalEntityCode ∈ {its own LegalEntities}` before
   applying. The model generalises to N remote clients on one topic.

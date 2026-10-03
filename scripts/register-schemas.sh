@@ -134,7 +134,7 @@ register_schema "mmx.oncall.rate.canceled-value" "$SCHEMAS_DIR/OnCallRateCancele
 register_schema "mmx.institution-value" "$INSTITUTION_SCHEMAS_DIR/InstitutionUpdatedV1.json"
 
 # Cross-org routed-order outcome (leg B). The topic is LODH-owned and org-suffixed
-# (mmx.routed-order-outcome.LODH); CGED holds a consume-only ACL. Subject follows the same
+# (mmx.routed-order-outcome.LODH); CGEG holds a consume-only ACL. Subject follows the same
 # TopicNameStrategy as the back-office channels above. Single CGD→LOC cross-org case; additional
 # org-suffixed topics would register under their own {orgCode} subject.
 register_schema "mmx.routed-order-outcome.LODH-value" "$CROSSORG_SCHEMAS_DIR/RoutingOutcomeV1.json"

@@ -36,9 +36,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * Remote-backed reference-data adapters: CGED reads currencies / institutions / term-rates / grants
+ * Remote-backed reference-data adapters: CGEG reads currencies / institutions / term-rates / grants
  * live from LODH via REST. The adapters send the {@code X-MMX-CrossOrg-Key} credential; LODH
- * auto-scopes grants to the proven client. CGED stores zero hub reference data locally.
+ * auto-scopes grants to the proven client. CGEG stores zero hub reference data locally.
  *
  * <p>Spec: {@code order-routing} — thin-client reference-data reads; the onboarded-to-hub indirection collapses
  * (hub-native codes cross the boundary).

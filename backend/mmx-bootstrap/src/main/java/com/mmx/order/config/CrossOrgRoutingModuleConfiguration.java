@@ -60,7 +60,7 @@ import org.springframework.context.annotation.Configuration;
  *   <li><strong>hub</strong> (LODH): leg-A inbound ({@link AcceptRoutedHubOrderUseCase}), leg-B
  *       outbox ({@link RoutingOutcomeOutbox}), credential binding
  *       ({@link CrossOrgCredentialBinder}), membership check ({@link CrossOrgMembershipPort}).
- *   <li><strong>client</strong> (CGED): leg-A outbound ({@link RemoteRoutingGateway} with retry +
+ *   <li><strong>client</strong> (CGEG): leg-A outbound ({@link RemoteRoutingGateway} with retry +
  *       circuit-breaker), external identity ({@link ExternalIdentityGateway}), leg-B apply
  *       ({@link ApplyRemoteOrderOutcomeUseCase}), remote-backed reference-data adapters.
  * </ul>
@@ -141,7 +141,7 @@ public class CrossOrgRoutingModuleConfiguration {
         return new GrantedHubRatesService(delegatedGrantRepository, termRateRepository, onCallRateRepository);
     }
 
-    // ─── Client-side beans (CGED) ───────────────────────────────────────────
+    // ─── Client-side beans (CGEG) ───────────────────────────────────────────
 
     @Bean
     @ConditionalOnProperty(prefix = "mmx.cross-org", name = "role", havingValue = "client")
@@ -236,7 +236,7 @@ public class CrossOrgRoutingModuleConfiguration {
         return new com.mmx.order.messaging.RoutingOutcomeKafkaListener(consumer);
     }
 
-    // ─── Remote-backed reference-data adapters (CGED, opt-in) ───────────────
+    // ─── Remote-backed reference-data adapters (CGEG, opt-in) ───────────────
 
     @Bean
     @ConditionalOnProperty(prefix = "mmx.cross-org", name = "reference-data-remote", havingValue = "true")

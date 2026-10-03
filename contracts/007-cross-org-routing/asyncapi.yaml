@@ -5,7 +5,7 @@ info:
   description: |
     Contract-first async surface for leg B of cross-org order routing — the hub deployment (e.g. LODH)
     publishes routed-order outcomes to its org-suffixed topic, consumed by the originating client
-    deployment (e.g. CGED) under a consume-only ACL. Reuses the existing transactional-outbox + relay.
+    deployment (e.g. CGEG) under a consume-only ACL. Reuses the existing transactional-outbox + relay.
     Prose mirror: asyncapi-v1.md
 
     This channel is distinct from `mmx.order.executed` (the back-office execution-handoff channel) and

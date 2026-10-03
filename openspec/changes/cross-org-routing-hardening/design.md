@@ -20,7 +20,7 @@ This hardening change closes the four operational gaps the transport change deli
 - Auto-recovery / auto-replay of DLQ messages (manual reconciliation runbook — the DLQ is a quarantine, not a self-healing pipeline).
 - Reversal/replace of accounted orders (back-office-internal; `ACCOUNTED` stays terminal).
 - The Deposits back-office cross-org broadcast channel (Deposits programme).
-- Booking-time account-failure runbook (ops fog — a bad CGED mapping surfaces post-`Executed` at Transactions 2; manual unwind).
+- Booking-time account-failure runbook (ops fog — a bad CGEG mapping surfaces post-`Executed` at Transactions 2; manual unwind).
 - Specific metrics tooling brand (Prometheus/Grafana/Alertmanager are infra/platform choices; this change fixes *what* must be measured and alerted, not the brand).
 
 ## Decisions
@@ -29,7 +29,7 @@ This hardening change closes the four operational gaps the transport change deli
 
 A new `RejectionOrigin` value (`TRADER` | `ROUTING_FAILURE`) is recorded on `MoneyMarketOrder` alongside the existing free-text `rejectionReason`. The two values mirror exactly the two reject classes the transport change established:
 
-- **`ROUTING_FAILURE`** — the route itself failed; no hub-side order lifecycle exists or the route never completed. Set at: local intake routing failure (unresolved `GlobalAccountDirectory` account, delegated-grant/enabled-set violation); remote client-side routing failure (unresolved `ExternalIdentityGateway` account → CGED-side reject, no round-trip); remote accept routing failure at LODH (`AcceptRoutedHubOrderUseCase` grant/currency/tenor violation → HTTP reject closes the client-side order).
+- **`ROUTING_FAILURE`** — the route itself failed; no hub-side order lifecycle exists or the route never completed. Set at: local intake routing failure (unresolved `GlobalAccountDirectory` account, delegated-grant/enabled-set violation); remote client-side routing failure (unresolved `ExternalIdentityGateway` account → CGEG-side reject, no round-trip); remote accept routing failure at LODH (`AcceptRoutedHubOrderUseCase` grant/currency/tenor violation → HTTP reject closes the client-side order).
 - **`TRADER`** — a desk decision rejected an existing order. Set at: trader `reject(...)` on a desk order; `propagateRejectFromHub` (a hub-trader reject propagated to the client-side order, synchronously for local pairs, via leg-B `REJECTED` for remote pairs).
 
 **Rationale:** exactly two values, no more. `ROUTING_FAILURE` means "no hub-side order to mirror / the route failed"; `TRADER` means "a desk rejected an existing order". This is the precise boundary the transport change drew (routing-failure reject is HTTP-only; trader-reject rides leg-B). A `SYSTEM`/`UNKNOWN` bucket is deliberately omitted — every reject site knows which kind it is; an unclassified reject is a bug, not a category.
@@ -44,7 +44,7 @@ A new `RejectionOrigin` value (`TRADER` | `ROUTING_FAILURE`) is recorded on `Mon
 
 - **DLQ only for the deterministic integrity violation.** The retry-then-DLQ policy targets `RoutedOrderPairIntegrityException` specifically — a missing client or mismatched terminal is deterministic (retrying will not make a missing order appear; the client-side order lives in the consumer deployment's own DB, written by its own intake). Transient failures (DB down, serialisation glitch) are **not** DLQ-eligible — they retry via the consumer's normal backoff and never reach the DLQ. This separation is critical: DLQ-ing a transient outage would silently drop live traffic.
 - **Bounded retries then DLQ.** After `mmx.cross-org.outcome.max-attempts` (default 3) attempts on the same offset all throw `RoutedOrderPairIntegrityException`, the consumer publishes the original message to `mmx.routed-order-outcome.{orgCode}.dlq`, emits an operational alert, and commits the offset (advances past the poison). A small retry count (not 1) is cheap insurance against subtle in-DB read-visibility edge cases.
-- **DLQ ownership = consumer deployment.** The DLQ is consumer-side (CGED produces to it; CGED owns it). Named `mmx.routed-order-outcome.{orgCode}.dlq` — the `.dlq` suffix on the source topic name. LODH is unaware of it. The DLQ carries the original message + a diagnostic envelope (failure reason, failing offset, attempt count, detected-at timestamp) so an operator can reconcile manually.
+- **DLQ ownership = consumer deployment.** The DLQ is consumer-side (CGEG produces to it; CGEG owns it). Named `mmx.routed-order-outcome.{orgCode}.dlq` — the `.dlq` suffix on the source topic name. LODH is unaware of it. The DLQ carries the original message + a diagnostic envelope (failure reason, failing offset, attempt count, detected-at timestamp) so an operator can reconcile manually.
 - **Local throw+rollback is unchanged.** The local `RoutedOrderOutcomePropagation` throw inside the hub execute transaction still rolls back the hub terminal. There is no Kafka consumer on that path (it is in-process and transactional), so no poison-message concern. This change does not touch the local throw.
 
 **Rationale:** DLQ-on-deterministic-cause is the standard poison-message quarantine pattern; DLQ-on-any-exception is the classic silent-data-loss trap. `RoutedOrderPairIntegrityException` is the one cause that is provably non-transient in this topology.
@@ -70,7 +70,7 @@ The existing callback `POST /api/v1/back-office/orders/{orderId}/accounted` is a
 
 "Silence is never terminal" is only operable if a stuck `Received`/`Routed` is visible. This change fixes **what** must be measured and alerted; the metrics backend (Prometheus/Grafana, Alertmanager) is an infra/platform choice.
 
-- **Consumer lag** on `mmx.routed-order-outcome.{orgCode}` (CGED consumer) — a rising lag means hub outcomes are not being applied; client-side orders are stuck in `Received`/`Routed`.
+- **Consumer lag** on `mmx.routed-order-outcome.{orgCode}` (CGEG consumer) — a rising lag means hub outcomes are not being applied; client-side orders are stuck in `Received`/`Routed`.
 - **Outbox age** on the LODH leg-B outbox — a `PENDING` outbox row older than the threshold means a hub terminal has not been published; the client does not yet know.
 - **Broker health** — broker unavailability affects both leg-B publish (outbox relay stalls) and consume (consumer lag rises); a single signal covers both.
 - **Stale-`Routed`** — a remote client-side order parked in `Routed` beyond an SLO (the hub neither executed, cancelled, nor rejected within the window) signals a stuck remote pair awaiting a terminal outcome.

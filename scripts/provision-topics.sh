@@ -3,7 +3,7 @@
 #
 # Focus: the cross-org routed-order-outcome leg-B channel (task 10.5 of the
 # cross-org-routing-transport change). The topic is LODH-owned and org-suffixed
-# (mmx.routed-order-outcome.LODH); the client deployment (CGED) holds a consume-only ACL.
+# (mmx.routed-order-outcome.LODH); the client deployment (CGEG) holds a consume-only ACL.
 #
 # The back-office channels (mmx.order.executed, mmx.oncall.rate.handoff) auto-create on the
 # dev Redpanda container; this script does not re-create them. The cross-org channel is
@@ -23,7 +23,7 @@ set -euo pipefail
 BOOTSTRAP="${1:-${KAFKA_BOOTSTRAP:-localhost:19092}}"
 BROKER_ARGS="--brokers ${BOOTSTRAP}"
 
-# Hub (LODH) is the sole publisher; client (CGED) is consume-only.
+# Hub (LODH) is the sole publisher; client (CGEG) is consume-only.
 HUB_TOPIC="mmx.routed-order-outcome.LODH"
 HUB_PRINCIPAL="${HUB_PRINCIPAL:-User:LODH}"
 CGED_PRINCIPAL="${CGED_PRINCIPAL:-User:CGED}"
@@ -56,7 +56,7 @@ rpk ${BROKER_ARGS} acl create \
   --topic "${HUB_TOPIC}" \
   2>/dev/null || warn "ACL grant for ${HUB_PRINCIPAL} skipped (authorizer not enabled in dev-container mode)."
 
-log "Granting CGED consume-only ACL on ${HUB_TOPIC} (${CGED_PRINCIPAL}: read+describe)..."
+log "Granting CGEG consume-only ACL on ${HUB_TOPIC} (${CGED_PRINCIPAL}: read+describe)..."
 rpk ${BROKER_ARGS} acl create \
   --allow-principal "${CGED_PRINCIPAL}" \
   --operation read \

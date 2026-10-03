@@ -20,7 +20,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Port contract for {@link RemoteRoutingGateway} — CGED's leg-A outbound port. Verifies the
+ * Port contract for {@link RemoteRoutingGateway} — CGEG's leg-A outbound port. Verifies the
  * request carries the resolved hub-side portfolio number, hub-native institution code, order
  * fields, deterministic routing id, and originating client LegalEntityCode; the response is a
  * discriminated accept/reject (no internal order UUID crosses the boundary).

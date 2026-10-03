@@ -63,8 +63,8 @@ A TradingClient SHALL be connected to exactly one TradingHub. The connected Trad
 
 #### Scenario: Client connected to a cross-organisation hub
 
-- **WHEN** TradingClient `CGD` (Organisation `CGED`) is connected to TradingHub `LOC` (Organisation `LODH`)
-- **THEN** the connection is bidirectional (CGED holds `connectedHubCode=LOC`; LODH holds CGD in LOC's client list) and routing is remote (cross-deployment, eventually consistent)
+- **WHEN** TradingClient `CGD` (Organisation `CGEG`) is connected to TradingHub `LOC` (Organisation `LODH`)
+- **THEN** the connection is bidirectional (CGEG holds `connectedHubCode=LOC`; LODH holds CGD in LOC's client list) and routing is remote (cross-deployment, eventually consistent)
 
 #### Scenario: Hub connection reassigned
 
