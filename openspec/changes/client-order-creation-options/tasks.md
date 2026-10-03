@@ -54,6 +54,6 @@ Strict TDD, vertical slices: each "Write failing" task is one red test (or a sma
 
 ## 8. Final verification
 
-- [ ] 8.1 Run full `cd backend && mvn test` — all modules green
+- [x] 8.1 Run full `cd backend && mvn test` — all modules green
 - [x] 8.2 Run `npm run test` in `frontend/` — green
 - [x] 8.3 `cd frontend && npm run verify:contracts` — green
