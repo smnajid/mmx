@@ -54,6 +54,10 @@ ng e2e
 
 Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
 
+## PM order-creation widget playground
+
+A dev-only harness for exercising the embeddable `order-creation-widget` library lives at `src/app/features/widget-playground/`, served at `/dev/widget-playground` when running in dev mode (`isDevMode()`).
+
 ## Additional Resources
 
 For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
