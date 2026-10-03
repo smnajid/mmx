@@ -2,7 +2,7 @@
 
 **Status:** accepted — the "replicate reference data" rejection is partially superseded by [ADR 0008](0008-trading-client-owns-onboarded-institutions.md) for institutions
 
-When a TradingClient in one Organisation (e.g. CGD@CGED) routes an order to a TradingHub in another Organisation (e.g. LOC@LODH), the two deployments communicate over REST and Kafka. Neither deployment has direct database access to the other's reference data. We must decide what each side trusts, what it validates, and where the trust boundary sits.
+When a TradingClient in one Organisation (e.g. CGD@CGEG) routes an order to a TradingHub in another Organisation (e.g. LOC@LODH), the two deployments communicate over REST and Kafka. Neither deployment has direct database access to the other's reference data. We must decide what each side trusts, what it validates, and where the trust boundary sits.
 
 We decided on three principles:
 
