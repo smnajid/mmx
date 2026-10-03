@@ -135,13 +135,15 @@ public class CrossOrgReferenceDataController implements CrossOrgReferenceDataApi
         return new GrantedPairs(
                 delegatedGrantRepository.findByClientLegalEntityCode(proven).stream()
                         .filter(DelegatedInstitutionGrant::isActive)
-                        .map(grant -> grant.getHubInstitutionCode() + "|" + grant.getCurrency())
+                        .map(grant -> new GrantKey(grant.getHubInstitutionCode(), grant.getCurrency()))
                         .collect(Collectors.toSet()));
     }
 
-    private record GrantedPairs(Set<String> keys) {
+    private record GrantKey(String hubInstitutionCode, String currency) {}
+
+    private record GrantedPairs(Set<GrantKey> keys) {
         boolean covers(String institutionCode, String currency) {
-            return keys.contains(institutionCode + "|" + currency);
+            return keys.contains(new GrantKey(institutionCode, currency));
         }
     }
 

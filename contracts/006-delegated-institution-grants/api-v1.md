@@ -11,6 +11,8 @@ the active scope's LegalEntity is the granting hub. A `ClientRepresentative` rec
 grants for the caller's client `LegalEntityCode`. The hub institution referenced by a grant MUST be active, and
 `enabledTenors` / `enabledNoticePeriods` MUST be subsets of the hub's managed-currency enabled sets for the currency.
 
+**`503 Service Unavailable`** (`GET /api/v1/settings/delegated-grants/client`): on a TradingClient deployment whose hub is remote, a failed read of the client's grants from the hub (hub unreachable, timeout, credential rejected, or non-success response) returns `503` with body `{error: HUB_REFERENCE_DATA_UNAVAILABLE, message}`, never an empty list.
+
 ## Endpoints
 
 | Method | Path | Description |

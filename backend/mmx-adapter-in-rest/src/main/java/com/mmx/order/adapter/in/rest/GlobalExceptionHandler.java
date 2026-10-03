@@ -1,7 +1,6 @@
 package com.mmx.order.adapter.in.rest;
 
 import com.mmx.order.adapter.in.rest.generated.model.ErrorCode;
-import com.mmx.order.application.exception.HubReferenceDataUnavailableException;
 import com.mmx.order.adapter.in.rest.generated.model.ErrorResponse;
 import com.mmx.order.adapter.in.rest.generated.model.FieldError;
 import com.mmx.order.adapter.in.rest.generated.settings.model.SettingsErrorCode;
@@ -15,6 +14,7 @@ import com.mmx.order.adapter.in.rest.generated.grants.model.GrantErrorResponse;
 import com.mmx.order.application.exception.ContractNotFoundException;
 import com.mmx.order.application.exception.CurrencyNotFoundException;
 import com.mmx.order.application.exception.GrantNotFoundException;
+import com.mmx.order.application.exception.HubReferenceDataUnavailableException;
 import com.mmx.order.application.exception.InstitutionNotFoundException;
 import com.mmx.order.application.termrate.TermRateCsvStructuralException;
 import com.mmx.order.application.termrate.TermRateIngestFailedException;

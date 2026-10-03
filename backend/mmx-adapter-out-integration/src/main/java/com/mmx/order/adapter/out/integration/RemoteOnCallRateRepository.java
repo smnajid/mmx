@@ -116,6 +116,11 @@ public final class RemoteOnCallRateRepository implements OnCallRateRepository {
         @JsonProperty("status")
         String status;
 
+        /**
+         * The hub's segment id and confirmation time never cross the boundary: order creation only reads
+         * rate, dates and status. The id is a placeholder that satisfies the domain invariant;
+         * {@code validatedAt} is left unset.
+         */
         OnCallRateSegment toDomain() {
             return new OnCallRateSegment(
                     UUID.randomUUID(),

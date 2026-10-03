@@ -30,6 +30,8 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/ManagedCurrencyResponse"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
     post:
       tags: [CurrencySettings]
       summary: Onboard a currency
@@ -71,6 +73,8 @@ paths:
                 $ref: "#/components/schemas/ManagedCurrencyResponse"
         "404":
           $ref: "#/components/responses/NotFoundError"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
     patch:
       tags: [CurrencySettings]
       summary: Update currency rules
@@ -165,6 +169,12 @@ components:
             $ref: "#/components/schemas/SettingsErrorResponse"
     NotFoundError:
       description: Currency not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/SettingsErrorResponse"
+    ServiceUnavailable:
+      description: A TradingClient deployment could not read hub reference data (hub unreachable, timed out, credential rejected, or non-success response).
       content:
         application/json:
           schema:
@@ -277,6 +287,7 @@ components:
         - VALIDATION_ERROR
         - CURRENCY_NOT_FOUND
         - DUPLICATE_CURRENCY
+        - HUB_REFERENCE_DATA_UNAVAILABLE
 
     SettingsErrorResponse:
       type: object
