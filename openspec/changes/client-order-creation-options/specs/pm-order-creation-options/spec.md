@@ -1,0 +1,230 @@
+## MODIFIED Requirements
+
+### Requirement: Term currencies filtered by counterparty availability
+
+`GET /api/v1/order-creation/term/currencies?legalEntityCode={legalEntityCode}` SHALL return currencies for which the given LegalEntity has at least one viable Term counterparty. `legalEntityCode` is required.
+
+For a **TradingHub**, a currency is included when the managed currency is active, has at least one enabled tenor, and at least one active institution has a term rate for that currency (any trading date, any enabled tenor).
+
+For a **TradingClient**, a currency is included when the hub's managed currency is active and at least one of the client's onboarded institutions that is open to new business for Term has an **effective enablement** (active grant ∩ client enablement) for that currency containing a tenor for which the linked hub institution has a term rate (any trading date). The hub's own enabled tenors SHALL NOT restrict a TradingClient.
+
+The response SHALL include the `tradingDate` used for rate lookups (today's date).
+
+#### Scenario: Active currency with term rates is included
+
+- **WHEN** `legalEntityCode` is LOC (a TradingHub), managed currency EUR is active with enabled tenors [1M, 3M] and institution BNKCO has a term rate for EUR/3M
+- **THEN** the response includes EUR
+
+#### Scenario: Active currency without any term rates is excluded
+
+- **WHEN** `legalEntityCode` is LOC, managed currency CHF is active with enabled tenors [1M] but no institution has any term rate for CHF
+- **THEN** the response does not include CHF
+
+#### Scenario: Inactive currency is excluded
+
+- **WHEN** managed currency JPY is inactive
+- **THEN** the response does not include JPY regardless of existing term rates, for a TradingHub or a TradingClient
+
+#### Scenario: Currency with no enabled tenors is excluded
+
+- **WHEN** `legalEntityCode` is LOC and managed currency GBP is active but has no enabled tenors (only notice periods)
+- **THEN** the response does not include GBP
+
+#### Scenario: TradingClient sees a currency through its effective enablement
+
+- **WHEN** `legalEntityCode` is CGD (a TradingClient), the hub's EUR is active with **no** enabled tenors, CGD holds a grant `(BNP, EUR, {3M})`, its onboarded institution "BNP via LOC" is open with a Term counterparty account and client enablement {3M} for EUR, and the hub's BNP has a term rate for EUR/3M
+- **THEN** the response includes EUR
+
+#### Scenario: TradingClient without effective enablement does not see the currency
+
+- **WHEN** `legalEntityCode` is CGD, the hub's BNP has a term rate for EUR/3M and CGD holds a grant `(BNP, EUR, {3M})`, but CGD's client enablement for "BNP via LOC" and EUR is empty
+- **THEN** the response does not include EUR
+
+#### Scenario: TradingClient institution closed to new business is ignored
+
+- **WHEN** `legalEntityCode` is CGD and its only onboarded institution with an effective enablement for EUR has been offboarded
+- **THEN** the response does not include EUR
+
+#### Scenario: Missing legalEntityCode is rejected
+
+- **WHEN** the PM requests term currencies without `legalEntityCode`
+- **THEN** the system returns `400 Bad Request`
+
+---
+
+### Requirement: OnCall currencies filtered by counterparty availability
+
+`GET /api/v1/order-creation/oncall/currencies?legalEntityCode={legalEntityCode}` SHALL return currencies for which the given LegalEntity has at least one viable OnCall counterparty. `legalEntityCode` is required.
+
+For a **TradingHub**, a currency is included when the managed currency is active, has at least one enabled notice period, and at least one active institution has an open on-call rate segment (status `VALID` or `PENDING_CONFIRMATION`) for that currency and at least one enabled notice period.
+
+For a **TradingClient**, a currency is included when the hub's managed currency is active and at least one of the client's onboarded institutions that is open to new business for OnCall has an **effective enablement** for that currency containing a notice period for which the linked hub institution has an open segment (status `VALID` or `PENDING_CONFIRMATION`). The hub's own enabled notice periods SHALL NOT restrict a TradingClient.
+
+#### Scenario: Active currency with open on-call segment is included
+
+- **WHEN** `legalEntityCode` is LOC, managed currency EUR is active with enabled notice periods [24H] and institution BNKCO has an open VALID segment for EUR/24H
+- **THEN** the response includes EUR
+
+#### Scenario: Active currency with only CANCELED segments is excluded
+
+- **WHEN** managed currency USD has only CANCELED on-call segments for all institutions
+- **THEN** the response does not include USD, for a TradingHub or a TradingClient
+
+#### Scenario: TradingClient sees a currency through its effective enablement
+
+- **WHEN** `legalEntityCode` is CGD, CGD holds a grant `(BNP, EUR, notice {24H})`, its onboarded "BNP via LOC" is open with an OnCall counterparty account and client enablement {24H} for EUR, and the hub's BNP has a PENDING_CONFIRMATION open segment for EUR/24H
+- **THEN** the response includes EUR
+
+#### Scenario: Missing legalEntityCode is rejected
+
+- **WHEN** the PM requests oncall currencies without `legalEntityCode`
+- **THEN** the system returns `400 Bad Request`
+
+---
+
+### Requirement: Term tenors filtered by counterparty availability
+
+`GET /api/v1/order-creation/term/tenors?legalEntityCode={legalEntityCode}&currency={currency}` SHALL return tenors with at least one viable Term counterparty for the given LegalEntity. `legalEntityCode` is required.
+
+For a **TradingHub**, a tenor is included when it is enabled for the currency in the managed currency catalog AND at least one active institution has a term rate for that currency and tenor (any trading date).
+
+For a **TradingClient**, a tenor is included when at least one of the client's onboarded institutions open to new business for Term has an effective enablement for the currency containing that tenor AND the linked hub institution has a term rate for that currency and tenor.
+
+#### Scenario: Enabled tenor with rates is included
+
+- **WHEN** `legalEntityCode` is LOC, currency EUR has enabled tenors [1M, 3M, 6M] and institutions have term rates for EUR/1M and EUR/3M but not EUR/6M
+- **THEN** the response includes 1M and 3M but not 6M
+
+#### Scenario: Disabled tenor is excluded even if rates exist
+
+- **WHEN** `legalEntityCode` is LOC, currency EUR has enabled tenors [1M, 3M] and an institution has a rate for EUR/1Y
+- **THEN** the response does not include 1Y because it is not in enabledTenors
+
+#### Scenario: TradingClient tenors follow effective enablement
+
+- **WHEN** `legalEntityCode` is CGD, CGD's grant for (BNP, EUR) is {1M, 3M, 6M}, its client enablement for "BNP via LOC"/EUR is {3M, 6M}, and the hub's BNP has EUR rates for 1M and 3M only
+- **THEN** the response includes 3M only
+
+---
+
+### Requirement: OnCall notice periods filtered by counterparty availability
+
+`GET /api/v1/order-creation/oncall/notice-periods?legalEntityCode={legalEntityCode}&currency={currency}` SHALL return notice periods with at least one viable OnCall counterparty for the given LegalEntity. `legalEntityCode` is required.
+
+For a **TradingHub**, a notice period is included when it is enabled for the currency in the managed currency catalog AND at least one active institution has an open on-call rate segment (VALID or PENDING_CONFIRMATION) for that currency and notice period.
+
+For a **TradingClient**, a notice period is included when at least one of the client's onboarded institutions open to new business for OnCall has an effective enablement for the currency containing that notice period AND the linked hub institution has an open segment (VALID or PENDING_CONFIRMATION) for that currency and notice period.
+
+#### Scenario: Enabled notice period with open segment is included
+
+- **WHEN** `legalEntityCode` is LOC, currency EUR has enabled notice periods [24H, 48H] and institution BNKCO has an open VALID segment for EUR/24H but no institution has a segment for EUR/48H
+- **THEN** the response includes 24H but not 48H
+
+#### Scenario: TradingClient notice periods follow effective enablement
+
+- **WHEN** `legalEntityCode` is CGD, CGD's effective enablement for "BNP via LOC"/EUR is {48H}, and the hub's BNP has open segments for EUR/24H and EUR/48H
+- **THEN** the response includes 48H only
+
+---
+
+### Requirement: Term counterparties with latest rates sorted by best rate
+
+`GET /api/v1/order-creation/term/counterparties?legalEntityCode={legalEntityCode}&currency={currency}&tenor={tenor}` SHALL return institutions with term rates for the given currency and tenor, scoped by `legalEntityCode`. Order-creation counterparties feed new business: only institutions open to new business that hold a Term counterparty account are offered. For a **TradingHub**, the response SHALL include such hub-native institutions that have at least one term rate. For a **TradingClient**, the response SHALL include only such onboarded institutions whose effective enablement for the currency contains the tenor, priced at the linked hub institution's rate. For each institution, the system SHALL return the **latest** available rate (most recent trading date). Each entry SHALL include `institutionCode`, `displayName`, `rate`, `rateDate` (the trading date of the rate), and `indicative` (true when `rateDate` is before today). Results SHALL be sorted by rate descending (best rate first).
+
+#### Scenario: Counterparty with today's rate is not indicative
+
+- **WHEN** institution BNKCO has a term rate of 3.45 for EUR/3M uploaded today (2026-06-06)
+- **THEN** the response includes BNKCO with rate 3.45, rateDate 2026-06-06, indicative false
+
+#### Scenario: Counterparty with stale rate is indicative
+
+- **WHEN** institution CDNRD has a term rate of 3.40 for EUR/3M from 2026-06-05 and no rate for 2026-06-06
+- **THEN** the response includes CDNRD with rate 3.40, rateDate 2026-06-05, indicative true
+
+#### Scenario: Counterparties sorted by best rate
+
+- **WHEN** BNKCO offers 3.45 and CDNRD offers 3.40 for EUR/3M
+- **THEN** BNKCO appears before CDNRD in the response
+
+#### Scenario: Inactive institution excluded
+
+- **WHEN** institution DEAD is inactive but has term rates for EUR/3M
+- **THEN** the response does not include DEAD
+
+#### Scenario: TradingClient returns only granted thin-proxy institutions
+
+- **WHEN** `legalEntityCode` is PAR (a TradingClient), hub institutions BNKCO and SGFR have EUR/3M rates, and only BNP has an active delegated grant with tenor 3M, a matching onboarded institution `BNPLOC` open to new business, and client enablement containing 3M
+- **THEN** the response includes only `BNPLOC` with displayName `BNP Paribas via LOC` and the hub rate for BNP; BNKCO and SGFR are excluded
+
+#### Scenario: TradingClient excludes hub institution without grant
+
+- **WHEN** `legalEntityCode` is PAR and institution BNKCO has a term rate for EUR/3M but no active delegated grant exists for PAR/EUR with tenor 3M enabled
+- **THEN** the response does not include BNKCO or any onboarded institution linked to BNKCO
+
+#### Scenario: Remote TradingClient is priced from the hub
+
+- **WHEN** `legalEntityCode` is CGD (remote TradingClient) with "BNP via LOC" enabled for EUR/3M, and the hub's latest BNP EUR/3M rate is 3.45 from today
+- **THEN** the response includes "BNP via LOC" with rate 3.45, indicative false
+
+#### Scenario: Missing legalEntityCode is rejected
+
+- **WHEN** the PM requests term counterparties without `legalEntityCode`
+- **THEN** the system returns `400 Bad Request`
+
+---
+
+### Requirement: OnCall counterparties with segment rates for PM's valueDate
+
+`GET /api/v1/order-creation/oncall/counterparties?legalEntityCode={legalEntityCode}&currency={currency}&noticePeriod={noticePeriod}&valueDate={valueDate}` SHALL return institutions with on-call rate segments covering the given `valueDate`, scoped by `legalEntityCode`. Order-creation counterparties feed new business: only institutions open to new business that hold an OnCall counterparty account are offered. For a **TradingHub**, the response SHALL include such hub-native institutions with a segment covering the date. For a **TradingClient**, the response SHALL include only such onboarded institutions whose effective enablement for the currency contains the notice period, priced at the linked hub institution's segment. Segment coverage: `valueDate <= requested valueDate <= segment endDate` with status `VALID` or `PENDING_CONFIRMATION`. Each entry SHALL include `institutionCode`, `displayName`, `rate`, `rateDate` (the segment's value date), and `indicative` (contextual). Results SHALL be sorted by rate descending (best rate first).
+
+#### Scenario: Institution with VALID segment covering valueDate is included
+
+- **WHEN** institution BNKCO has a VALID segment for EUR/24H with valueDate 2026-06-01 and endDate 2999-12-31 and rate 2.85
+- **AND** the PM requests counterparties with valueDate 2026-06-09
+- **THEN** the response includes BNKCO with rate 2.85
+
+#### Scenario: Institution with PENDING_CONFIRMATION segment is included
+
+- **WHEN** institution CDNRD has a PENDING_CONFIRMATION segment for EUR/24H covering the requested valueDate
+- **THEN** the response includes CDNRD
+
+#### Scenario: Institution with no segment covering valueDate is excluded
+
+- **WHEN** institution SGFR has no segment covering the requested valueDate for EUR/24H
+- **THEN** the response does not include SGFR
+
+#### Scenario: TradingClient returns only granted thin-proxy institutions
+
+- **WHEN** `legalEntityCode` is PAR (a TradingClient), hub institutions BNKCO and SGFR have EUR/24H segments covering the requested valueDate, and only BNP has an active delegated grant with notice period 24H, a matching onboarded `BNPLOC` open to new business, and client enablement containing 24H
+- **THEN** the response includes only `BNPLOC` with the hub segment rate for BNP; BNKCO and SGFR are excluded
+
+#### Scenario: Remote TradingClient is priced from the hub
+
+- **WHEN** `legalEntityCode` is CGD with "BNP via LOC" enabled for EUR/24H, and the hub's BNP has a VALID segment at 2.85 covering the requested valueDate
+- **THEN** the response includes "BNP via LOC" with rate 2.85
+
+#### Scenario: Missing legalEntityCode is rejected
+
+- **WHEN** the PM requests oncall counterparties without `legalEntityCode`
+- **THEN** the system returns `400 Bad Request`
+
+## ADDED Requirements
+
+### Requirement: Unreachable hub reference data is reported as unavailable
+
+When serving any order-creation option for a TradingClient whose hub reference data is read remotely, a failed hub read (hub unreachable, timeout, credential rejected, or any non-success response) SHALL make the endpoint return `503 Service Unavailable` with the standard error body. The system SHALL NOT turn a failed hub read into an empty list. An empty list SHALL mean only that the hub answered and nothing is available.
+
+#### Scenario: Hub down yields 503, not an empty currency list
+
+- **WHEN** CGEG cannot reach LODH and the PM requests `GET /api/v1/order-creation/term/currencies?legalEntityCode=CGD`
+- **THEN** the response is `503 Service Unavailable`
+
+#### Scenario: Hub reachable with nothing available yields an empty list
+
+- **WHEN** LODH answers but CGD has no effective enablement on any onboarded institution
+- **THEN** `GET /api/v1/order-creation/term/currencies?legalEntityCode=CGD` returns `200` with an empty `currencies` list
+
+#### Scenario: Widget offers retry on 503
+
+- **WHEN** the currency step receives `503`
+- **THEN** the widget shows "Unable to load currencies. Please try again." with a Retry action, not the "No currencies are currently available" message
