@@ -21,7 +21,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 /**
- * CGED leg-B Kafka consumer adapter: decodes the canonical {@code RoutingOutcomeV1} payload,
+ * CGEG leg-B Kafka consumer adapter: decodes the canonical {@code RoutingOutcomeV1} payload,
  * filters by {@code originatingLegalEntityCode ∈ {this deployment's own LEs}}, and delegates to
  * {@link ApplyRemoteOrderOutcomeUseCase}. Non-matching events are skipped (the producer is blind to
  * who is listening; the client filters on consume).

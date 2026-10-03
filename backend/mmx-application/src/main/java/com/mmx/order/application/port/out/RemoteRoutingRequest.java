@@ -15,7 +15,7 @@ import java.time.LocalDate;
 import java.util.Objects;
 
 /**
- * Leg-A payload for a remote routed order — sent from the client deployment (CGED) to the hub
+ * Leg-A payload for a remote routed order — sent from the client deployment (CGEG) to the hub
  * deployment (LODH) via {@link RemoteRoutingGateway}.
  *
  * <p>Spec: {@code order-routing} — cross-org routing transport backbone. The request carries:
@@ -24,7 +24,7 @@ import java.util.Objects;
  *   <li>{@code originatingLegalEntityCode} — the client LegalEntityCode, used as the cross-boundary
  *       correlation key with {@code routingId}. NOT a payload-claimed identity — the hub binds the
  *       same value from the transport credential at the gateway (defense-in-depth).
- *   <li>{@code routingId} — the CGED-minted deterministic routing id; LODH trusts it and uses
+ *   <li>{@code routingId} — the CGEG-minted deterministic routing id; LODH trusts it and uses
  *       {@code (originatingLegalEntityCode, routingId)} as its hub-side idempotency key.
  *   <li>{@code portfolioNumber} — the RESOLVED hub-side account (from {@code ExternalIdentityGateway});
  *       travels in the payload; LODH trusts it and does not revalidate.

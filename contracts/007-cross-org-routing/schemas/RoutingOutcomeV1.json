@@ -30,7 +30,7 @@
     "routingId": {
       "type": "string",
       "format": "uuid",
-      "description": "CGED-minted deterministic routing id; half of the cross-boundary correlation key."
+      "description": "CGEG-minted deterministic routing id; half of the cross-boundary correlation key."
     },
     "occurredAt": {
       "type": "string",

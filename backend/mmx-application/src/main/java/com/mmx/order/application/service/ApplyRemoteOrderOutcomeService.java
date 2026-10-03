@@ -13,7 +13,7 @@ import com.mmx.order.domain.model.OrderStatus;
 import java.util.Objects;
 
 /**
- * Client-deployment (e.g. CGED) leg-B inbound: applies a {@link RemoteOrderOutcome} to the linked
+ * Client-deployment (e.g. CGEG) leg-B inbound: applies a {@link RemoteOrderOutcome} to the linked
  * client-side order of a remote routed pair. Spec: {@code order-routing} — silence is never
  * terminal; leg B is the authoritative lifecycle mirror.
  *

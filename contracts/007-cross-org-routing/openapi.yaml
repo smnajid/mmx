@@ -4,7 +4,7 @@ info:
   description: |
     LODH inbound surface for cross-organisation order routing (leg A) and thin-client reference-data
     queries. Exposed by the **hub deployment** (e.g. LODH) for consumption by a remote client
-    deployment (e.g. CGED) whose TradingClient (e.g. CGD) routes to this hub. Mirror: [api-v1.md](./api-v1.md).
+    deployment (e.g. CGEG) whose TradingClient (e.g. CGD) routes to this hub. Mirror: [api-v1.md](./api-v1.md).
 
     ## Transport-proven identity
 
@@ -16,8 +16,8 @@ info:
 
     ## Leg A — synchronous routed-order accept
 
-    `POST /api/v1/cross-org/routed-orders` carries the CGED-resolved hub-side `portfolioNumber`
-    (trusted, not revalidated), a hub-native `institutionCode`, the CGED-minted `routingId`, the
+    `POST /api/v1/cross-org/routed-orders` carries the CGEG-resolved hub-side `portfolioNumber`
+    (trusted, not revalidated), a hub-native `institutionCode`, the CGEG-minted `routingId`, the
     client's `clientCounterpartyAccount` snapshot, and the order fields. For a Subscription or
     Increase the hub validates `(institution, currency, tenor|noticePeriod)` against the originating
     client's grant in-process and rejects a hub institution closed to new business; a Decrease or
@@ -64,7 +64,7 @@ paths:
         HTTP-only). Idempotent on `(originatingLegalEntityCode, routingId)`: a leg-A retry that
         collides with an existing hub-side order resolves to the same accept.
 
-        The supplied `portfolioNumber` is the CGED-resolved hub-side account; the hub trusts it and
+        The supplied `portfolioNumber` is the CGEG-resolved hub-side account; the hub trusts it and
         performs no account-existence or account-ownership check.
       operationId: acceptRoutedOrder
       requestBody:
@@ -363,7 +363,7 @@ components:
         routingId:
           type: string
           format: uuid
-          description: CGED-minted deterministic routing id; the hub trusts it and dedupes on
+          description: CGEG-minted deterministic routing id; the hub trusts it and dedupes on
             `(originatingLegalEntityCode, routingId)`.
         portfolioNumber:
           type: string

@@ -7,7 +7,7 @@ import com.mmx.order.domain.model.PortfolioNumber;
 import java.util.Optional;
 
 /**
- * CGED's cross-org account resolver — maps {@code (client LegalEntityCode, client portfolioNumber,
+ * CGEG's cross-org account resolver — maps {@code (client LegalEntityCode, client portfolioNumber,
  * hub LegalEntityCode) → hub-side portfolioNumber} <em>before</em> the leg-A send.
  *
  * <p>Spec: {@code order-routing} — "Remote account resolution via ExternalIdentityGateway". The
@@ -20,7 +20,7 @@ import java.util.Optional;
  * <p>Adapter placement: adapter over the external External Identity system in
  * {@code mmx-adapter-out-integration}; selected when the connected hub is remote
  * ({@code isRemoteHub}). Deliberately NOT a {@link GlobalAccountDirectory} implementation — it has
- * a different key (client portfolioNumber, not currency), a different location (CGED-side,
+ * a different key (client portfolioNumber, not currency), a different location (CGEG-side,
  * pre-send), and a different trust profile (design D3).
  */
 public interface ExternalIdentityGateway {

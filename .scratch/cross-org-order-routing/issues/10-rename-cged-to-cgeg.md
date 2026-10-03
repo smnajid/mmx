@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: done (2 literals flagged, see Comments)
 
 # Rename the CGD client deployment from CGED to CGEG
 
@@ -23,3 +23,23 @@ and `mmx-cross-org-start.sh`. `CONTEXT.md` and ADR 0007 were corrected to CGEG o
   that occurrence is flagged rather than renamed blindly.
 
 Mechanical rename: red-first TDD waived (note it in the commit message).
+
+## Comments
+
+2026-10-03 — Renamed everywhere outside `openspec/changes/archive/` (history, left as written): Java
+javadoc/comments, test fixtures (`OrganisationCode("CGED")`, `CGED_ORG`, `cged`), error-message text, contract
+descriptions (`contracts/007-cross-org-routing`), main specs and the in-flight `cross-org-routing-hardening`
+change, `.scratch` issues and map, script comments. The ticket's list missed the main specs and the in-flight
+change; both are covered.
+
+Literal values, per the "flag, don't rename blindly" rule:
+
+- `RoutingOutcomeKafkaListener` consumer-group default `mmx-cged-routed-outcome` → `mmx-cgeg-routed-outcome`.
+  Renamed: `application-cgeg.yml` already sets `consumer-group: mmx-cgeg-routed-outcome` for the real CGEG
+  deployment, so the default is only a fallback and no live group changes.
+- **Flagged, not renamed:** `scripts/provision-topics.sh` still uses the env var `CGED_PRINCIPAL`, the default
+  Kafka principal `User:CGED` and the consumer group `${CGED_PRINCIPAL}-consumer-group`. They name a broker identity
+  that must match what the client deployment connects as; nothing in the repo says what that is (dev brokers run
+  without an authorizer). Decide the real principal, then rename the variable (keeping `CGED_PRINCIPAL` as a
+  fallback for existing environments) and the default.
+

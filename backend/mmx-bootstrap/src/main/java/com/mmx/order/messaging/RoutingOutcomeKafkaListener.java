@@ -24,7 +24,7 @@ public class RoutingOutcomeKafkaListener {
 
     @KafkaListener(
             topics = "${mmx.cross-org.outcome-topic:mmx.routed-order-outcome.unconfigured}",
-            groupId = "${mmx.cross-org.consumer-group:mmx-cged-routed-outcome}",
+            groupId = "${mmx.cross-org.consumer-group:mmx-cgeg-routed-outcome}",
             autoStartup = "${mmx.cross-org.consumer-enabled:false}")
     public void onMessage(String payload) {
         consumer.onRoutingOutcome(payload);

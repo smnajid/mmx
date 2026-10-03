@@ -40,7 +40,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * Client-deployment (CGED) leg-B inbound: {@code ApplyRemoteOrderOutcomeUseCase} applies a leg-B
+ * Client-deployment (CGEG) leg-B inbound: {@code ApplyRemoteOrderOutcomeUseCase} applies a leg-B
  * {@link RemoteOrderOutcome} to the linked client-side order. It is idempotent under at-least-once
  * Kafka (re-delivery is a no-op ack; mismatched terminal surfaces as an error), and surfaces a
  * broken routed pair as {@link RoutedOrderPairIntegrityException}.

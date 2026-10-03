@@ -16,7 +16,7 @@ import java.util.Objects;
 import java.util.Set;
 
 /**
- * Client-deployment (e.g. CGED) leg-B Kafka consumer adapter for the routed-order-outcome channel.
+ * Client-deployment (e.g. CGEG) leg-B Kafka consumer adapter for the routed-order-outcome channel.
  * Decodes the canonical {@code RoutingOutcomeV1} payload (see
  * {@code contracts/007-cross-org-routing/schemas/RoutingOutcomeV1.json}), filters by
  * {@code originatingLegalEntityCode ∈ {this deployment's own LegalEntities}}, and delegates to

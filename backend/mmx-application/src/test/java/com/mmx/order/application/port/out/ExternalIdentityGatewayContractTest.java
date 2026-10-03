@@ -12,7 +12,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Port contract for {@link ExternalIdentityGateway} — CGED's cross-org account resolver. Verifies
+ * Port contract for {@link ExternalIdentityGateway} — CGEG's cross-org account resolver. Verifies
  * the port maps {@code (client LegalEntityCode, client portfolioNumber, hub LegalEntityCode) →
  * hub-side portfolioNumber} before the leg-A send, and that an unresolved tuple is reported as
  * empty so the application can transition the client-side order to {@code Rejected} directly (no
@@ -23,7 +23,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * client deployment.
  *
  * <p>Distinct from {@link GlobalAccountDirectory} (local routing): the key here is the client
- * portfolioNumber, not currency, and the resolver lives CGED-side, pre-send (design D3).
+ * portfolioNumber, not currency, and the resolver lives CGEG-side, pre-send (design D3).
  */
 @Tag("fast")
 class ExternalIdentityGatewayContractTest {

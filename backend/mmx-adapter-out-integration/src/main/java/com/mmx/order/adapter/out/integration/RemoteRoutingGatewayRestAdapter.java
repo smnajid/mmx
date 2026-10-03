@@ -17,7 +17,7 @@ import java.time.Duration;
 import java.time.Instant;
 
 /**
- * CGED leg-A REST client. Posts a {@link RemoteRoutingRequest} to the LODH inbound
+ * CGEG leg-A REST client. Posts a {@link RemoteRoutingRequest} to the LODH inbound
  * {@code POST /api/v1/cross-org/routed-orders} endpoint with the {@code X-MMX-CrossOrg-Key} transport
  * credential. On 200 returns accept; on 422 returns reject; on any other status or transport error
  * throws {@link RemoteRoutingTransientFailureException} (the caller's circuit-breaker retries or opens).

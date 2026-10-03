@@ -1,7 +1,7 @@
 package com.mmx.order.application.port.in;
 
 /**
- * Client-deployment (e.g. CGED) leg-B inbound use case: apply a {@link RemoteOrderOutcome} to the
+ * Client-deployment (e.g. CGEG) leg-B inbound use case: apply a {@link RemoteOrderOutcome} to the
  * linked client-side order of a remote routed pair.
  *
  * <p>Spec: {@code order-routing} — silence is never terminal; leg B is the authoritative lifecycle

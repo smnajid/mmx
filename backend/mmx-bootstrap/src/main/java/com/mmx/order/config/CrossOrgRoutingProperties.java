@@ -11,11 +11,11 @@ import java.util.Set;
  *
  * <p>Each deployment is provisioned with:
  * <ul>
- *   <li>{@code role} — {@code hub} (LODH), {@code client} (CGED), or absent (local-only)</li>
+ *   <li>{@code role} — {@code hub} (LODH), {@code client} (CGEG), or absent (local-only)</li>
  *   <li>{@code hub-legal-entity-code} — this hub's LegalEntityCode (hub-side only, e.g. {@code LOC})</li>
- *   <li>{@code remote-routing-gateway.base-url} — LODH inbound endpoint (CGED-side)</li>
+ *   <li>{@code remote-routing-gateway.base-url} — LODH inbound endpoint (CGEG-side)</li>
  *   <li>{@code remote-routing-gateway.credential-key} — this deployment's transport credential</li>
- *   <li>{@code external-identity.base-url} — external identity system endpoint (CGED-side)</li>
+ *   <li>{@code external-identity.base-url} — external identity system endpoint (CGEG-side)</li>
  *   <li>{@code credentials} — map of credential → LegalEntityCode (LODH-side)</li>
  *   <li>{@code retry.*} — gateway retry/circuit-breaker parameters</li>
  *   <li>{@code reference-data-remote} — use remote-backed reference-data adapters (client-side)</li>

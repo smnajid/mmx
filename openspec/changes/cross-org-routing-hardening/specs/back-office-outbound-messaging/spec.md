@@ -6,8 +6,8 @@ The consumer deployment of the `mmx.routed-order-outcome.{orgCode}` channel SHAL
 
 #### Scenario: The dead-letter topic is consumer-owned
 
-- **WHEN** CGED cannot apply a leg-B outcome from `mmx.routed-order-outcome.LODH` after the configured retries
-- **THEN** the message is published to `mmx.routed-order-outcome.LODH.dlq`, which CGED owns and produces to; LODH is not involved
+- **WHEN** CGEG cannot apply a leg-B outcome from `mmx.routed-order-outcome.LODH` after the configured retries
+- **THEN** the message is published to `mmx.routed-order-outcome.LODH.dlq`, which CGEG owns and produces to; LODH is not involved
 
 #### Scenario: Dead-letter depth is observable
 

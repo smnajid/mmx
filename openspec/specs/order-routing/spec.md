@@ -209,18 +209,18 @@ When a TradingClient's connected TradingHub is in a different Organisation and d
 
 #### Scenario: Leg A is a synchronous REST handshake
 
-- **WHEN** CGD (Organisation `CGED`) routes an order to LOC (Organisation `LODH`)
-- **THEN** CGED's `RemoteRoutingGateway` makes a synchronous REST call to a LODH inbound endpoint and receives an accept or reject response before the client-side order transitions
+- **WHEN** CGD (Organisation `CGEG`) routes an order to LOC (Organisation `LODH`)
+- **THEN** CGEG's `RemoteRoutingGateway` makes a synchronous REST call to a LODH inbound endpoint and receives an accept or reject response before the client-side order transitions
 
 #### Scenario: Leg B is asynchronous Kafka on an org-suffixed topic
 
 - **WHEN** LODH emits a routed-order outcome for a CGD order
-- **THEN** the outcome is published to the LODH-owned topic `mmx.routed-order-outcome.LODH` via the transactional outbox, and CGED consumes it under a consume-only ACL
+- **THEN** the outcome is published to the LODH-owned topic `mmx.routed-order-outcome.LODH` via the transactional outbox, and CGEG consumes it under a consume-only ACL
 
 #### Scenario: The hub producer is blind to consumers
 
 - **WHEN** LODH publishes a leg-B outcome
-- **THEN** LODH does not address a specific client deployment; CGED's consumer filters `originatingLegalEntityCode` to select its own orders
+- **THEN** LODH does not address a specific client deployment; CGEG's consumer filters `originatingLegalEntityCode` to select its own orders
 
 #### Scenario: Local routing uses neither leg
 
@@ -301,7 +301,7 @@ For a remote routed order, the hub deployment SHALL trust the client-minted `rou
 
 #### Scenario: A retry resolves to the existing hub-side order
 
-- **WHEN** CGED retries a leg-A request for the same client-side order and the hub-side order already exists
+- **WHEN** CGEG retries a leg-A request for the same client-side order and the hub-side order already exists
 - **THEN** the unique-index violation is caught, the existing hub-side order is returned, and no duplicate is created
 
 #### Scenario: The partial unique index does not affect local desk orders
@@ -364,7 +364,7 @@ A remote client-side order in `Received` SHALL **never** be auto-terminalized on
 
 #### Scenario: A lost leg-A response is closed by leg-B ACCEPTED
 
-- **WHEN** CGED sends a leg-A request, LODH accepts and creates the hub-side order, but the HTTP response is lost
+- **WHEN** CGEG sends a leg-A request, LODH accepts and creates the hub-side order, but the HTTP response is lost
 - **THEN** the client-side order stays `Received` until the leg-B `ACCEPTED` event arrives and transitions it to `Routed`
 
 #### Scenario: Leg-B ACCEPTED no-ops when leg A already delivered
@@ -391,12 +391,12 @@ A remote routing-failure reject (grant/currency/tenor invalid at the hub's `Acce
 #### Scenario: Routing-failure reject closes via HTTP only
 
 - **WHEN** LODH's `AcceptRoutedHubOrderUseCase` rejects a leg-A request for a grant violation
-- **THEN** CGED transitions the client-side order to `Rejected` from the HTTP reject response, and no leg-B event is emitted for this reject
+- **THEN** CGEG transitions the client-side order to `Rejected` from the HTTP reject response, and no leg-B event is emitted for this reject
 
 #### Scenario: Trader-reject rides leg B
 
 - **WHEN** the hub trader rejects an existing remote hub-side order
-- **THEN** a leg-B `REJECTED` event is emitted and CGED applies it to transition the client-side order to `Rejected`
+- **THEN** a leg-B `REJECTED` event is emitted and CGEG applies it to transition the client-side order to `Rejected`
 
 #### Scenario: Lost routing-failure reject response retries
 
@@ -411,7 +411,7 @@ For a leg-A remote routing request, the transport credential SHALL bind to exact
 
 #### Scenario: Credential binds to one legal entity
 
-- **WHEN** CGED's `RemoteRoutingGateway` calls LODH's inbound endpoint
+- **WHEN** CGEG's `RemoteRoutingGateway` calls LODH's inbound endpoint
 - **THEN** LODH's gateway derives `originatingLegalEntityCode = CGD` from the transport credential, not from the request payload
 
 #### Scenario: Unknown credential is rejected at the gateway

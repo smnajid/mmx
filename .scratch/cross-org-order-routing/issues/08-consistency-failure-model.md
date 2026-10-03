@@ -24,7 +24,7 @@ With atomicity gone across the boundary, define the **end-to-end consistency con
 ```
    Received ──(hub accepts: leg-A response OR leg-B ACCEPTED)──▶ Routed
        │                                                              │
-       │ (CGED-side unresolved account: no round-trip)                │
+       │ (CGEG-side unresolved account: no round-trip)                │
        │ (LODH intake routing-failure: leg-A HTTP reject)             │ (hub terminal: leg-B event)
        ▼                                                              ▼
     Rejected                                              Executed / Rejected / Cancelled
@@ -37,7 +37,7 @@ No new transient/in-flight state — see *Open* thread 3 (pending confirmation).
 
 | # | Edge | Client-side state | Closer | Source |
 |---|---|---|---|---|
-| 1 | CGED can't resolve global account *before send* | `Received` → `Rejected` | No round-trip; CGED rejects directly (origin=`ROUTING_FAILURE`) | 03 |
+| 1 | CGEG can't resolve global account *before send* | `Received` → `Rejected` | No round-trip; CGEG rejects directly (origin=`ROUTING_FAILURE`) | 03 |
 | 2 | LODH intake routing-failure (grant/currency/tenor invalid at accept) | `Received` | HTTP-only reject response → `Rejected` (origin=`ROUTING_FAILURE`). **No leg-B event** (no hub-side order created → nothing to mirror). If HTTP lost → gateway retry (edge 8); if perpetually lost → edge 7 (DR). | 08 (coherence-review correction of 05 amend) |
 | 3 | Leg-A accepted at LODH, HTTP response lost | `Received` | Leg-B `ACCEPTED` → `Routed` (idempotent no-op if leg A already delivered) | 05 amend |
 | 4 | Hub trader rejects | `Routed` | Leg-B `REJECTED` (origin=`TRADER`) → `Rejected` | 05 + origin |
@@ -62,12 +62,12 @@ This decision operationalizes the amendment's "silence is never terminal" for th
 
 Pair-integrity detection stays **purely event-driven** (at apply time in `ApplyRemoteOrderOutcomeUseCase`, per 05 decision 4). No domain-level periodic reconciliation sweep is added.
 
-The "leg B never fired" case (LODH terminal, CGED consumer down / broker partitioned / LODH outbox relay stalled) is covered by three existing infra-layer signals, not by domain architecture:
-- **Kafka consumer-lag monitoring** (CGED) — catches a down/lagging consumer.
+The "leg B never fired" case (LODH terminal, CGEG consumer down / broker partitioned / LODH outbox relay stalled) is covered by three existing infra-layer signals, not by domain architecture:
+- **Kafka consumer-lag monitoring** (CGEG) — catches a down/lagging consumer.
 - **Broker health monitoring** — catches broker partitions.
 - **Outbox-table age monitoring** (LODH) — catches a stalled outbox relay (rows older than threshold T).
 
-As long as these three are operational, there is no "half-terminal pair that nobody noticed" gap: apply-time integrity catches apply failures, infra monitoring catches delays, DR (edge 7) catches catastrophic data loss. A "safety net" domain sweep would duplicate infra monitoring without being able to definitively detect desync from CGED's own data (CGED can't know whether LODH is terminal — it would only surface stale-`Routed`, which is an ops dashboard query, not a mechanism).
+As long as these three are operational, there is no "half-terminal pair that nobody noticed" gap: apply-time integrity catches apply failures, infra monitoring catches delays, DR (edge 7) catches catastrophic data loss. A "safety net" domain sweep would duplicate infra monitoring without being able to definitively detect desync from CGEG's own data (CGEG can't know whether LODH is terminal — it would only surface stale-`Routed`, which is an ops dashboard query, not a mechanism).
 
 Boundary: pair-integrity at apply time = **architecture** (in scope). The three infra signals + stale-`Routed` dashboards = **ops SLO work** (the fog). Catastrophic loss = **DR** (edge 7).
 

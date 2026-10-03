@@ -14,7 +14,7 @@ import java.time.Duration;
 import java.time.Instant;
 
 /**
- * CGED leg-A {@link RemoteRoutingGateway} decorator that owns the retry + circuit-breaker policy,
+ * CGEG leg-A {@link RemoteRoutingGateway} decorator that owns the retry + circuit-breaker policy,
  * transparent to the calling use case (silence is never terminal). The order stays {@code Received}
  * on transients: a definitive {@link RemoteRoutingResponse} (accept or reject) resets the failure
  * counter and returns; a {@link RemoteRoutingTransientFailureException} from the delegate is retried

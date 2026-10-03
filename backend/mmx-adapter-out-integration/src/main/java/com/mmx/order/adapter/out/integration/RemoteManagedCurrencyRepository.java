@@ -16,7 +16,7 @@ import java.util.stream.Collectors;
 
 /**
  * Remote-backed {@link ManagedCurrencyRepository}: reads the hub's managed currencies live from LODH
- * via REST. CGED stores zero hub reference data locally.
+ * via REST. CGEG stores zero hub reference data locally.
  */
 public final class RemoteManagedCurrencyRepository implements ManagedCurrencyRepository {
 
@@ -52,7 +52,7 @@ public final class RemoteManagedCurrencyRepository implements ManagedCurrencyRep
     @Override
     public ManagedCurrency save(ManagedCurrency currency) {
         throw new UnsupportedOperationException(
-                "Remote-backed ManagedCurrencyRepository is read-only; CGED does not master hub reference data");
+                "Remote-backed ManagedCurrencyRepository is read-only; CGEG does not master hub reference data");
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

@@ -31,7 +31,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * CGED REST client for leg-A: calls LODH {@code POST /api/v1/cross-org/routed-orders} with the
+ * CGEG REST client for leg-A: calls LODH {@code POST /api/v1/cross-org/routed-orders} with the
  * resolved hub-side portfolio + hub-native institution code, the {@code X-MMX-CrossOrg-Key} transport
  * credential, and returns the accept/reject response.
  *

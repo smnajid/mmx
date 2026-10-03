@@ -22,24 +22,24 @@ class LegalEntityCrossOrgTenancyTest {
 
     private LegalEntityRegistry registry;
     private Organisation lodh;
-    private Organisation cged;
+    private Organisation cgeg;
     private LegalEntity loc;
 
     @BeforeEach
     void setUp() {
         registry = new LegalEntityRegistry();
         lodh = new Organisation(new OrganisationCode("LODH"));
-        cged = new Organisation(new OrganisationCode("CGED"));
+        cgeg = new Organisation(new OrganisationCode("CGEG"));
         loc = lodh.createTradingHub(new LegalEntityCode("LOC"), registry);
     }
 
     @Test
     void tradingClient_mayConnectToHubInDifferentOrganisation() {
-        LegalEntity cgd = cged.createTradingClient(new LegalEntityCode("CGD"), loc, registry);
+        LegalEntity cgd = cgeg.createTradingClient(new LegalEntityCode("CGD"), loc, registry);
 
         assertThat(cgd.isTradingClient()).isTrue();
         assertThat(((TradingClientRole) cgd.getRole()).connectedHubCode()).isEqualTo(new LegalEntityCode("LOC"));
-        assertThat(cgd.getOrganisationCode()).isEqualTo(new OrganisationCode("CGED"));
+        assertThat(cgd.getOrganisationCode()).isEqualTo(new OrganisationCode("CGEG"));
         assertThat(loc.getOrganisationCode()).isEqualTo(new OrganisationCode("LODH"));
     }
 
@@ -63,22 +63,22 @@ class LegalEntityCrossOrgTenancyTest {
 
     @Test
     void hubLocality_isDerivedFromOrganisationCodeComparison() {
-        LegalEntity cgd = cged.createTradingClient(new LegalEntityCode("CGD"), loc, registry);
+        LegalEntity cgd = cgeg.createTradingClient(new LegalEntityCode("CGD"), loc, registry);
         LegalEntity par = lodh.createTradingClient(new LegalEntityCode("PAR"), loc, registry);
 
-        // CGD's deployment org (CGED) ≠ connected hub's org (LODH) → REMOTE
-        assertThat(cgd.hubLocality(cged.getCode(), loc.getOrganisationCode())).isEqualTo(HubLocality.REMOTE);
+        // CGD's deployment org (CGEG) ≠ connected hub's org (LODH) → REMOTE
+        assertThat(cgd.hubLocality(cgeg.getCode(), loc.getOrganisationCode())).isEqualTo(HubLocality.REMOTE);
         // PAR's deployment org (LODH) = connected hub's org (LODH) → LOCAL
         assertThat(par.hubLocality(lodh.getCode(), loc.getOrganisationCode())).isEqualTo(HubLocality.LOCAL);
     }
 
     @Test
     void isLocalHub_and_isRemoteHub_deriveFromOrgCodeNotAStoredFlag() {
-        LegalEntity cgd = cged.createTradingClient(new LegalEntityCode("CGD"), loc, registry);
+        LegalEntity cgd = cgeg.createTradingClient(new LegalEntityCode("CGD"), loc, registry);
         LegalEntity par = lodh.createTradingClient(new LegalEntityCode("PAR"), loc, registry);
 
-        assertThat(cgd.isLocalHub(cged.getCode(), loc.getOrganisationCode())).isFalse();
-        assertThat(cgd.isRemoteHub(cged.getCode(), loc.getOrganisationCode())).isTrue();
+        assertThat(cgd.isLocalHub(cgeg.getCode(), loc.getOrganisationCode())).isFalse();
+        assertThat(cgd.isRemoteHub(cgeg.getCode(), loc.getOrganisationCode())).isTrue();
 
         assertThat(par.isLocalHub(lodh.getCode(), loc.getOrganisationCode())).isTrue();
         assertThat(par.isRemoteHub(lodh.getCode(), loc.getOrganisationCode())).isFalse();
@@ -86,15 +86,15 @@ class LegalEntityCrossOrgTenancyTest {
 
     @Test
     void hubLocality_usesDeploymentOrganisation_notTheEntitysOwnOrganisation() {
-        LegalEntity cgd = cged.createTradingClient(new LegalEntityCode("CGD"), loc, registry);
+        LegalEntity cgd = cgeg.createTradingClient(new LegalEntityCode("CGD"), loc, registry);
 
         // Spec: locality compares the connected hub's org to THE DEPLOYMENT'S OWN org, not to this
-        // entity's own organisation. CGD's own org is CGED and it connects to LOC (LODH). Supplying
+        // entity's own organisation. CGD's own org is CGEG and it connects to LOC (LODH). Supplying
         // different deployment orgs must yield different localities — proving the deployment org is
         // authoritative and the entity's org is NOT silently substituted (a foreign-org hub holding
         // CGD in its client list must not reuse CGD's org as its deployment org).
-        assertThat(cgd.hubLocality(new OrganisationCode("CGED"), loc.getOrganisationCode()))
-                .isEqualTo(HubLocality.REMOTE); // deployment CGED vs hub LODH
+        assertThat(cgd.hubLocality(new OrganisationCode("CGEG"), loc.getOrganisationCode()))
+                .isEqualTo(HubLocality.REMOTE); // deployment CGEG vs hub LODH
         assertThat(cgd.hubLocality(new OrganisationCode("LODH"), loc.getOrganisationCode()))
                 .isEqualTo(HubLocality.LOCAL); // deployment LODH vs hub LODH
     }
